@@ -1,0 +1,15 @@
+body {
+    padding-top: 0;
+    margin-top: -4px;
+    padding-bottom: 1em;
+    padding-left: 2em;
+    padding-right: 2em;
+}
+
+ul.breadcrumb li {
+    margin-top: 2px;
+}
+
+h1 {
+    font-size: 2.1em;
+}

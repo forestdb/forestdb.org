@@ -1,0 +1,50 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Infinite Relational Model</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/base.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="css/pygments.css" />
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+  </head>
+
+  <body>
+
+    <div class="container">
+      <ul class="breadcrumb">
+        <li><a href="index.html">Home</a> <span class="divider">/</span></li>
+        <li class="active">Infinite Relational Model</li>
+      </ul>
+
+      <h1>Infinite Relational Model</h1>
+
+      <p>The Infinite Relational Model (IRM) is a nonparametric model that, given data involving different kinds of entities, discovers which kinds there are and which relations hold between kinds. From the paper by Kemp et al.:</p>
+<blockquote>
+<p>&quot;Suppose we are given one or more relations involving one or more types. The goal of the IRM is to partition each type into clusters, where a good set of partitions allows relationships between entities to be predicted by their cluster assignments. For example, we may have a single type <em>people</em> and a single relation <em>likes(i,j)</em> which indicates whether person <em>i</em> likes person <em>j</em>. Our goal is to organize the entities into clusters that relate to each other in predictable ways (Figure 1a).&quot;</p>
+</blockquote>
+
+
+      <div class="highlight"><pre><span class="p">(</span><span class="k">define </span><span class="nv">objects</span> <span class="p">(</span><span class="nb">list </span><span class="ss">&#39;bob</span> <span class="ss">&#39;jane</span> <span class="ss">&#39;mary</span> <span class="ss">&#39;steve</span><span class="p">))</span>
+
+<span class="p">(</span><span class="nf">query</span>
+ <span class="p">(</span><span class="k">define </span><span class="nv">get-cat</span> <span class="p">(</span><span class="nf">DPmem</span> <span class="mf">1.0</span> <span class="nv">gensym</span><span class="p">))</span>
+ <span class="p">(</span><span class="k">define </span><span class="nv">type</span> <span class="p">(</span><span class="nf">mem</span> <span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">obj</span><span class="p">)</span> <span class="p">(</span><span class="nf">get-cat</span><span class="p">))))</span>
+ <span class="p">(</span><span class="k">define </span><span class="nv">reln-obs-fn</span> <span class="p">(</span><span class="nf">mem</span> <span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">cat1</span> <span class="nv">cat2</span><span class="p">)</span> <span class="p">(</span><span class="nf">make-beta-binomial</span> <span class="mf">1.0</span> <span class="mf">1.0</span><span class="p">))))</span>
+ <span class="p">(</span><span class="k">define </span><span class="nv">observe</span> <span class="p">(</span><span class="nf">mem</span> <span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">obj1</span> <span class="nv">obj2</span><span class="p">)</span>
+                        <span class="p">(</span><span class="nf">sample</span> <span class="p">(</span><span class="nf">reln-obs-fn</span> <span class="p">(</span><span class="nf">type</span> <span class="nv">obj1</span><span class="p">)</span>
+                                             <span class="p">(</span><span class="nf">type</span> <span class="nv">obj2</span><span class="p">))))))</span>
+ <span class="p">(</span><span class="nb">map </span><span class="nv">type</span> <span class="nv">objects</span><span class="p">)</span>
+ <span class="p">(</span><span class="k">and </span><span class="p">(</span><span class="nf">observe</span> <span class="ss">&#39;bob</span> <span class="ss">&#39;jane</span><span class="p">)</span>
+      <span class="p">(</span><span class="nb">not </span><span class="p">(</span><span class="nf">observe</span> <span class="ss">&#39;jane</span> <span class="ss">&#39;steve</span><span class="p">))</span>
+      <span class="p">(</span><span class="nf">observe</span> <span class="ss">&#39;mary</span> <span class="ss">&#39;steve</span><span class="p">)))</span>
+</pre></div>
+
+
+      <p><span class="label">clustering</span> <span class="label">cognitive science</span> <span class="label">nonparametric statistics</span></p>
+
+    </div>
+
+  </body>
+</html>
+ 

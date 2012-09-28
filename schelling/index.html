@@ -1,0 +1,58 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Schelling coordination game</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/base.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="/css/pygments.css" />
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/base.js"></script>
+  </head>
+
+  <body>
+
+    <div class="container">
+      <ul class="breadcrumb">
+        <li><a href="/">Home</a> <span class="divider">/</span></li>
+        <li class="active">Schelling coordination game</li>
+      </ul>
+
+      <h1>Schelling coordination game</h1>
+
+      <p>Two agents, Alice and Bob, want to meet. They choose which bar to go to by recursively reasoning about one another <span class="citation">(Schelling 1960)</span>.</p>
+
+
+      <div class="highlight"><pre><span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">sample-location</span><span class="p">)</span>
+  <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nf">flip</span> <span class="o">.</span><span class="mi">55</span><span class="p">)</span>
+      <span class="ss">&#39;popular-bar</span>
+      <span class="ss">&#39;unpopular-bar</span><span class="p">))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">alice</span> <span class="nv">depth</span><span class="p">)</span>
+  <span class="p">(</span><span class="nf">query</span>
+   <span class="p">(</span><span class="k">define </span><span class="nv">alice-location</span> <span class="p">(</span><span class="nf">sample-location</span><span class="p">))</span>
+   <span class="nv">alice-location</span>
+   <span class="p">(</span><span class="nb">equal? </span><span class="nv">alice-location</span> <span class="p">(</span><span class="nf">bob</span> <span class="p">(</span><span class="nb">- </span><span class="nv">depth</span> <span class="mi">1</span><span class="p">)))))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">bob</span> <span class="nv">depth</span><span class="p">)</span>
+  <span class="p">(</span><span class="nf">query</span>
+   <span class="p">(</span><span class="k">define </span><span class="nv">bob-location</span> <span class="p">(</span><span class="nf">sample-location</span><span class="p">))</span>
+   <span class="nv">bob-location</span>
+   <span class="p">(</span><span class="k">or </span><span class="p">(</span><span class="nb">= </span><span class="nv">depth</span> <span class="mi">0</span><span class="p">)</span>
+       <span class="p">(</span><span class="nb">equal? </span><span class="nv">bob-location</span> <span class="p">(</span><span class="nf">alice</span> <span class="nv">depth</span><span class="p">)))))</span>
+</pre></div>
+
+
+      
+<p>Schelling, Thomas C. 1960. <em>The Strategy of Conflict</em>. Harvard University Press.</p>
+
+
+      <p><span class="label">theory of mind</span> <span class="label">game theory</span></p>
+
+    </div>
+
+    <noscript><p><img alt="" width="1" height="1" src="//in.getclicky.com/266085ns.gif" /></p></noscript>
+
+  </body>
+</html>
+ 

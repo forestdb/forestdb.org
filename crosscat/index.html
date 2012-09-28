@@ -1,0 +1,68 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>CrossCat</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/base.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="/css/pygments.css" />
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/base.js"></script>
+  </head>
+
+  <body>
+
+    <div class="container">
+      <ul class="breadcrumb">
+        <li><a href="/">Home</a> <span class="divider">/</span></li>
+        <li class="active">CrossCat</li>
+      </ul>
+
+      <h1>CrossCat</h1>
+
+      <p>CrossCat is a generative model that can be used for categorizing objects given their features. The model assumes that each data point is generated using multiple systems of categories; each such system accounts for some subset of the features <span class="citation">(Shafto et al. 2006; Goodman et al. 2011)</span>.</p>
+
+
+      <div class="highlight"><pre><span class="p">(</span><span class="nf">query</span>
+
+ <span class="p">(</span><span class="k">define </span><span class="nv">kind-distribution</span> <span class="p">(</span><span class="nf">DPmem</span> <span class="mf">1.0</span> <span class="nv">gensym</span><span class="p">))</span>
+
+ <span class="p">(</span><span class="k">define </span><span class="nv">feature-&gt;kind</span>
+   <span class="p">(</span><span class="nf">mem</span> <span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">feature</span><span class="p">)</span> <span class="p">(</span><span class="nf">kind-distribution</span><span class="p">))))</span>
+
+ <span class="p">(</span><span class="k">define </span><span class="nv">kind-&gt;class-distribution</span>
+   <span class="p">(</span><span class="nf">mem</span> <span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">kind</span><span class="p">)</span> <span class="p">(</span><span class="nf">DPmem</span> <span class="mf">1.0</span> <span class="nv">gensym</span><span class="p">))))</span>
+
+ <span class="p">(</span><span class="k">define </span><span class="nv">feature-kind/object-&gt;class</span>
+   <span class="p">(</span><span class="nf">mem</span> <span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">kind</span> <span class="nv">object</span><span class="p">)</span> <span class="p">(</span><span class="nf">sample</span> <span class="p">(</span><span class="nf">kind-&gt;class-distribution</span> <span class="nv">kind</span><span class="p">)))))</span>
+
+ <span class="p">(</span><span class="k">define </span><span class="nv">class-&gt;parameters</span>
+   <span class="p">(</span><span class="nf">mem</span> <span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">object-class</span><span class="p">)</span> <span class="p">(</span><span class="nf">first</span> <span class="p">(</span><span class="nf">beta</span> <span class="mi">1</span> <span class="mi">1</span><span class="p">)))))</span>
+
+ <span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">observe</span> <span class="nv">object</span> <span class="nv">feature</span><span class="p">)</span>
+   <span class="p">(</span><span class="nf">flip</span> <span class="p">(</span><span class="nf">class-&gt;parameters</span> <span class="p">(</span><span class="nf">feature-kind/object-&gt;class</span> <span class="p">(</span><span class="nf">feature-&gt;kind</span> <span class="nv">feature</span><span class="p">)</span> <span class="nv">object</span><span class="p">))))</span>
+
+ <span class="p">(</span><span class="nb">list </span><span class="p">(</span><span class="nf">observe</span> <span class="ss">&#39;spinach</span> <span class="ss">&#39;breakfast</span><span class="p">)</span>
+       <span class="p">(</span><span class="nf">observe</span> <span class="ss">&#39;eggs</span> <span class="ss">&#39;breakfast</span><span class="p">))</span>
+
+ <span class="p">(</span><span class="k">and </span><span class="p">(</span><span class="nf">observe</span> <span class="ss">&#39;eggs</span> <span class="ss">&#39;breakfast</span><span class="p">)</span>
+      <span class="p">(</span><span class="nf">observe</span> <span class="ss">&#39;toast</span> <span class="ss">&#39;breakfast</span><span class="p">)</span>
+      <span class="p">(</span><span class="nf">observe</span> <span class="ss">&#39;eggs</span> <span class="ss">&#39;dinner</span><span class="p">)</span>
+      <span class="p">(</span><span class="nf">observe</span> <span class="ss">&#39;spinach</span> <span class="ss">&#39;dinner</span><span class="p">)))</span>
+</pre></div>
+
+
+      
+<p>Goodman, Noah D., Joshua B. Tenenbaum, Timothy J. O’Donnell, and the Church Working Group. 2011. “Probabilistic Models of Cognition.” <a href="http://projects.csail.mit.edu/church/wiki/Church" title="http://projects.csail.mit.edu/church/wiki/Church">http://projects.csail.mit.edu/church/wiki/Church</a>.</p>
+<p>Shafto, P., Charles Kemp, Vikash Mansinghka, M. Gordon, and Joshua B. Tenenbaum. 2006. “Learning cross-cutting systems of categories.” <em>Proceedings of the 28th Annual Conference of the Cognitive Science Society</em>: 2146–2151.</p>
+
+
+      <p><span class="label">nonparametric models</span> <span class="label">categorization</span></p>
+
+    </div>
+
+    <noscript><p><img alt="" width="1" height="1" src="//in.getclicky.com/266085ns.gif" /></p></noscript>
+
+  </body>
+</html>
+ 

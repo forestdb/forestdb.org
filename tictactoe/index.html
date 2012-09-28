@@ -1,0 +1,119 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Tic-tac-toe</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/base.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="/css/pygments.css" />
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/base.js"></script>
+  </head>
+
+  <body>
+
+    <div class="container">
+      <ul class="breadcrumb">
+        <li><a href="/">Home</a> <span class="divider">/</span></li>
+        <li class="active">Tic-tac-toe</li>
+      </ul>
+
+      <h1>Tic-tac-toe</h1>
+
+      <p>Each player chooses actions by sampling an action, simulating the game until the end, and choosing actions in proportion to how likely they are to lead to a successful outcome at the end of the game. This mental simulation includes reasoning about both players' reasoning at all future game steps, including their reasoning about the other player.</p>
+
+
+      <div class="highlight"><pre><span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">valid-move?</span> <span class="nv">move</span> <span class="nv">state</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">equal? </span><span class="p">(</span><span class="nb">list-ref </span><span class="p">(</span><span class="nb">list-ref </span><span class="nv">state</span> <span class="p">(</span><span class="nf">first</span> <span class="nv">move</span><span class="p">))</span>
+                    <span class="p">(</span><span class="nf">second</span> <span class="nv">move</span><span class="p">))</span>
+          <span class="mi">0</span><span class="p">))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">action-prior</span> <span class="nv">state</span><span class="p">)</span>
+  <span class="p">(</span><span class="nf">query</span>
+   <span class="p">(</span><span class="k">define </span><span class="nv">action</span> <span class="p">(</span><span class="nb">list </span><span class="p">(</span><span class="nf">sample-integer</span> <span class="mi">3</span><span class="p">)</span> <span class="p">(</span><span class="nf">sample-integer</span> <span class="mi">3</span><span class="p">)))</span>
+   <span class="nv">action</span>
+   <span class="p">(</span><span class="nf">valid-move?</span> <span class="nv">action</span> <span class="nv">state</span><span class="p">)))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">transition</span> <span class="nv">state</span> <span class="nv">action</span> <span class="nv">player</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">map </span><span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">row</span> <span class="nv">i</span><span class="p">)</span>
+         <span class="p">(</span><span class="nb">map </span><span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">s</span> <span class="nv">j</span><span class="p">)</span>
+                <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">equal? </span><span class="p">(</span><span class="nb">list </span><span class="nv">i</span> <span class="nv">j</span><span class="p">)</span> <span class="nv">action</span><span class="p">)</span>
+                    <span class="nv">player</span>
+                    <span class="nv">s</span><span class="p">))</span>
+              <span class="nv">row</span>
+              <span class="p">(</span><span class="nf">iota</span> <span class="p">(</span><span class="nb">length </span><span class="nv">row</span><span class="p">))))</span>
+       <span class="nv">state</span>
+       <span class="p">(</span><span class="nf">iota</span> <span class="p">(</span><span class="nb">length </span><span class="nv">state</span><span class="p">))))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">diag1</span> <span class="nv">state</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">map </span><span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">x</span> <span class="nv">i</span><span class="p">)</span> <span class="p">(</span><span class="nb">list-ref </span><span class="nv">x</span> <span class="nv">i</span><span class="p">))</span>
+       <span class="nv">state</span> <span class="p">(</span><span class="nf">iota</span> <span class="p">(</span><span class="nb">length </span><span class="nv">state</span><span class="p">))))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">diag2</span> <span class="nv">state</span><span class="p">)</span>
+  <span class="p">(</span><span class="k">let </span><span class="p">(</span><span class="err">[</span><span class="nv">len</span> <span class="p">(</span><span class="nb">length </span><span class="nv">state</span><span class="p">)</span><span class="err">]</span><span class="p">)</span>
+    <span class="p">(</span><span class="nb">map </span><span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">x</span> <span class="nv">i</span><span class="p">)</span> <span class="p">(</span><span class="nb">list-ref </span><span class="nv">x</span> <span class="p">(</span><span class="nb">- </span><span class="nv">len</span> <span class="p">(</span><span class="nb">+ </span><span class="nv">i</span> <span class="mi">1</span><span class="p">))))</span>
+         <span class="nv">state</span> <span class="p">(</span><span class="nf">iota</span> <span class="nv">len</span><span class="p">))))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">win?</span> <span class="nv">player</span> <span class="nv">state</span><span class="p">)</span>
+  <span class="p">(</span><span class="k">let </span><span class="p">(</span><span class="err">[</span><span class="nv">check</span> <span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">elts</span><span class="p">)</span> <span class="p">(</span><span class="nf">all</span> <span class="p">(</span><span class="nb">map </span><span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">x</span><span class="p">)</span> <span class="p">(</span><span class="nb">eq? </span><span class="nv">x</span> <span class="nv">player</span><span class="p">))</span> <span class="nv">elts</span><span class="p">)))</span><span class="err">]</span><span class="p">)</span>
+    <span class="p">(</span><span class="nf">any</span> <span class="p">(</span><span class="nb">map </span><span class="nv">check</span>
+              <span class="p">(</span><span class="nb">list </span><span class="p">(</span><span class="nf">first</span> <span class="nv">state</span><span class="p">)</span> <span class="p">(</span><span class="nf">second</span> <span class="nv">state</span><span class="p">)</span> <span class="p">(</span><span class="nf">third</span> <span class="nv">state</span><span class="p">)</span>
+                    <span class="p">(</span><span class="nb">map </span><span class="nv">first</span> <span class="nv">state</span><span class="p">)</span> <span class="p">(</span><span class="nb">map </span><span class="nv">second</span> <span class="nv">state</span><span class="p">)</span> <span class="p">(</span><span class="nb">map </span><span class="nv">third</span> <span class="nv">state</span><span class="p">)</span>
+                    <span class="p">(</span><span class="nf">diag1</span> <span class="nv">state</span><span class="p">)</span> <span class="p">(</span><span class="nf">diag2</span> <span class="nv">state</span><span class="p">))))))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">flatten</span> <span class="nv">lst</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">apply </span><span class="nv">append</span> <span class="nv">lst</span><span class="p">))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">terminal?</span> <span class="nv">state</span><span class="p">)</span>
+  <span class="p">(</span><span class="nf">all</span> <span class="p">(</span><span class="nb">map </span><span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">x</span><span class="p">)</span> <span class="p">(</span><span class="nb">not </span><span class="p">(</span><span class="nb">equal? </span><span class="nv">x</span> <span class="mi">0</span><span class="p">)))</span>
+            <span class="p">(</span><span class="nf">flatten</span> <span class="nv">state</span><span class="p">))))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">other-player</span> <span class="nv">player</span><span class="p">)</span>
+  <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">eq? </span><span class="nv">player</span> <span class="ss">&#39;x</span><span class="p">)</span> <span class="ss">&#39;o</span> <span class="ss">&#39;x</span><span class="p">))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">draw?</span> <span class="nv">outcome</span><span class="p">)</span>
+  <span class="p">(</span><span class="k">and </span><span class="p">(</span><span class="nb">not </span><span class="p">(</span><span class="nf">win?</span> <span class="ss">&#39;x</span> <span class="nv">outcome</span><span class="p">))</span>
+       <span class="p">(</span><span class="nb">not </span><span class="p">(</span><span class="nf">win?</span> <span class="ss">&#39;o</span> <span class="nv">outcome</span><span class="p">))))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">exp-utility</span> <span class="nv">outcome</span> <span class="nv">player</span><span class="p">)</span>
+  <span class="p">(</span><span class="k">cond </span><span class="err">[</span><span class="p">(</span><span class="nf">win?</span> <span class="nv">player</span> <span class="nv">outcome</span><span class="p">)</span> <span class="mf">1.0</span><span class="err">]</span>
+        <span class="err">[</span><span class="p">(</span><span class="nf">draw?</span> <span class="nv">outcome</span><span class="p">)</span> <span class="mf">0.1</span><span class="err">]</span>
+        <span class="err">[</span><span class="k">else </span><span class="mf">0.01</span><span class="err">]</span><span class="p">))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">sample-action</span> <span class="nv">state</span> <span class="nv">player</span><span class="p">)</span>
+  <span class="p">(</span><span class="nf">query</span>
+   <span class="p">(</span><span class="k">define </span><span class="nv">action</span> <span class="p">(</span><span class="nf">action-prior</span> <span class="nv">state</span><span class="p">))</span>
+   <span class="p">(</span><span class="k">define </span><span class="nv">outcome</span> <span class="p">(</span><span class="nf">sample-outcome</span> <span class="nv">state</span> <span class="nv">action</span> <span class="nv">player</span><span class="p">))</span>
+   <span class="nv">action</span>
+   <span class="p">(</span><span class="nf">flip</span> <span class="p">(</span><span class="nf">exp-utility</span> <span class="nv">outcome</span> <span class="nv">player</span><span class="p">))))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">sample-outcome</span> <span class="nv">state</span> <span class="nv">action</span> <span class="nv">player</span><span class="p">)</span>
+  <span class="p">(</span><span class="k">let </span><span class="p">(</span><span class="err">[</span><span class="nv">next-state</span> <span class="p">(</span><span class="nf">transition</span> <span class="nv">state</span> <span class="nv">action</span> <span class="nv">player</span><span class="p">)</span><span class="err">]</span><span class="p">)</span>
+    <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nf">terminal?</span> <span class="nv">next-state</span><span class="p">)</span>
+        <span class="nv">next-state</span>
+        <span class="p">(</span><span class="k">let </span><span class="p">(</span><span class="err">[</span><span class="nv">next-player</span> <span class="p">(</span><span class="nf">other-player</span> <span class="nv">player</span><span class="p">)</span><span class="err">]</span><span class="p">)</span>
+          <span class="p">(</span><span class="nf">sample-outcome</span> <span class="nv">next-state</span>
+                          <span class="p">(</span><span class="nf">sample-action</span> <span class="nv">next-state</span> <span class="nv">next-player</span><span class="p">)</span>
+                          <span class="nv">next-player</span><span class="p">)))))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="nv">start-state</span>
+  <span class="o">&#39;</span><span class="p">((</span><span class="mi">0</span> <span class="nv">o</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="p">(</span><span class="nf">o</span> <span class="nv">x</span> <span class="nv">x</span><span class="p">)</span>
+    <span class="p">(</span><span class="mi">0</span> <span class="nv">o</span> <span class="mi">0</span><span class="p">)))</span>
+
+<span class="p">(</span><span class="nf">sample-action</span> <span class="nv">start-state</span> <span class="ss">&#39;x</span><span class="p">)</span>
+</pre></div>
+
+
+      
+
+
+      <p><span class="label">game theory</span> <span class="label">planning</span></p>
+
+    </div>
+
+    <noscript><p><img alt="" width="1" height="1" src="//in.getclicky.com/266085ns.gif" /></p></noscript>
+
+  </body>
+</html>
+ 

@@ -1,0 +1,50 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Nested conditioning</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/base.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="/css/pygments.css" />
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/base.js"></script>
+  </head>
+
+  <body>
+
+    <div class="container">
+      <ul class="breadcrumb">
+        <li><a href="/">Home</a> <span class="divider">/</span></li>
+        <li class="active">Nested conditioning</li>
+      </ul>
+
+      <h1>Nested conditioning</h1>
+
+      <p>Two agents play a game in which each agent needs to name a number between <em>0</em> and <em>9</em> and they win if their numbers add up to <em>13</em>. The first player knows this, and he knows that the second player gets to see the number the first player chooses, but the second player mistakenly thinks that the two win if their numbers add up to any number greater than <em>8</em> (and the first player knows this as well). What number should the first player choose? <span class="citation">(Stuhlmüller and Goodman)</span></p>
+
+
+      <div class="highlight"><pre><span class="p">(</span><span class="nf">query</span>
+ <span class="p">(</span><span class="k">define </span><span class="nv">a</span> <span class="p">(</span><span class="nf">sample-integer</span> <span class="mi">10</span><span class="p">))</span>
+ <span class="p">(</span><span class="k">define </span><span class="nv">b</span>
+   <span class="p">(</span><span class="nf">query</span>
+    <span class="p">(</span><span class="k">define </span><span class="nv">c</span> <span class="p">(</span><span class="nf">sample-integer</span> <span class="mi">10</span><span class="p">))</span>
+    <span class="nv">c</span>
+    <span class="p">(</span><span class="nb">&gt; </span><span class="p">(</span><span class="nb">+ </span><span class="nv">a</span> <span class="nv">c</span><span class="p">)</span> <span class="mi">8</span><span class="p">)))</span>
+ <span class="nv">a</span>
+ <span class="p">(</span><span class="nb">= </span><span class="p">(</span><span class="nb">+ </span><span class="nv">a</span> <span class="nv">b</span><span class="p">)</span> <span class="mi">13</span><span class="p">))</span>
+</pre></div>
+
+
+      
+<p>Stuhlmüller, Andreas, and Noah D. Goodman. “Reasoning about Reasoning by Nested Conditioning: Modeling Theory of Mind with Probabilistic Programs.”</p>
+
+
+      <p><span class="label">theory of mind</span></p>
+
+    </div>
+
+    <noscript><p><img alt="" width="1" height="1" src="//in.getclicky.com/266085ns.gif" /></p></noscript>
+
+  </body>
+</html>
+ 

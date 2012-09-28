@@ -26,12 +26,13 @@
       <div class="highlight"><pre><span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">noisy=</span> <span class="nv">target</span> <span class="nv">value</span> <span class="nv">variance</span><span class="p">)</span>
   <span class="p">(</span><span class="nb">= </span><span class="mi">0</span> <span class="p">(</span><span class="nf">gaussian</span> <span class="p">(</span><span class="nb">- </span><span class="nv">target</span> <span class="nv">value</span><span class="p">)</span> <span class="nv">variance</span><span class="p">)))</span>
 
-<span class="p">(</span><span class="nf">mh-query</span>
- <span class="mi">100</span> <span class="mi">10</span>
+<span class="p">(</span><span class="nf">query</span>
  <span class="p">(</span><span class="k">define </span><span class="nv">reflectance</span> <span class="p">(</span><span class="nf">gaussian</span> <span class="mi">1</span> <span class="mi">1</span><span class="p">))</span>
  <span class="p">(</span><span class="k">define </span><span class="nv">illumination</span> <span class="p">(</span><span class="nf">gaussian</span> <span class="mi">3</span> <span class="mf">0.5</span><span class="p">))</span>
  <span class="p">(</span><span class="k">define </span><span class="nv">luminance</span> <span class="p">(</span><span class="nb">* </span><span class="nv">reflectance</span> <span class="nv">illumination</span><span class="p">))</span>
- <span class="p">(</span><span class="nf">pair</span> <span class="mi">1</span> <span class="nv">reflectance</span><span class="p">)</span>
+
+ <span class="nv">reflectance</span>
+
  <span class="p">(</span><span class="k">and </span><span class="p">(</span><span class="nf">noisy=</span> <span class="mf">3.0</span> <span class="nv">luminance</span> <span class="mf">0.1</span><span class="p">)</span>
       <span class="p">(</span><span class="nf">noisy=</span> <span class="mf">0.5</span> <span class="nv">illumination</span> <span class="mf">0.1</span><span class="p">)))</span>
 </pre></div>

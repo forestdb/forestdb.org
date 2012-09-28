@@ -24,18 +24,22 @@
 <blockquote>
 <p>&quot;Suppose we are given one or more relations involving one or more types. The goal of the IRM is to partition each type into clusters, where a good set of partitions allows relationships between entities to be predicted by their cluster assignments. For example, we may have a single type <em>people</em> and a single relation <em>likes(i,j)</em> which indicates whether person <em>i</em> likes person <em>j</em>. Our goal is to organize the entities into clusters that relate to each other in predictable ways (Figure 1a).&quot;</p>
 </blockquote>
+<p>Model by <span class="citation">Goodman et al. (2011)</span>.</p>
 
 
       <div class="highlight"><pre><span class="p">(</span><span class="k">define </span><span class="nv">objects</span> <span class="p">(</span><span class="nb">list </span><span class="ss">&#39;bob</span> <span class="ss">&#39;jane</span> <span class="ss">&#39;mary</span> <span class="ss">&#39;steve</span><span class="p">))</span>
 
 <span class="p">(</span><span class="nf">query</span>
+
  <span class="p">(</span><span class="k">define </span><span class="nv">get-cat</span> <span class="p">(</span><span class="nf">DPmem</span> <span class="mf">1.0</span> <span class="nv">gensym</span><span class="p">))</span>
  <span class="p">(</span><span class="k">define </span><span class="nv">type</span> <span class="p">(</span><span class="nf">mem</span> <span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">obj</span><span class="p">)</span> <span class="p">(</span><span class="nf">get-cat</span><span class="p">))))</span>
  <span class="p">(</span><span class="k">define </span><span class="nv">reln-obs-fn</span> <span class="p">(</span><span class="nf">mem</span> <span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">cat1</span> <span class="nv">cat2</span><span class="p">)</span> <span class="p">(</span><span class="nf">make-beta-binomial</span> <span class="mf">1.0</span> <span class="mf">1.0</span><span class="p">))))</span>
  <span class="p">(</span><span class="k">define </span><span class="nv">observe</span> <span class="p">(</span><span class="nf">mem</span> <span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">obj1</span> <span class="nv">obj2</span><span class="p">)</span>
                         <span class="p">(</span><span class="nf">sample</span> <span class="p">(</span><span class="nf">reln-obs-fn</span> <span class="p">(</span><span class="nf">type</span> <span class="nv">obj1</span><span class="p">)</span>
                                              <span class="p">(</span><span class="nf">type</span> <span class="nv">obj2</span><span class="p">))))))</span>
+
  <span class="p">(</span><span class="nb">map </span><span class="nv">type</span> <span class="nv">objects</span><span class="p">)</span>
+
  <span class="p">(</span><span class="k">and </span><span class="p">(</span><span class="nf">observe</span> <span class="ss">&#39;bob</span> <span class="ss">&#39;jane</span><span class="p">)</span>
       <span class="p">(</span><span class="nb">not </span><span class="p">(</span><span class="nf">observe</span> <span class="ss">&#39;jane</span> <span class="ss">&#39;steve</span><span class="p">))</span>
       <span class="p">(</span><span class="nf">observe</span> <span class="ss">&#39;mary</span> <span class="ss">&#39;steve</span><span class="p">)))</span>
@@ -43,6 +47,7 @@
 
 
       
+<p>Goodman, Noah D., Joshua B. Tenenbaum, Timothy J. O’Donnell, and the Church Working Group. 2011. “Probabilistic Models of Cognition.” <a href="http://projects.csail.mit.edu/church/wiki/Church" title="http://projects.csail.mit.edu/church/wiki/Church">http://projects.csail.mit.edu/church/wiki/Church</a>.</p>
 <p>Kemp, Charles, Joshua B. Tenenbaum, Thomas L. Griffiths, Takeshi Yamada, and Naonori Ueda. 2006. “Learning Systems of Concepts with an Infinite Relational Model” (jun): 1–8.</p>
 
 

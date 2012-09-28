@@ -1,0 +1,62 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Hierarchical urn model</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/base.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="/css/pygments.css" />
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/base.js"></script>
+  </head>
+
+  <body>
+
+    <div class="container">
+      <ul class="breadcrumb">
+        <li><a href="/">Home</a> <span class="divider">/</span></li>
+        <li class="active">Hierarchical urn model</li>
+      </ul>
+
+      <h1>Hierarchical urn model</h1>
+
+      <p>This model first samples a bias, splits the bias into red and black, and then defines how the urns' proportions of red balls depend on the biases.</p>
+
+
+      <div class="highlight"><pre><span class="p">(</span><span class="nf">query</span>
+
+ <span class="c1">;; model</span>
+ <span class="p">(</span><span class="k">define </span><span class="nv">bias</span> <span class="p">(</span><span class="nf">uniform</span> <span class="mi">0</span> <span class="mi">10</span><span class="p">))</span>
+ <span class="p">(</span><span class="k">define </span><span class="nv">red-bias</span> <span class="p">(</span><span class="nf">uniform</span> <span class="mi">0</span> <span class="nv">bias</span><span class="p">))</span>
+ <span class="p">(</span><span class="k">define </span><span class="nv">black-bias</span> <span class="p">(</span><span class="nb">- </span><span class="nv">bias</span> <span class="nv">red-bias</span><span class="p">))</span>
+ <span class="p">(</span><span class="k">define </span><span class="nv">urn-&gt;proportion-red</span>
+   <span class="p">(</span><span class="nf">mem</span>
+    <span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">urn</span><span class="p">)</span>
+      <span class="p">(</span><span class="nf">first</span> <span class="p">(</span><span class="nf">beta</span> <span class="p">(</span><span class="nb">+ </span><span class="o">.</span><span class="mi">4</span> <span class="nv">red-bias</span><span class="p">)</span> <span class="p">(</span><span class="nb">+ </span><span class="o">.</span><span class="mi">4</span> <span class="nv">black-bias</span><span class="p">))))))</span>
+ <span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">sample-urn</span> <span class="nv">urn</span><span class="p">)</span>
+   <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nf">flip</span> <span class="p">(</span><span class="nf">urn-&gt;proportion-red</span> <span class="nv">urn</span><span class="p">))</span>
+       <span class="ss">&#39;red</span>
+       <span class="ss">&#39;black</span><span class="p">))</span>
+
+ <span class="c1">;; query expression</span>
+ <span class="p">(</span><span class="nf">urn-&gt;proportion-red</span> <span class="mi">3</span><span class="p">)</span>
+
+ <span class="c1">;; condition</span>
+ <span class="p">(</span><span class="nb">equal? </span><span class="p">(</span><span class="nf">repeat</span> <span class="mi">15</span> <span class="p">(</span><span class="k">lambda </span><span class="p">()</span> <span class="p">(</span><span class="nf">sample-urn</span> <span class="mi">1</span><span class="p">)))</span>
+         <span class="o">&#39;</span><span class="p">(</span><span class="nv">red</span> <span class="nv">red</span> <span class="nv">red</span> <span class="nv">red</span> <span class="nv">red</span> <span class="nv">red</span> <span class="nv">red</span> <span class="nv">red</span>
+               <span class="nv">red</span> <span class="nv">red</span> <span class="nv">red</span> <span class="nv">red</span> <span class="nv">red</span> <span class="nv">red</span> <span class="nv">black</span><span class="p">)))</span>
+</pre></div>
+
+
+      
+
+
+      <p><span class="label">hierarchical models</span></p>
+
+    </div>
+
+    <noscript><p><img alt="" width="1" height="1" src="//in.getclicky.com/266085ns.gif" /></p></noscript>
+
+  </body>
+</html>
+ 

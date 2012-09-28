@@ -26,10 +26,15 @@
   <span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">x</span><span class="p">)</span> <span class="p">(</span><span class="nb">apply </span><span class="nv">+</span> <span class="p">(</span><span class="nb">map </span><span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">a</span> <span class="nv">b</span><span class="p">)</span> <span class="p">(</span><span class="nb">* </span><span class="nv">a</span> <span class="p">(</span><span class="nb">expt </span><span class="nv">x</span> <span class="nv">b</span><span class="p">)))</span>
                        <span class="nv">c</span>
                        <span class="p">(</span><span class="nf">iota</span> <span class="p">(</span><span class="nb">length </span><span class="nv">c</span><span class="p">))))))</span>
+
 <span class="p">(</span><span class="k">define </span><span class="nv">x-vals</span> <span class="p">(</span><span class="nb">map </span><span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">x</span><span class="p">)</span> <span class="p">(</span><span class="nb">/ </span><span class="nv">x</span> <span class="mi">1</span><span class="p">))</span> <span class="p">(</span><span class="nf">range</span> <span class="mi">-5</span> <span class="mi">5</span><span class="p">)))</span>
+
 <span class="p">(</span><span class="k">define </span><span class="nv">true-coeffs</span> <span class="o">&#39;</span><span class="p">(</span><span class="nv">-</span><span class="o">.</span><span class="mi">5</span> <span class="mi">1</span> <span class="o">.</span><span class="mi">5</span><span class="p">))</span>
+
 <span class="p">(</span><span class="k">define </span><span class="nv">true-y-vals</span> <span class="p">(</span><span class="nb">map </span><span class="p">(</span><span class="nf">make-poly</span> <span class="nv">true-coeffs</span><span class="p">)</span> <span class="nv">x-vals</span><span class="p">))</span>
+
 <span class="p">(</span><span class="k">define </span><span class="nv">obs-noise</span> <span class="mf">0.2</span><span class="p">)</span>
+
 <span class="p">(</span><span class="k">define </span><span class="nv">obs-y-vals</span>
   <span class="p">(</span><span class="nb">map </span><span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">x</span><span class="p">)</span> <span class="p">(</span><span class="nf">gaussian</span> <span class="nv">x</span> <span class="nv">obs-noise</span><span class="p">))</span> <span class="nv">true-y-vals</span><span class="p">))</span>
 
@@ -42,11 +47,12 @@
             <span class="p">(</span><span class="nb">= </span><span class="mf">0.0</span> <span class="p">(</span><span class="nf">gaussian</span> <span class="p">(</span><span class="nb">- </span><span class="nv">x</span> <span class="nv">y</span><span class="p">)</span> <span class="nv">obs-noise</span><span class="p">)))</span>
           <span class="p">(</span><span class="k">define </span><span class="nv">y-vals</span>
             <span class="p">(</span><span class="nb">map </span><span class="p">(</span><span class="nf">make-poly</span> <span class="nv">coefficients</span><span class="p">)</span> <span class="nv">x-vals</span><span class="p">))</span>
+
           <span class="p">(</span><span class="nb">list </span><span class="nv">poly-order</span> <span class="nv">coefficients</span><span class="p">)</span>
+
           <span class="p">(</span><span class="nf">fold</span> <span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">x</span> <span class="nv">a</span><span class="p">)</span> <span class="p">(</span><span class="k">and </span><span class="nv">x</span> <span class="nv">a</span><span class="p">))</span>
                 <span class="nv">true</span>
-                <span class="p">(</span><span class="nb">map </span><span class="nv">noisy-equals?</span> <span class="nv">y-vals</span> <span class="nv">obs-y-vals</span><span class="p">))</span>
-          <span class="p">)</span>
+                <span class="p">(</span><span class="nb">map </span><span class="nv">noisy-equals?</span> <span class="nv">y-vals</span> <span class="nv">obs-y-vals</span><span class="p">)))</span>
 </pre></div>
 
 

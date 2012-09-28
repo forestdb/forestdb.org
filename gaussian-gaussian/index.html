@@ -29,13 +29,15 @@
 <span class="p">(</span><span class="k">define </span><span class="nv">num-observations</span> <span class="p">(</span><span class="nb">length </span><span class="nv">observed-data</span><span class="p">))</span>
 
 <span class="p">(</span><span class="nf">query</span>
+
  <span class="p">(</span><span class="k">define </span><span class="nv">mean</span> <span class="p">(</span><span class="nf">gaussian</span> <span class="mi">0</span> <span class="mi">10</span><span class="p">))</span>
  <span class="p">(</span><span class="k">define </span><span class="nv">var</span>  <span class="p">(</span><span class="nb">abs </span><span class="p">(</span><span class="nf">gaussian</span> <span class="mi">0</span> <span class="mi">5</span><span class="p">)))</span>
  <span class="p">(</span><span class="k">define </span><span class="nv">sample-gaussian</span> <span class="p">(</span><span class="k">lambda </span><span class="p">()</span> <span class="p">(</span><span class="nf">gaussian</span> <span class="nv">mean</span> <span class="nv">var</span><span class="p">)))</span>
+
  <span class="p">(</span><span class="nb">list </span><span class="nv">mean</span> <span class="nv">var</span><span class="p">)</span>
+
  <span class="p">(</span><span class="nb">equal? </span><span class="nv">observed-data</span>
-         <span class="p">(</span><span class="nf">repeat</span> <span class="nv">num-observations</span> <span class="nv">sample-gaussian</span><span class="p">))</span>
- <span class="p">)</span>
+         <span class="p">(</span><span class="nf">repeat</span> <span class="nv">num-observations</span> <span class="nv">sample-gaussian</span><span class="p">)))</span>
 </pre></div>
 
 

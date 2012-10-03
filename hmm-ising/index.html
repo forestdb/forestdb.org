@@ -41,7 +41,7 @@
   <span class="p">(</span><span class="nf">flip</span> <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">equal? </span><span class="nv">a</span> <span class="nv">b</span><span class="p">)</span> <span class="mf">1.0</span> <span class="mf">0.5</span><span class="p">)))</span>
 
 <span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">transition</span> <span class="nv">state</span><span class="p">)</span>
-  <span class="p">(</span><span class="nf">rejection-query</span>
+  <span class="p">(</span><span class="nf">query</span>
    <span class="p">(</span><span class="k">define </span><span class="nv">new-state</span> <span class="p">(</span><span class="nf">language-transition</span> <span class="nv">state</span><span class="p">))</span>
    <span class="nv">new-state</span>
    <span class="p">(</span><span class="nf">all</span> <span class="p">(</span><span class="nb">map </span><span class="nv">factor</span> <span class="p">(</span><span class="nf">drop</span> <span class="nv">new-state</span> <span class="mi">1</span><span class="p">)</span> <span class="p">(</span><span class="nf">drop-right</span> <span class="nv">new-state</span> <span class="mi">1</span><span class="p">)))))</span>

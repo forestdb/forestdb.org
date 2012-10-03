@@ -1,0 +1,64 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>HMM-Ising</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/base.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="/css/pygments.css" />
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/base.js"></script>
+  </head>
+
+  <body>
+
+    <div class="container">
+      <ul class="breadcrumb">
+        <li><a href="/">Home</a> <span class="divider">/</span></li>
+        <li class="active">HMM-Ising</li>
+      </ul>
+
+      <h1>HMM-Ising</h1>
+
+      <p>A doubly-intractable HMM, meant as a toy model for speech recognition with articulatory contraints.</p>
+
+
+      <div class="highlight"><pre><span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">hmm</span> <span class="nv">state</span> <span class="nv">N</span><span class="p">)</span>
+  <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">N</span> <span class="mi">0</span><span class="p">)</span>
+      <span class="o">&#39;</span><span class="p">()</span>
+      <span class="p">(</span><span class="nf">pair</span> <span class="p">(</span><span class="nf">observe</span> <span class="nv">state</span><span class="p">)</span>
+            <span class="p">(</span><span class="nf">hmm</span> <span class="p">(</span><span class="nf">transition</span> <span class="nv">state</span><span class="p">)</span> <span class="p">(</span><span class="nb">- </span><span class="nv">N</span> <span class="mi">1</span><span class="p">)))))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">observe</span> <span class="nv">state</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">map </span><span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">x</span><span class="p">)</span> <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nf">flip</span> <span class="o">.</span><span class="mi">9</span><span class="p">)</span> <span class="nv">x</span> <span class="p">(</span><span class="nb">not </span><span class="nv">x</span><span class="p">)))</span>
+       <span class="nv">state</span><span class="p">))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">language-transition</span> <span class="nv">state</span><span class="p">)</span>
+  <span class="p">(</span><span class="nb">map </span><span class="p">(</span><span class="k">lambda </span><span class="p">(</span><span class="nf">x</span><span class="p">)</span> <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nf">flip</span> <span class="o">.</span><span class="mi">8</span><span class="p">)</span> <span class="nv">x</span> <span class="p">(</span><span class="nb">not </span><span class="nv">x</span><span class="p">)))</span>
+       <span class="nv">state</span><span class="p">))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">factor</span> <span class="nv">a</span> <span class="nv">b</span><span class="p">)</span>
+  <span class="p">(</span><span class="nf">flip</span> <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">equal? </span><span class="nv">a</span> <span class="nv">b</span><span class="p">)</span> <span class="mf">1.0</span> <span class="mf">0.5</span><span class="p">)))</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">transition</span> <span class="nv">state</span><span class="p">)</span>
+  <span class="p">(</span><span class="nf">rejection-query</span>
+   <span class="p">(</span><span class="k">define </span><span class="nv">new-state</span> <span class="p">(</span><span class="nf">language-transition</span> <span class="nv">state</span><span class="p">))</span>
+   <span class="nv">new-state</span>
+   <span class="p">(</span><span class="nf">all</span> <span class="p">(</span><span class="nb">map </span><span class="nv">factor</span> <span class="p">(</span><span class="nf">drop</span> <span class="nv">new-state</span> <span class="mi">1</span><span class="p">)</span> <span class="p">(</span><span class="nf">drop-right</span> <span class="nv">new-state</span> <span class="mi">1</span><span class="p">)))))</span>
+
+<span class="p">(</span><span class="nf">hmm</span> <span class="o">&#39;</span><span class="p">(</span><span class="no">#f</span> <span class="no">#f</span> <span class="no">#f</span><span class="p">)</span> <span class="mi">4</span><span class="p">)</span>
+</pre></div>
+
+
+      
+
+
+      <p><span class="label">language</span> <span class="label">nested conditioning</span></p>
+
+    </div>
+
+    <noscript><p><img alt="" width="1" height="1" src="//in.getclicky.com/266085ns.gif" /></p></noscript>
+
+  </body>
+</html>
+ 

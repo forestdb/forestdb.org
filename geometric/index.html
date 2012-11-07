@@ -1,0 +1,56 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Geometric Distribution</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/base.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="/css/pygments.css" />
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/base.js"></script>
+  </head>
+
+  <body>
+
+    <div class="container">
+      <ul class="breadcrumb">
+        <li><a href="/">Home</a> <span class="divider">/</span></li>
+        <li class="active">Geometric Distribution</li>
+      </ul>
+
+      <h1>Geometric Distribution</h1>
+
+      <p>A simple recursively defined distribution on the integers.</p>
+
+
+      <div class="highlight"><pre><span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">geometric</span> <span class="nv">p</span><span class="p">)</span>
+  <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nf">flip</span> <span class="nv">p</span><span class="p">)</span>
+      <span class="mi">0</span>
+      <span class="p">(</span><span class="nb">+ </span><span class="mi">1</span> <span class="p">(</span><span class="nf">geometric</span> <span class="nv">p</span><span class="p">))))</span>
+
+<span class="p">(</span><span class="nf">geometric</span> <span class="o">.</span><span class="mi">5</span><span class="p">)</span>
+
+<span class="c1">;; Alternatively, we can write the geometric distribution in</span>
+<span class="c1">;; tail-recursive form:</span>
+
+<span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">geometric-alt</span> <span class="nv">p</span> <span class="nv">n</span><span class="p">)</span>
+  <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nf">flip</span> <span class="nv">p</span><span class="p">)</span>
+      <span class="nv">n</span>
+      <span class="p">(</span><span class="nf">geometric-alt</span> <span class="nv">p</span> <span class="p">(</span><span class="nb">+ </span><span class="nv">n</span> <span class="mi">1</span><span class="p">))))</span>
+
+<span class="p">(</span><span class="nf">geometric-alt</span> <span class="o">.</span><span class="mi">5</span> <span class="mi">0</span><span class="p">)</span>
+</pre></div>
+
+
+      
+
+
+      <p><span class="label">recursion</span></p>
+
+    </div>
+
+    <noscript><p><img alt="" width="1" height="1" src="//in.getclicky.com/266085ns.gif" /></p></noscript>
+
+  </body>
+</html>
+ 

@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Pragmatics with semantic free variables
-model-status: code
+model-status: stub
 model-category: Nested Inference
 model-tags: lingustics, pragmatics, theory of mind
 ---

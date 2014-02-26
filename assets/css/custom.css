@@ -1,0 +1,14 @@
+body {
+    padding-top: 1.5em;
+}
+
+/* Descriptions in list of theories */
+span.subtitle {
+   color: #bbb;
+   font-size: .9em;
+}
+
+ul p {
+   margin-bottom: 0.3em;
+   margin-top: 0.3em;
+}

@@ -15,8 +15,7 @@ A simple recursively defined distribution on the integers.
     
     (geometric .5)
     
-    ;; Alternatively, we can write the geometric distribution in
-    ;; tail-recursive form:
+Alternatively, we can write the geometric distribution in tail-recursive form:
     
     (define (geometric-alt p n)
       (if (flip p)

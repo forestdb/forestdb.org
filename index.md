@@ -1,8 +1,8 @@
 ---
 layout: default
 title: Forest
-all-model-statuses: [code, pseudocode, started, stub]
-all-model-categories: [Concept Learning, Nested Inference, Inverse Dynamics, Machine Learning, Miscellaneous]
+all-model-statuses: [code, link, stub]
+all-model-categories: [Concept Learning, Nested Inference, Inverse Dynamics, Machine Learning, Undirected Constraints, Miscellaneous]
 ---
 
 
@@ -26,10 +26,8 @@ all-model-categories: [Concept Learning, Nested Inference, Inverse Dynamics, Mac
                   {% else %}
                     {% if p.model-status == 'code' %}
                       <span class="label label-success pull-right">Code</span>            
-                    {% elsif p.model-status == 'pseudocode %}
-                      <span class="label label-primary pull-right">Pseudocode</span>
-                    {% elsif p.model-status == 'started' %}
-                      <span class="label label-info pull-right">Started</span>
+                    {% elsif p.model-status == 'link' %}
+                      <span class="label label-primary pull-right">Link</span>
                     {% else %}
                     {% endif %}
                     <a href="{{ p.url }}">{{ p.title }}</a>          

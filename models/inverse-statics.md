@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Inverse statics
+title: Inverse statics (Terra)
 model-status: code
 model-category: Inverse Dynamics
 model-tags: statics

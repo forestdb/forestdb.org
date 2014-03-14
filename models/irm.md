@@ -2,7 +2,7 @@
 layout: model
 title: Infinite Relational Model
 model-status: code
-model-category: Miscellaneous
+model-category: Nonparametric Models
 model-tags: clustering, cognitive science, nonparametric statistics
 ---
 
@@ -20,21 +20,40 @@ paper by @kemp:2006uv:
 > *j*. Our goal is to organize the entities into clusters that relate
 > to each other in predictable ways (Figure 1a)."
 
-Model by @churchwiki.
+    (define samples
+      (mh-query
+       300 100
+    
+       (define class-distribution (DPmem 1.0 gensym))
+    
+       (define object->class
+         (mem (lambda (object) (class-distribution))))
+    
+       (define classes->parameters
+         (mem (lambda (class1 class2) (first (beta 0.5 0.5)))))
+    
+       (define (talks object1 object2)
+         (flip (classes->parameters (object->class object1) (object->class object2))))
+    
+       (list (equal? (object->class 'tom) (object->class 'fred))
+             (equal? (object->class 'tom) (object->class 'mary)))
+    
+       (and (talks 'tom 'fred)
+            (talks 'tom 'jim)
+            (talks 'jim 'fred)
+            (not (talks 'mary 'fred))
+            (not (talks 'mary 'jim))
+            (not (talks 'sue 'fred))
+            (not (talks 'sue 'tom))
+            (not (talks 'ann 'jim))
+            (not (talks 'ann 'tom))
+            (talks 'mary 'sue)
+            (talks 'mary 'ann)
+            (talks 'ann 'sue)
+            )))
+    
+    (hist (map first samples) "tom and fred in same group?")
+    (hist (map second samples) "tom and mary in same group?")
 
-    (define objects (list 'bob 'jane 'mary 'steve))
-    
-    (query
-    
-     (define get-cat (DPmem 1.0 gensym))
-     (define type (mem (lambda (obj) (get-cat))))
-     (define reln-obs-fn (mem (lambda (cat1 cat2) (make-beta-binomial 1.0 1.0))))
-     (define observe (mem (lambda (obj1 obj2)
-                            (sample (reln-obs-fn (type obj1)
-                                                 (type obj2))))))
-    
-     (map type objects)
-    
-     (and (observe 'bob 'jane)
-          (not (observe 'jane 'steve))
-          (observe 'mary 'steve)))
+Source: [probmods.org - nonparametric models](https://probmods.org/non-parametric-models.html)    
+

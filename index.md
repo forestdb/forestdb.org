@@ -2,7 +2,7 @@
 layout: default
 title: Forest
 all-model-statuses: [code, link, stub]
-all-model-categories: [Concept Learning, Nested Inference, Inverse Dynamics, Machine Learning, Undirected Constraints, Miscellaneous]
+all-model-categories: [Concept Learning, Nested Inference, Inverse Dynamics, Machine Learning, Undirected Constraints, Nonparametric Models, Miscellaneous]
 ---
 
 

@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Hierarchical urn model
+title: Hierarchical Urn Model
 model-status: code
 model-category: Miscellaneous
 model-tags: hierarchical models

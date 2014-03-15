@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Rope-pulling
+title: Rope-Pulling
 model-status: code
 model-category: Miscellaneous
 model-tags: hierarchical models

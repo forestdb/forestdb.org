@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Tic-tac-toe
+title: Tic-Tac-Toe
 model-status: code
 model-category: Nested Inference
 model-tags: game theory, planning

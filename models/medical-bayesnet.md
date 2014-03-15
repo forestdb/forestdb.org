@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Bayesnet for medical diagnosis
+title: Bayesnet for Medical Diagnosis
 model-status: code
 model-category: Miscellaneous
 model-tags: bayesnet, medicine

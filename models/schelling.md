@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Schelling coordination game
+title: Schelling Coordination Game
 model-status: code
 model-category: Nested Inference
 model-tags: theory of mind, game theory

@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Blue-eyed islanders
+title: Blue-eyed Islanders
 model-status: code
 model-category: Nested Inference
 model-tags: theory of mind, game theory

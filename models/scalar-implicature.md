@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Scalar implicature
+title: Scalar Implicature
 model-status: code
 model-category: Nested Inference
 model-tags: lingustics, pragmatics, theory of mind

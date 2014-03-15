@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Nested number guessing
+title: Nested Number Guessing
 model-status: code
 model-category: Nested Inference
 model-tags: theory of mind

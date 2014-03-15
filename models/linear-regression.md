@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Bayesian linear regression
+title: Bayesian Linear Regression
 model-status: code
 model-category: Machine Learning
 model-tags: machine learning

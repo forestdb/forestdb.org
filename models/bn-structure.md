@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Bayes net structure learning
+title: Bayes Net Structure Learning
 model-status: stub
 model-category: Concept Learning
 model-tags: concepts

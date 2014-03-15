@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Rat growth
+title: Rat Growth
 model-status: code
 model-category: Undirected Constraints
 model-tags: 

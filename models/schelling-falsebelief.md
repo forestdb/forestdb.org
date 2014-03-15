@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Schelling coordination game with false belief
+title: Schelling Coordination Game with False Belief
 model-status: code
 model-category: Nested Inference
 model-tags: theory of mind, game theory

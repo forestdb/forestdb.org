@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Dirichlet Process Memoizer
+title: Dirichlet Process
 model-status: code
 model-category: Nonparametric Models
 model-tags: mem, nonparametrics

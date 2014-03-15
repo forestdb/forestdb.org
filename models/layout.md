@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Layout of tables and plates (Terra)
+title: Layout of Tables and Plates (Terra)
 model-status: code
 model-category: Miscellaneous
 model-tags: layout, constraints

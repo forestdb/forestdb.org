@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Inducing arithmetic functions
+title: Inducing Arithmetic Functions
 model-status: code
 model-category: Concept Learning
 model-tags: concepts, program induction

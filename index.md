@@ -9,7 +9,7 @@ all-model-categories: [Concept Learning, Nested Inference, Inverse Dynamics, Mac
   <h1>Models<br /></h1>
 </div>
 
-  {% for category in page.all-model-categories %}
+{% for category in page.all-model-categories %}
 
 <div class="list-group">
 
@@ -44,6 +44,6 @@ all-model-categories: [Concept Learning, Nested Inference, Inverse Dynamics, Mac
 
 </div>
 
-  {% endfor %}
+{% endfor %}
   
 

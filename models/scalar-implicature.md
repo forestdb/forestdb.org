@@ -3,10 +3,12 @@ layout: model
 title: Scalar Implicature
 model-status: code
 model-category: Nested Inference
-model-tags: lingustics, pragmatics, theory of mind
+model-tags: linguistics, pragmatics, theory of mind
 ---
 
-A model of pragmatics: The speaker chooses a sentence conditioned on the listener inferring the intended state of the world when hearing this sentence; the listener chooses an interpretation conditioned on the speaker selecting the given utterance when intending this meaning. @stuhlmueller:2012aa; @ndg+ast:cogsci2012; @Frank:2012fe
+A model of pragmatic language interpretation: 
+
+The speaker chooses a sentence conditioned on the listener inferring the intended state of the world when hearing this sentence; the listener chooses an interpretation conditioned on the speaker selecting the given utterance when intending this meaning. stuhlmueller:2012aa; ndg+ast:cogsci2012; Frank:2012fe
 
     (define (belief actual-state access)
       (map (lambda (ac st pr) (if ac st (sample pr)))

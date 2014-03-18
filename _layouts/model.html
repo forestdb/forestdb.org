@@ -7,3 +7,9 @@ layout: default
 </div>
 
 {{ content }}
+
+<a id="github-edit-link" href="#" class="btn btn-success pull-right">edit</a>
+
+<script type="text/javascript">
+  $("#github-edit-link").attr("href", github_edit_url("{{ page.url }}"))
+</script>

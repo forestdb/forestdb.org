@@ -12,7 +12,8 @@ We can use the [Nested Chinese-Restaurant Process](/models/nested-crp.html) to s
     
     (define root-category (DPmem 10.0 (lambda () (poisson 20))))
     
-    (define sample-from-top-level-category  (DPmem 1.0 (lambda (cat) (root-category))))
+    (define sample-from-top-level-category  
+      (DPmem 1.0 (lambda (cat) (root-category))))
     
     (define subordinate-category
       (DPmem 1.0

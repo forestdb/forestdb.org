@@ -14,7 +14,9 @@ model-tags: language
       (if (terminal? start-symbol)
           (unwrap-terminal start-symbol)   
           (pair start-symbol 
-                (map (lambda (symbol) (tree-unfold  transition symbol)) (transition start-symbol)))))
+                (map (lambda (symbol) 
+                       (tree-unfold  transition symbol)) 
+                     (transition start-symbol)))))
     
     (define (terminal? symbol)
       (if (list? symbol)

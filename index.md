@@ -5,7 +5,9 @@ all-model-statuses: [code, link, stub]
 all-model-categories: [Concept Learning, Nested Inference, Inverse Dynamics, Machine Learning, Undirected Constraints, Nonparametric Models, Miscellaneous]
 ---
 
-
+<div class="page-header">
+  <h1>Models<br /></h1>
+</div>
 
   {% for category in page.all-model-categories %}
 

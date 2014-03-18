@@ -15,7 +15,9 @@ model-tags: machine learning
          [gauss-factor (factor (m v x) (gauss-log-pdf m v x))]
          [y-constrs 
           (map (lambda (xy) 
-                 (gauss-factor (+ alpha (* beta (- (car xy) xbar))) (/ 1.0 tau) (cadr xy))) 
+                 (gauss-factor (+ alpha (* beta (- (car xy) xbar))) 
+                               (/ 1.0 tau) 
+                               (cadr xy))) 
                xys)])
       (list alpha beta (/ 1.0 (sqrt tau)) tau)))
       

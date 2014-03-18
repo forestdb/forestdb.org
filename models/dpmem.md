@@ -33,7 +33,8 @@ Based on the Dirichlet Process, we can write a stochastic memoizer for any funct
         (lambda () (pick-a-stick sticks 1))))
     
     (define (DPmem alpha base-dist)
-      (let ((augmented-proc (mem (lambda (args stick-index) (apply base-dist args))))
+      (let ((augmented-proc
+              (mem (lambda (args stick-index) (apply base-dist args))))
             (DP (mem (lambda (args) (make-sticks alpha)))))
         (lambda argsin
           (let ((stick-index (sample (DP argsin))))

@@ -52,3 +52,7 @@ body {
 .navbar li.dropdown a.dropdown-toggle {
    color: #fff
 }
+
+.navbar a.navbar-brand .fa {
+   margin-right: .2em
+}

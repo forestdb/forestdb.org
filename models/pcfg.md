@@ -6,6 +6,59 @@ model-category: Miscellaneous
 model-tags: language
 ---
 
+Direct style:
+
+    (define (terminal t) (lambda () t))
+    
+    (define D (lambda ()
+                (map sample
+                     (multinomial
+                      (list (list (terminal 'the) ) 
+                            (list (terminal 'a)))
+                      (list (/ 1 2) (/ 1 2))))))
+    (define N (lambda ()
+                (map sample 
+                     (multinomial
+                      (list (list (terminal 'chef)) 
+                            (list (terminal 'soup)) 
+                            (list (terminal 'omelet)))
+                      (list (/ 1 3) (/ 1 3) (/ 1 3))))))
+    (define V (lambda ()
+                (map sample
+                     (multinomial
+                      (list (list (terminal 'cooks)) 
+                            (list (terminal 'works)))
+                      (list (/ 1 2) (/ 1 2))))))                
+    (define A (lambda ()
+                (map sample
+                     (multinomial
+                      (list (list (terminal 'diligently)))
+                      (list (/ 1 1))))))
+    (define AP (lambda ()
+                 (map sample
+                      (multinomial
+                       (list (list A))
+                       (list (/ 1 1))))))
+    (define NP (lambda ()
+                 (map sample
+                      (multinomial
+                       (list (list D N))
+                       (list (/ 1 1))))))
+    (define VP (lambda ()
+                 (map sample
+                      (multinomial
+                       (list (list V AP) 
+                             (list V NP))
+                       (list (/ 1 2) (/ 1 2))))))
+    (define S (lambda ()
+                (map sample 
+                     (multinomial
+                      (list (list NP VP))
+                      (list (/ 1 1))))))
+    (S)
+
+Unfold style:
+
     (define (terminal t) (list 'terminal t))
     
     (define (unwrap-terminal t) (second t))

@@ -10,7 +10,8 @@ This program induces a deterministic arithmetic function from input-output examp
 
     (define (random-arithmetic-fn)
       (if (flip 0.3)
-          (random-combination (random-arithmetic-fn) (random-arithmetic-fn))
+          (random-combination (random-arithmetic-fn) 
+                              (random-arithmetic-fn))
           (if (flip) 
               (lambda (x) x) 
               (random-constant-fn))))

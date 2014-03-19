@@ -46,6 +46,9 @@ body div.container {
 .navbar #cse-text {
   width: 300px;
 }
+.navbar .tt-hint {
+  width: 300px;
+}
 
 
 /* Footer */

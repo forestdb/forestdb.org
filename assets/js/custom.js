@@ -1,15 +1,17 @@
+github_repository = "https://github.com/forestdb/forestdb.org/"
+
 function github_edit_url(page_url) {
-   return "https://github.com/forestdb/forestdb.org/edit/gh-pages" + page_url.slice(0, -4) + "md";
+   return github_repository + "edit/gh-pages" + page_url.slice(0, -4) + "md";
 }
 
 function github_delete_url(page_url) {
-   return "https://github.com/forestdb/forestdb.org/delete/gh-pages" + page_url.slice(0, -4) + "md";
+   return github_repository + "delete/gh-pages" + page_url.slice(0, -4) + "md";
 }
 
 function github_page_url(page_url) {
    if (page_url == "/index.html") {
-       return "https://github.com/forestdb/forestdb.org/";
+       return github_repository;
    } else {
-       return "https://github.com/forestdb/forestdb.org/blob/gh-pages" + page_url.slice(0, -4) + "md";
+       return github_repository + "blob/gh-pages" + page_url.slice(0, -4) + "md";
    };
 }

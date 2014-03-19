@@ -1,29 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>{{ page.title }}</title>
 
-    <base href="/">
-
-    <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
-
-    <!-- Latest compiled and minified CSS -->
     <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
-
-    <!-- Optional theme -->
     <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css">
-
-    <!-- Latest compiled and minified JavaScript -->
-    <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
-
-    <!-- Custom -->
-    <script src="/assets/js/custom.js"></script>
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css">
     <link rel="stylesheet" href="/assets/css/custom.css">
 
-    <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+    <script src="//cdn.jsdelivr.net/typeahead.js/0.10.1/typeahead.bundle.js"></script>
+    <script src="/assets/js/custom.js"></script>
 
     <!--[if lt IE 9]>
       <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
@@ -34,25 +27,26 @@
 
     <div class="navbar navbar-default navbar-static-top" role="navigation">
       <div class="container-fluid">
+
         <!-- Brand and toggle get grouped for better mobile display -->
         <div class="navbar-header">
-          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-search-right">
             <span class="sr-only">Toggle navigation</span>
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
           <a class="navbar-brand" href="/"><i class="fa fa-leaf"></i> Forest</a>
-          <p class="navbar-text">a repository for generative models</p>
+          <p class="navbar-text navbar-collapse collapse">a repository for generative models</p>
         </div>
 
-        <div class="navbar-collapse collapse">    
+        <div class="navbar-collapse collapse" id="navbar-search-right">    
 
           <form id="cse-search-box" action="http://google.com/cse" class="navbar-form navbar-right" role="search">
             <input type="hidden" name="cx" value="008887621561404558934:lqvspjvj53s" />
             <input type="hidden" name="ie" value="UTF-8" />
             <div class="form-group">
-              <input type="text" name="q" class="form-control" placeholder="Search" data-provide="typeahead" autocomplete="off" />
+              <input type="text" name="q" id="cse-text" class="form-control" placeholder="Search" data-provide="typeahead" autocomplete="off" />
             </div>
             <button type="submit" class="btn btn-default" name="sa" value="Search">Go</button>
           </form>

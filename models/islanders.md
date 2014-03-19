@@ -54,13 +54,6 @@ least one of you has blue eyes."  What happens next?
          (sum-repeat (lambda () (agent t raised-hands true-blue-eyes))
                      (- num-agents true-blue-eyes))))
     
-    (define (get-raised-hands/twitch t raised-hands true-blue-eyes)
-      (+ (sum-repeat (lambda () (agent t raised-hands (- true-blue-eyes 1)))
-                     (- true-blue-eyes 1))
-         (sum-repeat (lambda () (agent t raised-hands true-blue-eyes))
-                     (- num-agents (+ true-blue-eyes)))
-         (if (flip .1) 1 (agent t raised-hands (- true-blue-eyes 1)))))
-    
     (define (run-game start end raised-hands true-blue-eyes)
       (if (>= start end)
           raised-hands
@@ -70,3 +63,12 @@ least one of you has blue eyes."  What happens next?
                     true-blue-eyes)))
     
     (run-game 0 4 0 4)
+
+To run a noisy version of the model, use a `get-raised-hands` function that allows for accidentally raised hands:
+    
+    (define (get-raised-hands/twitch t raised-hands true-blue-eyes)
+      (+ (sum-repeat (lambda () (agent t raised-hands (- true-blue-eyes 1)))
+                     (- true-blue-eyes 1))
+         (sum-repeat (lambda () (agent t raised-hands true-blue-eyes))
+                     (- num-agents (+ true-blue-eyes)))
+         (if (flip .1) 1 (agent t raised-hands (- true-blue-eyes 1)))))

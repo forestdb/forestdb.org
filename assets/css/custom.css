@@ -33,7 +33,7 @@ body {
 
 .navbar {
    box-shadow: inset 0 1px 0 rgba(255,255,255,.15),0 1px 5px rgba(0,0,0,.075);
-   background-color: #555;
+   background-color: #4D4F4B;
    background-image: none;
 }
 
@@ -55,4 +55,13 @@ body {
 
 .navbar a.navbar-brand .fa {
    margin-right: .2em
+}
+
+#footer .container {
+   padding-top: 1.5em;
+   padding-bottom:1em;
+   background-color: #F2F2F2;
+   border-top: 1px solid #E3E3E3;
+   text-align: center;
+   box-shadow: 0 -20px 0px 0px white, 0 0 15px rgba(0, 0, 0, .3);
 }

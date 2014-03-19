@@ -83,5 +83,15 @@
 
     </div><!-- /.container -->
 
+    <div id="footer">
+      <div class="container">
+        <p class="text-muted">View this page <a id="github-page-link" href="#">on GitHub</a>. Send <a href="mailto:ast@mit.edu">comments</a>.</p>
+      </div>
+    </div>
+
+    <script type="text/javascript">
+      $("#github-page-link").attr("href", github_page_url("{{ page.url }}"))
+    </script>
+
   </body>
 </html>

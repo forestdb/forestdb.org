@@ -45,5 +45,7 @@ all-model-categories: [Concept Learning, Nested Inference, Inverse Dynamics, Mac
 </div>
 
 {% endfor %}
-  
 
+<div class="btn-toolbar">
+<a class="pull-right btn btn-success" id="github-add-link" href="https://github.com/stuhlmueller/forestdb.org/new/gh-pages/models">Add Model</a>
+</div>

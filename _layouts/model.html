@@ -8,8 +8,12 @@ layout: default
 
 {{ content }}
 
-<a id="github-edit-link" href="#" class="btn btn-success pull-right">edit</a>
+<div class="btn-toolbar pull-right">
+    <a id="github-delete-link" href="#" class="btn btn-default">Delete</a>
+    <a id="github-edit-link" href="#" class="btn btn-success">Edit</a>
+</div>
 
 <script type="text/javascript">
   $("#github-edit-link").attr("href", github_edit_url("{{ page.url }}"))
+  $("#github-delete-link").attr("href", github_delete_url("{{ page.url }}"))
 </script>

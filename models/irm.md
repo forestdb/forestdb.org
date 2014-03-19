@@ -33,7 +33,8 @@ paper by @kemp:2006uv:
          (mem (lambda (class1 class2) (first (beta 0.5 0.5)))))
     
        (define (talks object1 object2)
-         (flip (classes->parameters (object->class object1) (object->class object2))))
+         (flip (classes->parameters (object->class object1)
+                                    (object->class object2))))
     
        (list (equal? (object->class 'tom) (object->class 'fred))
              (equal? (object->class 'tom) (object->class 'mary)))

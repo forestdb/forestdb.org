@@ -24,12 +24,8 @@ This program induces a deterministic arithmetic function from input-output examp
       (define i (sample-integer 10))
       (lambda (x) i))
     
-    
     (define (sample)
       (rejection-query
-       
        (define my-proc (random-arithmetic-fn))
-       
        (my-proc 2)
-       
        (= (my-proc 1) 3)))

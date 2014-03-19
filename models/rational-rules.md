@@ -72,7 +72,8 @@ Rational Rules is a model of concept learning. Concepts are represented as compo
           (pair (mean (map (lambda (x) (if x 1.0 0.0)) (map first samples)))
                 (means (map rest samples)))))
     
-    (scatter (map pair (means samples) (append human-T human-A human-B)) "model vs human")
+    (scatter (map pair (means samples) (append human-T human-A human-B)) 
+             "model vs human")
 
 Source:
 

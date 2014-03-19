@@ -21,4 +21,10 @@ Using [DPmem](/models/dpmem.html), we can create an infinite mixture model with 
     
     (map observe '(tom dick harry bill fred))
     
-Source: [probmods.org - nonparametric models](https://probmods.org/non-parametric-models.html)    
+Source: 
+
+- [probmods.org - nonparametric models](https://probmods.org/non-parametric-models.html)    
+
+See also:
+
+- [Finite Gaussian Mixture](/models/finite-gaussian-mixture.html)

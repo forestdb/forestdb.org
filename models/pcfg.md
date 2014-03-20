@@ -10,6 +10,8 @@ Direct style:
 
     (define (terminal t) (lambda () t))
     
+    (define (sample thunk) (thunk))
+    
     (define D (lambda ()
                 (map sample
                      (multinomial

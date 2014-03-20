@@ -14,9 +14,9 @@ Version 1:
 
     (define (sample-state state)
       (cond
-       ((eq? state 0) (sample-discrete '(0.7 0.2 0.1)))
-       ((eq? state 1) (sample-discrete '(0.3 0.3 0.4)))
-       ((eq? state 2) (sample-discrete '(0.3 0.65 0.05)))))
+       ((eq? state 0) (multinomial '(0 1 2) '(0.7 0.2 0.1)))
+       ((eq? state 1) (multinomial '(0 1 2) '(0.3 0.3 0.4)))
+       ((eq? state 2) (multinomial '(0 1 2) '(0.3 0.65 0.05)))))
     
     (define (observe-state state)
       (cond

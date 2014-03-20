@@ -14,7 +14,7 @@ Using memoization (`mem`), we can implement the Dirichlet process:
           (pick-a-stick sticks (+ J 1))))
     
     (define (make-sticks alpha)
-      (let ((sticks (mem (lambda (x) (first (beta 1.0 alpha))))))
+      (let ((sticks (mem (lambda (x) (beta 1.0 alpha)))))
         (lambda () (pick-a-stick sticks 1))))
     
     (define my-sticks (make-sticks 1))
@@ -29,7 +29,7 @@ Based on the Dirichlet Process, we can write a stochastic memoizer for any funct
           (pick-a-stick sticks (+ J 1))))
     
     (define (make-sticks alpha)
-      (let ((sticks (mem (lambda (x) (first (beta 1.0 alpha))))))
+      (let ((sticks (mem (lambda (x) (beta 1.0 alpha)))))
         (lambda () (pick-a-stick sticks 1))))
     
     (define (DPmem alpha base-dist)
@@ -37,7 +37,7 @@ Based on the Dirichlet Process, we can write a stochastic memoizer for any funct
               (mem (lambda (args stick-index) (apply base-dist args))))
             (DP (mem (lambda (args) (make-sticks alpha)))))
         (lambda argsin
-          (let ((stick-index (sample (DP argsin))))
+          (let ((stick-index ((DP argsin))))
             (augmented-proc argsin stick-index)))))
 
     (define memoized-gaussian (DPmem 1.0 gaussian))

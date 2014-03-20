@@ -15,7 +15,7 @@ For each class, we draw and remember a mean and variance. For each object, we dr
       (mem (lambda (object) (class-distribution))))
     
     (define class->gaussian-parameters
-      (mem (lambda (class) (list (gaussian 65 10) (gaussian 0 8)))))
+      (mem (lambda (class) (list (gaussian 65 10) (uniform 0 8)))))
     
     (define (observe object)
       (apply gaussian (class->gaussian-parameters (object->class object))))

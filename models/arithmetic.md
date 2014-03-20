@@ -29,3 +29,5 @@ This program induces a deterministic arithmetic function from input-output examp
        (define my-proc (random-arithmetic-fn))
        (my-proc 2)
        (= (my-proc 1) 3)))
+
+    (sample)

@@ -103,6 +103,7 @@ ul p {
 .code-controls-clear {
    clear: both;
    display: block;
+   margin-bottom: 1em;   
 }
 
 .results {

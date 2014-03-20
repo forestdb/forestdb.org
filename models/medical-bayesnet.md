@@ -7,8 +7,7 @@ model-tags: bayesnet, medicine
 ---
 
     (define samples
-      (mh-query 
-       1000 10
+      (mh-query 1000 10
                 (define lung-cancer (flip 0.01))
                 (define TB (flip 0.005))
                 (define cold (flip 0.2))

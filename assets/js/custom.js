@@ -57,7 +57,28 @@ $(function () {
               return true;
           };
       };
-      console.log("not found");
       return true;
   });
+})
+
+
+// Code boxes
+
+$(function () {
+    var code_pres = $("pre").filter(function() {
+        return $(this).find('code').length === 1;
+    });
+    $.each(code_pres,
+           function(index, pre) {
+               var defaultText = $(pre).find("code").text();
+               require('./editor').injector(pre, {
+                   defaultText: defaultText,
+                   defaultEngine: "webchurch"
+               });
+           });
+
+    $(".code-controls button").addClass("btn btn-default");
+    $(".code-controls").addClass("btn-toolbar pull-right");
+    $(".code-controls").after("<div class=\"code-controls-clear\"></div>");
+    $(".code-controls button").css("padding", "none");
 })

@@ -51,6 +51,17 @@ body div.container {
 }
 
 
+/* Button toolbars */
+
+.bottom-toolbar {
+   margin-top: 1em;
+}
+
+.top-toolbar {
+   margin-top: 2.5em;
+}
+
+
 /* Footer */
 
 #footer .container {
@@ -76,4 +87,29 @@ div.page-header h1 {
 ul p {
    margin-bottom: 0.3em;
    margin-top: 0.3em;
+}
+
+
+/* Code boxes */
+
+.code-controls select {
+  display: none
+}
+
+.code-controls button {
+   float: none;
+}
+
+.code-controls-clear {
+   clear: both;
+   display: block;
+}
+
+.results {
+   margin-bottom: 2em;
+}
+
+div.results pre {
+  background-color: #fff;
+  border: none;
 }

@@ -13,7 +13,7 @@ A simple recursively defined distribution on the integers.
           0
           (+ 1 (geometric p))))
     
-    (geometric .5)
+    (hist (repeat 300 (lambda () (geometric .5))))
     
 Alternatively, we can write the geometric distribution in tail-recursive form:
     
@@ -22,4 +22,4 @@ Alternatively, we can write the geometric distribution in tail-recursive form:
           n
           (geometric-alt p (+ n 1))))
     
-    (geometric-alt .5 0)
+    (hist (repeat 300 (lambda () (geometric-alt .5 0))))

@@ -27,10 +27,10 @@ Version 1:
 
 Version 2:
 
-    (letrec 
-        ([eq (factor (x y) (if (= x y) 0.0 (log 0.1)))]
-         [xs (repeat 10 (lambda () (xrp+init randint-scorer randint randint-prop 0 0 1)))]
-         [constr (map (lambda (xy) (eq (car xy) (car (cdr xy)))) (bigram xs))])
-      xs))
+    (let*
+      ((eql (lambda (x y) (factor (if (= x y) 0.0 (log 0.1)))))
+       (xs (repeat 10 (lambda () (if (flip) 0 1))))
+       (constr (map (lambda (xy) (eql (car xy) (car (cdr xy)))) (bigram xs))))
+      xs)
       
 Source: [shred](https://github.com/LFY/shred/blob/master/tests/ising.ss)      

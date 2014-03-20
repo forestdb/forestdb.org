@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>WebChurch</title>
+    <link rel="stylesheet" href="css/codemirror.css">
+    <link rel="stylesheet" href="css/d3.css">
+    <script src="jquery.js"></script>
+    <script src="webchurch.js"></script>
+    <style>
+      body {
+      font-family: Helvetica;
+      font-size: 120%;
+      }
+
+      button {
+      font-size: 14px
+      }
+
+      select {
+      font-size: 20px;
+      }
+      ul {
+      font-size: 12px
+      }
+      li code {
+      border: 1px solid #aaa;
+      border-radius: 2px;
+      padding: 1px 3px 1px 3px;
+      background-color: #dfdfdf
+      }
+      li {
+      padding-top: 10px
+      }
+    </style>
+    
+  </head>
+  <body>
+
+    <pre>This is not a codebox</pre>
+
+    <pre><code>(hist (list 'a 'a 'a 'b 'c 'c 'c 'c 'd 'd))
+(density (repeat 200 gaussian) 'gaussian true)
+
+(lineplot (repeat 50 (lambda () (repeat 2 gaussian))))
+
+(barplot '((a b c)
+           (5 3 9)
+           ))
+
+(plus 5 3)</code></pre>
+
+Blubb
+
+    <pre><code>(flip .5)</code></pre>
+
+  </body>
+  <script>
+    var code_pres = $("pre").filter(function() {
+      return $(this).find('code').length === 1;
+    });
+    $.each(code_pres,
+      function(index, pre) {
+        var defaultText = $(pre).find("code").text();
+        require('./editor').injector(pre, {
+          defaultText: defaultText,
+          defaultEngine: "webchurch"
+          });
+      });
+  </script>
+</html>

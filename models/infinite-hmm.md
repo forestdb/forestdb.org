@@ -8,7 +8,7 @@ model-tags: mem, nonparametrics, mixture, hmm
 
 This Hidden Markov model has a potentially infinite number of latent states:
 
-    (define vocabulary ’(chef omelet soup eat work bake))
+    (define vocabulary '(chef omelet soup eat work bake))
     
     (define (get-state) (DPmem 0.5 gensym))
     
@@ -34,7 +34,7 @@ This Hidden Markov model has a potentially infinite number of latent states:
           (pair (observation last-state) 
                 (sample-words (transition last-state)))))
     
-    (sample-words ‘start) 
+    (sample-words 'start) 
 
 Source: [probmods.org](https://probmods.org/observing-sequences.html#hidden-markov-models)
 

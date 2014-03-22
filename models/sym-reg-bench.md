@@ -1,3 +1,10 @@
+---
+layout: model
+title: Symbolic Regression (benchmark)
+model-status: code
+model-category: Miscellaneous
+model-tags: shred, benchmark
+---
 
 
     (define (zip xs1 xs2) 
@@ -94,4 +101,5 @@
                 sample #t ))
     
     samples
-    
+
+Source: Shred

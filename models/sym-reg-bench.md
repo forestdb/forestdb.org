@@ -102,4 +102,4 @@ model-tags: shred, benchmark
     
     samples
 
-Source: Shred
+Source: [shred](https://github.com/LFY/shred/blob/master/benchmarks/sym-reg.ss)

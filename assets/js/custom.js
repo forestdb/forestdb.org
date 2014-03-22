@@ -31,7 +31,7 @@ var substringMatcher = function (strs) {
         q = q.split("").reduce(function (a, b) {
             return a + '[^' + b + ']*' + b;
         });
-        substrRegex = new RegExp(q, 'i');
+        var substrRegex = new RegExp(q, 'i');
         $.each(strs, function (i, str) {
             if (substrRegex.test(str)) {
                 if (matches.length < 10) {

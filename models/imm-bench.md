@@ -3,7 +3,7 @@ layout: model
 title: Infinite Mixture Model (benchmark)
 model-status: code
 model-category: Machine Learning
-model-tags: machine learning
+model-tags: shred, benchmark, machine learning
 ---
 
     (define (zip xs1 xs2) 

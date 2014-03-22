@@ -56,4 +56,5 @@ The rope-pulling model is a simple hierarchical model that illustrates compositi
 
 References:
 
+- Cite:Gerstenberg2012ping
 - Cite:ProbMods

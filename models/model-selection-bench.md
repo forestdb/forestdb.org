@@ -48,4 +48,4 @@ model-tags: shred, benchmark
     samples
     
     
-Source: Shred
+Source: [shred](https://github.com/LFY/shred/tree/master/benchmarks/model-selection.ss)

@@ -1,53 +1,76 @@
 ---
 layout: model
-title: Rat Growth
+title: Rat Growth (benchmark)
 model-status: code
 model-category: Undirected Constraints
-model-tags: 
+model-tags: machine learning, shred, benchmark
 ---
 
-    (define ratsdata 
-      '((151 199 246 283 320) (145 199 249 293 354)
-        (147 214 263 312 328) (155 200 237 272 297)
-        (135 188 230 280 323) (159 210 252 298 331)
-        (141 189 231 275 305) (159 201 248 297 338)
-        (177 236 285 350 376) (134 182 220 260 296)
-        (160 208 261 313 352) (143 188 220 273 314)
-        (154 200 244 289 325) (171 221 270 326 358)
-        (163 216 242 281 312) (160 207 248 288 324)
-        (142 187 234 280 316) (156 203 243 283 317)
-        (157 212 259 307 336) (152 203 246 286 321)
-        (154 205 253 298 334) (139 190 225 267 302)
-        (146 191 229 272 302) (157 211 250 285 323)
-        (132 185 237 286 331) (160 207 257 303 345)
-        (169 216 261 295 333) (157 205 248 289 316)
-        (137 180 219 258 291) (153 200 244 286 324)))
+    (define (zip xs1 xs2) 
+      (if (or (is_null xs1) (is_null xs2)) '() 
+        (pair 
+          (pair (first xs1) (pair (first xs2) '()))
+          (zip (rest xs1) (rest xs2)))))
     
-    [define x '(8.0 15.0 22.0 29.0 36.0)]
-    [define xbar 22.0]
-    [define gauss-factor (make-factor (lambda (m v x) (gauss-log-pdf m v x)))]
+    (define my-pi 3.14159265358979323)
     
-    (mh-query
-     10 10000
-     [define alphac (gaussian 0 10000)]
-     [define betac (gaussian 0 10000)]
-     [define tauc (abs (gaussian 0 100))]
-     [define taualpha (abs (gaussian 0 100))]
-     [define taubeta (abs (gaussian 0 100))]
-     (- alphac (* betac xbar))
-     [begin 
-       (map (lambda (s) 
-              (letrec(
-                      [alpha-rat (gaussian alphac (/ 1.0 taualpha))]
-                      [beta-rat (gaussian betac (/ 1.0 taubeta))]
-                      [y-constrs
-                       (map (lambda (x-w)
-                              (gauss-factor (+ alpha-rat (* beta-rat (- (car x-w) xbar))) tauc (cadr x-w)))
-                            (zip x s))])
-                1.0
-                ))
-            ratsdata)
-       true]
-     )
+    (define (glp mean ssq smp)
+      (let ([diff (- smp mean)])
+        (- (- (/ (* diff diff) (* 2.0 ssq)))
+           (* 0.5 (+ (log 2) (log my-pi) (log ssq))))))
+    
+    (define ratsdata
+      '((151.0 199.0 246.0 283.0 320.0) (145.0 199.0 249.0 293.0 354.0)
+        (147.0 214.0 263.0 312.0 328.0) (155.0 200.0 237.0 272.0 297.0)
+        (135.0 188.0 230.0 280.0 323.0) (159.0 210.0 252.0 298.0 331.0)
+        (141.0 189.0 231.0 275.0 305.0) (159.0 201.0 248.0 297.0 338.0)
+        (177.0 236.0 285.0 350.0 376.0) (134.0 182.0 220.0 260.0 296.0)
+        (160.0 208.0 261.0 313.0 352.0) (143.0 188.0 220.0 273.0 314.0)
+        (154.0 200.0 244.0 289.0 325.0) (171.0 221.0 270.0 326.0 358.0)
+        (163.0 216.0 242.0 281.0 312.0) (160.0 207.0 248.0 288.0 324.0)
+        (142.0 187.0 234.0 280.0 316.0) (156.0 203.0 243.0 283.0 317.0)
+        (157.0 212.0 259.0 307.0 336.0) (152.0 203.0 246.0 286.0 321.0)
+        (154.0 205.0 253.0 298.0 334.0) (139.0 190.0 225.0 267.0 302.0)
+        (146.0 191.0 229.0 272.0 302.0) (157.0 211.0 250.0 285.0 323.0)
+        (132.0 185.0 237.0 286.0 331.0) (160.0 207.0 257.0 303.0 345.0)
+        (169.0 216.0 261.0 295.0 333.0) (157.0 205.0 248.0 289.0 316.0)
+        (137.0 180.0 219.0 258.0 291.0) (153.0 200.0 244.0 286.0 324.0)))
+    
+    
+    (define samples
+      (mh-query 10 100
+        (define alphac (gaussian 0.0 1e4))
+        (define betac (gaussian 0.0 1e4))
+        (define tauc (gamma 1e-3 1e3))
+        (define taualpha (gamma 1e-3 1e3))
+        (define taubeta (gamma 1e-3 1e3))
+        (define xbar 22.0)
+        (define gauss-factor (lambda (m v x) (factor (glp m v x))))
+        (define x '(8.0 15.0 22.0 29.0 36.0))
+        (define void-local
+          (map
+            (lambda (s)
+              (let* ((alpha-rat
+                       (gaussian alphac
+                                 (/ 1.0 taualpha)))
+                     (beta-rat
+                       (gaussian betac
+                                 (/ 1.0 taubeta)))
+                     (y-constrs
+                       (map
+                         (lambda (x-w)
+                           (gauss-factor
+                             (+ alpha-rat
+                                (* beta-rat (- (first x-w) xbar)))
+                             tauc (second x-w)))
+                         (zip x s))))
+                1.0))
+            ratsdata))
+        (define sample (- alphac (* betac xbar))) 
+        sample 
+        #t))
+    samples
+
+
  
-Source: [shred](https://github.com/LFY/shred/blob/master/tests/rats.church)
+Source: [shred](https://github.com/LFY/shred/tree/master/benchmarks/rats.ss)

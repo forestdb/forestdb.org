@@ -1,24 +1,51 @@
 ---
 layout: model
-title: Bayesian Linear Regression
+title: Bayesian Linear Regression (benchmark)
 model-status: code
 model-category: Machine Learning
-model-tags: machine learning
+model-tags: shred, benchmark, machine learning
 ---
 
-    (letrec 
-        ([xys '((1 1) (2 3) (3 3) (4 3) (5 5))]
-         [xbar 3]
-         [alpha (xrp+init gaussian-scorer gaussian gaussian-prop 0 0 10000)]
-         [beta (xrp+init gaussian-scorer gaussian gaussian-prop 0 0 10000)]
-         [tau (abs (xrp+init gaussian-scorer gaussian gaussian-prop 1 0 10000))]
-         [gauss-factor (factor (m v x) (gauss-log-pdf m v x))]
-         [y-constrs 
-          (map (lambda (xy) 
-                 (gauss-factor (+ alpha (* beta (- (car xy) xbar))) 
-                               (/ 1.0 tau) 
-                               (cadr xy))) 
-               xys)])
-      (list alpha beta (/ 1.0 (sqrt tau)) tau)))
+    (define my-pi 3.14159265358979323)
+    
+    (define (glp mean ssq smp)
+      (let ([diff (- smp mean)])
+        (- (- (/ (* diff diff) (* 2.0 ssq)))
+           (* 0.5 (+ (log 2) (log my-pi) (log ssq))))))
+    
+    (define (randint l h) (+ l (sample-integer (+ 1 (- h l)))))
+    
+    (define (index-in x xs)
+      (define (loop x k rst)
+        (if (is_null rst) k
+          (if (equal? (first rst) x) k
+            (loop x (+ k 1) (rest rst)))))
+        (loop x 0 xs))
+    
+    (define (my-length xs)
+      (if (is_null xs) 0
+        (+ 1 (my-length (rest xs)))))
+    
+    (define (data-loop n)
+      (if (= n 51) '()
+        (pair (list n n)
+              (data-loop (+ n 1)))))
+    
+    (define data (data-loop 0))
+    
+    (define xbar (/ (sum (map first data)) (my-length data)))
+    
+    (define samples
+      (mh-query 10 100
+        (define alpha (gaussian 0.0 1e4))
+        (define beta (gaussian 0.0 1e4))
+        (define tau (abs (gaussian 0.0 1e4)))
+        (define (gauss-factor m v x) (factor (glp m v x)))
+        (define y-constrs (map (lambda (xy) (gauss-factor (+ alpha (* beta (- (first xy) xbar))) (/ 1.0 tau) (second xy)))
+            data))
+        (define sample (list alpha beta (/ 1.0 (expt tau 0.5)) tau))
+        sample #t))
+    samples
+
       
-Source: [shred](https://github.com/LFY/shred/blob/master/tests/line.ss)
+Source: [shred](https://github.com/LFY/shred/blob/master/benchmarks/line.ss)

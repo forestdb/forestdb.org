@@ -38,7 +38,7 @@ The rope-pulling model is a simple hierarchical model that illustrates compositi
              team)))
     
      (define (winner team1 team2)
-       (if (&lt; (total-pulling team1)
+       (if (< (total-pulling team1)
               (total-pulling team2))
            'team2
            'team1))

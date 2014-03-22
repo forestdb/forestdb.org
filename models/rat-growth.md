@@ -1,9 +1,9 @@
 ---
 layout: model
-title: Rat Growth
+title: Rat Growth (benchmark)
 model-status: code
 model-category: Undirected Constraints
-model-tags: 
+model-tags: machine learning, shred, benchmark
 ---
 
     (define (zip xs1 xs2) 
@@ -73,4 +73,4 @@ model-tags:
 
 
  
-Source: [shred](https://github.com/LFY/shred/blob/master/tests/rats.church)
+Source: [shred](https://github.com/LFY/shred/tree/master/benchmarks/rats.ss)

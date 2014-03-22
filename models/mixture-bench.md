@@ -3,7 +3,7 @@ layout: model
 title: Bayesian Mixture Model (benchmark)
 model-status: code
 model-category: Machine Learning
-model-tags: machine learning
+model-tags: shred, benchmark, machine learning
 ---
 
 

@@ -94,4 +94,4 @@ model-tags: shred, benchmark, machine learning
         #t))
     samples
 
-Source: Shred
+Source: [shred](https://github.com/LFY/shred/blob/master/benchmarks/topic-hdp.ss)

@@ -3,7 +3,7 @@ layout: model
 title: Hierarchical Dirichlet Process Topic Model (benchmark)
 model-status: code
 model-category: Nonparametric Models
-model-tags: machine learning
+model-tags: shred, benchmark, machine learning
 ---
 
     (define (zip xs1 xs2) 

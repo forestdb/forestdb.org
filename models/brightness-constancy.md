@@ -25,3 +25,7 @@ emitted by the object). Model by @churchwiki.
     
      (and (noisy= 3.0 luminance 0.1)
           (noisy= 0.5 illumination 0.1)))
+
+References:
+
+- Cite:ProbMods

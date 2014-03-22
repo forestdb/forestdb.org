@@ -58,9 +58,11 @@ Version 2:
     
     (sample-words 'start)
 
-Source: [probmods.org](https://probmods.org/observing-sequences.html#hidden-markov-models)
-
 See also:
 
 - [HMM-Ising](/models/hmm-ising.html)
 - [Infinite HMM](/models/infinite-hmm.html)
+
+References:
+
+- Cite:ProbMods

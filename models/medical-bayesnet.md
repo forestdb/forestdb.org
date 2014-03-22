@@ -27,4 +27,6 @@ model-tags: bayesnet, medicine
     
     (hist samples)
 
-Source: [probmods.org - conditioning](https://probmods.org/conditioning.html)    
+References:
+
+- Cite:ProbMods

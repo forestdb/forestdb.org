@@ -92,3 +92,7 @@ the other player.
         (0 o 0)))
     
     (sample-action start-state 'x)
+
+References:
+
+- Cite:Stuhlmueller2013aa

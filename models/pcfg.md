@@ -106,4 +106,6 @@ Unfold style:
     
     (tree-unfold transition 'S)
 
-Source: [probmods.org](https://probmods.org/observing-sequences.html#probabilistic-context-free-grammars)
+References:
+
+- Cite:ProbMods

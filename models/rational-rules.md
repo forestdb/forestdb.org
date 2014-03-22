@@ -6,7 +6,7 @@ model-category: Concept Learning
 model-tags: concepts, logic
 ---
 
-Rational Rules is a model of concept learning. Concepts are represented as compositional rule formulas. The version below is a simplified version of the model used in *Goodman, N. D., Tenenbaum, J. B., Feldman, J., & Griffiths, T. L. (2008)*.
+Rational Rules is a model of concept learning. Concepts are represented as compositional rule formulas. The version below is a simplified version of the model used in Ref:Goodman2008ub.
 
     ;;first set up the training (cat A/B) and test objects:
     (define num-features 4)
@@ -75,7 +75,7 @@ Rational Rules is a model of concept learning. Concepts are represented as compo
     (scatter (map pair (means samples) (append human-T human-A human-B)) 
              "model vs human")
 
-Source:
+References:
 
-- Goodman, N. D., Tenenbaum, J. B., Feldman, J., & Griffiths, T. L. (2008). A rational analysis of rule-based concept learning. Cognitive Science.
-- [probmods.org - learning as conditional inference](https://probmods.org/learning-as-conditional-inference.html#example-rational-rules)
+- Cite:Goodman2008ub
+- Cite:ProbMods

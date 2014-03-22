@@ -49,4 +49,6 @@ We construct a mixture distribution on draws from three bags of marbles. Each ba
     (hist (map second samples) "obs1 and obs3 same category?")
     'done
 
-Source: [probmods.org - mixture models](https://probmods.org/mixture-models.html)
+References:
+
+- Cite:ProbMods

@@ -13,7 +13,6 @@ player gets to see the number the first player chooses, but the
 second player mistakenly thinks that the two win if their numbers
 add up to any number greater than *8* (and the first player knows
 this as well). What number should the first player choose?
-[@stuhlmueller:2012aa]
 
     (define (sample)
       (rejection-query
@@ -27,3 +26,7 @@ this as well). What number should the first player choose?
        (= (+ a b) 13)))
     
     (hist (repeat 1000 sample))
+
+References:
+
+- Cite:Stuhlmueller2013aa

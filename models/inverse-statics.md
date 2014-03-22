@@ -68,3 +68,7 @@ Inference is over beam rotation angles that (approximately) satisfy static equil
     		return beamAngle
     	end
     end
+
+References:
+
+- [Daniel Ritchie](http://stanford.edu/~dritchie/) (2014)

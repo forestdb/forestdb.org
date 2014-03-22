@@ -9,8 +9,7 @@ model-tags: nonparametric models, categorization
 CrossCat is a generative model that can be used for categorizing
 objects given their features. The model assumes that each data
 point is generated using multiple systems of categories; each such
-system accounts for some subset of the features [@Shafto:2006tz;
-@churchwiki].
+system accounts for some subset of the features.
 
     (define samples
     
@@ -42,3 +41,8 @@ system accounts for some subset of the features [@Shafto:2006tz;
             (observe 'toast 'breakfast)
             (observe 'eggs 'dinner)
             (observe 'spinach 'dinner))))
+
+References:
+
+- Cite:Shafto2006tz
+- Cite:ProbMods

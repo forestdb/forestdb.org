@@ -49,6 +49,7 @@ We can use these nested categories to generate observations:
     
     (repeat 10 sample-observation)
 
-Source:
-- Blei, D. M., Griffiths, T. L., Jordan, M. I., and Tenenbaum, J. B. (2004) Hierarchical topic models and the nested chinese restaurant process. In Advances in Neural Information Processing Systems 16.
-- [probmods.org - nonparametric models](https://probmods.org/non-parametric-models.html)
+References:
+
+- Cite:Blei2003hierarchical
+- Cite:ProbMods

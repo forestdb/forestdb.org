@@ -8,7 +8,7 @@ model-tags: linguistics, pragmatics, theory of mind
 
 A model of pragmatic language interpretation: 
 
-The speaker chooses a sentence conditioned on the listener inferring the intended state of the world when hearing this sentence; the listener chooses an interpretation conditioned on the speaker selecting the given utterance when intending this meaning. stuhlmueller:2012aa; ndg+ast:cogsci2012; Frank:2012fe
+The speaker chooses a sentence conditioned on the listener inferring the intended state of the world when hearing this sentence; the listener chooses an interpretation conditioned on the speaker selecting the given utterance when intending this meaning.
 
     (define (belief actual-state access)
       (map (lambda (ac st pr) (if ac st (sample pr)))
@@ -57,3 +57,9 @@ The speaker chooses a sentence conditioned on the listener inferring the intende
     
     ;; with full knowledge:
     (num-true (listener '(#t #t #t) some-p 5))
+
+References:
+
+- Cite:Goodman2013xz
+- Cite:Frank2012fe
+- Cite:Stuhlmueller2013aa

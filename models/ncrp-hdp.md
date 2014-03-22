@@ -39,6 +39,6 @@ We can use the [Nested Chinese-Restaurant Process](/models/nested-crp.html) to s
                "Root Category"))))
     'done
 
-Source:
+References:
 
-- [probmods.org - nonparametric models](https://probmods.org/non-parametric-models.html)
+- Cite:ProbMods

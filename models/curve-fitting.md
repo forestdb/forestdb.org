@@ -42,3 +42,7 @@ preference for simpler models. Model by @churchwiki.
      (fold (lambda (x a) (and x a))
            true
            (map noisy-equals? y-vals obs-y-vals)))
+
+References:
+
+- Cite:ProbMods

@@ -45,3 +45,7 @@ depend on the biases.
                                      red red red red red red black))))
     
     (density samples)
+
+References:
+
+- Cite:Stuhlmueller2013aa

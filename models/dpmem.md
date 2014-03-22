@@ -44,4 +44,8 @@ Based on the Dirichlet Process, we can write a stochastic memoizer for any funct
     
     (hist (repeat 1000 (lambda () (memoized-gaussian 0.0 1.0))) "Dirichlet Process")
 
-Source: [probmods.org - nonparametric models](https://probmods.org/non-parametric-models.html)
+References:
+
+- Cite:Ferguson1973
+- Cite:Goodman2008uq
+- Cite:ProbMods

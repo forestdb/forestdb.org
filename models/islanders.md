@@ -8,7 +8,7 @@ model-tags: theory of mind, game theory
 
 The blue-eyed islanders puzzle (also known as the *muddy children*
 and *cheating husbands* problem) is a well-known problem in
-epistemic logic [@gamow:1958wh; @tao:2009uu]. The setup is as
+epistemic logic (Ref:Gamow1958wh; Ref:Tao2009uu). The setup is as
 follows: There is a tribe on a remote island. Out of the *n* people
 in this tribe, *m* have blue eyes. Their religion forbids them to
 know their own eye color, or even to discuss the topic. Therefore,
@@ -72,3 +72,9 @@ To run a noisy version of the model, use a `get-raised-hands` function that allo
          (sum-repeat (lambda () (agent t raised-hands true-blue-eyes))
                      (- num-agents (+ true-blue-eyes)))
          (if (flip .1) 1 (agent t raised-hands (- true-blue-eyes 1)))))
+
+References:
+
+- Cite:Stuhlmueller2013aa
+- Cite:Gamow1958wh
+- Cite:Tao2009uu

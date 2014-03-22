@@ -9,7 +9,7 @@ model-tags: clustering, cognitive science, nonparametric statistics
 The Infinite Relational Model (IRM) is a nonparametric model that,
 given data involving different kinds of entities, discovers which
 kinds there are and which relations hold between kinds. From the
-paper by Kemp et al, 2006:
+paper by Ref:Kemp2006uv:
 
 > "Suppose we are given one or more relations involving one or more
 > types. The goal of the IRM is to partition each type into clusters,
@@ -56,7 +56,7 @@ paper by Kemp et al, 2006:
     (hist (map first samples) "tom and fred in same group?")
     (hist (map second samples) "tom and mary in same group?")
 
-Sources: 
+References:
 
-- Kemp, C., Tenenbaum, J. B., Griffiths, T. L., Yamada, T., & Ueda, N. (2006). Learning Systems of Concepts with an Inﬁnite Relational Model, 1–8.
-- [probmods.org - nonparametric models](https://probmods.org/non-parametric-models.html)    
+- Cite:Kemp2006uv
+- Cite:ProbMods

@@ -20,11 +20,12 @@ Using [DPmem](/models/dpmem.html), we can create an infinite mixture model with 
       (apply gaussian (cls->gaussian-parameters (object->cls object))))
     
     (map observe '(tom dick harry bill fred))
-    
-Source: 
-
-- [probmods.org - nonparametric models](https://probmods.org/non-parametric-models.html)    
 
 See also:
 
 - [Finite Gaussian Mixture](/models/finite-gaussian-mixture.html)
+
+References:
+
+- Cite:Rasmussen1999infinite
+- Cite:ProbMods

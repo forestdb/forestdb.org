@@ -47,4 +47,6 @@ We use the Dirichlet Process to construct a distribution on a potentially infini
     (hist (map second samples) "obs1 and obs3 same category?")
     'done
 
-Source: [probmods.org - nonparametric models](https://probmods.org/non-parametric-models.html)
+References:
+
+- Cite:ProbMods

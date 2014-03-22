@@ -7,8 +7,7 @@ model-tags: theory of mind, game theory
 ---
 
 Two agents, Alice and Bob, want to meet. They choose which bar to
-go to by recursively reasoning about one another
-[@schelling.t:1960].
+go to by recursively reasoning about one another.
 
     (define (sample-location)
       (if (flip .6)
@@ -30,3 +29,8 @@ go to by recursively reasoning about one another
            (equal? bob-location (alice depth)))))
     
     (hist (repeat 100 (lambda () (bob 1))))
+
+References:
+
+- Cite:Schelling1960
+- Cite:Stuhlmueller2013aa

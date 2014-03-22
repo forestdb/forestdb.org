@@ -7,7 +7,7 @@ model-tags: theory of mind, game theory
 ---
 
 Bob believes that Alice wants to meet him, and Alice knows this,
-but in fact Alice wants to avoid Bob [@schelling.t:1960].
+but in fact Alice wants to avoid Bob.
 
     (define (sample-location)
       (if (flip .55)
@@ -35,3 +35,8 @@ but in fact Alice wants to avoid Bob [@schelling.t:1960].
            (equal? bob-location (alice depth)))))
     
     (hist (repeat 10 (lambda () (alice* 3))))
+
+References:
+
+- Cite:Schelling1960
+- Cite:Stuhlmueller2013aa

@@ -22,7 +22,7 @@ In a Hierarchical Dirchlet Process (HDP), multiple DPs share another (top-level)
     (hist (repeat 1000 top-level) "Draws from Top Level DP")
     'done
 
-Source:
+References:
 
-- Teh, Y. W., Jordan, M. I., Beal, M. J., and Blei, D. M. (2006). Hierarchical dirichlet processes. Journal of the American Statistical Association, 101(476):1566–1581.
-- [probmods.org - nonparametric models](https://probmods.org/non-parametric-models.html)
+- Cite:Teh2004sharing
+- Cite:ProbMods

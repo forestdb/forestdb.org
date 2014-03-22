@@ -25,3 +25,7 @@ For each class, we draw and remember a mean and variance. For each object, we dr
 See also:
 
 - [Infinite Gaussian Mixture](/models/infinite-gaussian-mixture.html)
+
+References:
+
+- Cite:ProbMods

@@ -6,8 +6,7 @@ model-category: Machine Learning
 model-tags: language, hierarchical models
 ---
 
-A model that can be used to discover the topics of documents
-[@Blei:2003tn; @churchwiki].
+LDA is a model that can be used to discover the topics of documents.
 
     (define vocabulary (append '(bear wolf)'(python prolog)))
     
@@ -48,3 +47,8 @@ A model that can be used to discover the topics of documents
       (equal? (document->words 'doc3) doc3)
       (equal? (document->words 'doc4) doc4)
       (equal? (document->words 'doc5) doc5)))
+
+References:
+
+- Cite:Blei2003tn
+- Cite:ProbMods

@@ -36,8 +36,11 @@ This Hidden Markov model has a potentially infinite number of latent states:
     
     (sample-words 'start) 
 
-Source: [probmods.org](https://probmods.org/observing-sequences.html#hidden-markov-models)
-
 See also:
 
 - [Hidden Markov Model](/models/hmm.html)
+
+References:
+
+- Cite:Beal2002infinite
+- Cite:ProbMods

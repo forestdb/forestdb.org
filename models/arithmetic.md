@@ -31,3 +31,7 @@ This program induces a deterministic arithmetic function from input-output examp
        (= (my-proc 1) 3)))
 
     (sample)
+
+References:
+
+- Cite:ProbMods

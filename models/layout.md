@@ -121,3 +121,6 @@ model-language: terra
     	end
     end
 
+References:
+
+- [Daniel Ritchie](http://stanford.edu/~dritchie/) (2014)

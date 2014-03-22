@@ -3,7 +3,7 @@ layout: model
 title: Bayesian Linear Regression (benchmark)
 model-status: code
 model-category: Machine Learning
-model-tags: shred, benchmark
+model-tags: shred, benchmark, machine learning
 ---
 
     (define my-pi 3.14159265358979323)

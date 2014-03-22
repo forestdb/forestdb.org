@@ -71,4 +71,4 @@ model-tags: shred, benchmark, machine learning
         (define sample (pair obj-cats constr)) sample #t))
     samples
     
-Source: Shred
+Source: [shred](https://github.com/LFY/shred/blob/master/benchmarks/imm.ss)

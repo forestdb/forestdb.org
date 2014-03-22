@@ -48,4 +48,4 @@ model-tags: shred, benchmark, machine learning
     samples
 
       
-Source: [shred](https://github.com/LFY/shred/blob/master/tests/line.ss)
+Source: [shred](https://github.com/LFY/shred/blob/master/benchmarks/line.ss)

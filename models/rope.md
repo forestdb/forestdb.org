@@ -6,7 +6,7 @@ model-category: Miscellaneous
 model-tags: hierarchical models
 ---
 
-A simple hierarchical model [@churchwiki].
+The rope-pulling model is a simple hierarchical model that illustrates compositionality in human reasoning.
 
     (define num-people 4)
     
@@ -53,3 +53,7 @@ A simple hierarchical model [@churchwiki].
           (eq? 'team1 (winner team1 team2))
           (eq? 'team1 (winner team1 team2))
           (eq? 'team1 (winner team1 team2))))
+
+References:
+
+- Cite:ProbMods

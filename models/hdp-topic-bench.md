@@ -1,10 +1,11 @@
 ---
 layout: model
-title: Bayesian Linear Regression
+title: Hierarchical Dirichlet Process Topic Model (benchmark)
 model-status: code
-model-category: Machine Learning
+model-category: Nonparametric Models
 model-tags: machine learning
 ---
+
     (define (zip xs1 xs2) 
       (if (or (is_null xs1) (is_null xs2)) '() 
         (pair 

@@ -70,4 +70,4 @@ model-tags: shred, benchmark, machine learning
         (define sample (pair res constr)) sample #t))
     samples
     
-Source: Shred
+Source: [shred](https://github.com/LFY/shred/blob/master/benchmarks/mixture.ss)

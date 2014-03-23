@@ -72,5 +72,8 @@ model-tags: machine learning, shred, benchmark
     samples
 
 
- 
-Source: [shred](https://github.com/LFY/shred/tree/master/benchmarks/rats.ss)
+
+References 
+
+- Cite:shred2014
+- Source: [shred](https://github.com/LFY/shred/tree/master/benchmarks/rats.ss)

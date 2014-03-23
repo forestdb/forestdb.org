@@ -42,5 +42,7 @@ model-tags: shred, benchmark
         #t))
     samples
 
+References 
 
-Source: [shred](https://github.com/LFY/shred/blob/master/benchmarks/sym-reg.ss)
+- Cite:shred2014
+- Source: [shred](https://github.com/LFY/shred/blob/master/benchmarks/sym-reg.ss)

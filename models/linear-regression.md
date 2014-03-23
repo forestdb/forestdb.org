@@ -47,6 +47,7 @@ model-tags: shred, benchmark, machine learning
         sample #t))
     samples
 
-From: Cite:shred2014
+References 
 
-Source: [shred](https://github.com/LFY/shred/blob/master/benchmarks/line.ss)
+- Cite:shred2014
+- Source: [shred](https://github.com/LFY/shred/blob/master/benchmarks/line.ss)

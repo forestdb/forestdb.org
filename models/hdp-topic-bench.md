@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Hierarchical Dirichlet Process Topic Model (benchmark)
-model-status: code
+model-status: code-fail
 model-category: Nonparametric Models
 model-tags: shred, benchmark, machine learning
 ---

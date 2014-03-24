@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Rope-Pulling
-model-status: code
+model-status: code-fail
 model-category: Miscellaneous
 model-tags: hierarchical models
 ---

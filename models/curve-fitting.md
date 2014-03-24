@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Curve Fitting
-model-status: code
+model-status: code-fail
 model-category: Miscellaneous
 model-tags: function learning, occam's razor
 ---

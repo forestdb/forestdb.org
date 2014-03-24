@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Layout of Tables and Plates (Terra)
-model-status: code
+model-status: code-fail
 model-category: Miscellaneous
 model-tags: layout, constraints
 model-language: terra

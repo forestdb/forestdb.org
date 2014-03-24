@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Infinite Hidden Markov Model
-model-status: code
+model-status: code-fail
 model-category: Nonparametric Models
 model-tags: mem, nonparametrics, mixture, hmm
 ---

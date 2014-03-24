@@ -1,7 +1,7 @@
 ---
 layout: model
 title: CrossCat
-model-status: code
+model-status: code-fail
 model-category: Nonparametric Models
 model-tags: nonparametric models, categorization
 ---

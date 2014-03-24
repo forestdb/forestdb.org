@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Inverse statics (Terra)
-model-status: code
+model-status: code-fail
 model-category: Inverse Dynamics
 model-tags: statics
 model-language: terra

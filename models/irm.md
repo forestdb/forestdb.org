@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Infinite Relational Model
-model-status: code
+model-status: code-fail
 model-category: Nonparametric Models
 model-tags: clustering, cognitive science, nonparametric statistics
 ---

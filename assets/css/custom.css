@@ -114,3 +114,11 @@ div.results pre {
   background-color: #fff;
   border: none;
 }
+
+
+/* List of models on index page */
+
+.glyph-label span {
+   margin-left: -.2em;
+   margin-right: -.2em;
+}

@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Tic-Tac-Toe
-model-status: code
+model-status: code-fail
 model-category: Reasoning about Reasoning
 model-tags: game theory, planning
 ---

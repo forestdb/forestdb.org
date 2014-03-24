@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Latent Dirichlet Allocation (benchmark)
-model-status: code
+model-status: code-fail
 model-category: Machine Learning
 model-tags: shred, benchmark, machine learning
 ---

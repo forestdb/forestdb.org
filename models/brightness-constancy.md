@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Brightness Constancy
-model-status: code
+model-status: code-fail
 model-category: Miscellaneous
 model-tags: cognitive science, vision
 ---

@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Hierarchical Urn Model
-model-status: code
+model-status: code-fail
 model-category: Miscellaneous
 model-tags: hierarchical models
 ---

@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Forest - A Repository for Generative Models
-all-model-statuses: [code, link, stub]
+all-model-statuses: [code, link, code-fail, stub]
 all-model-categories: [Concept Learning, Reasoning about Reasoning, Machine Learning, Nonparametric Models, Undirected Constraints, Inverse Dynamics, Miscellaneous]
 ---
 
@@ -24,17 +24,27 @@ all-model-categories: [Concept Learning, Reasoning about Reasoning, Machine Lear
            {% if p.model-category == category %}
               <div class="list-group-item">
                   {% if p.model-status == 'stub' %}
-                    <span class="label label-default pull-right">Stub</span> {{ p.title }}
+                    {{ p.title }}
+                    <span class="label label-default pull-right glyph-label">
+                        <span class="glyphicon glyphicon-asterisk"></span>                    
+                    </span>
                   {% else %}
+                    <a href="{{ p.url }}">{{ p.title }}</a>                  
                     {% if p.model-status == 'code' %}
-                      <span class="label label-success pull-right">Code</span>            
+                      <span class="label label-success pull-right glyph-label">
+                          <span class="glyphicon glyphicon-ok"></span>
+                      </span>            
                     {% elsif p.model-status == 'link' %}
-                      <span class="label label-primary pull-right">Link</span>
+                      <span class="label label-success pull-right glyph-label">
+                          <span class="glyphicon glyphicon-bookmark"></span>                      
+                      </span>                      
+                    {% elsif p.model-status == 'code-fail' %}                      
+                      <span class="label label-warning pull-right glyph-label">
+                          <span class="glyphicon glyphicon-remove"></span>
+                      </span>                    
                     {% else %}
                     {% endif %}
-                    <a href="{{ p.url }}">{{ p.title }}</a>          
                   {% endif %}
-                  <span class="subtitle">{{ p.model-description }}</span>
               </div>
             {% endif %}
           {% endif %}

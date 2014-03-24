@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Blue-eyed Islanders
-model-status: code
+model-status: code-fail
 model-category: Reasoning about Reasoning
 model-tags: theory of mind, game theory
 ---

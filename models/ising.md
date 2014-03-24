@@ -1,7 +1,7 @@
 ---
 layout: model
 title: 1D Ising
-model-status: code
+model-status: code-fail
 model-category: Undirected Constraints
 model-tags: 
 ---

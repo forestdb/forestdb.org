@@ -1,7 +1,7 @@
 ---
 layout: model
 title: One-dimensional Gaussian with Gaussian Hyperparameters
-model-status: code
+model-status: code-fail
 model-category: Miscellaneous
 model-tags: continuous models, gaussian distribution
 ---

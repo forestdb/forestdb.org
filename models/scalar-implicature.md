@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Scalar Implicature
-model-status: code
+model-status: code-fail
 model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics, theory of mind
 ---

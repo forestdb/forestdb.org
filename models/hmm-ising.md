@@ -2,7 +2,7 @@
 layout: model
 title: HMM-Ising
 model-status: code
-model-category: Nested Inference
+model-category: Undirected Constraints
 model-tags: language, nested conditioning
 ---
 

@@ -2,7 +2,7 @@
 layout: model
 title: Schelling Coordination Game
 model-status: code
-model-category: Nested Inference
+model-category: Reasoning about Reasoning
 model-tags: theory of mind, game theory
 ---
 

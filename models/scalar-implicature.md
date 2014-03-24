@@ -2,7 +2,7 @@
 layout: model
 title: Scalar Implicature
 model-status: code
-model-category: Nested Inference
+model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics, theory of mind
 ---
 

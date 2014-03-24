@@ -2,7 +2,7 @@
 layout: default
 title: Forest - A Repository for Generative Models
 all-model-statuses: [code, link, stub]
-all-model-categories: [Concept Learning, Nested Inference, Inverse Dynamics, Machine Learning, Undirected Constraints, Nonparametric Models, Miscellaneous]
+all-model-categories: [Concept Learning, Reasoning about Reasoning, Machine Learning, Nonparametric Models, Undirected Constraints, Inverse Dynamics, Miscellaneous]
 ---
 
 <div class="page-header">

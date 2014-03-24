@@ -2,7 +2,7 @@
 layout: model
 title: Tic-Tac-Toe
 model-status: code
-model-category: Nested Inference
+model-category: Reasoning about Reasoning
 model-tags: game theory, planning
 ---
 

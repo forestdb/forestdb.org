@@ -6,7 +6,7 @@ model-category: Nonparametric Models
 model-tags: mem, nonparametrics, mixture, hmm
 ---
 
-This Hidden Markov model has a potentially infinite number of latent states:
+The Infinite Hidden Markov model (also known as HDP-HMM) has a potentially infinite number of latent states:
 
     (define vocabulary '(chef omelet soup eat work bake))
     
@@ -36,6 +36,24 @@ This Hidden Markov model has a potentially infinite number of latent states:
     
     (sample-words 'start) 
 
+Compare to the version in Ref:ProbMods:
+
+    (define get-symbol (DPmem 1.0 gensym))
+    
+    (define get-observation-model
+      (mem (lambda (symbol) (make-100-sided-die))))
+    
+    (define ihmm-transition
+      (DPmem 1.0 (lambda (state)
+                   (if (flip) 'stop (get-symbol)))))
+    
+    (define (ihmm-expander symbol)
+      (list ((get-observation-model symbol))
+            (ihmm-transition symbol)))
+    
+    (define (sample-ihmm)
+      (unfold ihmm-expander ’S))
+
 See also:
 
 - [Hidden Markov Model](/models/hmm.html)
@@ -44,3 +62,4 @@ References:
 
 - Cite:Beal2002infinite
 - Cite:ProbMods
+- Cite:Goodman2008uq

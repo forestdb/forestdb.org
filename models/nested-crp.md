@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Nested Chinese Restaurant Process
-model-status: code-fail
+model-status: code
 model-category: Nonparametric Models
 model-tags: mem, nonparametrics, crp
 ---

@@ -6,7 +6,7 @@ model-category: Concept Learning
 model-tags: concepts 
 ---
 
-This is a webchurch implementation of a model in Ref:Cite:Xu2007dt.
+This is a webchurch implementation of a model in Ref:Xu2007dt.
 
 Consider the following tree:
 

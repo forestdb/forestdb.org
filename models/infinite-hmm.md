@@ -36,7 +36,7 @@ The Infinite Hidden Markov model (also known as HDP-HMM) has a potentially infin
     
     (sample-words 'start) 
 
-Compare to the version in Ref:ProbMods:
+Compare to the version in Ref:Goodman2008uq:
 
     (define get-symbol (DPmem 1.0 gensym))
     

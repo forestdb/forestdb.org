@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Scalar Implicature
-model-status: code-fail
+model-status: code
 model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics, theory of mind
 ---
@@ -34,14 +34,14 @@ The speaker chooses a sentence conditioned on the listener inferring the intende
     (define (none-p state) (not (some-p state)))
     
     (define (speaker access state depth)
-      (query
+      (rejection-query
        (define sentence (sentence-prior))
        sentence
        (equal? (belief state access)
                (listener access sentence depth))))
     
     (define (listener speaker-access sentence depth)
-      (query
+      (rejection-query
        (define state (state-prior))
        state
        (if (= 0 depth)
@@ -52,11 +52,14 @@ The speaker chooses a sentence conditioned on the listener inferring the intende
     (define (num-true state)
       (sum (map (lambda (x) (if x 1 0)) state)))
     
+    (define (show thunk)
+      (hist (repeat 100 thunk)))
+    
     ;; without full knowledge:
-    (num-true (listener '(#t #t #f) some-p 5))
+    (show (lambda () (num-true (listener '(#t #t #f) some-p 1))))
     
     ;; with full knowledge:
-    (num-true (listener '(#t #t #t) some-p 5))
+    (show (lambda () (num-true (listener '(#t #t #t) some-p 1))))
 
 References:
 

@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Nested CRP + HDP
-model-status: code-fail
+model-status: code
 model-category: Nonparametric Models
 model-tags: mem, nonparametrics, dp
 ---

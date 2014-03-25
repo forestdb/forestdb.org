@@ -10,6 +10,34 @@ A model of pragmatic language interpretation:
 
 The speaker chooses a sentence conditioned on the listener inferring the intended state of the world when hearing this sentence; the listener chooses an interpretation conditioned on the speaker selecting the given utterance when intending this meaning.
 
+    (define (state-prior) (uniform-draw '(0 1 2 3)))
+    
+    (define (sentence-prior) (uniform-draw (list all-sprouted some-sprouted none-sprouted)))
+    
+    (define (all-sprouted state) (= 3 state))
+    (define (some-sprouted state) (< 0 state))
+    (define (none-sprouted state) (= 0 state))
+    
+    (define (speaker state depth)
+      (rejection-query
+       (define words (sentence-prior))
+       words
+       (equal? state (listener words depth))))
+    
+    (define (listener words depth)
+      (rejection-query
+       (define state (state-prior))
+       state
+       (if (= depth 0)
+           (words state)
+           (equal? words (speaker state (- depth 1))))))
+    
+    (define depth 1)
+    
+    (hist (repeat 300 (lambda () (listener some-sprouted depth))))
+
+A more complex version of the model takes into account the listener's knowledge about the speaker's access to the items the speaker is referring to. In this version, lack of access can lead to a cancelled implicature (i.e. "some" does not imply "not all"):
+
     (define (belief actual-state access)
       (map (lambda (ac st pr) (if ac st (sample pr)))
            access

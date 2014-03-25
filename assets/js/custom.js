@@ -72,7 +72,7 @@ $(function () {
 
 $(function () {
     var code_pres = $("pre").filter(function () {
-        return $(this).find('code').length === 1;
+        return ($(this).find('code').length === 1) && (!$(this).parentNode.is("blockquote"));
     });
     $.each(code_pres,
         function (index, pre) {

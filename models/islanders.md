@@ -19,7 +19,6 @@ islanders are highly logical. One day, a foreigner comes to the
 island and---speaking to the entire tribe---he truthfully says: "At
 least one of you has blue eyes."  What happens next?
 
-
     (define num-agents 4)
     
     (define baserate .045)
@@ -29,18 +28,11 @@ least one of you has blue eyes."  What happens next?
           true
           (and (thunk) (! thunk (- n 1)))))
     
-    (define (%sum-repeat proc n s)
-      (if (= n 0)
-          s
-          (%sum-repeat proc
-                       (- n 1)
-                       (+ s (proc)))))
-    
     (define (sum-repeat proc n)
-      (%sum-repeat proc n 0))
+      (sum (repeat n proc)))
     
     (define (agent t raised-hands others-blue-eyes)
-      (query
+      (rejection-query
        (define my-blue-eyes (if (flip baserate) 1 0))
        (define total-blue-eyes (+ my-blue-eyes others-blue-eyes))
        my-blue-eyes
@@ -62,7 +54,7 @@ least one of you has blue eyes."  What happens next?
                     (get-raised-hands start raised-hands true-blue-eyes)
                     true-blue-eyes)))
     
-    (run-game 0 4 0 4)
+    (hist (repeat 30 (lambda () (run-game 0 2 0 2))))
 
 To run a noisy version of the model, use a `get-raised-hands` function that allows for accidentally raised hands:
     

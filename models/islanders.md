@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Blue-eyed Islanders
-model-status: code-fail
+model-status: code
 model-category: Reasoning about Reasoning
 model-tags: theory of mind, game theory
 ---
@@ -58,7 +58,7 @@ least one of you has blue eyes."  What happens next?
 
 To run a noisy version of the model, use a `get-raised-hands` function that allows for accidentally raised hands:
     
-    (define (get-raised-hands/twitch t raised-hands true-blue-eyes)
+    (define (get-raised-hands t raised-hands true-blue-eyes)
       (+ (sum-repeat (lambda () (agent t raised-hands (- true-blue-eyes 1)))
                      (- true-blue-eyes 1))
          (sum-repeat (lambda () (agent t raised-hands true-blue-eyes))

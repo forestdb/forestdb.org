@@ -100,7 +100,7 @@ the other player.
         (o x x)
         (0 o 0)))
     
-    (sample-action-dist start-state 'x)
+    (barplot (sample-action-dist start-state 'x))
 
 References:
 

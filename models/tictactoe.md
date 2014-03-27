@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Tic-Tac-Toe
-model-status: code-fail
+model-status: code
 model-category: Reasoning about Reasoning
 model-tags: game theory, planning
 ---
@@ -18,11 +18,15 @@ the other player.
                         (second move))
               0))
     
+    (define action-prior-dist
+      (mem (lambda (state)
+             (enumeration-query
+              (define action (list (sample-integer 3) (sample-integer 3)))
+              action
+              (valid-move? action state)))))
+    
     (define (action-prior state)
-      (query
-       (define action (list (sample-integer 3) (sample-integer 3)))
-       action
-       (valid-move? action state)))
+      (apply multinomial (action-prior-dist state)))
     
     (define (transition state action player)
       (map (lambda (row i)
@@ -71,11 +75,16 @@ the other player.
             [else 0.01]))
     
     (define (sample-action state player)
-      (query
-       (define action (action-prior state))
-       (define outcome (sample-outcome state action player))
-       action
-       (flip (exp-utility outcome player))))
+      (apply multinomial (sample-action-dist state player)))
+    
+    (define sample-action-dist
+      (mem 
+       (lambda (state player)
+         (enumeration-query
+          (define action (action-prior state))
+          (define outcome (sample-outcome state action player))
+          action
+          (flip (exp-utility outcome player))))))
     
     (define (sample-outcome state action player)
       (let ([next-state (transition state action player)])
@@ -91,7 +100,7 @@ the other player.
         (o x x)
         (0 o 0)))
     
-    (sample-action start-state 'x)
+    (sample-action-dist start-state 'x)
 
 References:
 

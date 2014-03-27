@@ -49,14 +49,45 @@ Version 2:
     
     (define (transition state)
       (multinomial states (state->transition-model state)))
-    
-    
+
     (define (sample-words last-state)
       (if (equal? last-state 'stop)
           '()
           (pair (observation last-state) (sample-words (transition last-state)))))
     
     (sample-words 'start)
+
+Version 3 (using `unfold`):
+
+    (define states '(s1 s2 s3 s4 s5 s6 s7 s8 stop))
+    
+    (define vocabulary '(chef omelet soup eat work bake))
+    
+    (define state->observation-model
+      (mem (lambda (state) (dirichlet (make-list (length vocabulary) 1)))))
+    
+    (define (observation state)
+      (multinomial vocabulary (state->observation-model state)))
+    
+    (define state->transition-model
+      (mem (lambda (state) (dirichlet (make-list (length states) 1)))))
+    
+    (define (transition state)
+      (multinomial states (state->transition-model state)))
+    
+    (define (unfold p f g seed)
+      (if (p seed)
+          '()
+          (pair (f seed)
+                (unfold p f g (g seed)))))
+    
+    (define (stop? state)
+      (eq? state 'stop))
+       
+    (define (sample-words)
+      (unfold stop? observation transition 'S))
+    
+    (sample-words)
 
 See also:
 

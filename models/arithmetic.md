@@ -28,8 +28,9 @@ This program induces a deterministic arithmetic function from input-output examp
       (rejection-query
        (define my-proc (random-arithmetic-fn))
        (my-proc 2)
-       (= (my-proc 1) 3)))
-
+       (and (= (my-proc 0) 2)
+            (= (my-proc 1) 3))))
+    
     (sample)
 
 References:

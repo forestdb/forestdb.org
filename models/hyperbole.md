@@ -10,7 +10,7 @@ A model of hyperbole understanding as pragmatic reasoning:
 
 The speaker chooses an utterance conditioned on the listener inferring information that is correct and relevant to the speaker's communicative goal (or QUD). The goal can either be to communicate the state of the  world, the speaker's attitude towards the state of the world (affect), or both. The listener chooses an interpretation conditioned on the speaker selecting the given utterance when intending to communicate this meaning. In this example the state of the world is how much an electric kettle cost.
 
-    ;; Prior of kettle prices (taken from human experiments)
+    ;; Prior probability of kettle prices (taken from human experiments)
     (define (state-prior) (multinomial states '(0.4205 0.3865 0.0533 0.0538 0.0223 0.0211 0.0112 0.0111 0.0083 0.0120)))
 	
 	;; Probability that given a price state, the speaker thinks it's too expensive (taken from human experiments)

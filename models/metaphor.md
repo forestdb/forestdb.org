@@ -9,10 +9,6 @@ model-tags: linguistics, pragmatics
 A model of metaphor interpretation as pragmatic reasoning:
 
 The speaker chooses an utterance conditioned on the listener inferring a state of the world that is correct and relevant to the speaker's communicative goal (or QUD). The listener chooses an interpretation conditioned on the speaker selecting the given utterance when intending to communicate this meaning. Different animal categories are associated with different features with empirically measured priors. The speaker's goal may be to communicate different features; the listener is uncertain about the speaker's goal and performs joint inference on the goal and the intended meaning.
-
-
-    (define (state-prior) (uniform-draw '(0 1 2 3)))
-    
     
     ;; In this model, the possible utterances a speaker may choose are "John is a whale" and "John is a person."
     (define categories (list 'whale 'person))

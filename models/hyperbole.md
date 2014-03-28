@@ -46,7 +46,7 @@ The speaker chooses an utterance conditioned on the listener inferring informati
 	
 	;; Define list of prices under consideration (possible price states)
 	(define states
-	  (list '50 '51 '500 '501 '1000 '1001 '5000 '5001 '10000 '10001))
+	  (list 50 51 500 501 1000 1001 5000 5001 10000 10001))
 	
 	;; Define list of possible utterances (same as price states)
 	(define utterances states)
@@ -57,14 +57,14 @@ The speaker chooses an utterance conditioned on the listener inferring informati
 	               '(0.18 0.1 0.18 0.1 0.18 0.1 0.18 0.1 0.18 0.1)))
 	
 	;; Define valences. 0 is no valence; 1 is with valence
-	(define valences (list '0 '1))
+	(define valences (list 0 1))
 	
 	(define (sample-valence state prior)
 	  (let ((current-state-valence-pair (first prior)))
 	    (if (equal? state (first current-state-valence-pair))
 	        (if (flip (second current-state-valence-pair))
-	            '1
-	            '0)
+	            1
+	            0)
 	        (sample-valence state (rest prior)))))
 	
 	(define (literal-interpretation utterance state)

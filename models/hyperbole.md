@@ -96,4 +96,5 @@ The speaker chooses an utterance conditioned on the listener inferring informati
 	      (sample-one '5000) (sample-one '5001) (sample-one '10000) (sample-one '10001))
 	      
 References:
-- Cite:Kao2014met
+
+- Cite:Kao2014hyp

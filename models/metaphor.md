@@ -91,4 +91,5 @@ The speaker chooses an utterance conditioned on the listener inferring a state o
 	(sample-one 'whale)
 
 References:
+
 - Cite:Kao2014met

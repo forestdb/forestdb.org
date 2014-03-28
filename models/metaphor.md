@@ -85,21 +85,22 @@ The speaker chooses an utterance conditioned on the listener inferring a state o
 	
 	;; Listener model
 	(define listener
-	  (mem (lambda (utterance depth)
-	         (enumeration-query
-	          (define category (categories-prior))
-	          (define featureSet (sample-featureSet category featureSet-prior categories))
-	          (define f1 (first featureSet))
-	          (define f2 (second featureSet))
-	          (define f3 (third featureSet))
-	          (define speaker-goal (goal-prior))
-	          (list category f1 f2 f3)
-	          (if (equal? depth 0)
-	              (literal-interpretation utterance category)
-	              (equal? utterance
-	                      (apply multinomial
-	                             (raise-to-power (speaker category f1 f2 f3 speaker-goal (- depth 1))
-	                                             alpha))))))))
+	  (mem 
+	   (lambda (utterance depth)
+	     (enumeration-query
+	      (define category (categories-prior))
+	      (define featureSet (sample-featureSet category featureSet-prior categories))
+	      (define f1 (first featureSet))
+	      (define f2 (second featureSet))
+	      (define f3 (third featureSet))
+	      (define speaker-goal (goal-prior))
+	      (list category f1 f2 f3)
+	      (if (equal? depth 0)
+	          (literal-interpretation utterance category)
+	          (equal? utterance
+	                  (apply multinomial
+	                         (raise-to-power (speaker category f1 f2 f3 speaker-goal (- depth 1))
+	                                         alpha))))))))
 	
 	(define (raise-to-power speaker-dist alpha)
 	  (list (first speaker-dist)

@@ -168,4 +168,5 @@ $.get("/bibliography.bib", function (bibtext) {
 })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
 
 ga('create', 'UA-54996-10', 'forestdb.org');
+ga('require', 'linkid', 'linkid.js');
 ga('send', 'pageview');

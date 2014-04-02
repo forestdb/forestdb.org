@@ -10,7 +10,7 @@ A simple model of a sequence of unobserved states, each of which
 depending only on the previous one, and each of which gives rise to
 an observation.
 
-Version 1:
+Fixed transition and observation probabilities:
 
     (define (sample-state state)
       (cond
@@ -32,7 +32,7 @@ Version 1:
     
     (hmm 0 5)
 
-Version 2:
+Uncertain transition and observation probabilities (basic version):
 
     (define states '(s1 s2 s3 s4 s5 s6 s7 s8 stop))
     
@@ -57,7 +57,7 @@ Version 2:
     
     (sample-words 'start)
 
-Version 3 (using `unfold`):
+Uncertain transition and observation probabilities (using `unfold`):
 
     (define states '(s1 s2 s3 s4 s5 s6 s7 s8 stop))
     

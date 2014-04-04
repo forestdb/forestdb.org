@@ -115,6 +115,10 @@ div.results pre {
   border: none;
 }
 
+div.results svg.chart {
+   padding-left: 5em;
+}
+
 
 /* List of models on index page */
 

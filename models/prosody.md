@@ -176,7 +176,7 @@ The following pragmatics models are from Ref:Bergen2014prosody.
 
 	(define hardness  2)
 
-	(speaker (list (list 'bob 'restaurant)) 1)
+	(barplot (speaker (list (list 'bob 'restaurant)) 1))
 
 ### Exhaustivity
 

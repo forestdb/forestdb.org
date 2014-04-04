@@ -136,7 +136,7 @@ A model for the adjective "expensive" for watches, laptops, and coffee makers.
 	(define (smooth-density lst name width)
 	  (density (map (lambda (x) (uniform (- x width) (+ x width))) lst) name))
 
-	(define item 'watch)
+	(define item 'laptop)
 	(multiviz
 	 (smooth-density (first (adj-model item)) "Prices" 25)
 	 (scatter (human-posterior item) "People")

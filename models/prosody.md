@@ -6,9 +6,9 @@ model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics
 ---
 
-#The strategic use of noise in pragmatic reasoning
+The following pragmatics models are from Ref:Bergen2014prosody.
 
-##Ellipsis
+### Ellipsis
 
 	(define (filter pred lst)
 	  (fold (lambda (x y)
@@ -67,7 +67,7 @@ model-tags: linguistics, pragmatics
 	(define (list-product a b)
 	  (flatten-nonrecursive (map (lambda (x) (map (lambda (y) (list x y)) b)) a)))
 
-	;_______________________________________________________________________________
+	;; _______________________________________________________________________________
 
 	(define states (list-product (list 'bob 'mary 'nobody) (list 'restaurant)))
 
@@ -178,7 +178,7 @@ model-tags: linguistics, pragmatics
 
 	(speaker (list (list 'bob 'restaurant)) 1)
 
-##Exhaustivity
+### Exhaustivity
 
 	(define (filter pred lst)
 	  (fold (lambda (x y)
@@ -234,7 +234,7 @@ model-tags: linguistics, pragmatics
 	          (member-of e (rest elements)))
 	      #f))
 
-	;_______________________________________________________________________________
+	;; _______________________________________________________________________________
 
 	(define states (list 'bob 'mary 'bobmary))
 	;;either bob went to the restaurant alone, or mary did, or both bob and mary went
@@ -352,7 +352,7 @@ model-tags: linguistics, pragmatics
 	(map first (map (lambda (x) (second (listener 'bob #f x))) (list 0 1 2 3 4 5 6 7 8 9 10 11 12)))
 
 
-##Scalar Implicature
+### Scalar Implicature
 
 	(define (filter pred lst)
 	  (fold (lambda (x y)
@@ -408,7 +408,7 @@ model-tags: linguistics, pragmatics
 	          (member-of e (rest elements)))
 	      #f))
 
-	;_______________________________________________________________________________
+	;; _______________________________________________________________________________
 
 	(define states (list 'some 'all))
 	;;either bob went to the restaurant alone, or mary did, or both bob and mary went
@@ -520,11 +520,9 @@ model-tags: linguistics, pragmatics
 
 	(define hardness 2)
 	(map third (map (lambda (x) (second (speaker (list 'some) x))) (list 1 2 3 4 5 6 7 8 9 10)))
-	~~~~
 
-	# Complex Prosody
+### Complex Prosody
 
-	~~~~
 	(define (filter pred lst)
 	  (fold (lambda (x y)
 	          (if (pred x)
@@ -582,7 +580,7 @@ model-tags: linguistics, pragmatics
 	(define (list-product a b)
 	  (flatten-nonrecursive (map (lambda (x) (map (lambda (y) (list x y)) b)) a)))
 
-	;_______________________________________________________________________________
+	;; _______________________________________________________________________________
 
 	(define states (list-product (list 'bob 'mary 'bobmary) (list 'restaurant 'bar 'restaurantbar)))
 

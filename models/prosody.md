@@ -6,9 +6,9 @@ model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics
 ---
 
-% The strategic use of noise in pragmatic reasoning
+#The strategic use of noise in pragmatic reasoning
 
-#Ellipsis
+##Ellipsis
 
 	(define (filter pred lst)
 	  (fold (lambda (x y)
@@ -178,7 +178,7 @@ model-tags: linguistics, pragmatics
 
 	(speaker (list (list 'bob 'restaurant)) 1)
 
-#Exhaustivity
+##Exhaustivity
 
 	(define (filter pred lst)
 	  (fold (lambda (x y)
@@ -352,7 +352,7 @@ model-tags: linguistics, pragmatics
 	(map first (map (lambda (x) (second (listener 'bob #f x))) (list 0 1 2 3 4 5 6 7 8 9 10 11 12)))
 
 
-#Scalar Implicature
+##Scalar Implicature
 
 	(define (filter pred lst)
 	  (fold (lambda (x y)

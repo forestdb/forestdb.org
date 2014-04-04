@@ -6,7 +6,7 @@ model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics
 ---
 
-A model for the adjective "expensive" for watches, laptops, and coffee makers.
+A model for the adjective "expensive" for watches, laptops, and coffee makers, as presented in Ref:Lassiter2013adj.
 
 
 	(define n 3000) ;mh-query iterations (fairly stable at around 10000)

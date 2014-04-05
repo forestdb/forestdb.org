@@ -59,8 +59,7 @@ This is a hierarchical Bayesian language model based on the Pitman-Yor process.
                             expander
                             update-memory
                             (update-memory memory next-symbol))))))
-    
-    
+
     (define doc->num-words 
       (mem 
        (lambda (doc) 
@@ -76,7 +75,7 @@ This is a hierarchical Bayesian language model based on the Pitman-Yor process.
           '()))))
     
     (doc->words 'doc1)
-    
+
 See also:
 
 - [Pitman-Yor Process](/models/pymem.html)

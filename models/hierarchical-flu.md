@@ -1,9 +1,9 @@
 ---
 layout: model
-title: Hierarchical Flu/Cough Bayesnet
+title: Hierarchical Flu/Cough model
 model-status: code
 model-category: Miscellaneous
-model-tags: bayesnet, medicine
+model-tags: hierarchical, medicine, mem
 ---
 
     (define flu-dist

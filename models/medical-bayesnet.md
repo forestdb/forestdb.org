@@ -44,6 +44,10 @@ model-tags: bayesnet, medicine
     
     (hist samples)
 
+See also:
+
+- [Hierarchical Flu/Cough Bayesnet](/models/hierarchical-flu.html)
+
 References:
 
 - Cite:ProbMods

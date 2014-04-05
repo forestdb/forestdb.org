@@ -2,6 +2,7 @@
 layout: model
 title: Red-light game
 model-status: code-fail
+model-status-verbose: Unknown error.
 model-category: Miscellaneous
 model-tags: planning
 ---

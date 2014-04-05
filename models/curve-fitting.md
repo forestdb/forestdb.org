@@ -2,6 +2,7 @@
 layout: model
 title: Curve Fitting
 model-status: code-fail
+model-status-verbose: The MH chain cannot be initialized.
 model-category: Miscellaneous
 model-tags: function learning, occam's razor
 ---
@@ -15,6 +16,14 @@ preference for simpler models. Model by @churchwiki.
                            c
                            (iota (length c))))))
     
+    (define (xrange i j)
+      (if (= i j)
+          '()
+          (cons i (range (+ i 1) j))))
+    
+    (define (range i j)
+      (reverse (xrange i j)))
+    
     (define x-vals (map (lambda (x) (/ x 1)) (range -5 5)))
     
     (define true-coeffs '(-.5 1 .5))
@@ -26,7 +35,7 @@ preference for simpler models. Model by @churchwiki.
     (define obs-y-vals
       (map (lambda (x) (gaussian x obs-noise)) true-y-vals))
     
-    (query
+    (mh-query 10 10
     
      (define poly-order (sample-integer 4))
      (define coefficients

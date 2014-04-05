@@ -2,6 +2,7 @@
 layout: model
 title: Layout of Tables and Plates (Terra)
 model-status: code-fail
+model-status-verbose: Unknown error.
 model-category: Miscellaneous
 model-tags: layout, constraints
 model-language: terra

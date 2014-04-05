@@ -2,6 +2,7 @@
 layout: model
 title: Infinite Dirichlet-Multinomial Mixture
 model-status: code-fail
+model-status-verbose: Unknown error.
 model-category: Nonparametric Models
 model-tags: mem, nonparametrics, mixture
 ---

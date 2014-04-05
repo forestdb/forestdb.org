@@ -1,7 +1,8 @@
 ---
 layout: model
-title: One-dimensional Gaussian with Gaussian Hyperparameters
+title: 1D Gaussian with Gaussian Hyperparameters
 model-status: code-fail
+model-status-verbose: The MH chain cannot be initialized.
 model-category: Miscellaneous
 model-tags: continuous models, gaussian distribution
 ---

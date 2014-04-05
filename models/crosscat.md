@@ -4,6 +4,7 @@ title: CrossCat
 model-status: code-fail
 model-category: Nonparametric Models
 model-tags: nonparametric models, categorization
+model-status-verbose: Support change issue.
 ---
 
 CrossCat is a generative model that can be used for categorizing
@@ -24,10 +25,10 @@ system accounts for some subset of the features.
          (mem (lambda (kind) (DPmem 1.0 gensym))))
       
        (define feature-kind/object->class
-         (mem (lambda (kind object) (sample (kind->class-distribution kind)))))
+         (mem (lambda (kind object) ((kind->class-distribution kind)))))
       
        (define class->parameters
-         (mem (lambda (object-class) (first (beta 1 1)))))
+         (mem (lambda (object-class) (beta 1 1))))
       
        (define (observe object feature)
          (flip (class->parameters 
@@ -41,6 +42,8 @@ system accounts for some subset of the features.
             (observe 'toast 'breakfast)
             (observe 'eggs 'dinner)
             (observe 'spinach 'dinner))))
+    
+    samples
 
 References:
 

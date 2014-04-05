@@ -2,6 +2,7 @@
 layout: model
 title: Hierarchical Urn Model
 model-status: code-fail
+model-status-verbose: The MH chain cannot be initialized.
 model-category: Miscellaneous
 model-tags: hierarchical models
 ---

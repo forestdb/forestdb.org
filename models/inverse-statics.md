@@ -2,6 +2,7 @@
 layout: model
 title: Inverse statics (Terra)
 model-status: code-fail
+model-status-verbose: The code is in Terra, not Church.
 model-category: Inverse Dynamics
 model-tags: statics
 model-language: terra

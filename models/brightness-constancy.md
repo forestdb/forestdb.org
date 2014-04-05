@@ -2,6 +2,7 @@
 layout: model
 title: Brightness Constancy
 model-status: code-fail
+model-status-verbose: The MH chain cannot be initialized.
 model-category: Miscellaneous
 model-tags: cognitive science, vision
 ---
@@ -15,7 +16,8 @@ emitted by the object). Model by @churchwiki.
     (define (noisy= target value variance)
       (= 0 (gaussian (- target value) variance)))
     
-    (query
+    (mh-query
+     10 10
     
      (define reflectance (gaussian 1 1))
      (define illumination (gaussian 3 0.5))

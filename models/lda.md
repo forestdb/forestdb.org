@@ -4,6 +4,7 @@ title: Latent Dirichlet Allocation
 model-status: code-fail
 model-category: Machine Learning
 model-tags: language, hierarchical models
+model-status-verbose: The MH chain cannot be initialized.
 ---
 
 LDA is a model that can be used to discover the topics of documents.
@@ -20,7 +21,8 @@ LDA is a model that can be used to discover the topics of documents.
     (define doc4 '(python prolog python prolog python prolog python prolog python prolog))
     (define doc5 '(bear wolf bear python bear wolf bear wolf bear wolf))
     
-    (query
+    (mh-query
+     10 10
     
      (define document->mixture-params
        (mem (lambda (doc-id) (dirichlet (make-list (length topics) 1.0)))))

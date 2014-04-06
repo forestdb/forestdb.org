@@ -8,16 +8,16 @@ model-tags: mem, nonparametrics, mixture, gaussian
 
 Using [DPmem](/models/dpmem.html), we can create an infinite mixture model with arbitrary observation distributions. In the following model, the observation function is Gaussian:
 
-    (define cls-distribution (DPmem 1.0 gensym))
+    (define class-distribution (DPmem 1.0 gensym))
     
-    (define object->cls
-      (mem (lambda (object) (cls-distribution))))
+    (define object->class
+      (mem (lambda (object) (class-distribution))))
     
-    (define cls->gaussian-parameters
-      (mem (lambda (cls) (list  (gaussian 65 10) (uniform 0 8)))))
+    (define class->gaussian-parameters
+      (mem (lambda (c) (list  (gaussian 65 10) (uniform 0 8)))))
     
     (define (observe object)
-      (apply gaussian (cls->gaussian-parameters (object->cls object))))
+      (apply gaussian (class->gaussian-parameters (object->class object))))
     
     (map observe '(tom dick harry bill fred))
 

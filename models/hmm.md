@@ -89,7 +89,7 @@ Uncertain transition and observation probabilities (using `unfold`):
 
 See also:
 
-- [Markov Model](/models/markov.md)
+- [Markov Model](/models/markov.html)
 - [HMM-Ising](/models/hmm-ising.html)
 - [Infinite HMM](/models/infinite-hmm.html)
 

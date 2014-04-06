@@ -1,12 +1,12 @@
 ---
 layout: model
-title: Rope-Pulling
+title: Tug of War
 model-status: code
 model-category: Miscellaneous
 model-tags: hierarchical models
 ---
 
-The rope-pulling model is a simple hierarchical model that illustrates compositionality in human reasoning.
+The "tug of war" model is a hierarchical model that can be used to illustrate the broad range of inferences that can be drawn from a relatively simple compositional model.
 
     (define num-people 4)
     

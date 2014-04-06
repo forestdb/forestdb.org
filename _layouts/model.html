@@ -18,6 +18,12 @@ layout: default
 
 {{ content }}
 
+<p>Contributors:</p>
+
+<ul id="contributors">
+</ul>
+
 <script type="text/javascript">
-  $("#github-edit-link").attr("href", github_edit_url("{{ page.url }}"))
+  $("#github-edit-link").attr("href", github_edit_url("{{ page.url }}"));
+  load_contributors("{{ page.url }}");
 </script>

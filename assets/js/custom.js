@@ -4,27 +4,32 @@
 // Github repository links and buttons
 
 var github_repository = "https://github.com/forestdb/forestdb.org/";
+var repository_api_url = "https://api.github.com/repos/forestdb/forestdb.org/";
+
+function markdown_url(page_url) {
+    return page_url.slice(0, -4) + "md";
+}
 
 function github_edit_url(page_url) {
-    return github_repository + "edit/gh-pages" + page_url.slice(0, -4) + "md";
+    return github_repository + "edit/gh-pages" + markdown_url(page_url);
 }
 
 function github_delete_url(page_url) {
-    return github_repository + "delete/gh-pages" + page_url.slice(0, -4) + "md";
+    return github_repository + "delete/gh-pages" + markdown_url(page_url);
 }
 
 function github_page_url(page_url) {
     if (page_url == "/index.html") {
         return github_repository;
     } else {
-        return github_repository + "blob/gh-pages" + page_url.slice(0, -4) + "md";
+        return github_repository + "blob/gh-pages" + markdown_url(page_url);
     };
 }
 
 
 // Fuzzy autocomplete search + fast navigation
 
-var substringMatcher = function (strs) {
+function substringMatcher(strs) {
     return function findMatches(q, cb) {
         var matches, substringRegex;
         matches = [];
@@ -103,7 +108,7 @@ var textohtml_map = {
     "\\'E": "&Eacute;"
 };
 
-var textohtml = function (tex) {
+function textohtml(tex) {
     for (var key in textohtml_map) {
         if (textohtml_map.hasOwnProperty(key)) {
             tex = tex.replace("{" + key + "}", textohtml_map[key]);
@@ -113,14 +118,14 @@ var textohtml = function (tex) {
     return tex;
 }
 
-var replace_html = function (source, target) {
+function replace_html(source, target) {
     $('p, li').each(function () {
         var html = $(this).html();
         $(this).html(html.replace(new RegExp(source, "ig"), target));
     });
 }
 
-var format_citation = function (citation) {
+function format_citation(citation) {
     var s = "";
     if (citation["URL"]) {
         s += "<a href='" + citation["URL"] + "'>" + citation["TITLE"] + "</a>. ";
@@ -134,7 +139,7 @@ var format_citation = function (citation) {
     return textohtml(s);
 }
 
-var format_reference = function (citation) {
+function format_reference(citation) {
     var s = "<em>" + citation["AUTHOR"] + " (" + citation["YEAR"] + ")</em>";
     return textohtml(s);
 }
@@ -170,3 +175,37 @@ $.get("/bibliography.bib", function (bibtext) {
 ga('create', 'UA-54996-10', 'forestdb.org');
 ga('require', 'linkid', 'linkid.js');
 ga('send', 'pageview');
+
+
+// Contributors
+
+function load_contributors(page_url) {
+    var filename = markdown_url(page_url);
+    var url = repository_api_url + "commits?path=" + filename;
+    $.getJSON(url, function(data) {
+        var consumed_authors = {};
+        $.each(data, function(index, item) {
+            if (!item.author) {
+                return;
+            }
+            var id = item.author.login || item.author.email;
+            if (consumed_authors[id]) {
+                return;
+            };
+            consumed_authors[id] = true;
+            var author_ref_html = $("<span />");
+            author_ref_html.append($("<img />", {
+                "src" : item.author.avatar_url + "s=16",
+                "class" : "avatar",
+                "width" : "16px",
+                "height" : "16px" }));
+            author_ref_html.append(id);
+            var author_html = $(
+                "<a />",
+                { "href" : item.author.html_url,
+                  "html" : author_ref_html
+                });
+            $("#contributors").append($("<li>", { "html" : author_html }));
+        });
+    });
+}

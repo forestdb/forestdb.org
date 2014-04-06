@@ -21,6 +21,23 @@ A Markov model is a model of a sequence of unobserved states. Each state depends
     
     (markov 'a 10)
 
+We can also put a prior on transition probabilities:
+
+    (define states '(a b c))
+    
+    (define state->transition-model
+      (mem (lambda (state) (dirichlet (make-list (length states) 1)))))
+    
+    (define (transition state)
+      (multinomial states (state->transition-model state)))
+    
+    (define (markov state n)
+      (if (= n 0)
+          '()
+          (pair state (markov (transition state) (- n 1)))))
+    
+    (markov 'a 10)
+
 See also:
 
 - [Hidden Markov Model](/models/hmm.html)

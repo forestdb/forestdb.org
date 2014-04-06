@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Inverse physics
+title: Inverse Physics
 model-status: link
 model-category: Inverse Dynamics
 model-tags: dynamics

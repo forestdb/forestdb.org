@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Hierarchical Flu/Cough model
+title: Hierarchical Flu/Cough Model
 model-status: code
 model-category: Miscellaneous
 model-tags: hierarchical, medicine, mem

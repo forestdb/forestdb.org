@@ -17,9 +17,9 @@ A simple recursively defined distribution on the integers.
     
 Alternatively, we can write the geometric distribution in tail-recursive form:
     
-    (define (geometric-alt p n)
+    (define (geometric-tail p n)
       (if (flip p)
           n
-          (geometric-alt p (+ n 1))))
+          (geometric-tail p (+ n 1))))
     
-    (hist (repeat 300 (lambda () (geometric-alt .5 0))))
+    (hist (repeat 300 (lambda () (geometric-tail .5 0))))

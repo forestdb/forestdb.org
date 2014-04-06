@@ -1,54 +1,67 @@
 ---
 layout: model
 title: Red-light game
-model-status: code-fail
-model-status-verbose: Unknown error.
+model-status: code
 model-category: Miscellaneous
 model-tags: planning
 ---
 
+    (define (last l)
+        (cond ((null? (rest l)) (first l))
+              (else (last (rest l)))))
+    
+    ;; states have format (pair world-state agent-position)
+    (define (sample-action trans start-state goal? ending)
+      (rejection-query
+        (define first-action (action-prior))
+        (define state-action-seq 
+          (rollout trans (pair start-state first-action) ending))
+        state-action-seq
+        (goal? state-action-seq)))
+    
+    ;; input and output are state-action pairs so we can run rollout
     (define (transition state-action)
+      (pair (forward-model state-action) (action-prior)))
+    
+    (define (rollout next init end)
+      (if (end init)
+          (list init)
+          (append (list init) (rollout next (next init) end))))
+    
+    (define cheat-det .9)
+    
+    (define (forward-model state-action)
       (pair
-       (forward-model state-action)
-       (action-prior)))
+        (if (flip 0.5) 'red-light 'green-light)
+        (let ((light (first (first state-action)))
+              (position (rest (first state-action)))
+              (action (rest state-action)))
+          (if (eq? action 'go)
+            (if (and (eq? light 'red-light)
+                     (flip cheat-det))
+              0
+              (+ position 1))
+            position))))
     
-    (define (terminal? symbol) (flip gamma))
+    (define discount .95)
     
-    (define (reward-pred rewards)
-      (flip ((/ (sum rewards) (length rewards)))))
+    (define (ending? symbol) 
+      (flip (- 1 discount)))
     
-    (define (forward-model s-a)
-      (pair
-       (if (flip 0.5) 'red-light 'green-light)
-       (let ((light (first (first s-a)))
-             (position (last (first s-a)))
-             (action (last s-a)))
-         (if (eq? action 'go)
-             (if (and (eq? light 'red-light)
-                      (flip cheat-det))
-                 0
-                 (+ position 1))
-             position))))
+    (define goal-pos 5)
     
-    (define (action-prior)
-      (if (flip 0.5) 'go 'stop))
+    (define (goal-function state-action-seq)
+      (> (rest (first (last state-action-seq))) goal-pos))
     
-    (define (sp1 state)
-      (if (> (last state) 5) 1 0))
+    (define (action-prior) (if (flip 0.5) 'go 'stop))
     
-    (rejection-query
-     (define first-action (action-prior))
-     (define final-state
-       (first (unfold transition
-                      (pair start-state first-action))))
-     (define reward-list
-       (list (sp1 final-state)
-             (sp2 final-state)
-             ..etc..))
-     first-action
-     (reward-pred reward-list))
+    (define states-and-actions
+      (sample-action transition (pair 'green-light 1) goal-function ending?))
+    
+    (for-each display states-and-actions)
 
 References:
 
+- Cite:ProbMods
 - Cite:Goodman2008uq
 - Cite:Toussaint2006tea

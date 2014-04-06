@@ -21,7 +21,7 @@ A Markov model is a model of a sequence of unobserved states. Each state depends
     
     (markov 'a 10)
 
-We can also put a prior on transition probabilities:
+We can put a prior on transition probabilities:
 
     (define states '(a b c))
     
@@ -37,6 +37,24 @@ We can also put a prior on transition probabilities:
           (pair state (markov (transition state) (- n 1)))))
     
     (markov 'a 10)
+
+The number of states can be infinite:
+
+    (define theta 0.7)
+    
+    (define (transition state)
+      (if (= state 3)
+          (multinomial (list 3 4)
+                       (list (- 1 (* 0.5 theta)) (* 0.5 theta)))
+          (multinomial (list (- state 1) state (+ state 1))
+                       (list 0.5 (- 0.5 (* 0.5 theta)) (* 0.5 theta)))))
+      
+    (define (chain state n)
+      (if (= n 0)
+          state
+          (chain (transition state) (- n 1))))
+    
+    (hist (repeat 2000 (lambda () (chain 3 20))) "markov chain")
 
 See also:
 

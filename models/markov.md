@@ -23,4 +23,4 @@ A Markov model is a model of a sequence of unobserved states. Each state depends
 
 See also:
 
-- [Hidden Markov Model](/models/hmm.md)
+- [Hidden Markov Model](/models/hmm.html)

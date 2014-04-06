@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Red-light game
+title: Red-light Game
 model-status: code
 model-category: Miscellaneous
 model-tags: planning

@@ -6,9 +6,7 @@ model-category: Machine Learning
 model-tags: temporal models
 ---
 
-A simple model of a sequence of unobserved states, each of which
-depending only on the previous one, and each of which gives rise to
-an observation.
+A model of a sequence of unobserved states, each of which depends only on the previous one, and each of which gives rise to an observation.
 
 Fixed transition and observation probabilities:
 
@@ -91,6 +89,7 @@ Uncertain transition and observation probabilities (using `unfold`):
 
 See also:
 
+- [Markov Model](/models/markov-model.md)
 - [HMM-Ising](/models/hmm-ising.html)
 - [Infinite HMM](/models/infinite-hmm.html)
 

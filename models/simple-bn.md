@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Simple Bayesian networks
+title: Simple Bayesian Networks
 model-status: code
 model-category: Miscellaneous
 model-tags: bayesnet, simple

@@ -126,3 +126,10 @@ div.results svg.chart {
    margin-left: -.2em;
    margin-right: -.2em;
 }
+
+
+/* Contributors */
+
+img.avatar {
+   margin-right: 5px;
+}

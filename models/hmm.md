@@ -12,25 +12,25 @@ an observation.
 
 Fixed transition and observation probabilities:
 
-    (define (sample-state state)
+    (define (transition state)
       (cond
-       ((eq? state 0) (multinomial '(0 1 2) '(0.7 0.2 0.1)))
-       ((eq? state 1) (multinomial '(0 1 2) '(0.3 0.3 0.4)))
-       ((eq? state 2) (multinomial '(0 1 2) '(0.3 0.65 0.05)))))
+       ((eq? state 'a) (multinomial '(a b c) '(0.7 0.2 0.1)))
+       ((eq? state 'b) (multinomial '(a b c) '(0.3 0.3 0.4)))
+       ((eq? state 'c) (multinomial '(a b c) '(0.3 0.65 0.05)))))
     
     (define (observe-state state)
       (cond
-       ((eq? state 0) (sample-integer 3))
-       ((eq? state 1) (+ (sample-integer 3) 1))
-       ((eq? state 2) (+ (sample-integer 2) 2))))
+       ((eq? state 'a) (sample-integer 3))
+       ((eq? state 'b) (+ (sample-integer 3) 1))
+       ((eq? state 'c) (+ (sample-integer 2) 2))))
     
     (define (hmm state n)
       (if (= n 0)
           '()
           (pair (observe-state state)
-                (hmm (sample-state state) (- n 1)))))
+                (hmm (transition state) (- n 1)))))
     
-    (hmm 0 5)
+    (hmm 'a 5)
 
 Uncertain transition and observation probabilities (basic version):
 

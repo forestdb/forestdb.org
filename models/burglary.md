@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Burglary Bayes net
+title: Burglary Bayesnet
 model-status: code
 model-category: Miscellaneous
 model-tags: bayesnet, simple

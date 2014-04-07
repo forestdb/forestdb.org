@@ -132,7 +132,8 @@ div.results svg.chart {
 /* Contributors */
 
 img.avatar {
-   margin-right: 5px;
+   margin: 1px;
    vertical-align: middle;
    border-radius: 2px;
+   background-color: #fff;
 }

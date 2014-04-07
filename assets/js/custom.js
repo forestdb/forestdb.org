@@ -178,33 +178,46 @@ ga('send', 'pageview');
 
 // Contributors
 
-function load_contributors(page_url) {
-    var filename = markdown_url(page_url);
-    var url = repository_api_url + "commits?path=" + filename;
+function load_contributors(url) {
     $.getJSON(url, function(data) {
         var consumed_authors = {};
         $.each(data, function(index, item) {
-            if (!item.author) {
-                return;
-            }
-            var id = item.author.login || item.author.email;
+            if (item.author) {
+                // item is a commit object
+                var author = item.author;
+            } else {
+                // item is a user object
+                var author = item;
+            };
+            var id = author.login || author.email;
             if (consumed_authors[id]) {
                 return;
             };
             consumed_authors[id] = true;
             var author_ref_html = $("<span />");
             author_ref_html.append($("<img />", {
-                "src" : item.author.avatar_url + "s=16",
+                "src" : author.avatar_url + "s=16",
                 "class" : "avatar",
                 "width" : "16px",
                 "height" : "16px" }));
-            author_ref_html.append(id);
+            // author_ref_html.append(id);
             var author_html = $(
                 "<a />",
-                { "href" : item.author.html_url,
+                { "href" : author.html_url,
                   "html" : author_ref_html
                 });
-            $("#contributors").append($("<li>", { "html" : author_html }));
+            $("#contributors").append(author_html);
         });
     });
+}
+
+function load_page_contributors(page_url) {
+    var filename = markdown_url(page_url);
+    var url = repository_api_url + "commits?path=" + filename;
+    load_contributors(url);
+}
+
+function load_repo_contributors() {
+    var url = repository_api_url + "contributors";
+    load_contributors(url);
 }

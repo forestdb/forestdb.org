@@ -60,3 +60,7 @@ all-model-categories: [Concept Learning, Reasoning about Reasoning, Machine Lear
 <div class="btn-toolbar bottom-toolbar pull-right">
     <a class="btn btn-success" id="github-add-link" href="https://github.com/forestdb/forestdb.org/new/gh-pages/models">Add Model</a>
 </div>
+
+<script type="text/javascript">
+  load_repo_contributors();
+</script>

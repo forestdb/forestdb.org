@@ -491,9 +491,7 @@ module.exports =
     church_shallow_preconditions: church_shallow_preconditions
 }
 
-},{"./church_builtins.js":"BiOwI0","./js_astify.js":16,"./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22}],"./church_builtins":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/church_builtins.js",__dirname="/";module.exports=require('BiOwI0');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"BiOwI0":[function(require,module,exports){
+},{"./church_builtins.js":"BiOwI0","./js_astify.js":16,"./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22}],"BiOwI0":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/church_builtins.js",__dirname="/";/* global global, require, module, exports */
 
 // Contains the built-in Church functions written in Javascript.
@@ -504,7 +502,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
 // function called List (or, to create a pair in javascript, use Pair)
 
 // represents pairs as arrays
-// represents lists as arrays with null as the last element 
+// represents lists as arrays with null as the last element
 
 // TODO: move the asserts stuff into its own library
 // it depends on two utility functions, though:
@@ -547,16 +545,16 @@ var typeCheckers = {
 function parseTypeString(s) {
   if (/list|pair/.test(s)) {
     var baseType = /list/.test(s) ? 'list' : 'pair';
-    
+
     var uStart = s.indexOf("<");
     var uEnd = s.lastIndexOf(">");
 
     var baseChecker = typeCheckers[baseType];
-    
+
     if (uStart == -1 || uEnd == -1) {
-      return baseChecker; 
+      return baseChecker;
     }
-    
+
     var u = s.slice(uStart + 1, uEnd);
     var uChecker = parseTypeString(u);
 
@@ -564,13 +562,13 @@ function parseTypeString(s) {
       return function(x) {
         if (!baseChecker(x)) {
           return false;
-        } 
+        }
 
         return uChecker(x[0]) && uChecker(_rest(x));
       };
 
     }
-    
+
     // otherwise, return checker for list<...>
     return function(x) {
       if (!baseChecker(x)) {
@@ -582,10 +580,10 @@ function parseTypeString(s) {
           return false;
         };
       }
-      return true; 
+      return true;
     };
-    
-    
+
+
   } else {
     return typeCheckers[s];
   }
@@ -620,7 +618,7 @@ module.exports.__annotations__ = {};
 
 var addBuiltin = function(dict) {
   var fWrapped = wrapAsserts(dict);
-  
+
   module.exports[dict.name] = fWrapped;
   module.exports.__annotations__[dict.name] = dict;
   return fWrapped;
@@ -677,7 +675,7 @@ var minus = $b({
       }
       return r;
     }
-  } 
+  }
 });
 
 var mult = $b({
@@ -708,8 +706,8 @@ var div = $b({
     var numArgs = arguments.length;
     if (numArgs == 0) {
       return 1;
-    } 
-    
+    }
+
     if (numArgs == 1) {
       return arguments[0];
     }
@@ -781,6 +779,15 @@ var expt = $b({
   }
 });
 
+var sqrt = $b({
+  name: 'sqrt',
+  desc: 'Square root',
+  params: [{name: 'x', type: 'real'}],
+  fn: function(x) {
+    return Math.sqrt(x);
+  }
+});
+
 var sum = $b({
   name: 'sum',
   desc: 'Sum a list of numbers',
@@ -793,7 +800,7 @@ var sum = $b({
     }
 
 	  return r;
-  } 
+  }
 });
 
 var prod = $b({
@@ -808,7 +815,7 @@ var prod = $b({
     }
 
 	  return r;
-  } 
+  }
 });
 
 // check whether y \in (x - tol, x + tol)
@@ -821,7 +828,7 @@ var soft_equal = $b({
           ],
   fn: function(y, x, tol) {
     // FIXME: assert upper > lower
-    return (y > x - tol && x < x + tol);
+    return (y > x - tol && y < x + tol);
   }
 });
 
@@ -898,7 +905,7 @@ var greater = $b({
   desc: 'Test whether x is greater than all y\'s',
   params: [{name: 'x', type: 'real'},
            {name: '[y ...]', type: 'real'}
-          ], 
+          ],
   fn: function() {
     var numArgs = arguments.length;
     var x = arguments[0];
@@ -917,7 +924,7 @@ var less = $b({
   desc: 'Test whether x is less than all y\'s',
   params: [{name: 'x', type: 'real'},
            {name: '[y ...]', type: 'real'}
-          ], 
+          ],
   fn: function() {
     var numArgs = arguments.length;
     var x = arguments[0];
@@ -936,7 +943,7 @@ var geq = $b({
   desc: 'Test whether x is greater than or equal to all y\'s',
   params: [{name: 'x', type: 'real'},
            {name: '[y ...]', type: 'real'}
-          ], 
+          ],
   fn: function() {
     var numArgs = arguments.length;
     var x = arguments[0];
@@ -955,7 +962,7 @@ var leq = $b({
   desc: 'Test whether x is less than or equal to all y\'s',
   params: [{name: 'x', type: 'real'},
            {name: '[y ...]', type: 'real'}
-          ], 
+          ],
   fn: function() {
     var numArgs = arguments.length;
     var x = arguments[0];
@@ -972,7 +979,7 @@ var eq = $b({
   name: 'eq',
   alias: '=',
   desc: 'Test whether all arguments are equal',
-  params: [{name: '[x ...]', type: 'real'}], 
+  params: [{name: '[x ...]', type: 'real'}],
   fn: function() {
     var numArgs = arguments.length;
     var x = arguments[0];
@@ -1012,7 +1019,7 @@ var is_list = $b({
   fn: function(x) {
     return Array.isArray(x) && x[x.length-1] == null;
   }
-}); 
+});
 
 var Pair = $b({
   name: 'pair',
@@ -1041,7 +1048,7 @@ var first = $b({
   desc: 'Get the first item of a list (or pair)',
   params: [{name: 'lst', type: 'pair'}],
   fn: function(lst) {
-    var arr = listToArray(lst); 
+    var arr = listToArray(lst);
     if (arr.length < 1) {
       throw new Error('Tried to get the first element of an empty list');
     }
@@ -1054,7 +1061,7 @@ var second = $b({
   desc: 'Get the second item of a list',
   params: [{name: 'lst', type: 'list'}],
   fn: function(lst) {
-    var arr = listToArray(lst); 
+    var arr = listToArray(lst);
     if (arr.length < 2) {
       throw new Error('Tried to get the 2nd element of a list with only ' + arr.length + ' item');
     }
@@ -1067,7 +1074,7 @@ var third = $b({
   desc: 'Get the third item of a list',
   params: [{name: 'lst', type: 'list'}],
   fn: function(lst) {
-    var arr = listToArray(lst); 
+    var arr = listToArray(lst);
     if (arr.length < 3) {
       throw new Error('Tried to get the 3rd element of list with only ' + arr.length + ' elements');
     }
@@ -1080,7 +1087,7 @@ var fourth = $b({
   desc: 'Get the fourth item of a list',
   params: [{name: 'lst', type: 'list'}],
   fn: function(lst) {
-    var arr = listToArray(lst); 
+    var arr = listToArray(lst);
     if (arr.length < 4) {
       throw new Error('Tried to get the 4th element of list with only ' + arr.length + ' elements');
     }
@@ -1093,7 +1100,7 @@ var fifth = $b({
   desc: 'Get the fifth item of a list',
   params: [{name: 'lst', type: 'list'}],
   fn: function(lst) {
-    var arr = listToArray(lst); 
+    var arr = listToArray(lst);
     if (arr.length < 5) {
       throw new Error('Tried to get the 5th element of list with only ' + arr.length + ' elements');
     }
@@ -1106,7 +1113,7 @@ var sixth = $b({
   desc: 'Get the sixth item of a list',
   params: [{name: 'lst', type: 'list'}],
   fn: function(lst) {
-    var arr = listToArray(lst); 
+    var arr = listToArray(lst);
     if (arr.length < 6) {
       throw new Error('Tried to get the 6th element of list with only ' + arr.length + ' elements');
     }
@@ -1119,7 +1126,7 @@ var seventh = $b({
   desc: 'Get the seventh item of a list',
   params: [{name: 'lst', type: 'list'}],
   fn: function(lst) {
-    var arr = listToArray(lst); 
+    var arr = listToArray(lst);
     if (arr.length < 7) {
       throw new Error('Tried to get the 7th element of list with only ' + arr.length + ' elements');
     }
@@ -1133,7 +1140,7 @@ var _rest = function(x) {
 		return x[1];
 	} else {
 		return x.slice(1);
-	}    
+	}
 };
 
 var rest = $b({
@@ -1189,7 +1196,7 @@ var drop = $b({
   params: [{name: 'lst', type: 'list'},
            {name: 'n', type: 'nat'}],
   fn: function(lst,n) {
-    return arrayToList(listToArray(lst).slice(n)); 
+    return arrayToList(listToArray(lst).slice(n));
   }
 });
 
@@ -1219,7 +1226,7 @@ var unique = $b({
           ],
   fn: function(lst, eq) {
     eq = eq || is_equal;
-    
+
     var arr = listToArray(lst);
     var uniques = [];
     for(var i = 0, ii = arr.length ; i < ii; i++) {
@@ -1237,7 +1244,7 @@ var unique = $b({
     }
 
     return arrayToList(uniques, true);
-    
+
   }
 });
 
@@ -1297,7 +1304,7 @@ var mean = $b({
 	  var vals = listToArray(lst),
         sum = 0,
         n = vals.length;
-    
+
 	  for (var i=0; i < n; i++) {
       sum += vals[i];
     }
@@ -1313,13 +1320,13 @@ var append = $b({
     {name: '[lst ...]', type: 'list'}
   ],
   fn: function() {
-    
+
     // not ideal because we're crossing the list abstraction barrier
     var r = [];
     for(var i = 0, ii = arguments.length; i < ii; i++) {
       r = r.concat(listToArray(arguments[i]));
     }
-    return arrayToList(r, true); 
+    return arrayToList(r, true);
   }
 });
 
@@ -1361,7 +1368,7 @@ var fold = $b({
 		  arrs.push(listToArray(lists[i]));
 	  }
 	  var max_length = Math.min.apply(this, arrs.map(function(el) {return el.length;}));
-	  var cumulativeValue = initialValue; 
+	  var cumulativeValue = initialValue;
 	  for (i=0; i<max_length; i++) {
 		  var fn_args = arrs.map(function(el) {return el[i];});
 		  fn_args.push(cumulativeValue);
@@ -1388,21 +1395,21 @@ var repeat = $b({
 	  return lst;
 
   }
-}); 
+});
 
 var for_each = $b({
   name: 'for_each',
-  desc: 'Apply a function to every member of a list, but don\'t return anything', 
+  desc: 'Apply a function to every member of a list, but don\'t return anything',
   params: [
     {name: 'fn', type: 'function'},
     {name: 'lst', type: 'list'}],
   fn: function(fn,lst) {
     var arr = listToArray(lst);
-    arr.forEach(function(x, i, lst) { fn(x) }); 
+    arr.forEach(function(x, i, lst) { fn(x) });
     return;
 
   }
-}); 
+});
 
 var map = $b({
   name: 'map',
@@ -1414,19 +1421,19 @@ var map = $b({
   ],
   fn: function() {
     var args = args_to_array(arguments),
-        fn = args[0]; 
-    
+        fn = args[0];
+
     var lists = args.slice(1),
         arr = [],
         numLists = lists.length;
 
     var arrays = lists.map(function(L) { return listToArray(L) });
-    
+
     // ^ have to write it verbosely because otherwise, map will pass in extra arguments
     // namely the current index and the entire array. the index element will
     // get used as the recursive flag to the listToArray function
     // this causes nested maps to have the wrong behavior
-    
+
     var n = Math.min.apply(null, arrays.map(function(a) { return a.length}));
 
     for(var i=0;i<n;i++) {
@@ -1446,7 +1453,7 @@ var filter = $b({
   fn: function(pred, lst) {
     var arr = listToArray(lst).filter(pred);
     arr.push(null);
-    return arr; 
+    return arr;
   }
 });
 
@@ -1515,7 +1522,7 @@ var is_equal = $b({
             }
           };
           return true;
-          
+
 			  } else {
 				  return false;
 			  }
@@ -1538,15 +1545,15 @@ var member = $b({
   ],
   fn: function(x, lst, cmp) {
     cmp = cmp || is_equal;
-    
+
     var array = listToArray(lst);
-    
+
 	  for (var i = 0, ii = array.length; i < ii; i++) {
 		  if (cmp(x, array[i])) {
 			  return lst;
 		  }
 	  }
-	  return false; 
+	  return false;
   }
 });
 
@@ -1556,7 +1563,7 @@ var apply = $b({
   params: [{name: "fn", type: "function", desc: ""},
            {name: "lst", type: "list", desc: ""}],
   fn: function(fn, lst) {
-	  return fn.apply(null, listToArray(lst)); 
+	  return fn.apply(null, listToArray(lst));
   }
 });
 
@@ -1572,7 +1579,7 @@ var assoc = $b({
 			  return alist[i];
 		  }
 	  }
-	  return false; 
+	  return false;
   }
 });
 
@@ -1583,7 +1590,7 @@ var regexp_split = $b({
   params: [{name: "s", type: "string", desc: ""},
            {name: "sep", type: "string", desc: ""}],
   fn: function(str, sep) {
-	  return arrayToList(str.split(sep)); 
+	  return arrayToList(str.split(sep));
   }
 });
 
@@ -1642,7 +1649,7 @@ var number_to_string = $b({
   desc: 'Convert a number to a string',
   params: [{name: "x", type: "real", desc: ""}],
   fn: function(num) {
-	  return num.toString(); 
+	  return num.toString();
   }
 });
 
@@ -1665,7 +1672,7 @@ var wrapped_uniform_draw = $b({
   params: [{name: "items", type: "list", desc: ""}],
   erp: true,
   fn: function(items, isStructural, conditionedValue) {
-    return uniformDraw(listToArray(items), isStructural, conditionedValue); 
+    return uniformDraw(listToArray(items), isStructural, conditionedValue);
   }
 });
 
@@ -1729,7 +1736,7 @@ var wrapped_random_integer = $b({
 	  for (var i = 0; i < n; i++){
       probs[i] = p;
     };
-    return multinomial(probs, undefined, conditionedValue); 
+    return multinomial(probs, undefined, conditionedValue);
   }
 });
 
@@ -1837,18 +1844,18 @@ var DPmem = $b({
         for(var i = 0; i < numTables; i++ ) {
           indices.push(i);
         }
-        
+
         var counts = tables.map(function(table) { return table.count });
 
         var sampledIndex = wrapped_multinomial(arrayToList(indices, true),
                                                arrayToList(counts, true));
 
-        
+
         value = tables[sampledIndex].value;
         tables[sampledIndex].count++;
-      } 
-      return value; 
-      
+      }
+      return value;
+
     }
   }
 })
@@ -1933,7 +1940,7 @@ var console_log = $b({
   params: [{name: "[s ...]", type: "", desc: ""}],
   fn: function() {
     var args = args_to_array(arguments);
-    var strs = args.map(util.format_result); 
+    var strs = args.map(util.format_result);
     for (var i=0;i<strs.length;i++) {
       console.log(strs[i]);
     };
@@ -1947,12 +1954,12 @@ var display = $b({
   params: [{name: "[s ...]", type: "", desc: ""}],
   fn: function() {
     var args = args_to_array(arguments);
-    var strs = args.map(util.format_result); 
+    var strs = args.map(util.format_result);
     if (inBrowser) {
       sideEffects.push({
         type: 'string',
         data: strs.join(" ")
-      }); 
+      });
     } else {
       console.log(strs.join(" "));
     }
@@ -1986,10 +1993,10 @@ var string_append = $b({
   desc: 'Append an arbitrary number of strings',
   params: [
     {name: '[s ...]', type: 'string'}
-  ], 
+  ],
   fn: function() {
     var args = args_to_array(arguments);
-    return args.join(""); 
+    return args.join("");
 
   }
 });
@@ -2000,7 +2007,7 @@ var symbol_to_string = $b({
   desc: '',
   params: [{name: "sym", type: "string", desc: ""}],
   fn: function(sym) {
-    return sym; 
+    return sym;
   }
 });
 
@@ -2011,11 +2018,11 @@ var iota = $b({
     {name: 'count', type: 'nat', desc: 'Number of items'},
     {name: '[start]', type: 'real', desc: 'First item in list', default: 0},
     {name: '[step]', type: 'real', desc: 'Difference between successive items in the list', default: 1}
-  ], 
+  ],
   fn: function(count, start, step) {
     if (start === undefined) { start = 0; }
-    if (step === undefined) { step = 1; } 
-    
+    if (step === undefined) { step = 1; }
+
     var r = [];
     for(var k = start, i = 0;
         i < count;
@@ -2033,7 +2040,7 @@ var range = $b({
   params: [
     {name: 'start', type: 'integer'},
     {name: 'end', type: 'integer'}
-  ], 
+  ],
   fn: function(start, end) {
     return iota(end - start + 1, start, 1);
   }
@@ -2048,7 +2055,7 @@ var update_list = $b({
            {name: "value", type: "", desc: ""}],
   fn: function(lst, n, value) {
 
-    var array = listToArray(lst);     
+    var array = listToArray(lst);
     if (array.length < n) {
 	    throw new Error("list index too big: asked for item #" + (n+1) + " but list only contains " + n + " items");
 	  }
@@ -2061,7 +2068,7 @@ var update_list = $b({
 
 var get_time = $b({
   name: 'get_time',
-  desc: '', 
+  desc: '',
   params: [],
   fn: function() {
     return Date.now();
@@ -2081,7 +2088,7 @@ var make_gensym = $b({
       };
     })();
     return closure;
-  } 
+  }
 });
 
 var gensym = $b({
@@ -2113,7 +2120,7 @@ var gensym = $b({
 // var dict_lookup = $x.dict_lookup = function(d,k) {
 //   var keys = Object.keys(d);
 //   k = k + "";
-  
+
 //   if ( keys.indexOf(k) > -1) {
 //     var entry = [k, d[k]];
 //     return arrayToList(entry);
@@ -2149,9 +2156,9 @@ function wrapAsserts(annotation) {
   var paramProps = annotation.params || [];
 
   var validArgumentLengths = annotation.numArgs;
-  
+
   var numParams = paramProps.length;
-  
+
   // compute number of mandatory arguments
   var numMandatoryParams = paramProps.filter(function(prop) {
     return !prop.name.match(/\[/);
@@ -2160,10 +2167,10 @@ function wrapAsserts(annotation) {
   var wrapped = function() {
     // var userArgs = Array.prototype.slice.call(arguments, 0);
     var userArgs = arguments;
-    
+
     var userNumArgs = userArgs.length;
     // console.log( 'inside wrapped ' + functionName);
-    
+
     if (userNumArgs < numMandatoryParams) {
       var err = _.template('<<functionName>> takes {{numArgs}} argument{{plural}}, but {{userNumArgs}} were given',
                            {userNumArgs: userNumArgs == 0 ? 'none' : 'only ' + userNumArgs,
@@ -2176,7 +2183,7 @@ function wrapAsserts(annotation) {
 
     // make sure that the number of arguments that the
     // user supplied is a valid number of arguments
-    // to this function 
+    // to this function
     if (validArgumentLengths) {
       if (validArgumentLengths.indexOf(userNumArgs) == -1) {
         throw new Error('Invalid number of arguments to <<functionName>>');
@@ -2185,17 +2192,17 @@ function wrapAsserts(annotation) {
 
     // for each supplied argument, check type
     for(var i = 0, a, props, variadic = false, specType, argName; i < userNumArgs; i++) {
-      
+
       a = userArgs[i];
       if (!variadic) {
         props = paramProps[i];
         specType = props.type;
-      }      
+      }
       argName = props.name;
       if (argName.match(/\.\.\./)) {
         variadic = true;
-      } 
-      
+      }
+
       if (specType) {
         // run the appropriate type checker on the argument
         var checker = parseTypeString(specType); // typeCheckers[specType];
@@ -2205,13 +2212,13 @@ function wrapAsserts(annotation) {
             'Bug in Church builtins - annotation for (<<functionName>> ...) tries to declare the type of the "{{argName}}" argument as "{{specType}}", which is not a recognized type',
             { specType: specType,
               argName: argName
-            } 
+            }
           );
           throw new Error(errorString);
         }
-        
+
         var typeChecks = checker(a);
-        
+
         if (!typeChecks) {
           var errorString = _.template(
             // <<functionName>> will get filled in inside evaluate.js
@@ -2225,7 +2232,7 @@ function wrapAsserts(annotation) {
 
           throw new Error(errorString);
         }
-      } 
+      }
     }
     return fn.apply(null, userArgs);
   };
@@ -2236,7 +2243,11 @@ function wrapAsserts(annotation) {
 
 }
 
-},{"./type-utils.js":"WwwT6v","./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"fs":18,"underscore":40}],"jmpXu2":[function(require,module,exports){
+},{"./type-utils.js":"WwwT6v","./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"fs":18,"underscore":40}],"./church_builtins":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/church_builtins.js",__dirname="/";module.exports=require('BiOwI0');
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-brackets":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-brackets.js",__dirname="/";module.exports=require('jmpXu2');
+},{"__browserify_Buffer":21,"__browserify_process":22}],"jmpXu2":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-brackets.js",__dirname="/";//require("codemirror");
 
 // closebrackets.js
@@ -2410,8 +2421,6 @@ function buildExplodeHandler(pairs) {
   CodeMirror.defineExtension("findMatchingBracket", function(){return findMatchingBracket(this);});
 })();
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-brackets":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-brackets.js",__dirname="/";module.exports=require('jmpXu2');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"g1BTkV":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-church.js",__dirname="/";/**
  * Author: Koh Zi Han, based on implementation by Koh Zi Chun
@@ -2648,6 +2657,8 @@ CodeMirror.defineMIME("text/x-scheme", "scheme");
 
 },{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-church":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-church.js",__dirname="/";module.exports=require('g1BTkV');
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-comments":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-comments.js",__dirname="/";module.exports=require('AxGwBA');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"AxGwBA":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-comments.js",__dirname="/";(function() {
   "use strict";
@@ -2795,10 +2806,6 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   });
 })();
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-comments":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-comments.js",__dirname="/";module.exports=require('AxGwBA');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-folding":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-folding.js",__dirname="/";module.exports=require('qGvOQN');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"qGvOQN":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-folding.js",__dirname="/";/* global CodeMirror */
 
@@ -2953,6 +2960,10 @@ module.exports = {
   myRangeFinder: myRangeFinder
 }
 
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-folding":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-folding.js",__dirname="/";module.exports=require('qGvOQN');
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./editor":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/editor.js",__dirname="/";module.exports=require('lklgsm');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"lklgsm":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/editor.js",__dirname="/";/* global require, CodeMirror, $ */
 
@@ -3200,11 +3211,7 @@ module.exports = {
   injector: inject
 };
 
-},{"./cm-brackets":"jmpXu2","./cm-church":"g1BTkV","./cm-comments":"AxGwBA","./cm-folding":"qGvOQN","./evaluate":"OLnFAJ","./viz":"Y99c6j","__browserify_Buffer":21,"__browserify_process":22,"codemirror":23,"d3":25,"underscore":40}],"./editor":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/editor.js",__dirname="/";module.exports=require('lklgsm');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./evaluate":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/evaluate.js",__dirname="/";module.exports=require('OLnFAJ');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"OLnFAJ":[function(require,module,exports){
+},{"./cm-brackets":"jmpXu2","./cm-church":"g1BTkV","./cm-comments":"AxGwBA","./cm-folding":"qGvOQN","./evaluate":"OLnFAJ","./viz":"Y99c6j","__browserify_Buffer":21,"__browserify_process":22,"codemirror":23,"d3":25,"underscore":40}],"OLnFAJ":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/evaluate.js",__dirname="/";/* global require */
 
 var escodegen = require('escodegen');
@@ -3496,7 +3503,9 @@ module.exports = {
   churchToBareJs: churchToBareJs
 };
 
-},{"./church_astify.js":1,"./js_astify.js":16,"./precompile.js":41,"./tokenize.js":53,"./util.js":"h4wp5z","./wctransform":60,"__browserify_Buffer":21,"__browserify_process":22,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29,"source-map":30,"underscore":40}],16:[function(require,module,exports){
+},{"./church_astify.js":1,"./js_astify.js":16,"./precompile.js":41,"./tokenize.js":53,"./util.js":"h4wp5z","./wctransform":60,"__browserify_Buffer":21,"__browserify_process":22,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29,"source-map":30,"underscore":40}],"./evaluate":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/evaluate.js",__dirname="/";module.exports=require('OLnFAJ');
+},{"__browserify_Buffer":21,"__browserify_process":22}],16:[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/js_astify.js",__dirname="/";/* global require */
 
 /*
@@ -35641,6 +35650,8 @@ var arrayToList = $x.arrayToList = function(arr, mutate) {
 
 module.exports = $x;
 
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./util.js":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/util.js",__dirname="/";module.exports=require('h4wp5z');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"h4wp5z":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/util.js",__dirname="/";// ******************************
 // * PARSING
@@ -35718,8 +35729,8 @@ module.exports = {
 	format_result: format_result,
 	log: log
 }
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./util.js":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/util.js",__dirname="/";module.exports=require('h4wp5z');
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./viz":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/viz.js",__dirname="/";module.exports=require('Y99c6j');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"Y99c6j":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/viz.js",__dirname="/";/* global $, require */
 
@@ -36231,9 +36242,7 @@ function drawAxes(svg, xAxis, yAxis, xAxisPos, yAxisPos, width, type) {
     .call(yAxis);
 }
 
-},{"./type-utils":"WwwT6v","./util":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"d3":25,"underscore":40}],"./viz":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/viz.js",__dirname="/";module.exports=require('Y99c6j');
-},{"__browserify_Buffer":21,"__browserify_process":22}],60:[function(require,module,exports){
+},{"./type-utils":"WwwT6v","./util":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"d3":25,"underscore":40}],60:[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/wctransform.js",__dirname="/";var esprima = require("esprima")
 //var escodegen = require("escodegen")
 var estraverse = require("escodegen/node_modules/estraverse")

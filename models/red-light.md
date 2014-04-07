@@ -7,17 +7,17 @@ model-tags: planning
 ---
 
     (define (last l)
-        (cond ((null? (rest l)) (first l))
-              (else (last (rest l)))))
+      (cond ((null? (rest l)) (first l))
+            (else (last (rest l)))))
     
     ;; states have format (pair world-state agent-position)
     (define (sample-action trans start-state goal? ending)
       (rejection-query
-        (define first-action (action-prior))
-        (define state-action-seq 
-          (rollout trans (pair start-state first-action) ending))
-        state-action-seq
-        (goal? state-action-seq)))
+       (define first-action (action-prior))
+       (define state-action-seq 
+         (rollout trans (pair start-state first-action) ending))
+       state-action-seq
+       (goal? state-action-seq)))
     
     ;; input and output are state-action pairs so we can run rollout
     (define (transition state-action)
@@ -32,16 +32,16 @@ model-tags: planning
     
     (define (forward-model state-action)
       (pair
-        (if (flip 0.5) 'red-light 'green-light)
-        (let ((light (first (first state-action)))
-              (position (rest (first state-action)))
-              (action (rest state-action)))
-          (if (eq? action 'go)
-            (if (and (eq? light 'red-light)
-                     (flip cheat-det))
-              0
-              (+ position 1))
-            position))))
+       (if (flip 0.5) 'red-light 'green-light)
+       (let ((light (first (first state-action)))
+             (position (rest (first state-action)))
+             (action (rest state-action)))
+         (if (eq? action 'go)
+             (if (and (eq? light 'red-light)
+                      (flip cheat-det))
+                 0
+                 (+ position 1))
+             position))))
     
     (define discount .95)
     

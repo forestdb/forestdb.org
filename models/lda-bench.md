@@ -68,7 +68,7 @@ model-status-verbose: Unknown error.
             (lambda (document)
               (let* ((topic-selection-distr (dirichlet '(0.3 0.3))))
                 (map (lambda (word)
-                       (let* ((sampled-topic (multinomial topic-selection-distr '(0 1)))
+                       (let* ((sampled-topic (multinomial '(0 1) topic-selection-distr))
                               (idx (index-in word vocabulary)))
                          (pair (pair 'topic (list-ref topic-word-distributions sampled-topic))
                                (word-prob idx (list-ref topic-word-distributions sampled-topic)))))

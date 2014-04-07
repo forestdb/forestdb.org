@@ -2236,9 +2236,7 @@ function wrapAsserts(annotation) {
 
 }
 
-},{"./type-utils.js":"WwwT6v","./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"fs":18,"underscore":40}],"./cm-brackets":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-brackets.js",__dirname="/";module.exports=require('jmpXu2');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"jmpXu2":[function(require,module,exports){
+},{"./type-utils.js":"WwwT6v","./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"fs":18,"underscore":40}],"jmpXu2":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-brackets.js",__dirname="/";//require("codemirror");
 
 // closebrackets.js
@@ -2412,6 +2410,8 @@ function buildExplodeHandler(pairs) {
   CodeMirror.defineExtension("findMatchingBracket", function(){return findMatchingBracket(this);});
 })();
 
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-brackets":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-brackets.js",__dirname="/";module.exports=require('jmpXu2');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"g1BTkV":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-church.js",__dirname="/";/**
  * Author: Koh Zi Han, based on implementation by Koh Zi Chun
@@ -2648,8 +2648,6 @@ CodeMirror.defineMIME("text/x-scheme", "scheme");
 
 },{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-church":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-church.js",__dirname="/";module.exports=require('g1BTkV');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-comments":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-comments.js",__dirname="/";module.exports=require('AxGwBA');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"AxGwBA":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-comments.js",__dirname="/";(function() {
   "use strict";
@@ -2797,6 +2795,10 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   });
 })();
 
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-comments":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-comments.js",__dirname="/";module.exports=require('AxGwBA');
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-folding":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-folding.js",__dirname="/";module.exports=require('qGvOQN');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"qGvOQN":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-folding.js",__dirname="/";/* global CodeMirror */
 
@@ -2951,10 +2953,6 @@ module.exports = {
   myRangeFinder: myRangeFinder
 }
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-folding":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-folding.js",__dirname="/";module.exports=require('qGvOQN');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./editor":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/editor.js",__dirname="/";module.exports=require('lklgsm');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"lklgsm":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/editor.js",__dirname="/";/* global require, CodeMirror, $ */
 
@@ -3045,7 +3043,6 @@ function makewebchurchrunner(evalparams){
       $results
         .append( $("<p></p>")
                  .addClass('error')
-                 .css('font-size', '120%')
                  .text(error) );
       
       if (e.stackarray != undefined) {
@@ -3133,7 +3130,7 @@ var inject = function(domEl, options) {
   });
 
   // reset button
-  var $resetButton = $("<button>").html("Reset");
+  var $resetButton = $("<button class='reset'>").html("Reset");
   $resetButton.click(function() {
     editor.setValue(options.defaultText);
     editor.$engineSelector.val(options.defaultEngine);
@@ -3141,8 +3138,6 @@ var inject = function(domEl, options) {
     $results.hide().html('');
 
   });
-
-  $resetButton.css('float', 'right');
 
   // run button
   var $runButton = $("<button class='run'>").html("Run");
@@ -3179,10 +3174,6 @@ var inject = function(domEl, options) {
                           }, 15);
   });
 
-  $runButton.css({'padding-top': '5px',
-                  'padding-bottom': '5px'
-                 });
-
   var $codeControls = $("<div class='code-controls'>");
   // HT http://somerandomdude.com/work/open-iconic/#
 
@@ -3209,7 +3200,11 @@ module.exports = {
   injector: inject
 };
 
-},{"./cm-brackets":"jmpXu2","./cm-church":"g1BTkV","./cm-comments":"AxGwBA","./cm-folding":"qGvOQN","./evaluate":"OLnFAJ","./viz":"Y99c6j","__browserify_Buffer":21,"__browserify_process":22,"codemirror":23,"d3":25,"underscore":40}],"OLnFAJ":[function(require,module,exports){
+},{"./cm-brackets":"jmpXu2","./cm-church":"g1BTkV","./cm-comments":"AxGwBA","./cm-folding":"qGvOQN","./evaluate":"OLnFAJ","./viz":"Y99c6j","__browserify_Buffer":21,"__browserify_process":22,"codemirror":23,"d3":25,"underscore":40}],"./editor":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/editor.js",__dirname="/";module.exports=require('lklgsm');
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./evaluate":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/evaluate.js",__dirname="/";module.exports=require('OLnFAJ');
+},{"__browserify_Buffer":21,"__browserify_process":22}],"OLnFAJ":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/evaluate.js",__dirname="/";/* global require */
 
 var escodegen = require('escodegen');
@@ -3501,9 +3496,7 @@ module.exports = {
   churchToBareJs: churchToBareJs
 };
 
-},{"./church_astify.js":1,"./js_astify.js":16,"./precompile.js":41,"./tokenize.js":53,"./util.js":"h4wp5z","./wctransform":60,"__browserify_Buffer":21,"__browserify_process":22,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29,"source-map":30,"underscore":40}],"./evaluate":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/evaluate.js",__dirname="/";module.exports=require('OLnFAJ');
-},{"__browserify_Buffer":21,"__browserify_process":22}],16:[function(require,module,exports){
+},{"./church_astify.js":1,"./js_astify.js":16,"./precompile.js":41,"./tokenize.js":53,"./util.js":"h4wp5z","./wctransform":60,"__browserify_Buffer":21,"__browserify_process":22,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29,"source-map":30,"underscore":40}],16:[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/js_astify.js",__dirname="/";/* global require */
 
 /*
@@ -34252,9 +34245,7 @@ module.exports =
 	dirichlet: dirichlet
 }
 
-},{"./trace":50,"__browserify_Buffer":21,"__browserify_process":22}],"./probabilistic-js":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/index.js",__dirname="/probabilistic-js/probabilistic";module.exports=require('jx6Szh');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"jx6Szh":[function(require,module,exports){
+},{"./trace":50,"__browserify_Buffer":21,"__browserify_process":22}],"jx6Szh":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/index.js",__dirname="/probabilistic-js/probabilistic";var trace = require("./trace")
 var erp = require("./erp")
 var control = require("./control")
@@ -34297,7 +34288,9 @@ for (var prop in transform)
 //// b/c this makes source transformation easier.
 var util = require("./util")
 module.exports["openModule"] = util.openModule
-},{"./control":43,"./erp":44,"./inference":47,"./marginalize":48,"./memoize":49,"./trace":50,"./transform":51,"./util":52,"__browserify_Buffer":21,"__browserify_process":22}],47:[function(require,module,exports){
+},{"./control":43,"./erp":44,"./inference":47,"./marginalize":48,"./memoize":49,"./trace":50,"./transform":51,"./util":52,"__browserify_Buffer":21,"__browserify_process":22}],"./probabilistic-js":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/index.js",__dirname="/probabilistic-js/probabilistic";module.exports=require('jx6Szh');
+},{"__browserify_Buffer":21,"__browserify_process":22}],47:[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/inference.js",__dirname="/probabilistic-js/probabilistic";var trace = require("./trace")
 var util = require("./util")
 var STKernel = require("./STKernel")
@@ -35648,8 +35641,6 @@ var arrayToList = $x.arrayToList = function(arr, mutate) {
 
 module.exports = $x;
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./util.js":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/util.js",__dirname="/";module.exports=require('h4wp5z');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"h4wp5z":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/util.js",__dirname="/";// ******************************
 // * PARSING
@@ -35727,6 +35718,8 @@ module.exports = {
 	format_result: format_result,
 	log: log
 }
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./util.js":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/util.js",__dirname="/";module.exports=require('h4wp5z');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"Y99c6j":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/viz.js",__dirname="/";/* global $, require */
 

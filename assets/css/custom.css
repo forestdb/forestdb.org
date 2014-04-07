@@ -113,6 +113,7 @@ ul p {
 div.results pre {
   background-color: #fff;
   border: none;
+  font-size: 12px;
 }
 
 div.results svg.chart {

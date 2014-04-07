@@ -91,7 +91,6 @@ $(function () {
     $(".code-controls button").addClass("btn btn-default");
     $(".code-controls").addClass("btn-toolbar pull-right");
     $(".code-controls").after("<div class=\"code-controls-clear\"></div>");
-    $(".code-controls button").css("padding", "none");
 })
 
 

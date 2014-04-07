@@ -491,7 +491,9 @@ module.exports =
     church_shallow_preconditions: church_shallow_preconditions
 }
 
-},{"./church_builtins.js":"BiOwI0","./js_astify.js":16,"./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22}],"BiOwI0":[function(require,module,exports){
+},{"./church_builtins.js":"BiOwI0","./js_astify.js":16,"./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22}],"./church_builtins":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/church_builtins.js",__dirname="/";module.exports=require('BiOwI0');
+},{"__browserify_Buffer":21,"__browserify_process":22}],"BiOwI0":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/church_builtins.js",__dirname="/";/* global global, require, module, exports */
 
 // Contains the built-in Church functions written in Javascript.
@@ -1925,6 +1927,19 @@ var read_csv = $b({
   }
 });
 
+var console_log = $b({
+  name: 'console_log',
+  desc: 'Print arguments to Javascript console',
+  params: [{name: "[s ...]", type: "", desc: ""}],
+  fn: function() {
+    var args = args_to_array(arguments);
+    var strs = args.map(util.format_result); 
+    for (var i=0;i<strs.length;i++) {
+      console.log(strs[i]);
+    };
+  }
+});
+
 var display = $b({
   name: 'display',
   alias: 'pn',
@@ -2221,9 +2236,7 @@ function wrapAsserts(annotation) {
 
 }
 
-},{"./type-utils.js":"WwwT6v","./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"fs":18,"underscore":40}],"./church_builtins":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/church_builtins.js",__dirname="/";module.exports=require('BiOwI0');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-brackets":[function(require,module,exports){
+},{"./type-utils.js":"WwwT6v","./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"fs":18,"underscore":40}],"./cm-brackets":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-brackets.js",__dirname="/";module.exports=require('jmpXu2');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"jmpXu2":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-brackets.js",__dirname="/";//require("codemirror");
@@ -2399,8 +2412,6 @@ function buildExplodeHandler(pairs) {
   CodeMirror.defineExtension("findMatchingBracket", function(){return findMatchingBracket(this);});
 })();
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-church":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-church.js",__dirname="/";module.exports=require('g1BTkV');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"g1BTkV":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-church.js",__dirname="/";/**
  * Author: Koh Zi Han, based on implementation by Koh Zi Chun
@@ -2635,6 +2646,10 @@ CodeMirror.defineMode("scheme", function () {
 
 CodeMirror.defineMIME("text/x-scheme", "scheme");
 
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-church":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-church.js",__dirname="/";module.exports=require('g1BTkV');
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-comments":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-comments.js",__dirname="/";module.exports=require('AxGwBA');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"AxGwBA":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-comments.js",__dirname="/";(function() {
   "use strict";
@@ -2782,8 +2797,6 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   });
 })();
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-comments":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-comments.js",__dirname="/";module.exports=require('AxGwBA');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"qGvOQN":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-folding.js",__dirname="/";/* global CodeMirror */
 
@@ -35635,6 +35648,8 @@ var arrayToList = $x.arrayToList = function(arr, mutate) {
 
 module.exports = $x;
 
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./util.js":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/util.js",__dirname="/";module.exports=require('h4wp5z');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"h4wp5z":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/util.js",__dirname="/";// ******************************
 // * PARSING
@@ -35712,10 +35727,6 @@ module.exports = {
 	format_result: format_result,
 	log: log
 }
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./util.js":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/util.js",__dirname="/";module.exports=require('h4wp5z');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./viz":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/viz.js",__dirname="/";module.exports=require('Y99c6j');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"Y99c6j":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/viz.js",__dirname="/";/* global $, require */
 
@@ -36227,7 +36238,9 @@ function drawAxes(svg, xAxis, yAxis, xAxisPos, yAxisPos, width, type) {
     .call(yAxis);
 }
 
-},{"./type-utils":"WwwT6v","./util":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"d3":25,"underscore":40}],60:[function(require,module,exports){
+},{"./type-utils":"WwwT6v","./util":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"d3":25,"underscore":40}],"./viz":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/viz.js",__dirname="/";module.exports=require('Y99c6j');
+},{"__browserify_Buffer":21,"__browserify_process":22}],60:[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/wctransform.js",__dirname="/";var esprima = require("esprima")
 //var escodegen = require("escodegen")
 var estraverse = require("escodegen/node_modules/estraverse")

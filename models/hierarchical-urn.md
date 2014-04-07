@@ -46,6 +46,7 @@ depend on the biases.
                                      red red red red red red black))))
     
     (density samples "Proportion of red balls in urn 3" true)
+
 References:
 
 - Cite:Stuhlmueller2013aa

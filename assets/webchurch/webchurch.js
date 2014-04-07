@@ -491,9 +491,7 @@ module.exports =
     church_shallow_preconditions: church_shallow_preconditions
 }
 
-},{"./church_builtins.js":"BiOwI0","./js_astify.js":16,"./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22}],"./church_builtins":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/church_builtins.js",__dirname="/";module.exports=require('BiOwI0');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"BiOwI0":[function(require,module,exports){
+},{"./church_builtins.js":"BiOwI0","./js_astify.js":16,"./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22}],"BiOwI0":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/church_builtins.js",__dirname="/";/* global global, require, module, exports */
 
 // Contains the built-in Church functions written in Javascript.
@@ -2223,7 +2221,11 @@ function wrapAsserts(annotation) {
 
 }
 
-},{"./type-utils.js":"WwwT6v","./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"fs":18,"underscore":40}],"jmpXu2":[function(require,module,exports){
+},{"./type-utils.js":"WwwT6v","./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"fs":18,"underscore":40}],"./church_builtins":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/church_builtins.js",__dirname="/";module.exports=require('BiOwI0');
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-brackets":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-brackets.js",__dirname="/";module.exports=require('jmpXu2');
+},{"__browserify_Buffer":21,"__browserify_process":22}],"jmpXu2":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-brackets.js",__dirname="/";//require("codemirror");
 
 // closebrackets.js
@@ -2397,8 +2399,6 @@ function buildExplodeHandler(pairs) {
   CodeMirror.defineExtension("findMatchingBracket", function(){return findMatchingBracket(this);});
 })();
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-brackets":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-brackets.js",__dirname="/";module.exports=require('jmpXu2');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-church":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-church.js",__dirname="/";module.exports=require('g1BTkV');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"g1BTkV":[function(require,module,exports){
@@ -2784,8 +2784,6 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
 
 },{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-comments":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-comments.js",__dirname="/";module.exports=require('AxGwBA');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-folding":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-folding.js",__dirname="/";module.exports=require('qGvOQN');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"qGvOQN":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-folding.js",__dirname="/";/* global CodeMirror */
 
@@ -2940,6 +2938,10 @@ module.exports = {
   myRangeFinder: myRangeFinder
 }
 
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-folding":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-folding.js",__dirname="/";module.exports=require('qGvOQN');
+},{"__browserify_Buffer":21,"__browserify_process":22}],"./editor":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/editor.js",__dirname="/";module.exports=require('lklgsm');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"lklgsm":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/editor.js",__dirname="/";/* global require, CodeMirror, $ */
 
@@ -3194,11 +3196,7 @@ module.exports = {
   injector: inject
 };
 
-},{"./cm-brackets":"jmpXu2","./cm-church":"g1BTkV","./cm-comments":"AxGwBA","./cm-folding":"qGvOQN","./evaluate":"OLnFAJ","./viz":"Y99c6j","__browserify_Buffer":21,"__browserify_process":22,"codemirror":23,"d3":25,"underscore":40}],"./editor":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/editor.js",__dirname="/";module.exports=require('lklgsm');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./evaluate":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/evaluate.js",__dirname="/";module.exports=require('OLnFAJ');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"OLnFAJ":[function(require,module,exports){
+},{"./cm-brackets":"jmpXu2","./cm-church":"g1BTkV","./cm-comments":"AxGwBA","./cm-folding":"qGvOQN","./evaluate":"OLnFAJ","./viz":"Y99c6j","__browserify_Buffer":21,"__browserify_process":22,"codemirror":23,"d3":25,"underscore":40}],"OLnFAJ":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/evaluate.js",__dirname="/";/* global require */
 
 var escodegen = require('escodegen');
@@ -3490,7 +3488,9 @@ module.exports = {
   churchToBareJs: churchToBareJs
 };
 
-},{"./church_astify.js":1,"./js_astify.js":16,"./precompile.js":41,"./tokenize.js":53,"./util.js":"h4wp5z","./wctransform":60,"__browserify_Buffer":21,"__browserify_process":22,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29,"source-map":30,"underscore":40}],16:[function(require,module,exports){
+},{"./church_astify.js":1,"./js_astify.js":16,"./precompile.js":41,"./tokenize.js":53,"./util.js":"h4wp5z","./wctransform":60,"__browserify_Buffer":21,"__browserify_process":22,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29,"source-map":30,"underscore":40}],"./evaluate":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/evaluate.js",__dirname="/";module.exports=require('OLnFAJ');
+},{"__browserify_Buffer":21,"__browserify_process":22}],16:[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/js_astify.js",__dirname="/";/* global require */
 
 /*
@@ -33645,12 +33645,33 @@ RandomPrimitive.prototype.logProposalProb = function ERP_logProposalProb(currval
 	return this.logprob(propval, params)
 }
 
-//NOTE nextVal shuld be implemented by enurmerable ERPs. no default implementation to allow testing for existence.
-//RandomPrimitive.prototype.nextVal = function ERP_nextVal(currval)
-//{
+// NOTE nextVal should be implemented by enumerable ERPs. no default implementation to allow testing for existence.
+// RandomPrimitive.prototype.nextVal = function ERP_nextVal(currval)
+// {
 //    // When currval is null, start at beginning of domain when last val passed, return null.
-//	throw new Error("ERP subclasses must implement nextVal for domain enumeration!")
-//}
+// 	throw new Error("ERP subclasses must implement nextVal for domain enumeration!")
+// }
+
+// NOTE
+// ERPs whose supports change depending on parameters (e.g., uniform, multinomial)
+// can optionally implement the compareSupport function. this is handy
+// for making sure inference doesn't result in invalid traces
+// for example, in the model:
+//
+// a ~ Uniform(0,1)
+// b ~ Uniform(0,a)
+// ...
+//
+// the vanilla MH implementation will entertain proposals that make
+// b > a; if the remainder of the model results in an error for b > a
+// then we're in trouble; inference can't proceed. by declaring
+// compareSupport(), we catch this problem earlier (inside of
+// RandomExecutionTrace.prototype.lookup), avoiding model code
+// errors
+
+// RandomPrimitive.prototype.compareSupport = function ERP_compareSupport(params) {
+//   ...
+// }
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -33681,13 +33702,14 @@ FlipRandomPrimitive.prototype.logProposalProb = function Flip_logProposalProb(cu
 
 FlipRandomPrimitive.prototype.nextVal = function Flip_nextVal(currval, params)
 {
-    if (currval == null) {
-        return 0
-    } else if (currval == 0) {
-        return 1
-    }
-    return null
-}
+
+  if (currval == null) {
+    return 0;
+  } else if (currval === 0) {
+    return 1
+  }
+  return null;
+};
 
 var flipInst = new FlipRandomPrimitive()
 var flip = function flip(p, isStructural, conditionedValue)
@@ -33731,6 +33753,10 @@ function multinomial_logprob(n, theta)
 	return Math.log(theta[n]/thetasum)
 }
 
+MultinomialRandomPrimitive.prototype.compareSupport = function Multinomial_compareSupport(params1, params2) {
+  return (params1.length == params2.length)
+}
+
 MultinomialRandomPrimitive.prototype.sample_impl = function Multinomial_sample_impl(params)
 {
 	return multinomial_sample(params)
@@ -33757,14 +33783,18 @@ MultinomialRandomPrimitive.prototype.logProposalProb = function Multinomial_logP
 	return multinomial_logprob(propval, newparams)
 }
 
+// try an index. if it has zero probability, keep trying
+// until we find one that doesn't
 MultinomialRandomPrimitive.prototype.nextVal = function Multinomial_nextVal(currval, params)
 {
-    if (currval == null) {
-        return 0
-    } else if (currval < params.length-1) {
-        return currval+1
-    }
-    return null
+
+  if (currval == null) {
+    return 0
+  } else if (currval < params.length-1) {
+    return currval+1
+  }
+  return null
+
 }
 
 var multinomialInst = new MultinomialRandomPrimitive()
@@ -33773,17 +33803,17 @@ var multinomial = function multinomial(theta, isStructural, conditionedValue)
 	return multinomialInst.sample(theta, isStructural, conditionedValue) + 0
 }
 
-var multinomialDraw = function multinomialDraw(items, probs, isStructural)
+var multinomialDraw = function multinomialDraw(items, probs, isStructural, conditionedValue)
 {
-	return items[multinomial(probs, isStructural)]
+	return items[multinomial(probs, isStructural, conditionedValue)]
 }
 
-var uniformDraw = function uniformDraw(items, isStructural)
+var uniformDraw = function uniformDraw(items, isStructural, conditionedValue)
 {
 	var probs = []
 	for (var i = 0; i < items.length; i++)
 		probs[i] = 1/items.length
-	return items[multinomial(probs, isStructural)]
+	return items[multinomial(probs, isStructural, conditionedValue)]
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -33791,6 +33821,11 @@ var uniformDraw = function uniformDraw(items, isStructural)
 
 function UniformRandomPrimitive() {}
 UniformRandomPrimitive.prototype = Object.create(RandomPrimitive.prototype)
+
+
+UniformRandomPrimitive.prototype.compareSupport = function Uniform_compareSupport(params1, params2) {
+  return params1[0] == params2[0] && params1[1] == params2[1];
+}
 
 UniformRandomPrimitive.prototype.sample_impl = function Uniform_sample_impl(params)
 {
@@ -33806,7 +33841,7 @@ UniformRandomPrimitive.prototype.logprob = function Uniform_logprob(val, params)
 }
 
 var uniformInst = new UniformRandomPrimitive()
-var uniform = function uniform(lo, hi, isStructural, conditionedValue)
+var uniform = function(lo, hi, isStructural, conditionedValue)
 {
 	return uniformInst.sample([lo, hi], isStructural, conditionedValue) + 0
 }
@@ -34203,6 +34238,7 @@ module.exports =
 	dirichlet_logprob: dirichlet_logprob,
 	dirichlet: dirichlet
 }
+
 },{"./trace":50,"__browserify_Buffer":21,"__browserify_process":22}],"./probabilistic-js":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/index.js",__dirname="/probabilistic-js/probabilistic";module.exports=require('jx6Szh');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"jx6Szh":[function(require,module,exports){
@@ -34978,7 +35014,7 @@ function RandomExecutionTrace(computation, init)
         //if(this.enumerate) throw error("how did enumerate get turned on?")
         this.traceUpdate()
         var i=1, esteps=1
-        while (!this.conditionsSatisfied) {
+        while (!this.conditionsSatisfied || this.logprob === -Infinity) {
             if(i%esteps == 0) {
                 //reset and initialize randomly:
                 this.reset()
@@ -35158,8 +35194,20 @@ RandomExecutionTrace.prototype.lookup = function lookup(erp, params, isStructura
     } else {
         name = currentName(this)
         record = this.vars[name]
-        if (!record || record.erp != erp || record.structural != isStructural) {record = null}
-    }
+        if (record) {
+          if (record.erp !== erp) {
+            record = null
+          } else {
+            if ( record.structural !== isStructural || 
+                 // if this ERP compares supports but we fail the
+                 // comparison, say that there's no record
+                 (erp.compareSupport && !erp.compareSupport(params, record.params))
+               ) {
+              record = null;
+            } 
+          } 
+        } 
+    } 
     
 	// If we didn't find the variable, create a new one
 	if (!record)
@@ -35228,12 +35276,17 @@ RandomExecutionTrace.prototype.nextEnumState = function nextEnumState() {
     
     var newval = null
     while (newval == null) {
+      
         // if we are out of names it means we're done enumerating with no satisfying execution, return null.
         if (names.length == 0) {this.enumerate=false; return null}
         
         //otherwise get next var:
         var varname = names.pop()
         var v = this.getRecord(varname)
+
+      if (!v) {
+        continue
+      }
         
         //if the domain is enumerable, go to next value:
         if (typeof v.erp.nextVal === 'function') {
@@ -35294,6 +35347,7 @@ module.exports =
 	factor: factor,
 	condition: condition
 }
+
 },{"./util":52,"__browserify_Buffer":21,"__browserify_process":22}],51:[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/transform.js",__dirname="/probabilistic-js/probabilistic";var esprima = require("esprima")
 var escodegen = require("escodegen")
@@ -35554,7 +35608,9 @@ module.exports = {
 	tokenize: tokenize
 }
 
-},{"./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22}],"WwwT6v":[function(require,module,exports){
+},{"./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22}],"./type-utils.js":[function(require,module,exports){
+var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/type-utils.js",__dirname="/";module.exports=require('WwwT6v');
+},{"__browserify_Buffer":21,"__browserify_process":22}],"WwwT6v":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/type-utils.js",__dirname="/";
 /* global module */
 
@@ -35579,8 +35635,6 @@ var arrayToList = $x.arrayToList = function(arr, mutate) {
 
 module.exports = $x;
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./type-utils.js":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/type-utils.js",__dirname="/";module.exports=require('WwwT6v');
 },{"__browserify_Buffer":21,"__browserify_process":22}],"h4wp5z":[function(require,module,exports){
 var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/util.js",__dirname="/";// ******************************
 // * PARSING

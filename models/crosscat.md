@@ -1,10 +1,9 @@
 ---
 layout: model
 title: CrossCat
-model-status: code-fail
+model-status: code
 model-category: Nonparametric Models
 model-tags: nonparametric models, categorization
-model-status-verbose: Support change issue.
 ---
 
 CrossCat is a generative model that can be used for categorizing
@@ -43,7 +42,7 @@ system accounts for some subset of the features.
             (observe 'eggs 'dinner)
             (observe 'spinach 'dinner))))
     
-    samples
+    (hist samples)
 
 References:
 

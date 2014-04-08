@@ -72,8 +72,6 @@ model-tags: gp, nonparametrics, classifier
       (let ([L11 (sqrt (car (car A)))])
         (chol-square (chol-iter A (cons 2 1) (list (list L11)))) ) )
     
-    ;; Algorithmic flow
-    
     (define (chol-iter A ip L)
       ; Top level iteration of cholesky
       (if (> (car ip) (length A))
@@ -98,8 +96,6 @@ model-tags: gp, nonparametrics, classifier
       (cond
        ((= (car ip) (cdr ip)) (cons (+ (car ip) 1) 1))
        (else (cons (car ip) (+ (cdr ip) 1))) ) )
-    
-    ;; Mathematics
     
     (define (chol-get-element P L i j)
       ; The Cholesky formula
@@ -132,10 +128,6 @@ model-tags: gp, nonparametrics, classifier
       (expt x 2) )
     
     (define (mv-gaussian mean sigma)
-      ; mean + chol(sigma) * gaussians
-      (map + mean (mr*v (chol sigma) (repeat (length mean) (lambda () (gaussian 0 1))))) )
-    
-    (define (mv-gaussian-safe mean sigma eps)
       ; mean + chol(sigma) * gaussians
       (map + mean (mr*v (chol sigma) (repeat (length mean) (lambda () (gaussian 0 1))))) )
     

@@ -6,6 +6,14 @@ model-category: Nonparametric Models
 model-tags: gp, nonparametrics, classifier
 ---
 
+    ;;;fold: zip
+    (define (zip xs1 xs2) 
+      (if (or (is_null xs1) (is_null xs2)) '() 
+        (pair 
+          (pair (first xs1) (pair (first xs2) '()))
+          (zip (rest xs1) (rest xs2)))))
+    ;;;
+    
     ;; Matrix utility functions
     
     (define (split-list-first split lst n)
@@ -138,7 +146,9 @@ model-tags: gp, nonparametrics, classifier
       (map (lambda (Y) (euclidean-squared-distance X Y)) Ys) )
     
     (define (cov-se-iso-row x xs ell sf)
-      (map (lambda (a) (* (exp (- 0 a)) (sqr sf))) (map (lambda (b) (/ b (* 2 (sqr ell)))) (euclidean-squared-distances x xs))) )
+      (map (lambda (a) (* (exp (- 0 a)) (sqr sf))) 
+           (map (lambda (b) (/ b (* 2 (sqr ell)))) 
+                (euclidean-squared-distances x xs))) )
     
     (define (cov-se-iso x ell sf)
       (map (lambda (a) (cov-se-iso-row a x ell sf)) x) )
@@ -160,13 +170,17 @@ model-tags: gp, nonparametrics, classifier
           '()
           (reverse (cdr (reverse A))) ) )
     
-    (define input '((1) (2) (3) (4) (5) (6) (7) (8) (9) (10) (11) (12) (13) (14) (15) (16) (17) (18) (19) (20)))
-    (define observations '(#t #t #t #t #t #f #f #f #f #f #t #t #t #t #t #f #f #f #f #f))
+    (define input 
+      '((1) (2) (3) (4) (5) (6) (7) (8) (9) (10)  (11) 
+        (12) (13) (14) (15) (16) (17) (18) (19) (20)))
+    
+    (define observations 
+      '(#t #t #t #t #t #f #f #f #f #f #t #t #t #t #t #f #f #f #f #f))
     
     (define samples
       (mh-query 
        
-       10 10
+       10 20
        
        ;; Define the generative model and the likelihood of observation
        
@@ -204,7 +218,9 @@ model-tags: gp, nonparametrics, classifier
        ); mh-query
       ); define samples
     
-    samples
+    (lineplot
+     (zip (map car input) 
+          (car (reverse samples))))
 
 References:
 

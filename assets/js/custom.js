@@ -199,14 +199,16 @@ function load_contributors(url) {
                 "src" : author.avatar_url + "s=16",
                 "class" : "avatar",
                 "width" : "16px",
-                "height" : "16px" }));
-            // author_ref_html.append(id);
+                "height" : "16px",
+                "rel" : "tooltip",
+                "title" : id }));
             var author_html = $(
                 "<a />",
                 { "href" : author.html_url,
                   "html" : author_ref_html
                 });
             $("#contributors").append(author_html);
+            $(".avatar").tooltip({'placement': 'top'});
         });
     });
 }
@@ -225,9 +227,11 @@ function load_repo_contributors() {
 
 // Tooltips
 
-$(function(){
+function initialize_tooltips(){
     $("[rel=tooltip]").tooltip({
         'selector': '',
         'container': 'body',
         'placement': 'right' });
-  });
+}
+
+$(initialize_tooltips);

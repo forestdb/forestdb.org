@@ -19,7 +19,7 @@ all-model-categories: [Concept Learning, Reasoning about Reasoning, Machine Lear
   </div>
 
     {% for status in page.all-model-statuses %}
-      {% for p in site.pages %}        
+      {% for p in site.pages %}
         {% if p.layout == 'model' %}
           {% if p.model-status == status %}
            {% if p.model-category == category %}
@@ -27,22 +27,22 @@ all-model-categories: [Concept Learning, Reasoning about Reasoning, Machine Lear
                   {% if p.model-status == 'stub' %}
                     {{ p.title }}
                     <span class="label label-default pull-right glyph-label">
-                        <span class="glyphicon glyphicon-asterisk"></span>                    
+                        <span class="glyphicon glyphicon-asterisk" rel="tooltip" title="Stub"></span>
                     </span>
                   {% else %}
-                    <a href="{{ p.url }}">{{ p.title }}</a>                  
+                    <a href="{{ p.url }}">{{ p.title }}</a>
                     {% if p.model-status == 'code' %}
                       <span class="label label-success pull-right glyph-label">
-                          <span class="glyphicon glyphicon-ok"></span>
-                      </span>            
+                          <span class="glyphicon glyphicon-ok" rel="tooltip" title="Code runs"></span>
+                      </span>
                     {% elsif p.model-status == 'link' %}
                       <span class="label label-success pull-right glyph-label">
-                          <span class="glyphicon glyphicon-bookmark"></span>                      
-                      </span>                      
-                    {% elsif p.model-status == 'code-fail' %}                      
+                          <span class="glyphicon glyphicon-bookmark" rel="tooltip" title="Link to code"></span>
+                      </span>
+                    {% elsif p.model-status == 'code-fail' %}
                       <span class="label label-warning pull-right glyph-label">
-                          <span class="glyphicon glyphicon-remove"></span>
-                      </span>                    
+                          <span class="glyphicon glyphicon-remove" rel="tooltip" title="Code broken ({{ p.model-status-verbose }})"></span>
+                      </span>
                     {% else %}
                     {% endif %}
                   {% endif %}

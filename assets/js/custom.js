@@ -221,3 +221,13 @@ function load_repo_contributors() {
     var url = repository_api_url + "contributors";
     load_contributors(url);
 }
+
+
+// Tooltips
+
+$(function(){
+    $("[rel=tooltip]").tooltip({
+        'selector': '',
+        'container': 'body',
+        'placement': 'right' });
+  });

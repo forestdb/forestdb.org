@@ -95,7 +95,7 @@ model-tags: counterfactuals, cognitive science
       (mem 
        (lambda (world interventions noise)
          
-         ;; "counterfactual-wrap" make a function f take as additional 
+         ;; "counterfactual-wrap" makes a function f take as additional 
          ;; (first) argument a name. Before applying the function, we look
          ;; up this name in the given list of interventions. If an
          ;; intervention is given, there must also be a value in the

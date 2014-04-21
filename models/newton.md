@@ -2,6 +2,7 @@
 layout: model
 title: Newtonian Dynamics
 model-status: code-fail
+model-status-verbose: Undefined primitives
 model-category: Inverse Dynamics
 model-tags: dynamics, physics
 ---

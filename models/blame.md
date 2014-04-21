@@ -160,10 +160,11 @@ model-tags: counterfactuals, cognitive science
     ;; "joint-dist->scenarios" converts the joint distribution into a format
     ;; that can be read by the responsibility measures defined above.
     (define (joint-dist->scenarios joint-dist)
-      (lambda (bin)
-        (append (first bin)
-                (rest bin)))
-      (apply zip joint-dist))
+      (map
+       (lambda (bin)
+         (append (first bin)
+                 (rest bin)))
+       (apply zip joint-dist)))
     
     
     ;; --------------------------------------------------------------------
@@ -197,6 +198,7 @@ model-tags: counterfactuals, cognitive science
     ;; E was 0.
     (define scenarios (joint-dist->scenarios joint-dist))
     (show-responsibility-measures scenarios scenario-consistent?)
+
     
 References:
 

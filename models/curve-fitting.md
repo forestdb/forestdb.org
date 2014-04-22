@@ -9,7 +9,7 @@ model-tags: function learning, occam's razor
 
 Bayesian inference can be used to simultaneously find the order of
 a polynomial and its coefficients, trading off fit against prior
-preference for simpler models. Model by @churchwiki.
+preference for simpler models.
 
     ;;;fold: my-pi, glp, range
     (define my-pi 3.14159265358979323)

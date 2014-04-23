@@ -87,10 +87,6 @@ $(function () {
                 defaultEngine: "webchurch"
             });
         });
-
-    $(".code-controls button").addClass("btn btn-default");
-    $(".code-controls").addClass("btn-toolbar pull-right");
-    $(".code-controls").after("<div class=\"code-controls-clear\"></div>");
 })
 
 

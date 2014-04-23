@@ -1,9 +1,19 @@
 require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/church_astify.js",__dirname="/";var util = require('./util.js');
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var util = require('./util.js');
 var church_builtins = require('./church_builtins.js');
 var rename_map = require('./js_astify.js').rename_map;
 
 var brackets_map = {"(": ")", "[": "]"};
+
+var query_fns = ["rejection-query", "mh-query", "enumeration-query", "conditional"];
+var query_fns_to_num_params = {
+	"rejection-query": 0,
+	"enumeration-query": 0,
+	"conditional": 1,
+	"mh-query": 2
+}
+var condition_fns = ["condition", "factor", "condition-repeat-equals"];
 
 function make_generic_node(head, children) {
 	return {"head": head, "children": children};
@@ -339,8 +349,7 @@ function church_astify(tokens) {
 	function dsgr_query(ast) {
 		// Makes the lambda that's passed to the query function
 		function query_helper(statements, condition, args) {
-			if (util.is_leaf(condition) ||
-                (condition.children[0].text != "condition" && condition.children[0].text != "factor")) {
+			if (util.is_leaf(condition) || condition_fns.indexOf(condition.children[0].text) == -1) {
 				condition = {
 					children: [{text: "condition"}, condition],
 					start: condition.start,
@@ -356,32 +365,21 @@ function church_astify(tokens) {
 			};
 		}
 		
-		if (["rejection-query", "enumeration-query"].indexOf(ast.children[0].text) != -1) {
-			if (ast.children.length < 3) {
+		if (query_fns.indexOf(ast.children[0].text) != -1) {
+			var num_params = query_fns_to_num_params[ast.children[0].text];
+			if (ast.children.length < num_params + 4) {
 				throw util.make_church_error("SyntaxError", ast.start, ast.end, ast.children[0].text + " has the wrong number of arguments");
 			}
 			return {
 				children: [
 					ast.children[0],
-					query_helper(ast.children.slice(1, -1), ast.children[ast.children.length-1])
-				],
+					query_helper(ast.children.slice(num_params+1, -1), ast.children[ast.children.length-1])
+				].concat(ast.children.slice(1, num_params+1)),
 				start: ast.start,
 				end: ast.end
 			};
 		}
-		if (["mh-query"].indexOf(ast.children[0].text) != -1) {
-			if (ast.children.length < 6) {
-				throw util.make_church_error("SyntaxError", ast.start, ast.end, ast.children[0].text + " has the wrong number of arguments");
-			}
-			return {
-				children: [
-					ast.children[0],
-					query_helper(ast.children.slice(3, -1), ast.children[ast.children.length-1])
-				].concat(ast.children.slice(1, 3)),
-				start: ast.start,
-				end: ast.end
-			};
-		}
+
 		return ast;
 	}
 
@@ -411,7 +409,7 @@ function church_astify(tokens) {
 				transform_erp(left, right);
 				statements.splice(i, 1, left);
 				return true;
-			} else if (util.is_leaf(left) && define_table[left.text]) {
+			} else if (util.is_leaf(left) && define_table[left.text] && is_equals_conditionable(define_table[left.text].def)) {
 				var left_entry = define_table[left.text];
 				if (!util.is_identifier(right.text) || (
 						define_table[right.text] && left_entry.index > define_table[right.text].index)) {
@@ -424,7 +422,7 @@ function church_astify(tokens) {
 		}
 
 		var transformed;
-		if (["rejection-query", "enumeration-query", "mh-query"].indexOf(ast.children[0].text) != -1) {			
+		if (query_fns.indexOf(ast.children[0].text) != -1) {			
 			var define_table = {};
 			// Assumes preprocessing through dsgr_query
 			var statements = ast.children[1].children.slice(2);
@@ -433,7 +431,7 @@ function church_astify(tokens) {
 			for (var i = 0; i < statements.length; i++) {
 				if (!util.is_leaf(statements[i])) {
 					// If statement is a define and an ERP without an existing condition, put it in a table
-					if (statements[i].children[0].text == "define" && is_equals_conditionable(statements[i].children[2])) {
+					if (statements[i].children[0].text == "define") {
 						define_table[statements[i].children[1].text] = {
 							index: i,
 							def: statements[i].children[2]
@@ -455,8 +453,67 @@ function church_astify(tokens) {
 		return ast;
 	}
 
+	function transform_repeat_equals_condition(ast) {
+		function try_transform(left, right) {
+			if (!util.is_leaf(left) && left.children[0].text == "repeat") {
+				ast.children[1].children[i+2] = {
+					children: [
+						{"text": "multi-equals-condition"},
+						left.children[2],
+						left.children[1],
+						right],
+					start: ast.children[1].children[i+2].children[0].start,
+					end: ast.children[1].children[i+2].children[0].end
+				};
+				return true;
+			}
+			return false;
+		}
+
+		if (query_fns.indexOf(ast.children[0].text) != -1) {
+			var statements = ast.children[1].children.slice(2);
+			for (var i = 0; i < statements.length; i++) {
+				if (!util.is_leaf(statements[i]) && statements[i].children[0].text == "condition") {
+					var condition = statements[i].children[1];
+					if (!util.is_leaf(condition) && condition.children[0].text == "equal?" && condition.children.length == 3) {
+						var left = condition.children[1];
+						var right = condition.children[2];
+						if (!try_transform(left, right)) try_transform(right, left);
+					}
+				}
+			}
+		}
+		return ast;
+	}
+
+	// Break out conditions with ands into multiple condition statements
+	function transform_and_condition(ast) {
+		if (["rejection-query", "enumeration-query", "mh-query"].indexOf(ast.children[0].text) != -1) {
+			var lambda = ast.children[1];
+			var stmts = lambda.children.splice(2);
+			for (var i = 0; i < stmts.length; i++) {
+				if (!util.is_leaf(stmts[i]) && stmts[i].children[0].text == "condition") {
+					var condition_stmt = stmts[i];
+					var condition = condition_stmt.children[1];
+					if (!util.is_leaf(condition) && condition.children[0].text == "and") {
+						for (var j=1;j<condition.children.length;j++) {
+							lambda.children.push({children: [condition_stmt.children[0], condition.children[j]]});
+						}
+					} else {
+						lambda.children.push(stmts[i]);
+					}
+				} else {
+					lambda.children.push(stmts[i]);
+				}
+			}
+		}
+		return ast;
+	}
+
 	// Order is important, particularly desugaring quotes before anything else.
-	var desugar_fns = [validate_leaves, dsgr_define, dsgr_lambda, dsgr_let, dsgr_case, dsgr_cond, dsgr_eval, dsgr_query, validate_if, transform_equals_condition];
+	var desugar_fns = [
+		validate_leaves, dsgr_define, dsgr_lambda, dsgr_let, dsgr_case, dsgr_cond, dsgr_eval, dsgr_query, validate_if,
+		transform_and_condition, transform_equals_condition];
 
 	var ast = astify(tokens);
 	// Special top-level check
@@ -491,8 +548,10 @@ module.exports =
     church_shallow_preconditions: church_shallow_preconditions
 }
 
-},{"./church_builtins.js":"BiOwI0","./js_astify.js":16,"./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22}],"BiOwI0":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/church_builtins.js",__dirname="/";/* global global, require, module, exports */
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/church_astify.js","/")
+},{"./church_builtins.js":"sy/OMr","./js_astify.js":16,"./util.js":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"sy/OMr":[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/* global global, require, module, exports */
 
 // Contains the built-in Church functions written in Javascript.
 // TODO: document annotations format
@@ -667,7 +726,7 @@ var minus = $b({
     if (numArgs == 0) {
       return 0;
     } else if (numArgs == 1) {
-      return arguments[0];
+      return -arguments[0];
     } else {
       var r = arguments[0];
       for (var i = 1; i < numArgs; i++) {
@@ -1665,6 +1724,35 @@ var sample_discrete = $b({
   }
 })
 
+var multi_equals_condition = $b({
+  name: 'multi_equals_condition',
+  desc: '',
+  numArgs: [3],
+  params: [{name: "fn", type: "function", desc: ""},
+           {name: "n", type: "nat", desc: ""},
+           {name: "value", type: "list", desc: ""}],
+  fn: function (fn, n, values) {
+    if (values.length != n+1) condition(false);
+          var marg = enumerateDist(fn);
+
+    try {
+      var marg = enumerateDist(fn);
+    } catch (e) {
+      throw new Error("Function in a repeated condition must be enumerable to be computed");
+    }
+    for (var i=0;i<n;i++) {
+      var key = typeof(values[i]) == "string" ? '"'+values[i]+'"' : String(values[i]);
+      var entry = marg[key];
+      if (entry) {
+        factor(Math.log(entry.prob));
+      } else {
+        condition(false);
+        break;
+      }
+    }
+  }
+});
+
 var wrapped_uniform_draw = $b({
   name: 'wrapped_uniform_draw',
   desc: 'Uniformly sample an element from a list',
@@ -1860,6 +1948,26 @@ var DPmem = $b({
   }
 })
 
+var wrapped_conditional = $b({
+  name: 'wrapped_conditional',
+  desc: '',
+  params: [{name: 'comp', type: 'function', desc: ''},
+           {name: 'params', type: 'list',
+           desc: 'List where the first element is the sampling strategy, ' +
+           'one of ("enumeration", "rejection, "mh"), if "mh", second element is the lag'
+           }],
+  fn: function(comp, params) {
+    var options = {};
+    if (params[0] == "enumeration") {
+      options.algorithm = "enumerate";
+    } else if (params[0] == "mh") {
+      options.algorithm = "traceMH";
+      options.lag = params[1];
+    }
+    return conditional(comp, options);
+  }
+});
+
 // TODO: try to provide better error handling if
 // numsamps / lag is not provided. might have to fix this
 // inside js_astify
@@ -1917,20 +2025,71 @@ var read_file = $b({
   }
 });
 
+// CSV stuff follows RFC4180 (http://tools.ietf.org/html/rfc4180)
+// - in double quote-enclosed fields, double quotes are escaped with another double quote
 var read_csv = $b({
   name: 'read_csv',
   desc: '',
   params: [{name: "fileName", type: "string", desc: ""},
            {name: "[sep]", type: "string", desc: ""}],
   fn: function(fileName, sep) {
-	  // TODO: rewrite as FSM instead of simple splits
-    // (or just use external library?)
 	  sep = sep || ",";
-	  var data = fs.readFileSync(fileName, "utf8")
-          .split("\n")
-          .map(function(x) {x=x.split(sep);return arrayToList(x,true);});
+    if (sep.indexOf('"') != -1) throw new Error("CSV separator cannot contain a double quote");
+    var text = fs.readFileSync(fileName, "utf8");
+    var data = [];
+    var row = [];
+    var begin = 0;
+    var i = 0;
+    var j = 0;
+    var cell;
+    while (i<text.length) {
+      if (text[i] == '"') {
+        for (j=i+1; !(text[j] == '"' && text[j+1] != '"'); j++) {
+          if (j >= text.length) throw new Error("Malformed CSV file");
+        }
+        j++;
+        cell = text.slice(i+1, j-1).replace(/""/g, '"');
+      } else {
+        for (; j < text.length && text.slice(j, j + sep.length) != sep && text[j] != "\n"; j++) {
+          if (text[j] == '"') throw new Error("Malformed CSV file");
+        }
+        cell = text.slice(i, j);
+      }
+      row.push(cell);
+      if (j >= text.length || text[j] == "\n") {
+        data.push(arrayToList(row, true));
+        row = [];
+        j++;
+      } else if (text.slice(j, j + sep.length) == sep) {
+        j += sep.length;
+      } else {
+        // Only reached if cell was quoted but not properly closed
+        throw new Error("Malformed CSV file");
+      }
+      i = j;
+    }
 	  return arrayToList(data, true);
+  }
+});
 
+var write_csv = $b({
+  name: 'write_csv',
+  desc: '',
+  params: [{name: "data", type: "list<list>", desc: ""},
+           {name: "fileName", type: "string", desc: ""},
+           {name: "[sep]", type: "string", desc: ""}],
+  fn: function(data, fileName, sep) {
+    sep = sep || ",";
+    var stream = fs.createWriteStream(fileName);
+    for (var i=0;i<data.length-1;i++) {
+      var cells = [];
+      for (var j=0;j<data[i].length-1;j++) {
+        var cell = data[i][j];
+        var modified = cell.toString().replace(/"/g, '""');
+        cells.push(cell == modified ? cell : '"' + modified + '"');
+      }
+      stream.write(cells.join(sep) + "\n");
+    }
   }
 });
 
@@ -2243,168 +2402,248 @@ function wrapAsserts(annotation) {
 
 }
 
-},{"./type-utils.js":"WwwT6v","./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"fs":18,"underscore":40}],"./church_builtins":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/church_builtins.js",__dirname="/";module.exports=require('BiOwI0');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-brackets":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-brackets.js",__dirname="/";module.exports=require('jmpXu2');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"jmpXu2":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-brackets.js",__dirname="/";//require("codemirror");
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/church_builtins.js","/")
+},{"./type-utils.js":"05wbT+","./util.js":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"fs":18,"underscore":40}],"./church_builtins":[function(require,module,exports){
+module.exports=require('sy/OMr');
+},{}],"./cm-brackets":[function(require,module,exports){
+module.exports=require('G8398M');
+},{}],"G8398M":[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+// README: this file contains slightly modified versions of closebrackets.js
+// and matchbrackets.js from the codemirror repo (from the addon/edit folder)
+
+var CodeMirror = require('codemirror');
 
 // closebrackets.js
-// ------------------------------------------------------------------------
-
-
-var DEFAULT_BRACKETS = "()[]\"\"";
-var DEFAULT_EXPLODE_ON_ENTER = "[]{}";
-var SPACE_CHAR_REGEX = /\s/;
-
-CodeMirror.defineOption("autoCloseBrackets", false, function(cm, val, old) {
-  if (old != CodeMirror.Init && old)
-    cm.removeKeyMap("autoCloseBrackets");
-  if (!val) return;
-  var pairs = DEFAULT_BRACKETS, explode = DEFAULT_EXPLODE_ON_ENTER;
-  if (typeof val == "string") pairs = val;
-  else if (typeof val == "object") {
-    if (val.pairs != null) pairs = val.pairs;
-    if (val.explode != null) explode = val.explode;
-  }
-  var map = buildKeymap(pairs);
-  if (explode) map.Enter = buildExplodeHandler(explode);
-  cm.addKeyMap(map);
-});
-
-function charsAround(cm, pos) {
-  var str = cm.getRange(CodeMirror.Pos(pos.line, pos.ch - 1),
-                        CodeMirror.Pos(pos.line, pos.ch + 1));
-  return str.length == 2 ? str : null;
-}
-
-function buildKeymap(pairs) {
-  var map = {
-    name : "autoCloseBrackets",
-    Backspace: function(cm) {
-      if (cm.somethingSelected()) return CodeMirror.Pass;
-      var cur = cm.getCursor(), around = charsAround(cm, cur);
-      if (around && pairs.indexOf(around) % 2 == 0)
-        cm.replaceRange("", CodeMirror.Pos(cur.line, cur.ch - 1), CodeMirror.Pos(cur.line, cur.ch + 1));
-      else
-        return CodeMirror.Pass;
-    }
-  };
-  var closingBrackets = "";
-  for (var i = 0; i < pairs.length; i += 2) (function(left, right) {
-    if (left != right) closingBrackets += right;
-    function surround(cm) {
-      var selection = cm.getSelection();
-      cm.replaceSelection(left + selection + right);
-    }
-    function maybeOverwrite(cm) {
-      var cur = cm.getCursor(), ahead = cm.getRange(cur, CodeMirror.Pos(cur.line, cur.ch + 1));
-      if (ahead != right || cm.somethingSelected()) return CodeMirror.Pass;
-      else cm.execCommand("goCharRight");
-    }
-    map["'" + left + "'"] = function(cm) {
-      if (left == "'" && cm.getTokenAt(cm.getCursor()).type == "comment")
-        return CodeMirror.Pass;
-      if (cm.somethingSelected()) return surround(cm);
-      if (left == right && maybeOverwrite(cm) != CodeMirror.Pass) return;
-      var cur = cm.getCursor(), ahead = CodeMirror.Pos(cur.line, cur.ch + 1);
-      var line = cm.getLine(cur.line), nextChar = line.charAt(cur.ch), curChar = cur.ch > 0 ? line.charAt(cur.ch - 1) : "";
-      if (left == right && CodeMirror.isWordChar(curChar))
-        return CodeMirror.Pass;
-      if (line.length == cur.ch || closingBrackets.indexOf(nextChar) >= 0 || SPACE_CHAR_REGEX.test(nextChar))
-        cm.replaceSelection(left + right, {head: ahead, anchor: ahead});
-      else
-        return CodeMirror.Pass;
-    };
-    if (left != right) map["'" + right + "'"] = maybeOverwrite;
-  })(pairs.charAt(i), pairs.charAt(i + 1));
-  return map;
-}
-
-function buildExplodeHandler(pairs) {
-  return function(cm) {
-    var cur = cm.getCursor(), around = charsAround(cm, cur);
-    if (!around || pairs.indexOf(around) % 2 != 0) return CodeMirror.Pass;
-    cm.operation(function() {
-      var newPos = CodeMirror.Pos(cur.line + 1, 0);
-      cm.replaceSelection("\n\n", {anchor: newPos, head: newPos}, "+input");
-      cm.indentLine(cur.line + 1, null, true);
-      cm.indentLine(cur.line + 2, null, true);
-    });
-  };
-}
-
-// matchbrackets.js
-// ------------------------------------------------------------------------
+// -----------------------------------
 
 (function() {
+  var DEFAULT_BRACKETS = "()[]{}\"\"";
+  var DEFAULT_EXPLODE_ON_ENTER = "[]{}";
+  var SPACE_CHAR_REGEX = /\s/;
+
+  var Pos = CodeMirror.Pos;
+
+  CodeMirror.defineOption("autoCloseBrackets", false, function(cm, val, old) {
+    if (old != CodeMirror.Init && old)
+      cm.removeKeyMap("autoCloseBrackets");
+    if (!val) return;
+    var pairs = DEFAULT_BRACKETS, explode = DEFAULT_EXPLODE_ON_ENTER;
+    if (typeof val == "string") pairs = val;
+    else if (typeof val == "object") {
+      if (val.pairs != null) pairs = val.pairs;
+      if (val.explode != null) explode = val.explode;
+    }
+    var map = buildKeymap(pairs);
+    if (explode) map.Enter = buildExplodeHandler(explode);
+    cm.addKeyMap(map);
+  });
+
+  function charsAround(cm, pos) {
+    var str = cm.getRange(Pos(pos.line, pos.ch - 1),
+                          Pos(pos.line, pos.ch + 1));
+    return str.length == 2 ? str : null;
+  }
+
+  function buildKeymap(pairs) {
+    var map = {
+      name : "autoCloseBrackets",
+      Backspace: function(cm) {
+        if (cm.getOption("disableInput")) return CodeMirror.Pass;
+        var ranges = cm.listSelections();
+        for (var i = 0; i < ranges.length; i++) {
+          if (!ranges[i].empty()) return CodeMirror.Pass;
+          var around = charsAround(cm, ranges[i].head);
+          if (!around || pairs.indexOf(around) % 2 != 0) return CodeMirror.Pass;
+        }
+        for (var i = ranges.length - 1; i >= 0; i--) {
+          var cur = ranges[i].head;
+          cm.replaceRange("", Pos(cur.line, cur.ch - 1), Pos(cur.line, cur.ch + 1));
+        }
+      }
+    };
+    var closingBrackets = "";
+    for (var i = 0; i < pairs.length; i += 2) (function(left, right) {
+      if (left != right) closingBrackets += right;
+      map["'" + left + "'"] = function(cm) {
+        if (cm.getOption("disableInput")) return CodeMirror.Pass;
+        var ranges = cm.listSelections(), type, next;
+        for (var i = 0; i < ranges.length; i++) {
+          var range = ranges[i], cur = range.head, curType;
+          if (left == "'" && cm.getTokenTypeAt(cur) == "comment")
+            return CodeMirror.Pass;
+          var next = cm.getRange(cur, Pos(cur.line, cur.ch + 1));
+          if (!range.empty())
+            curType = "surround";
+          else if (left == right && next == right) {
+            if (cm.getRange(cur, Pos(cur.line, cur.ch + 3)) == left + left + left)
+              curType = "skipThree";
+            else
+              curType = "skip";
+          } else if (left == right && cur.ch > 1 &&
+                     cm.getRange(Pos(cur.line, cur.ch - 2), cur) == left + left &&
+                     (cur.ch <= 2 || cm.getRange(Pos(cur.line, cur.ch - 3), Pos(cur.line, cur.ch - 2)) != left))
+            curType = "addFour";
+          else if (left == right && CodeMirror.isWordChar(next))
+            return CodeMirror.Pass;
+          else if (cm.getLine(cur.line).length == cur.ch || closingBrackets.indexOf(next) >= 0 || SPACE_CHAR_REGEX.test(next))
+            curType = "both";
+          else
+            return CodeMirror.Pass;
+          if (!type) type = curType;
+          else if (type != curType) return CodeMirror.Pass;
+        }
+
+        cm.operation(function() {
+          if (type == "skip") {
+            cm.execCommand("goCharRight");
+          } else if (type == "skipThree") {
+            for (var i = 0; i < 3; i++)
+              cm.execCommand("goCharRight");
+          } else if (type == "surround") {
+            var sels = cm.getSelections();
+            for (var i = 0; i < sels.length; i++)
+              sels[i] = left + sels[i] + right;
+            cm.replaceSelections(sels, "around");
+          } else if (type == "both") {
+            cm.replaceSelection(left + right, null);
+            cm.execCommand("goCharLeft");
+          } else if (type == "addFour") {
+            cm.replaceSelection(left + left + left + left, "before");
+            cm.execCommand("goCharRight");
+          }
+        });
+      };
+      if (left != right) map["'" + right + "'"] = function(cm) {
+        var ranges = cm.listSelections();
+        for (var i = 0; i < ranges.length; i++) {
+          var range = ranges[i];
+          if (!range.empty() ||
+              cm.getRange(range.head, Pos(range.head.line, range.head.ch + 1)) != right)
+            return CodeMirror.Pass;
+        }
+        cm.execCommand("goCharRight");
+      };
+    })(pairs.charAt(i), pairs.charAt(i + 1));
+    return map;
+  }
+
+  function buildExplodeHandler(pairs) {
+    return function(cm) {
+      if (cm.getOption("disableInput")) return CodeMirror.Pass;
+      var ranges = cm.listSelections();
+      for (var i = 0; i < ranges.length; i++) {
+        if (!ranges[i].empty()) return CodeMirror.Pass;
+        var around = charsAround(cm, ranges[i].head);
+        if (!around || pairs.indexOf(around) % 2 != 0) return CodeMirror.Pass;
+      }
+      cm.operation(function() {
+        cm.replaceSelection("\n\n", null);
+        cm.execCommand("goCharLeft");
+        ranges = cm.listSelections();
+        for (var i = 0; i < ranges.length; i++) {
+          var line = ranges[i].head.line;
+          cm.indentLine(line, null, true);
+          cm.indentLine(line + 1, null, true);
+        }
+      });
+    };
+  }
+})();
+
+// matchbrackets.js 
+
+(function() {
+
   var ie_lt8 = /MSIE \d/.test(navigator.userAgent) &&
     (document.documentMode == null || document.documentMode < 8);
 
   var Pos = CodeMirror.Pos;
 
-  var matching = {"(": ")>", ")": "(<"};
-  function findMatchingBracket(cm) {
-    var maxScanLen = cm.state._matchBrackets.maxScanLineLength || 10000;
+  var matching = {"(": ")>", ")": "(<", "[": "]>", "]": "[<", "{": "}>", "}": "{<"};
 
-    var cur = cm.getCursor(), line = cm.getLineHandle(cur.line), pos = cur.ch - 1;
+  function findMatchingBracket(cm, where, strict, config) {
+    var line = cm.getLineHandle(where.line), pos = where.ch - 1;
     var match = (pos >= 0 && matching[line.text.charAt(pos)]) || matching[line.text.charAt(++pos)];
     if (!match) return null;
-    var forward = match.charAt(1) == ">", d = forward ? 1 : -1;
-    var style = cm.getTokenAt(Pos(cur.line, pos + 1)).type;
+    var dir = match.charAt(1) == ">" ? 1 : -1;
+    if (strict && (dir > 0) != (pos == where.ch)) return null;
+    var style = cm.getTokenTypeAt(Pos(where.line, pos + 1));
 
-    var stack = [line.text.charAt(pos)], re = /[()]/;
-    function scan(line, lineNo, start) {
-      if (!line.text) return;
-      var pos = forward ? 0 : line.text.length - 1, end = forward ? line.text.length : -1;
-      if (line.text.length > maxScanLen) return null;
-      var checkTokenStyles = line.text.length < 1000;
-      if (start != null) pos = start + d;
-      for (; pos != end; pos += d) {
-        var ch = line.text.charAt(pos);
-        if (re.test(ch) && (!checkTokenStyles || cm.getTokenAt(Pos(lineNo, pos + 1)).type == style)) {
+    var found = scanForBracket(cm, Pos(where.line, pos + (dir > 0 ? 1 : 0)), dir, style || null, config);
+    if (found == null) return null;
+    return {from: Pos(where.line, pos), to: found && found.pos,
+            match: found && found.ch == match.charAt(0), forward: dir > 0};
+  }
+
+  // bracketRegex is used to specify which type of bracket to scan
+  // should be a regexp, e.g. /[[\]]/
+  //
+  // Note: If "where" is on an open bracket, then this bracket is ignored.
+  //
+  // Returns false when no bracket was found, null when it reached
+  // maxScanLines and gave up
+  function scanForBracket(cm, where, dir, style, config) {
+    var maxScanLen = (config && config.maxScanLineLength) || 10000;
+    var maxScanLines = (config && config.maxScanLines) || 1000;
+
+    var stack = [];
+    var re = config && config.bracketRegex ? config.bracketRegex : /[(){}[\]]/;
+    var lineEnd = dir > 0 ? Math.min(where.line + maxScanLines, cm.lastLine() + 1)
+                          : Math.max(cm.firstLine() - 1, where.line - maxScanLines);
+    for (var lineNo = where.line; lineNo != lineEnd; lineNo += dir) {
+      var line = cm.getLine(lineNo);
+      if (!line) continue;
+      var pos = dir > 0 ? 0 : line.length - 1, end = dir > 0 ? line.length : -1;
+      if (line.length > maxScanLen) continue;
+      if (lineNo == where.line) pos = where.ch - (dir < 0 ? 1 : 0);
+      for (; pos != end; pos += dir) {
+        var ch = line.charAt(pos);
+        if (re.test(ch) && (style === undefined || cm.getTokenTypeAt(Pos(lineNo, pos + 1)) == style)) {
           var match = matching[ch];
-          if (match.charAt(1) == ">" == forward) stack.push(ch);
-          else if (stack.pop() != match.charAt(0)) return {pos: pos, match: false};
-          else if (!stack.length) return {pos: pos, match: true};
+          if ((match.charAt(1) == ">") == (dir > 0)) stack.push(ch);
+          else if (!stack.length) return {pos: Pos(lineNo, pos), ch: ch};
+          else stack.pop();
         }
       }
     }
-    for (var i = cur.line, found, e = forward ? Math.min(i + 100, cm.lineCount()) : Math.max(-1, i - 100); i != e; i+=d) {
-      if (i == cur.line) found = scan(line, i, pos);
-      else found = scan(cm.getLineHandle(i), i);
-      if (found) break;
-    }
-    return {from: Pos(cur.line, pos), to: found && Pos(i, found.pos), match: found && found.match};
+    return lineNo - dir == (dir > 0 ? cm.lastLine() : cm.firstLine()) ? false : null;
   }
 
-  function matchBrackets(cm, autoclear) {
+  function matchBrackets(cm, autoclear, config) {
     // Disable brace matching in long lines, since it'll cause hugely slow updates
-    var maxHighlightLen = cm.state._matchBrackets.maxHighlightLineLength || 1000;
-    var found = findMatchingBracket(cm);
-    if (!found || cm.getLine(found.from.line).length > maxHighlightLen ||
-       found.to && cm.getLine(found.to.line).length > maxHighlightLen)
-      return;
+    var maxHighlightLen = cm.state.matchBrackets.maxHighlightLineLength || 1000;
+    var marks = [], ranges = cm.listSelections();
+    for (var i = 0; i < ranges.length; i++) {
+      var match = ranges[i].empty() && findMatchingBracket(cm, ranges[i].head, false, config);
+      if (match && cm.getLine(match.from.line).length <= maxHighlightLen) {
+        var style = match.match ? "CodeMirror-matchingbracket" : "CodeMirror-nonmatchingbracket";
+        marks.push(cm.markText(match.from, Pos(match.from.line, match.from.ch + 1), {className: style}));
+        if (match.to && cm.getLine(match.to.line).length <= maxHighlightLen)
+          marks.push(cm.markText(match.to, Pos(match.to.line, match.to.ch + 1), {className: style}));
+      }
+    }
 
-    var style = found.match ? "CodeMirror-matchingbracket" : "CodeMirror-nonmatchingbracket";
-    var one = cm.markText(found.from, Pos(found.from.line, found.from.ch + 1), {className: style});
-    var two = found.to && cm.markText(found.to, Pos(found.to.line, found.to.ch + 1), {className: style});
-    // Kludge to work around the IE bug from issue #1193, where text
-    // input stops going to the textare whever this fires.
-    if (ie_lt8 && cm.state.focused) cm.display.input.focus();
-    var clear = function() {
-      cm.operation(function() { one.clear(); two && two.clear(); });
-    };
-    if (autoclear) setTimeout(clear, 800);
-    else return clear;
+    if (marks.length) {
+      // Kludge to work around the IE bug from issue #1193, where text
+      // input stops going to the textare whever this fires.
+      if (ie_lt8 && cm.state.focused) cm.display.input.focus();
+
+      var clear = function() {
+        cm.operation(function() {
+          for (var i = 0; i < marks.length; i++) marks[i].clear();
+        });
+      };
+      if (autoclear) setTimeout(clear, 800);
+      else return clear;
+    }
   }
 
   var currentlyHighlighted = null;
   function doMatchBrackets(cm) {
     cm.operation(function() {
       if (currentlyHighlighted) {currentlyHighlighted(); currentlyHighlighted = null;}
-      if (!cm.somethingSelected()) currentlyHighlighted = matchBrackets(cm, false);
+      currentlyHighlighted = matchBrackets(cm, false, cm.state.matchBrackets);
     });
   }
 
@@ -2412,19 +2651,32 @@ function buildExplodeHandler(pairs) {
     if (old && old != CodeMirror.Init)
       cm.off("cursorActivity", doMatchBrackets);
     if (val) {
-      cm.state._matchBrackets = typeof val == "object" ? val : {};
+      cm.state.matchBrackets = typeof val == "object" ? val : {};
       cm.on("cursorActivity", doMatchBrackets);
     }
   });
 
   CodeMirror.defineExtension("matchBrackets", function() {matchBrackets(this, true);});
-  CodeMirror.defineExtension("findMatchingBracket", function(){return findMatchingBracket(this);});
-})();
+  CodeMirror.defineExtension("findMatchingBracket", function(pos, strict, config){
+    return findMatchingBracket(this, pos, strict, config);
+  });
+  CodeMirror.defineExtension("scanForBracket", function(pos, dir, style, config){
+    return scanForBracket(this, pos, dir, style, config);
+  }); 
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],"g1BTkV":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-church.js",__dirname="/";/**
+})()
+
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-brackets.js","/")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./cm-church":[function(require,module,exports){
+module.exports=require('lO4o+E');
+},{}],"lO4o+E":[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/**
  * Author: Koh Zi Han, based on implementation by Koh Zi Chun
  */
+
+var CodeMirror = require('codemirror');
+
 CodeMirror.defineMode("scheme", function () {
     var BUILTIN = "builtin", COMMENT = "comment", STRING = "string",
         ATOM = "atom", NUMBER = "number", BRACKET = "bracket";
@@ -2655,12 +2907,14 @@ CodeMirror.defineMode("scheme", function () {
 
 CodeMirror.defineMIME("text/x-scheme", "scheme");
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-church":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-church.js",__dirname="/";module.exports=require('g1BTkV');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-comments":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-comments.js",__dirname="/";module.exports=require('AxGwBA');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"AxGwBA":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-comments.js",__dirname="/";(function() {
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-church.js","/")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./cm-comments":[function(require,module,exports){
+module.exports=require('L+quEX');
+},{}],"L+quEX":[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var CodeMirror = require('codemirror');
+
+(function() {
   "use strict";
   
   var noOptions = {};
@@ -2806,8 +3060,14 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   });
 })();
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],"qGvOQN":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-folding.js",__dirname="/";/* global CodeMirror */
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-comments.js","/")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./cm-folding":[function(require,module,exports){
+module.exports=require('s18hqF');
+},{}],"s18hqF":[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var CodeMirror = require('codemirror');
+
+/* global CodeMirror */
 
 (function() {
  "use strict";
@@ -2960,22 +3220,22 @@ module.exports = {
   myRangeFinder: myRangeFinder
 }
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./cm-folding":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/cm-folding.js",__dirname="/";module.exports=require('qGvOQN');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./editor":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/editor.js",__dirname="/";module.exports=require('lklgsm');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"lklgsm":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/editor.js",__dirname="/";/* global require, CodeMirror, $ */
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-folding.js","/")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"fqJoPW":[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/* global require, CodeMirror, $ */
 
 var evaluate = require('./evaluate').evaluate,
     format_result = require('./evaluate').format_result;
 
 var d3 = require('d3');
-require("codemirror"); // this doesn't export anything but instead sets window.CodeMirror
+var CodeMirror = require("codemirror");
 require("./cm-church");
 require("./cm-brackets");
 require("./cm-comments");
 require("./viz");
+
+var Backbone = require('backbone');
 
 var folding = require("./cm-folding");
 
@@ -2994,7 +3254,7 @@ _.templateSettings = {
 
 var runners = {};
 runners['webchurch'] = makewebchurchrunner();
-runners['webchurch-opt'] = makewebchurchrunner(true);
+runners['webchurch-opt'] = makewebchurchrunner({precompile: true});
 
 function wrap(tag, content) {
   return _.template("<{{tag}}>{{content}}</{{tag}}>",
@@ -3003,16 +3263,24 @@ function wrap(tag, content) {
                     });
 }
 
-function makewebchurchrunner(evalparams){
-  return function(editor) {
-    var code = editor.getValue(),
-        exerciseName = editor.exerciseName,
-        $results = editor.$results;
+function makewebchurchrunner(engineOptions){
+  if (engineOptions === undefined) {
+    engineOptions = {}
+  }
+  return function(editorModel) {
+    var cm = editorModel.get('codeMirror');
+    var code = editorModel.get('code');
+    
+    var $results = cm.$results;
 
     $results.show();
-    if (editor.errormark != undefined){editor.errormark.clear(); }
+    if (cm.errormark != undefined) {
+      cm.errormark.clear();
+    }
+
+    editorModel.trigger('run:start');
     try {      
-      var runResult = evaluate(code,evalparams);
+      var runResult = evaluate(code, engineOptions);
       
       var underlyingData;
 
@@ -3023,11 +3291,6 @@ function makewebchurchrunner(evalparams){
         }
         if (e.type == "svg") {
           $results.append( $("<div></div>").append(e.data));
-          // try {
-          //   d3.select($results[0]).append(e.data);
-          // } catch (err) {
-          //   debugger;
-          // }
         }
         if (e.type == "table") {
 
@@ -3040,15 +3303,19 @@ function makewebchurchrunner(evalparams){
           
         }
         
-      }); 
+      });
       
-      //        runResult = format_result(runResult);
-      // if we get back a string, just show the text
       underlyingData = runResult;
       runResult = format_result(runResult);
-      $results.append($("<pre>"+runResult+'</pre>'));
+      if (!(runResult == "undefined")) {
+        $results.append($("<pre>"+runResult+'</pre>'));
+      }
+
+      editorModel.trigger('run:finish');
       
     } catch (e) {
+
+      editorModel.trigger('run:finish');
       
       var error = e.message;
       $results
@@ -3064,15 +3331,13 @@ function makewebchurchrunner(evalparams){
         
         $results.append( '<div><u>Church stack array:</u></div>', churchStack); 
         
-        //        var errorlocation = e.stackarray[0]
-        //        var start=errorlocation.start.split(":"), end=errorlocation.end.split(":")
         var start=e.start.split(":"), end=e.end.split(":");
-        editor.errormark = editor.markText({line: Number(start[0])-1, ch: Number(start[1])-1},
-                                           {line: Number(end[0])-1, ch: Number(end[1])},
-                                           {className: "CodeMirrorError", clearOnEnter: true});
-        //        mark.clear()
-      }
+        cm.errormark = cm.markText({line: Number(start[0])-1, ch: Number(start[1])-1},
+                                   {line: Number(end[0])-1, ch: Number(end[1])},
+                                   {className: "CodeMirrorError", clearOnEnter: true});
 
+      }
+      
       var jsStack = $("<pre></pre>");
       jsStack.text(e.jsStack.join('\n'));
 
@@ -3083,20 +3348,38 @@ function makewebchurchrunner(evalparams){
   };
 };
 
+var EditorModel = Backbone.Model.extend({
+  initialize: function(options) {
+    this.set('initialOptions', options);
+  },
+  defaults: {
+    code: "",
+    engine: "webchurch"
+  },
+  run: function() {
+    var engine = runners[this.get('engine')];
+    this.set('result', engine( this ));
+  }
+});
+
+// return a backbone model
 var inject = function(domEl, options) {
   options = _(options).defaults({
-    defaultText: "",
-    exerciseName: "",
-    defaultEngine: "webchurch"
-  }); 
+    code: $(domEl).text(),
+    engine: "webchurch",
+    exerciseName: "" 
+  });
+
+  var editorModel = new EditorModel(options);
   
   // editor
-  var editor = CodeMirror(
+  var cm = CodeMirror(
+    // TODO: defer this - we might not want to display immediately...
     function(el) {
       $(domEl).replaceWith(el);
     },
     {
-      value: options.defaultText,
+      value: options.code,
       lineNumbers: false,
       matchBrackets: true,
       continueComments: "Enter",
@@ -3105,20 +3388,24 @@ var inject = function(domEl, options) {
       mode: 'scheme'
     });
 
-  _(editor).extend(options);
-  editor.engine = editor.defaultEngine;
+  editorModel.set('codeMirror', cm);
+
+  // when text in codemirror changes, update editormodel
+  cm.on('change', function(cmInstance) {
+    editorModel.set('code', cmInstance.getValue()) 
+  });
   
   //fold ";;;fold:" parts:
-  var lastLine = editor.lastLine();
+  var lastLine = cm.lastLine();
   for(var i=0;i<=lastLine;i++) {
-    var txt = editor.getLine(i),
+    var txt = cm.getLine(i),
         pos = txt.indexOf(";;;fold:");
-    if (pos==0) {editor.foldCode(CodeMirror.Pos(i,pos),folding.tripleCommentRangeFinder);}
+    if (pos==0) {cm.foldCode(CodeMirror.Pos(i,pos),folding.tripleCommentRangeFinder);}
   }
   
   // results div
   var $results = $("<div class='results'>");
-  $results.css('display', 'none');
+  $results.hide();
 
   // engine selector
 
@@ -3128,82 +3415,75 @@ var inject = function(domEl, options) {
           var tmpl = _.template('<option value="{{ engine }}" {{ selectedString }}> {{ engine }} </option>'),
               str = tmpl({
                 engine: engine,
-                selectedString: engine == editor.engine ? "selected" : ""
+                selectedString: engine == cm.engine ? "selected" : ""
               });
 
           return str; 
         } 
       ).join("\n") + "\n</select>",
       $engineSelector = $(engineSelectorString);
-  
+
+  // when engine selector changes, update model
   $engineSelector.change(function(e) {
-    editor.engine = $(this).val();
+    editorModel.set('engine', $(this).val() );
   });
 
   // reset button
   var $resetButton = $("<button class='reset'>").html("Reset");
   $resetButton.click(function() {
-    editor.setValue(options.defaultText);
-    editor.$engineSelector.val(options.defaultEngine);
-    
-    $results.hide().html('');
-
+    cm.setValue( editorModel.get('initialOptions').code );
+    cm.$engineSelector.val( editorModel.get('initialOptions').engine ); 
+    $results.hide.html(''); 
   });
 
   // run button
   var $runButton = $("<button class='run'>").html("Run");
   $runButton.click(function() {
-    if (options.onRunStart) {
-      options.onRunStart(editor);
-    }
-    
-    sideEffects = [];
     $results.html('');
     $runButton.attr('disabled','disabled');
 
-    var newCode = editor.getValue(),
-        newEngine = editor.engine;
+    setTimeout(function() {
+      editorModel.run();
+    }, 15); 
 
-    // submit church code to accounts server if the
-    // code has actually changed or we're running
-    // with a different engine
-    if (editor.oldCode != newCode || editor.oldEngine != newEngine) {
-      // unset editor.codeId
-      editor.codeId = false; 
-    }
-    
-    editor.oldCode = newCode;
-    editor.oldEngine = newEngine;
-
-    // use runner on this editor
-    // use setTimeout so the run-button disabling actually
-    // shows up on the DOM
-    setTimeout(function() { runners[editor.engine](editor);
-                            if (editor.engine == "webchurch" || editor.engine == "webchurch-opt") {
-                              $runButton.removeAttr('disabled');
-                            }
-                          }, 15);
+    editorModel.on('run:finish', function() {
+      $runButton.removeAttr('disabled');
+    }) 
   });
 
   var $codeControls = $("<div class='code-controls'>");
   // HT http://somerandomdude.com/work/open-iconic/#
 
   $codeControls.append(
-    $runButton,
-    $engineSelector[0],
-    $resetButton[0]
+    // $resetButton[0],
+    // $engineSelector[0],
+    $runButton
+  );
+
+  var $cogMenu = $("<ul class='code-settings'></ul>");
+  $cogMenu.append(
+    "<li class='settings-icon'>&#x2630;</li>",
+    $("<li></li>").append($engineSelector[0]),
+    $("<li></li>").append($resetButton[0])
+  );
+
+  $(cm.display.wrapper).prepend(
+    $cogMenu 
   );
 
   // add code controls and results divs after codemirror
-  $(editor.display.wrapper).after($codeControls, $results);
+  $(cm.display.wrapper).prepend($codeControls);
 
-
-  $(editor.display.wrapper).attr("id", "ex-"+ options.exerciseName);
+  $(cm.display.wrapper).after($results);
   
-  editor.$runButton = $runButton;
-  editor.$engineSelector = $engineSelector;
-  editor.$resetButton = $resetButton;
-  editor.$results = $results;
+  $(cm.display.wrapper).attr("id", "ex-" + options.exerciseName);
+  
+  cm.$runButton = $runButton;
+  cm.$engineSelector = $engineSelector;
+  cm.$resetButton = $resetButton;
+  cm.$results = $results;
+
+  return editorModel
   
 };
 
@@ -3211,8 +3491,12 @@ module.exports = {
   injector: inject
 };
 
-},{"./cm-brackets":"jmpXu2","./cm-church":"g1BTkV","./cm-comments":"AxGwBA","./cm-folding":"qGvOQN","./evaluate":"OLnFAJ","./viz":"Y99c6j","__browserify_Buffer":21,"__browserify_process":22,"codemirror":23,"d3":25,"underscore":40}],"OLnFAJ":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/evaluate.js",__dirname="/";/* global require */
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/editor.js","/")
+},{"./cm-brackets":"G8398M","./cm-church":"lO4o+E","./cm-comments":"L+quEX","./cm-folding":"s18hqF","./evaluate":"Ih4X1P","./viz":"mJMf/d","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"backbone":17,"buffer":19,"codemirror":24,"d3":25,"underscore":40}],"./editor":[function(require,module,exports){
+module.exports=require('fqJoPW');
+},{}],"Ih4X1P":[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/* global require */
 
 var escodegen = require('escodegen');
 var esprima = require('esprima');
@@ -3284,7 +3568,7 @@ function churchToBareJs(churchCode) {
 var churchToJs = function(churchCode, options) {
   if (options === undefined) { options = {} }
   options = _(options).defaults({
-    compact: true,
+    compact: false,
     precompile: false,
     includePreamble: true,
     returnCodeOnly: true
@@ -3328,7 +3612,7 @@ var churchToJs = function(churchCode, options) {
   var body = js_ast.body;
 
   // add sideEffects initialization
-  body.unshift(esprima.parse('var sideEffects = []'));
+  // body.unshift(esprima.parse('var sideEffects = []'));
   
   // convert the last statement into a return statement
   if (body.length > 0) {
@@ -3379,6 +3663,13 @@ var churchToJs = function(churchCode, options) {
 }
 
 function evaluate(church_codestring, options) {
+  function really_evaluate() {
+    var result = eval(jsCode);
+    var t2 = new Date().getTime();
+    if (options.timed) console.log("Time to execute: " + (t2-t1) + "ms");
+    return result;
+  }
+
   var t0 = new Date().getTime();
   options = options || {};
   
@@ -3392,29 +3683,28 @@ function evaluate(church_codestring, options) {
   var code_and_source_map = compileResult.code_and_source_map;
   var jsCode = code_and_source_map.code;
   var sourceMap = code_and_source_map.map;
-  
+
+  // initialize sideEffects
+  // this global variable is modified in viz.js
+  // and accessed in editor.js (makewebchurchrunner) 
+  sideEffects = [];
+ 
   if (options.compile) return jsCode;
 
-  var result;
+  var result; 
 
-  if (typeof global.require == 'undefined') {
-    global.require = require;
-  }
-  
   var t1 = new Date().getTime();
   if (options.timed) console.log("Time to compile: " + (t1-t0) + "ms");
+  var argstring = options.argstring;
+  if (options.disable_church_errors) return really_evaluate();
 
 	try {
     // var d1 = new Date()
     
-    // use global eval for speed but avoid introducing global variables
-    // that stick around after model execution, so wrap
-    // the transformed code inside a function call
-    // that returns the value of the last line 
-
-    result = (0,eval)(jsCode);
-    var t2 = new Date().getTime();
-    if (options.timed) console.log("Time to execute: " + (t2-t1) + "ms");
+    // use local eval for speed but avoid introducing global variables
+    // that stick around after model execution because the transformed code
+    // is wrapped inside a function 
+    result = really_evaluate();
     // var d2 = new Date()
     // console.log("transformed source run time: ", (d2.getTime() - d1.getTime()) / 1000)    
 	} catch (err) {
@@ -3424,6 +3714,8 @@ function evaluate(church_codestring, options) {
 		var church_sites_to_tokens_map = get_church_sites_to_tokens_map(tokens);
 		var stack = err.stack.split("\n");
 		var msg = stack[0].split(":");
+
+    console.log(err.stack);
     
 		var js_sites = get_sites_from_stack(stack.slice(1));
 		var church_sites = [];
@@ -3503,10 +3795,12 @@ module.exports = {
   churchToBareJs: churchToBareJs
 };
 
-},{"./church_astify.js":1,"./js_astify.js":16,"./precompile.js":41,"./tokenize.js":53,"./util.js":"h4wp5z","./wctransform":60,"__browserify_Buffer":21,"__browserify_process":22,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29,"source-map":30,"underscore":40}],"./evaluate":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/evaluate.js",__dirname="/";module.exports=require('OLnFAJ');
-},{"__browserify_Buffer":21,"__browserify_process":22}],16:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/js_astify.js",__dirname="/";/* global require */
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/evaluate.js","/")
+},{"./church_astify.js":1,"./js_astify.js":16,"./precompile.js":41,"./tokenize.js":53,"./util.js":"Y/OqMs","./wctransform":60,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29,"source-map":30,"underscore":40}],"./evaluate":[function(require,module,exports){
+module.exports=require('Ih4X1P');
+},{}],16:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/* global require */
 
 /*
  This takes an AST for desugarred Church and turns it into a js AST.
@@ -3576,7 +3870,7 @@ Object.keys(builtinAnnotations).forEach(function(name) {
       .replace(/wrapped_(.+)/, function(m, p1) { return p1 })
       .replace(/is_(.+)/, function(m, p1) { return p1 + "?"})
       .replace('_to_', '->')
-      .replace('_', '-');
+      .replace(/_/g, '-');
     
     rename_map[alias] = name;
   }
@@ -3974,232 +4268,3014 @@ function format_identifier(id) {
 exports.church_tree_to_esprima_ast = church_tree_to_esprima_ast;
 exports.rename_map = rename_map;
 
-},{"./church_builtins.js":"BiOwI0","./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"escodegen/node_modules/estraverse":27}],17:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/browserify/node_modules/browser-builtins/builtin/_shims.js",__dirname="/node_modules/browserify/node_modules/browser-builtins/builtin";
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/js_astify.js","/")
+},{"./church_builtins.js":"sy/OMr","./util.js":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen/node_modules/estraverse":27}],17:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+//     Backbone.js 1.1.2
 
-//
-// The shims in this file are not fully implemented shims for the ES5
-// features, but do work for the particular usecases there is in
-// the other modules.
-//
+//     (c) 2010-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+//     Backbone may be freely distributed under the MIT license.
+//     For all details and documentation:
+//     http://backbonejs.org
 
-var toString = Object.prototype.toString;
-var hasOwnProperty = Object.prototype.hasOwnProperty;
+(function(root, factory) {
 
-// Array.isArray is supported in IE9
-function isArray(xs) {
-  return toString.call(xs) === '[object Array]';
-}
-exports.isArray = typeof Array.isArray === 'function' ? Array.isArray : isArray;
+  // Set up Backbone appropriately for the environment. Start with AMD.
+  if (typeof define === 'function' && define.amd) {
+    define(['underscore', 'jquery', 'exports'], function(_, $, exports) {
+      // Export global even in AMD case in case this script is loaded with
+      // others that may still expect a global Backbone.
+      root.Backbone = factory(root, exports, _, $);
+    });
 
-// Array.prototype.indexOf is supported in IE9
-exports.indexOf = function indexOf(xs, x) {
-  if (xs.indexOf) return xs.indexOf(x);
-  for (var i = 0; i < xs.length; i++) {
-    if (x === xs[i]) return i;
+  // Next for Node.js or CommonJS. jQuery may not be needed as a module.
+  } else if (typeof exports !== 'undefined') {
+    var _ = require('underscore');
+    factory(root, exports, _);
+
+  // Finally, as a browser global.
+  } else {
+    root.Backbone = factory(root, {}, root._, (root.jQuery || root.Zepto || root.ender || root.$));
   }
-  return -1;
-};
 
-// Array.prototype.filter is supported in IE9
-exports.filter = function filter(xs, fn) {
-  if (xs.filter) return xs.filter(fn);
-  var res = [];
-  for (var i = 0; i < xs.length; i++) {
-    if (fn(xs[i], i, xs)) res.push(xs[i]);
-  }
-  return res;
-};
+}(this, function(root, Backbone, _, $) {
 
-// Array.prototype.forEach is supported in IE9
-exports.forEach = function forEach(xs, fn, self) {
-  if (xs.forEach) return xs.forEach(fn, self);
-  for (var i = 0; i < xs.length; i++) {
-    fn.call(self, xs[i], i, xs);
-  }
-};
+  // Initial Setup
+  // -------------
 
-// Array.prototype.map is supported in IE9
-exports.map = function map(xs, fn) {
-  if (xs.map) return xs.map(fn);
-  var out = new Array(xs.length);
-  for (var i = 0; i < xs.length; i++) {
-    out[i] = fn(xs[i], i, xs);
-  }
-  return out;
-};
+  // Save the previous value of the `Backbone` variable, so that it can be
+  // restored later on, if `noConflict` is used.
+  var previousBackbone = root.Backbone;
 
-// Array.prototype.reduce is supported in IE9
-exports.reduce = function reduce(array, callback, opt_initialValue) {
-  if (array.reduce) return array.reduce(callback, opt_initialValue);
-  var value, isValueSet = false;
+  // Create local references to array methods we'll want to use later.
+  var array = [];
+  var push = array.push;
+  var slice = array.slice;
+  var splice = array.splice;
 
-  if (2 < arguments.length) {
-    value = opt_initialValue;
-    isValueSet = true;
-  }
-  for (var i = 0, l = array.length; l > i; ++i) {
-    if (array.hasOwnProperty(i)) {
-      if (isValueSet) {
-        value = callback(value, array[i], i, array);
+  // Current version of the library. Keep in sync with `package.json`.
+  Backbone.VERSION = '1.1.2';
+
+  // For Backbone's purposes, jQuery, Zepto, Ender, or My Library (kidding) owns
+  // the `$` variable.
+  Backbone.$ = $;
+
+  // Runs Backbone.js in *noConflict* mode, returning the `Backbone` variable
+  // to its previous owner. Returns a reference to this Backbone object.
+  Backbone.noConflict = function() {
+    root.Backbone = previousBackbone;
+    return this;
+  };
+
+  // Turn on `emulateHTTP` to support legacy HTTP servers. Setting this option
+  // will fake `"PATCH"`, `"PUT"` and `"DELETE"` requests via the `_method` parameter and
+  // set a `X-Http-Method-Override` header.
+  Backbone.emulateHTTP = false;
+
+  // Turn on `emulateJSON` to support legacy servers that can't deal with direct
+  // `application/json` requests ... will encode the body as
+  // `application/x-www-form-urlencoded` instead and will send the model in a
+  // form param named `model`.
+  Backbone.emulateJSON = false;
+
+  // Backbone.Events
+  // ---------------
+
+  // A module that can be mixed in to *any object* in order to provide it with
+  // custom events. You may bind with `on` or remove with `off` callback
+  // functions to an event; `trigger`-ing an event fires all callbacks in
+  // succession.
+  //
+  //     var object = {};
+  //     _.extend(object, Backbone.Events);
+  //     object.on('expand', function(){ alert('expanded'); });
+  //     object.trigger('expand');
+  //
+  var Events = Backbone.Events = {
+
+    // Bind an event to a `callback` function. Passing `"all"` will bind
+    // the callback to all events fired.
+    on: function(name, callback, context) {
+      if (!eventsApi(this, 'on', name, [callback, context]) || !callback) return this;
+      this._events || (this._events = {});
+      var events = this._events[name] || (this._events[name] = []);
+      events.push({callback: callback, context: context, ctx: context || this});
+      return this;
+    },
+
+    // Bind an event to only be triggered a single time. After the first time
+    // the callback is invoked, it will be removed.
+    once: function(name, callback, context) {
+      if (!eventsApi(this, 'once', name, [callback, context]) || !callback) return this;
+      var self = this;
+      var once = _.once(function() {
+        self.off(name, once);
+        callback.apply(this, arguments);
+      });
+      once._callback = callback;
+      return this.on(name, once, context);
+    },
+
+    // Remove one or many callbacks. If `context` is null, removes all
+    // callbacks with that function. If `callback` is null, removes all
+    // callbacks for the event. If `name` is null, removes all bound
+    // callbacks for all events.
+    off: function(name, callback, context) {
+      var retain, ev, events, names, i, l, j, k;
+      if (!this._events || !eventsApi(this, 'off', name, [callback, context])) return this;
+      if (!name && !callback && !context) {
+        this._events = void 0;
+        return this;
       }
-      else {
-        value = array[i];
-        isValueSet = true;
+      names = name ? [name] : _.keys(this._events);
+      for (i = 0, l = names.length; i < l; i++) {
+        name = names[i];
+        if (events = this._events[name]) {
+          this._events[name] = retain = [];
+          if (callback || context) {
+            for (j = 0, k = events.length; j < k; j++) {
+              ev = events[j];
+              if ((callback && callback !== ev.callback && callback !== ev.callback._callback) ||
+                  (context && context !== ev.context)) {
+                retain.push(ev);
+              }
+            }
+          }
+          if (!retain.length) delete this._events[name];
+        }
+      }
+
+      return this;
+    },
+
+    // Trigger one or many events, firing all bound callbacks. Callbacks are
+    // passed the same arguments as `trigger` is, apart from the event name
+    // (unless you're listening on `"all"`, which will cause your callback to
+    // receive the true name of the event as the first argument).
+    trigger: function(name) {
+      if (!this._events) return this;
+      var args = slice.call(arguments, 1);
+      if (!eventsApi(this, 'trigger', name, args)) return this;
+      var events = this._events[name];
+      var allEvents = this._events.all;
+      if (events) triggerEvents(events, args);
+      if (allEvents) triggerEvents(allEvents, arguments);
+      return this;
+    },
+
+    // Tell this object to stop listening to either specific events ... or
+    // to every object it's currently listening to.
+    stopListening: function(obj, name, callback) {
+      var listeningTo = this._listeningTo;
+      if (!listeningTo) return this;
+      var remove = !name && !callback;
+      if (!callback && typeof name === 'object') callback = this;
+      if (obj) (listeningTo = {})[obj._listenId] = obj;
+      for (var id in listeningTo) {
+        obj = listeningTo[id];
+        obj.off(name, callback, this);
+        if (remove || _.isEmpty(obj._events)) delete this._listeningTo[id];
+      }
+      return this;
+    }
+
+  };
+
+  // Regular expression used to split event strings.
+  var eventSplitter = /\s+/;
+
+  // Implement fancy features of the Events API such as multiple event
+  // names `"change blur"` and jQuery-style event maps `{change: action}`
+  // in terms of the existing API.
+  var eventsApi = function(obj, action, name, rest) {
+    if (!name) return true;
+
+    // Handle event maps.
+    if (typeof name === 'object') {
+      for (var key in name) {
+        obj[action].apply(obj, [key, name[key]].concat(rest));
+      }
+      return false;
+    }
+
+    // Handle space separated event names.
+    if (eventSplitter.test(name)) {
+      var names = name.split(eventSplitter);
+      for (var i = 0, l = names.length; i < l; i++) {
+        obj[action].apply(obj, [names[i]].concat(rest));
+      }
+      return false;
+    }
+
+    return true;
+  };
+
+  // A difficult-to-believe, but optimized internal dispatch function for
+  // triggering events. Tries to keep the usual cases speedy (most internal
+  // Backbone events have 3 arguments).
+  var triggerEvents = function(events, args) {
+    var ev, i = -1, l = events.length, a1 = args[0], a2 = args[1], a3 = args[2];
+    switch (args.length) {
+      case 0: while (++i < l) (ev = events[i]).callback.call(ev.ctx); return;
+      case 1: while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1); return;
+      case 2: while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1, a2); return;
+      case 3: while (++i < l) (ev = events[i]).callback.call(ev.ctx, a1, a2, a3); return;
+      default: while (++i < l) (ev = events[i]).callback.apply(ev.ctx, args); return;
+    }
+  };
+
+  var listenMethods = {listenTo: 'on', listenToOnce: 'once'};
+
+  // Inversion-of-control versions of `on` and `once`. Tell *this* object to
+  // listen to an event in another object ... keeping track of what it's
+  // listening to.
+  _.each(listenMethods, function(implementation, method) {
+    Events[method] = function(obj, name, callback) {
+      var listeningTo = this._listeningTo || (this._listeningTo = {});
+      var id = obj._listenId || (obj._listenId = _.uniqueId('l'));
+      listeningTo[id] = obj;
+      if (!callback && typeof name === 'object') callback = this;
+      obj[implementation](name, callback, this);
+      return this;
+    };
+  });
+
+  // Aliases for backwards compatibility.
+  Events.bind   = Events.on;
+  Events.unbind = Events.off;
+
+  // Allow the `Backbone` object to serve as a global event bus, for folks who
+  // want global "pubsub" in a convenient place.
+  _.extend(Backbone, Events);
+
+  // Backbone.Model
+  // --------------
+
+  // Backbone **Models** are the basic data object in the framework --
+  // frequently representing a row in a table in a database on your server.
+  // A discrete chunk of data and a bunch of useful, related methods for
+  // performing computations and transformations on that data.
+
+  // Create a new model with the specified attributes. A client id (`cid`)
+  // is automatically generated and assigned for you.
+  var Model = Backbone.Model = function(attributes, options) {
+    var attrs = attributes || {};
+    options || (options = {});
+    this.cid = _.uniqueId('c');
+    this.attributes = {};
+    if (options.collection) this.collection = options.collection;
+    if (options.parse) attrs = this.parse(attrs, options) || {};
+    attrs = _.defaults({}, attrs, _.result(this, 'defaults'));
+    this.set(attrs, options);
+    this.changed = {};
+    this.initialize.apply(this, arguments);
+  };
+
+  // Attach all inheritable methods to the Model prototype.
+  _.extend(Model.prototype, Events, {
+
+    // A hash of attributes whose current and previous value differ.
+    changed: null,
+
+    // The value returned during the last failed validation.
+    validationError: null,
+
+    // The default name for the JSON `id` attribute is `"id"`. MongoDB and
+    // CouchDB users may want to set this to `"_id"`.
+    idAttribute: 'id',
+
+    // Initialize is an empty function by default. Override it with your own
+    // initialization logic.
+    initialize: function(){},
+
+    // Return a copy of the model's `attributes` object.
+    toJSON: function(options) {
+      return _.clone(this.attributes);
+    },
+
+    // Proxy `Backbone.sync` by default -- but override this if you need
+    // custom syncing semantics for *this* particular model.
+    sync: function() {
+      return Backbone.sync.apply(this, arguments);
+    },
+
+    // Get the value of an attribute.
+    get: function(attr) {
+      return this.attributes[attr];
+    },
+
+    // Get the HTML-escaped value of an attribute.
+    escape: function(attr) {
+      return _.escape(this.get(attr));
+    },
+
+    // Returns `true` if the attribute contains a value that is not null
+    // or undefined.
+    has: function(attr) {
+      return this.get(attr) != null;
+    },
+
+    // Set a hash of model attributes on the object, firing `"change"`. This is
+    // the core primitive operation of a model, updating the data and notifying
+    // anyone who needs to know about the change in state. The heart of the beast.
+    set: function(key, val, options) {
+      var attr, attrs, unset, changes, silent, changing, prev, current;
+      if (key == null) return this;
+
+      // Handle both `"key", value` and `{key: value}` -style arguments.
+      if (typeof key === 'object') {
+        attrs = key;
+        options = val;
+      } else {
+        (attrs = {})[key] = val;
+      }
+
+      options || (options = {});
+
+      // Run validation.
+      if (!this._validate(attrs, options)) return false;
+
+      // Extract attributes and options.
+      unset           = options.unset;
+      silent          = options.silent;
+      changes         = [];
+      changing        = this._changing;
+      this._changing  = true;
+
+      if (!changing) {
+        this._previousAttributes = _.clone(this.attributes);
+        this.changed = {};
+      }
+      current = this.attributes, prev = this._previousAttributes;
+
+      // Check for changes of `id`.
+      if (this.idAttribute in attrs) this.id = attrs[this.idAttribute];
+
+      // For each `set` attribute, update or delete the current value.
+      for (attr in attrs) {
+        val = attrs[attr];
+        if (!_.isEqual(current[attr], val)) changes.push(attr);
+        if (!_.isEqual(prev[attr], val)) {
+          this.changed[attr] = val;
+        } else {
+          delete this.changed[attr];
+        }
+        unset ? delete current[attr] : current[attr] = val;
+      }
+
+      // Trigger all relevant attribute changes.
+      if (!silent) {
+        if (changes.length) this._pending = options;
+        for (var i = 0, l = changes.length; i < l; i++) {
+          this.trigger('change:' + changes[i], this, current[changes[i]], options);
+        }
+      }
+
+      // You might be wondering why there's a `while` loop here. Changes can
+      // be recursively nested within `"change"` events.
+      if (changing) return this;
+      if (!silent) {
+        while (this._pending) {
+          options = this._pending;
+          this._pending = false;
+          this.trigger('change', this, options);
+        }
+      }
+      this._pending = false;
+      this._changing = false;
+      return this;
+    },
+
+    // Remove an attribute from the model, firing `"change"`. `unset` is a noop
+    // if the attribute doesn't exist.
+    unset: function(attr, options) {
+      return this.set(attr, void 0, _.extend({}, options, {unset: true}));
+    },
+
+    // Clear all attributes on the model, firing `"change"`.
+    clear: function(options) {
+      var attrs = {};
+      for (var key in this.attributes) attrs[key] = void 0;
+      return this.set(attrs, _.extend({}, options, {unset: true}));
+    },
+
+    // Determine if the model has changed since the last `"change"` event.
+    // If you specify an attribute name, determine if that attribute has changed.
+    hasChanged: function(attr) {
+      if (attr == null) return !_.isEmpty(this.changed);
+      return _.has(this.changed, attr);
+    },
+
+    // Return an object containing all the attributes that have changed, or
+    // false if there are no changed attributes. Useful for determining what
+    // parts of a view need to be updated and/or what attributes need to be
+    // persisted to the server. Unset attributes will be set to undefined.
+    // You can also pass an attributes object to diff against the model,
+    // determining if there *would be* a change.
+    changedAttributes: function(diff) {
+      if (!diff) return this.hasChanged() ? _.clone(this.changed) : false;
+      var val, changed = false;
+      var old = this._changing ? this._previousAttributes : this.attributes;
+      for (var attr in diff) {
+        if (_.isEqual(old[attr], (val = diff[attr]))) continue;
+        (changed || (changed = {}))[attr] = val;
+      }
+      return changed;
+    },
+
+    // Get the previous value of an attribute, recorded at the time the last
+    // `"change"` event was fired.
+    previous: function(attr) {
+      if (attr == null || !this._previousAttributes) return null;
+      return this._previousAttributes[attr];
+    },
+
+    // Get all of the attributes of the model at the time of the previous
+    // `"change"` event.
+    previousAttributes: function() {
+      return _.clone(this._previousAttributes);
+    },
+
+    // Fetch the model from the server. If the server's representation of the
+    // model differs from its current attributes, they will be overridden,
+    // triggering a `"change"` event.
+    fetch: function(options) {
+      options = options ? _.clone(options) : {};
+      if (options.parse === void 0) options.parse = true;
+      var model = this;
+      var success = options.success;
+      options.success = function(resp) {
+        if (!model.set(model.parse(resp, options), options)) return false;
+        if (success) success(model, resp, options);
+        model.trigger('sync', model, resp, options);
+      };
+      wrapError(this, options);
+      return this.sync('read', this, options);
+    },
+
+    // Set a hash of model attributes, and sync the model to the server.
+    // If the server returns an attributes hash that differs, the model's
+    // state will be `set` again.
+    save: function(key, val, options) {
+      var attrs, method, xhr, attributes = this.attributes;
+
+      // Handle both `"key", value` and `{key: value}` -style arguments.
+      if (key == null || typeof key === 'object') {
+        attrs = key;
+        options = val;
+      } else {
+        (attrs = {})[key] = val;
+      }
+
+      options = _.extend({validate: true}, options);
+
+      // If we're not waiting and attributes exist, save acts as
+      // `set(attr).save(null, opts)` with validation. Otherwise, check if
+      // the model will be valid when the attributes, if any, are set.
+      if (attrs && !options.wait) {
+        if (!this.set(attrs, options)) return false;
+      } else {
+        if (!this._validate(attrs, options)) return false;
+      }
+
+      // Set temporary attributes if `{wait: true}`.
+      if (attrs && options.wait) {
+        this.attributes = _.extend({}, attributes, attrs);
+      }
+
+      // After a successful server-side save, the client is (optionally)
+      // updated with the server-side state.
+      if (options.parse === void 0) options.parse = true;
+      var model = this;
+      var success = options.success;
+      options.success = function(resp) {
+        // Ensure attributes are restored during synchronous saves.
+        model.attributes = attributes;
+        var serverAttrs = model.parse(resp, options);
+        if (options.wait) serverAttrs = _.extend(attrs || {}, serverAttrs);
+        if (_.isObject(serverAttrs) && !model.set(serverAttrs, options)) {
+          return false;
+        }
+        if (success) success(model, resp, options);
+        model.trigger('sync', model, resp, options);
+      };
+      wrapError(this, options);
+
+      method = this.isNew() ? 'create' : (options.patch ? 'patch' : 'update');
+      if (method === 'patch') options.attrs = attrs;
+      xhr = this.sync(method, this, options);
+
+      // Restore attributes.
+      if (attrs && options.wait) this.attributes = attributes;
+
+      return xhr;
+    },
+
+    // Destroy this model on the server if it was already persisted.
+    // Optimistically removes the model from its collection, if it has one.
+    // If `wait: true` is passed, waits for the server to respond before removal.
+    destroy: function(options) {
+      options = options ? _.clone(options) : {};
+      var model = this;
+      var success = options.success;
+
+      var destroy = function() {
+        model.trigger('destroy', model, model.collection, options);
+      };
+
+      options.success = function(resp) {
+        if (options.wait || model.isNew()) destroy();
+        if (success) success(model, resp, options);
+        if (!model.isNew()) model.trigger('sync', model, resp, options);
+      };
+
+      if (this.isNew()) {
+        options.success();
+        return false;
+      }
+      wrapError(this, options);
+
+      var xhr = this.sync('delete', this, options);
+      if (!options.wait) destroy();
+      return xhr;
+    },
+
+    // Default URL for the model's representation on the server -- if you're
+    // using Backbone's restful methods, override this to change the endpoint
+    // that will be called.
+    url: function() {
+      var base =
+        _.result(this, 'urlRoot') ||
+        _.result(this.collection, 'url') ||
+        urlError();
+      if (this.isNew()) return base;
+      return base.replace(/([^\/])$/, '$1/') + encodeURIComponent(this.id);
+    },
+
+    // **parse** converts a response into the hash of attributes to be `set` on
+    // the model. The default implementation is just to pass the response along.
+    parse: function(resp, options) {
+      return resp;
+    },
+
+    // Create a new model with identical attributes to this one.
+    clone: function() {
+      return new this.constructor(this.attributes);
+    },
+
+    // A model is new if it has never been saved to the server, and lacks an id.
+    isNew: function() {
+      return !this.has(this.idAttribute);
+    },
+
+    // Check if the model is currently in a valid state.
+    isValid: function(options) {
+      return this._validate({}, _.extend(options || {}, { validate: true }));
+    },
+
+    // Run validation against the next complete set of model attributes,
+    // returning `true` if all is well. Otherwise, fire an `"invalid"` event.
+    _validate: function(attrs, options) {
+      if (!options.validate || !this.validate) return true;
+      attrs = _.extend({}, this.attributes, attrs);
+      var error = this.validationError = this.validate(attrs, options) || null;
+      if (!error) return true;
+      this.trigger('invalid', this, error, _.extend(options, {validationError: error}));
+      return false;
+    }
+
+  });
+
+  // Underscore methods that we want to implement on the Model.
+  var modelMethods = ['keys', 'values', 'pairs', 'invert', 'pick', 'omit'];
+
+  // Mix in each Underscore method as a proxy to `Model#attributes`.
+  _.each(modelMethods, function(method) {
+    Model.prototype[method] = function() {
+      var args = slice.call(arguments);
+      args.unshift(this.attributes);
+      return _[method].apply(_, args);
+    };
+  });
+
+  // Backbone.Collection
+  // -------------------
+
+  // If models tend to represent a single row of data, a Backbone Collection is
+  // more analagous to a table full of data ... or a small slice or page of that
+  // table, or a collection of rows that belong together for a particular reason
+  // -- all of the messages in this particular folder, all of the documents
+  // belonging to this particular author, and so on. Collections maintain
+  // indexes of their models, both in order, and for lookup by `id`.
+
+  // Create a new **Collection**, perhaps to contain a specific type of `model`.
+  // If a `comparator` is specified, the Collection will maintain
+  // its models in sort order, as they're added and removed.
+  var Collection = Backbone.Collection = function(models, options) {
+    options || (options = {});
+    if (options.model) this.model = options.model;
+    if (options.comparator !== void 0) this.comparator = options.comparator;
+    this._reset();
+    this.initialize.apply(this, arguments);
+    if (models) this.reset(models, _.extend({silent: true}, options));
+  };
+
+  // Default options for `Collection#set`.
+  var setOptions = {add: true, remove: true, merge: true};
+  var addOptions = {add: true, remove: false};
+
+  // Define the Collection's inheritable methods.
+  _.extend(Collection.prototype, Events, {
+
+    // The default model for a collection is just a **Backbone.Model**.
+    // This should be overridden in most cases.
+    model: Model,
+
+    // Initialize is an empty function by default. Override it with your own
+    // initialization logic.
+    initialize: function(){},
+
+    // The JSON representation of a Collection is an array of the
+    // models' attributes.
+    toJSON: function(options) {
+      return this.map(function(model){ return model.toJSON(options); });
+    },
+
+    // Proxy `Backbone.sync` by default.
+    sync: function() {
+      return Backbone.sync.apply(this, arguments);
+    },
+
+    // Add a model, or list of models to the set.
+    add: function(models, options) {
+      return this.set(models, _.extend({merge: false}, options, addOptions));
+    },
+
+    // Remove a model, or a list of models from the set.
+    remove: function(models, options) {
+      var singular = !_.isArray(models);
+      models = singular ? [models] : _.clone(models);
+      options || (options = {});
+      var i, l, index, model;
+      for (i = 0, l = models.length; i < l; i++) {
+        model = models[i] = this.get(models[i]);
+        if (!model) continue;
+        delete this._byId[model.id];
+        delete this._byId[model.cid];
+        index = this.indexOf(model);
+        this.models.splice(index, 1);
+        this.length--;
+        if (!options.silent) {
+          options.index = index;
+          model.trigger('remove', model, this, options);
+        }
+        this._removeReference(model, options);
+      }
+      return singular ? models[0] : models;
+    },
+
+    // Update a collection by `set`-ing a new list of models, adding new ones,
+    // removing models that are no longer present, and merging models that
+    // already exist in the collection, as necessary. Similar to **Model#set**,
+    // the core operation for updating the data contained by the collection.
+    set: function(models, options) {
+      options = _.defaults({}, options, setOptions);
+      if (options.parse) models = this.parse(models, options);
+      var singular = !_.isArray(models);
+      models = singular ? (models ? [models] : []) : _.clone(models);
+      var i, l, id, model, attrs, existing, sort;
+      var at = options.at;
+      var targetModel = this.model;
+      var sortable = this.comparator && (at == null) && options.sort !== false;
+      var sortAttr = _.isString(this.comparator) ? this.comparator : null;
+      var toAdd = [], toRemove = [], modelMap = {};
+      var add = options.add, merge = options.merge, remove = options.remove;
+      var order = !sortable && add && remove ? [] : false;
+
+      // Turn bare objects into model references, and prevent invalid models
+      // from being added.
+      for (i = 0, l = models.length; i < l; i++) {
+        attrs = models[i] || {};
+        if (attrs instanceof Model) {
+          id = model = attrs;
+        } else {
+          id = attrs[targetModel.prototype.idAttribute || 'id'];
+        }
+
+        // If a duplicate is found, prevent it from being added and
+        // optionally merge it into the existing model.
+        if (existing = this.get(id)) {
+          if (remove) modelMap[existing.cid] = true;
+          if (merge) {
+            attrs = attrs === model ? model.attributes : attrs;
+            if (options.parse) attrs = existing.parse(attrs, options);
+            existing.set(attrs, options);
+            if (sortable && !sort && existing.hasChanged(sortAttr)) sort = true;
+          }
+          models[i] = existing;
+
+        // If this is a new, valid model, push it to the `toAdd` list.
+        } else if (add) {
+          model = models[i] = this._prepareModel(attrs, options);
+          if (!model) continue;
+          toAdd.push(model);
+          this._addReference(model, options);
+        }
+
+        // Do not add multiple models with the same `id`.
+        model = existing || model;
+        if (order && (model.isNew() || !modelMap[model.id])) order.push(model);
+        modelMap[model.id] = true;
+      }
+
+      // Remove nonexistent models if appropriate.
+      if (remove) {
+        for (i = 0, l = this.length; i < l; ++i) {
+          if (!modelMap[(model = this.models[i]).cid]) toRemove.push(model);
+        }
+        if (toRemove.length) this.remove(toRemove, options);
+      }
+
+      // See if sorting is needed, update `length` and splice in new models.
+      if (toAdd.length || (order && order.length)) {
+        if (sortable) sort = true;
+        this.length += toAdd.length;
+        if (at != null) {
+          for (i = 0, l = toAdd.length; i < l; i++) {
+            this.models.splice(at + i, 0, toAdd[i]);
+          }
+        } else {
+          if (order) this.models.length = 0;
+          var orderedModels = order || toAdd;
+          for (i = 0, l = orderedModels.length; i < l; i++) {
+            this.models.push(orderedModels[i]);
+          }
+        }
+      }
+
+      // Silently sort the collection if appropriate.
+      if (sort) this.sort({silent: true});
+
+      // Unless silenced, it's time to fire all appropriate add/sort events.
+      if (!options.silent) {
+        for (i = 0, l = toAdd.length; i < l; i++) {
+          (model = toAdd[i]).trigger('add', model, this, options);
+        }
+        if (sort || (order && order.length)) this.trigger('sort', this, options);
+      }
+
+      // Return the added (or merged) model (or models).
+      return singular ? models[0] : models;
+    },
+
+    // When you have more items than you want to add or remove individually,
+    // you can reset the entire set with a new list of models, without firing
+    // any granular `add` or `remove` events. Fires `reset` when finished.
+    // Useful for bulk operations and optimizations.
+    reset: function(models, options) {
+      options || (options = {});
+      for (var i = 0, l = this.models.length; i < l; i++) {
+        this._removeReference(this.models[i], options);
+      }
+      options.previousModels = this.models;
+      this._reset();
+      models = this.add(models, _.extend({silent: true}, options));
+      if (!options.silent) this.trigger('reset', this, options);
+      return models;
+    },
+
+    // Add a model to the end of the collection.
+    push: function(model, options) {
+      return this.add(model, _.extend({at: this.length}, options));
+    },
+
+    // Remove a model from the end of the collection.
+    pop: function(options) {
+      var model = this.at(this.length - 1);
+      this.remove(model, options);
+      return model;
+    },
+
+    // Add a model to the beginning of the collection.
+    unshift: function(model, options) {
+      return this.add(model, _.extend({at: 0}, options));
+    },
+
+    // Remove a model from the beginning of the collection.
+    shift: function(options) {
+      var model = this.at(0);
+      this.remove(model, options);
+      return model;
+    },
+
+    // Slice out a sub-array of models from the collection.
+    slice: function() {
+      return slice.apply(this.models, arguments);
+    },
+
+    // Get a model from the set by id.
+    get: function(obj) {
+      if (obj == null) return void 0;
+      return this._byId[obj] || this._byId[obj.id] || this._byId[obj.cid];
+    },
+
+    // Get the model at the given index.
+    at: function(index) {
+      return this.models[index];
+    },
+
+    // Return models with matching attributes. Useful for simple cases of
+    // `filter`.
+    where: function(attrs, first) {
+      if (_.isEmpty(attrs)) return first ? void 0 : [];
+      return this[first ? 'find' : 'filter'](function(model) {
+        for (var key in attrs) {
+          if (attrs[key] !== model.get(key)) return false;
+        }
+        return true;
+      });
+    },
+
+    // Return the first model with matching attributes. Useful for simple cases
+    // of `find`.
+    findWhere: function(attrs) {
+      return this.where(attrs, true);
+    },
+
+    // Force the collection to re-sort itself. You don't need to call this under
+    // normal circumstances, as the set will maintain sort order as each item
+    // is added.
+    sort: function(options) {
+      if (!this.comparator) throw new Error('Cannot sort a set without a comparator');
+      options || (options = {});
+
+      // Run sort based on type of `comparator`.
+      if (_.isString(this.comparator) || this.comparator.length === 1) {
+        this.models = this.sortBy(this.comparator, this);
+      } else {
+        this.models.sort(_.bind(this.comparator, this));
+      }
+
+      if (!options.silent) this.trigger('sort', this, options);
+      return this;
+    },
+
+    // Pluck an attribute from each model in the collection.
+    pluck: function(attr) {
+      return _.invoke(this.models, 'get', attr);
+    },
+
+    // Fetch the default set of models for this collection, resetting the
+    // collection when they arrive. If `reset: true` is passed, the response
+    // data will be passed through the `reset` method instead of `set`.
+    fetch: function(options) {
+      options = options ? _.clone(options) : {};
+      if (options.parse === void 0) options.parse = true;
+      var success = options.success;
+      var collection = this;
+      options.success = function(resp) {
+        var method = options.reset ? 'reset' : 'set';
+        collection[method](resp, options);
+        if (success) success(collection, resp, options);
+        collection.trigger('sync', collection, resp, options);
+      };
+      wrapError(this, options);
+      return this.sync('read', this, options);
+    },
+
+    // Create a new instance of a model in this collection. Add the model to the
+    // collection immediately, unless `wait: true` is passed, in which case we
+    // wait for the server to agree.
+    create: function(model, options) {
+      options = options ? _.clone(options) : {};
+      if (!(model = this._prepareModel(model, options))) return false;
+      if (!options.wait) this.add(model, options);
+      var collection = this;
+      var success = options.success;
+      options.success = function(model, resp) {
+        if (options.wait) collection.add(model, options);
+        if (success) success(model, resp, options);
+      };
+      model.save(null, options);
+      return model;
+    },
+
+    // **parse** converts a response into a list of models to be added to the
+    // collection. The default implementation is just to pass it through.
+    parse: function(resp, options) {
+      return resp;
+    },
+
+    // Create a new collection with an identical list of models as this one.
+    clone: function() {
+      return new this.constructor(this.models);
+    },
+
+    // Private method to reset all internal state. Called when the collection
+    // is first initialized or reset.
+    _reset: function() {
+      this.length = 0;
+      this.models = [];
+      this._byId  = {};
+    },
+
+    // Prepare a hash of attributes (or other model) to be added to this
+    // collection.
+    _prepareModel: function(attrs, options) {
+      if (attrs instanceof Model) return attrs;
+      options = options ? _.clone(options) : {};
+      options.collection = this;
+      var model = new this.model(attrs, options);
+      if (!model.validationError) return model;
+      this.trigger('invalid', this, model.validationError, options);
+      return false;
+    },
+
+    // Internal method to create a model's ties to a collection.
+    _addReference: function(model, options) {
+      this._byId[model.cid] = model;
+      if (model.id != null) this._byId[model.id] = model;
+      if (!model.collection) model.collection = this;
+      model.on('all', this._onModelEvent, this);
+    },
+
+    // Internal method to sever a model's ties to a collection.
+    _removeReference: function(model, options) {
+      if (this === model.collection) delete model.collection;
+      model.off('all', this._onModelEvent, this);
+    },
+
+    // Internal method called every time a model in the set fires an event.
+    // Sets need to update their indexes when models change ids. All other
+    // events simply proxy through. "add" and "remove" events that originate
+    // in other collections are ignored.
+    _onModelEvent: function(event, model, collection, options) {
+      if ((event === 'add' || event === 'remove') && collection !== this) return;
+      if (event === 'destroy') this.remove(model, options);
+      if (model && event === 'change:' + model.idAttribute) {
+        delete this._byId[model.previous(model.idAttribute)];
+        if (model.id != null) this._byId[model.id] = model;
+      }
+      this.trigger.apply(this, arguments);
+    }
+
+  });
+
+  // Underscore methods that we want to implement on the Collection.
+  // 90% of the core usefulness of Backbone Collections is actually implemented
+  // right here:
+  var methods = ['forEach', 'each', 'map', 'collect', 'reduce', 'foldl',
+    'inject', 'reduceRight', 'foldr', 'find', 'detect', 'filter', 'select',
+    'reject', 'every', 'all', 'some', 'any', 'include', 'contains', 'invoke',
+    'max', 'min', 'toArray', 'size', 'first', 'head', 'take', 'initial', 'rest',
+    'tail', 'drop', 'last', 'without', 'difference', 'indexOf', 'shuffle',
+    'lastIndexOf', 'isEmpty', 'chain', 'sample'];
+
+  // Mix in each Underscore method as a proxy to `Collection#models`.
+  _.each(methods, function(method) {
+    Collection.prototype[method] = function() {
+      var args = slice.call(arguments);
+      args.unshift(this.models);
+      return _[method].apply(_, args);
+    };
+  });
+
+  // Underscore methods that take a property name as an argument.
+  var attributeMethods = ['groupBy', 'countBy', 'sortBy', 'indexBy'];
+
+  // Use attributes instead of properties.
+  _.each(attributeMethods, function(method) {
+    Collection.prototype[method] = function(value, context) {
+      var iterator = _.isFunction(value) ? value : function(model) {
+        return model.get(value);
+      };
+      return _[method](this.models, iterator, context);
+    };
+  });
+
+  // Backbone.View
+  // -------------
+
+  // Backbone Views are almost more convention than they are actual code. A View
+  // is simply a JavaScript object that represents a logical chunk of UI in the
+  // DOM. This might be a single item, an entire list, a sidebar or panel, or
+  // even the surrounding frame which wraps your whole app. Defining a chunk of
+  // UI as a **View** allows you to define your DOM events declaratively, without
+  // having to worry about render order ... and makes it easy for the view to
+  // react to specific changes in the state of your models.
+
+  // Creating a Backbone.View creates its initial element outside of the DOM,
+  // if an existing element is not provided...
+  var View = Backbone.View = function(options) {
+    this.cid = _.uniqueId('view');
+    options || (options = {});
+    _.extend(this, _.pick(options, viewOptions));
+    this._ensureElement();
+    this.initialize.apply(this, arguments);
+    this.delegateEvents();
+  };
+
+  // Cached regex to split keys for `delegate`.
+  var delegateEventSplitter = /^(\S+)\s*(.*)$/;
+
+  // List of view options to be merged as properties.
+  var viewOptions = ['model', 'collection', 'el', 'id', 'attributes', 'className', 'tagName', 'events'];
+
+  // Set up all inheritable **Backbone.View** properties and methods.
+  _.extend(View.prototype, Events, {
+
+    // The default `tagName` of a View's element is `"div"`.
+    tagName: 'div',
+
+    // jQuery delegate for element lookup, scoped to DOM elements within the
+    // current view. This should be preferred to global lookups where possible.
+    $: function(selector) {
+      return this.$el.find(selector);
+    },
+
+    // Initialize is an empty function by default. Override it with your own
+    // initialization logic.
+    initialize: function(){},
+
+    // **render** is the core function that your view should override, in order
+    // to populate its element (`this.el`), with the appropriate HTML. The
+    // convention is for **render** to always return `this`.
+    render: function() {
+      return this;
+    },
+
+    // Remove this view by taking the element out of the DOM, and removing any
+    // applicable Backbone.Events listeners.
+    remove: function() {
+      this.$el.remove();
+      this.stopListening();
+      return this;
+    },
+
+    // Change the view's element (`this.el` property), including event
+    // re-delegation.
+    setElement: function(element, delegate) {
+      if (this.$el) this.undelegateEvents();
+      this.$el = element instanceof Backbone.$ ? element : Backbone.$(element);
+      this.el = this.$el[0];
+      if (delegate !== false) this.delegateEvents();
+      return this;
+    },
+
+    // Set callbacks, where `this.events` is a hash of
+    //
+    // *{"event selector": "callback"}*
+    //
+    //     {
+    //       'mousedown .title':  'edit',
+    //       'click .button':     'save',
+    //       'click .open':       function(e) { ... }
+    //     }
+    //
+    // pairs. Callbacks will be bound to the view, with `this` set properly.
+    // Uses event delegation for efficiency.
+    // Omitting the selector binds the event to `this.el`.
+    // This only works for delegate-able events: not `focus`, `blur`, and
+    // not `change`, `submit`, and `reset` in Internet Explorer.
+    delegateEvents: function(events) {
+      if (!(events || (events = _.result(this, 'events')))) return this;
+      this.undelegateEvents();
+      for (var key in events) {
+        var method = events[key];
+        if (!_.isFunction(method)) method = this[events[key]];
+        if (!method) continue;
+
+        var match = key.match(delegateEventSplitter);
+        var eventName = match[1], selector = match[2];
+        method = _.bind(method, this);
+        eventName += '.delegateEvents' + this.cid;
+        if (selector === '') {
+          this.$el.on(eventName, method);
+        } else {
+          this.$el.on(eventName, selector, method);
+        }
+      }
+      return this;
+    },
+
+    // Clears all callbacks previously bound to the view with `delegateEvents`.
+    // You usually don't need to use this, but may wish to if you have multiple
+    // Backbone views attached to the same DOM element.
+    undelegateEvents: function() {
+      this.$el.off('.delegateEvents' + this.cid);
+      return this;
+    },
+
+    // Ensure that the View has a DOM element to render into.
+    // If `this.el` is a string, pass it through `$()`, take the first
+    // matching element, and re-assign it to `el`. Otherwise, create
+    // an element from the `id`, `className` and `tagName` properties.
+    _ensureElement: function() {
+      if (!this.el) {
+        var attrs = _.extend({}, _.result(this, 'attributes'));
+        if (this.id) attrs.id = _.result(this, 'id');
+        if (this.className) attrs['class'] = _.result(this, 'className');
+        var $el = Backbone.$('<' + _.result(this, 'tagName') + '>').attr(attrs);
+        this.setElement($el, false);
+      } else {
+        this.setElement(_.result(this, 'el'), false);
       }
     }
-  }
 
-  return value;
-};
+  });
 
-// String.prototype.substr - negative index don't work in IE8
-if ('ab'.substr(-1) !== 'b') {
-  exports.substr = function (str, start, length) {
-    // did we get a negative start, calculate how much it is from the beginning of the string
-    if (start < 0) start = str.length + start;
+  // Backbone.sync
+  // -------------
 
-    // call the original function
-    return str.substr(start, length);
-  };
-} else {
-  exports.substr = function (str, start, length) {
-    return str.substr(start, length);
-  };
-}
+  // Override this function to change the manner in which Backbone persists
+  // models to the server. You will be passed the type of request, and the
+  // model in question. By default, makes a RESTful Ajax request
+  // to the model's `url()`. Some possible customizations could be:
+  //
+  // * Use `setTimeout` to batch rapid-fire updates into a single request.
+  // * Send up the models as XML instead of JSON.
+  // * Persist models via WebSockets instead of Ajax.
+  //
+  // Turn on `Backbone.emulateHTTP` in order to send `PUT` and `DELETE` requests
+  // as `POST`, with a `_method` parameter containing the true HTTP method,
+  // as well as all requests with the body as `application/x-www-form-urlencoded`
+  // instead of `application/json` with the model in a param named `model`.
+  // Useful when interfacing with server-side languages like **PHP** that make
+  // it difficult to read the body of `PUT` requests.
+  Backbone.sync = function(method, model, options) {
+    var type = methodMap[method];
 
-// String.prototype.trim is supported in IE9
-exports.trim = function (str) {
-  if (str.trim) return str.trim();
-  return str.replace(/^\s+|\s+$/g, '');
-};
+    // Default options, unless specified.
+    _.defaults(options || (options = {}), {
+      emulateHTTP: Backbone.emulateHTTP,
+      emulateJSON: Backbone.emulateJSON
+    });
 
-// Function.prototype.bind is supported in IE9
-exports.bind = function () {
-  var args = Array.prototype.slice.call(arguments);
-  var fn = args.shift();
-  if (fn.bind) return fn.bind.apply(fn, args);
-  var self = args.shift();
-  return function () {
-    fn.apply(self, args.concat([Array.prototype.slice.call(arguments)]));
-  };
-};
+    // Default JSON-request options.
+    var params = {type: type, dataType: 'json'};
 
-// Object.create is supported in IE9
-function create(prototype, properties) {
-  var object;
-  if (prototype === null) {
-    object = { '__proto__' : null };
-  }
-  else {
-    if (typeof prototype !== 'object') {
-      throw new TypeError(
-        'typeof prototype[' + (typeof prototype) + '] != \'object\''
-      );
+    // Ensure that we have a URL.
+    if (!options.url) {
+      params.url = _.result(model, 'url') || urlError();
     }
-    var Type = function () {};
-    Type.prototype = prototype;
-    object = new Type();
-    object.__proto__ = prototype;
-  }
-  if (typeof properties !== 'undefined' && Object.defineProperties) {
-    Object.defineProperties(object, properties);
-  }
-  return object;
-}
-exports.create = typeof Object.create === 'function' ? Object.create : create;
 
-// Object.keys and Object.getOwnPropertyNames is supported in IE9 however
-// they do show a description and number property on Error objects
-function notObject(object) {
-  return ((typeof object != "object" && typeof object != "function") || object === null);
-}
-
-function keysShim(object) {
-  if (notObject(object)) {
-    throw new TypeError("Object.keys called on a non-object");
-  }
-
-  var result = [];
-  for (var name in object) {
-    if (hasOwnProperty.call(object, name)) {
-      result.push(name);
+    // Ensure that we have the appropriate request data.
+    if (options.data == null && model && (method === 'create' || method === 'update' || method === 'patch')) {
+      params.contentType = 'application/json';
+      params.data = JSON.stringify(options.attrs || model.toJSON(options));
     }
-  }
-  return result;
-}
 
-// getOwnPropertyNames is almost the same as Object.keys one key feature
-//  is that it returns hidden properties, since that can't be implemented,
-//  this feature gets reduced so it just shows the length property on arrays
-function propertyShim(object) {
-  if (notObject(object)) {
-    throw new TypeError("Object.getOwnPropertyNames called on a non-object");
-  }
+    // For older servers, emulate JSON by encoding the request into an HTML-form.
+    if (options.emulateJSON) {
+      params.contentType = 'application/x-www-form-urlencoded';
+      params.data = params.data ? {model: params.data} : {};
+    }
 
-  var result = keysShim(object);
-  if (exports.isArray(object) && exports.indexOf(object, 'length') === -1) {
-    result.push('length');
-  }
-  return result;
-}
+    // For older servers, emulate HTTP by mimicking the HTTP method with `_method`
+    // And an `X-HTTP-Method-Override` header.
+    if (options.emulateHTTP && (type === 'PUT' || type === 'DELETE' || type === 'PATCH')) {
+      params.type = 'POST';
+      if (options.emulateJSON) params.data._method = type;
+      var beforeSend = options.beforeSend;
+      options.beforeSend = function(xhr) {
+        xhr.setRequestHeader('X-HTTP-Method-Override', type);
+        if (beforeSend) return beforeSend.apply(this, arguments);
+      };
+    }
 
-var keys = typeof Object.keys === 'function' ? Object.keys : keysShim;
-var getOwnPropertyNames = typeof Object.getOwnPropertyNames === 'function' ?
-  Object.getOwnPropertyNames : propertyShim;
+    // Don't process data on a non-GET request.
+    if (params.type !== 'GET' && !options.emulateJSON) {
+      params.processData = false;
+    }
 
-if (new Error().hasOwnProperty('description')) {
-  var ERROR_PROPERTY_FILTER = function (obj, array) {
-    if (toString.call(obj) === '[object Error]') {
-      array = exports.filter(array, function (name) {
-        return name !== 'description' && name !== 'number' && name !== 'message';
+    // If we're sending a `PATCH` request, and we're in an old Internet Explorer
+    // that still has ActiveX enabled by default, override jQuery to use that
+    // for XHR instead. Remove this line when jQuery supports `PATCH` on IE8.
+    if (params.type === 'PATCH' && noXhrPatch) {
+      params.xhr = function() {
+        return new ActiveXObject("Microsoft.XMLHTTP");
+      };
+    }
+
+    // Make the request, allowing the user to override any Ajax options.
+    var xhr = options.xhr = Backbone.ajax(_.extend(params, options));
+    model.trigger('request', model, xhr, options);
+    return xhr;
+  };
+
+  var noXhrPatch =
+    typeof window !== 'undefined' && !!window.ActiveXObject &&
+      !(window.XMLHttpRequest && (new XMLHttpRequest).dispatchEvent);
+
+  // Map from CRUD to HTTP for our default `Backbone.sync` implementation.
+  var methodMap = {
+    'create': 'POST',
+    'update': 'PUT',
+    'patch':  'PATCH',
+    'delete': 'DELETE',
+    'read':   'GET'
+  };
+
+  // Set the default implementation of `Backbone.ajax` to proxy through to `$`.
+  // Override this if you'd like to use a different library.
+  Backbone.ajax = function() {
+    return Backbone.$.ajax.apply(Backbone.$, arguments);
+  };
+
+  // Backbone.Router
+  // ---------------
+
+  // Routers map faux-URLs to actions, and fire events when routes are
+  // matched. Creating a new one sets its `routes` hash, if not set statically.
+  var Router = Backbone.Router = function(options) {
+    options || (options = {});
+    if (options.routes) this.routes = options.routes;
+    this._bindRoutes();
+    this.initialize.apply(this, arguments);
+  };
+
+  // Cached regular expressions for matching named param parts and splatted
+  // parts of route strings.
+  var optionalParam = /\((.*?)\)/g;
+  var namedParam    = /(\(\?)?:\w+/g;
+  var splatParam    = /\*\w+/g;
+  var escapeRegExp  = /[\-{}\[\]+?.,\\\^$|#\s]/g;
+
+  // Set up all inheritable **Backbone.Router** properties and methods.
+  _.extend(Router.prototype, Events, {
+
+    // Initialize is an empty function by default. Override it with your own
+    // initialization logic.
+    initialize: function(){},
+
+    // Manually bind a single named route to a callback. For example:
+    //
+    //     this.route('search/:query/p:num', 'search', function(query, num) {
+    //       ...
+    //     });
+    //
+    route: function(route, name, callback) {
+      if (!_.isRegExp(route)) route = this._routeToRegExp(route);
+      if (_.isFunction(name)) {
+        callback = name;
+        name = '';
+      }
+      if (!callback) callback = this[name];
+      var router = this;
+      Backbone.history.route(route, function(fragment) {
+        var args = router._extractParameters(route, fragment);
+        router.execute(callback, args);
+        router.trigger.apply(router, ['route:' + name].concat(args));
+        router.trigger('route', name, args);
+        Backbone.history.trigger('route', router, name, args);
+      });
+      return this;
+    },
+
+    // Execute a route handler with the provided parameters.  This is an
+    // excellent place to do pre-route setup or post-route cleanup.
+    execute: function(callback, args) {
+      if (callback) callback.apply(this, args);
+    },
+
+    // Simple proxy to `Backbone.history` to save a fragment into the history.
+    navigate: function(fragment, options) {
+      Backbone.history.navigate(fragment, options);
+      return this;
+    },
+
+    // Bind all defined routes to `Backbone.history`. We have to reverse the
+    // order of the routes here to support behavior where the most general
+    // routes can be defined at the bottom of the route map.
+    _bindRoutes: function() {
+      if (!this.routes) return;
+      this.routes = _.result(this, 'routes');
+      var route, routes = _.keys(this.routes);
+      while ((route = routes.pop()) != null) {
+        this.route(route, this.routes[route]);
+      }
+    },
+
+    // Convert a route string into a regular expression, suitable for matching
+    // against the current location hash.
+    _routeToRegExp: function(route) {
+      route = route.replace(escapeRegExp, '\\$&')
+                   .replace(optionalParam, '(?:$1)?')
+                   .replace(namedParam, function(match, optional) {
+                     return optional ? match : '([^/?]+)';
+                   })
+                   .replace(splatParam, '([^?]*?)');
+      return new RegExp('^' + route + '(?:\\?([\\s\\S]*))?$');
+    },
+
+    // Given a route, and a URL fragment that it matches, return the array of
+    // extracted decoded parameters. Empty or unmatched parameters will be
+    // treated as `null` to normalize cross-browser behavior.
+    _extractParameters: function(route, fragment) {
+      var params = route.exec(fragment).slice(1);
+      return _.map(params, function(param, i) {
+        // Don't decode the search params.
+        if (i === params.length - 1) return param || null;
+        return param ? decodeURIComponent(param) : null;
       });
     }
-    return array;
+
+  });
+
+  // Backbone.History
+  // ----------------
+
+  // Handles cross-browser history management, based on either
+  // [pushState](http://diveintohtml5.info/history.html) and real URLs, or
+  // [onhashchange](https://developer.mozilla.org/en-US/docs/DOM/window.onhashchange)
+  // and URL fragments. If the browser supports neither (old IE, natch),
+  // falls back to polling.
+  var History = Backbone.History = function() {
+    this.handlers = [];
+    _.bindAll(this, 'checkUrl');
+
+    // Ensure that `History` can be used outside of the browser.
+    if (typeof window !== 'undefined') {
+      this.location = window.location;
+      this.history = window.history;
+    }
   };
 
-  exports.keys = function (object) {
-    return ERROR_PROPERTY_FILTER(object, keys(object));
-  };
-  exports.getOwnPropertyNames = function (object) {
-    return ERROR_PROPERTY_FILTER(object, getOwnPropertyNames(object));
-  };
-} else {
-  exports.keys = keys;
-  exports.getOwnPropertyNames = getOwnPropertyNames;
-}
+  // Cached regex for stripping a leading hash/slash and trailing space.
+  var routeStripper = /^[#\/]|\s+$/g;
 
-// Object.getOwnPropertyDescriptor - supported in IE8 but only on dom elements
-function valueObject(value, key) {
-  return { value: value[key] };
-}
+  // Cached regex for stripping leading and trailing slashes.
+  var rootStripper = /^\/+|\/+$/g;
 
-if (typeof Object.getOwnPropertyDescriptor === 'function') {
-  try {
-    Object.getOwnPropertyDescriptor({'a': 1}, 'a');
-    exports.getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
-  } catch (e) {
-    // IE8 dom element issue - use a try catch and default to valueObject
-    exports.getOwnPropertyDescriptor = function (value, key) {
-      try {
-        return Object.getOwnPropertyDescriptor(value, key);
-      } catch (e) {
-        return valueObject(value, key);
+  // Cached regex for detecting MSIE.
+  var isExplorer = /msie [\w.]+/;
+
+  // Cached regex for removing a trailing slash.
+  var trailingSlash = /\/$/;
+
+  // Cached regex for stripping urls of hash.
+  var pathStripper = /#.*$/;
+
+  // Has the history handling already been started?
+  History.started = false;
+
+  // Set up all inheritable **Backbone.History** properties and methods.
+  _.extend(History.prototype, Events, {
+
+    // The default interval to poll for hash changes, if necessary, is
+    // twenty times a second.
+    interval: 50,
+
+    // Are we at the app root?
+    atRoot: function() {
+      return this.location.pathname.replace(/[^\/]$/, '$&/') === this.root;
+    },
+
+    // Gets the true hash value. Cannot use location.hash directly due to bug
+    // in Firefox where location.hash will always be decoded.
+    getHash: function(window) {
+      var match = (window || this).location.href.match(/#(.*)$/);
+      return match ? match[1] : '';
+    },
+
+    // Get the cross-browser normalized URL fragment, either from the URL,
+    // the hash, or the override.
+    getFragment: function(fragment, forcePushState) {
+      if (fragment == null) {
+        if (this._hasPushState || !this._wantsHashChange || forcePushState) {
+          fragment = decodeURI(this.location.pathname + this.location.search);
+          var root = this.root.replace(trailingSlash, '');
+          if (!fragment.indexOf(root)) fragment = fragment.slice(root.length);
+        } else {
+          fragment = this.getHash();
+        }
       }
+      return fragment.replace(routeStripper, '');
+    },
+
+    // Start the hash change handling, returning `true` if the current URL matches
+    // an existing route, and `false` otherwise.
+    start: function(options) {
+      if (History.started) throw new Error("Backbone.history has already been started");
+      History.started = true;
+
+      // Figure out the initial configuration. Do we need an iframe?
+      // Is pushState desired ... is it available?
+      this.options          = _.extend({root: '/'}, this.options, options);
+      this.root             = this.options.root;
+      this._wantsHashChange = this.options.hashChange !== false;
+      this._wantsPushState  = !!this.options.pushState;
+      this._hasPushState    = !!(this.options.pushState && this.history && this.history.pushState);
+      var fragment          = this.getFragment();
+      var docMode           = document.documentMode;
+      var oldIE             = (isExplorer.exec(navigator.userAgent.toLowerCase()) && (!docMode || docMode <= 7));
+
+      // Normalize root to always include a leading and trailing slash.
+      this.root = ('/' + this.root + '/').replace(rootStripper, '/');
+
+      if (oldIE && this._wantsHashChange) {
+        var frame = Backbone.$('<iframe src="javascript:0" tabindex="-1">');
+        this.iframe = frame.hide().appendTo('body')[0].contentWindow;
+        this.navigate(fragment);
+      }
+
+      // Depending on whether we're using pushState or hashes, and whether
+      // 'onhashchange' is supported, determine how we check the URL state.
+      if (this._hasPushState) {
+        Backbone.$(window).on('popstate', this.checkUrl);
+      } else if (this._wantsHashChange && ('onhashchange' in window) && !oldIE) {
+        Backbone.$(window).on('hashchange', this.checkUrl);
+      } else if (this._wantsHashChange) {
+        this._checkUrlInterval = setInterval(this.checkUrl, this.interval);
+      }
+
+      // Determine if we need to change the base url, for a pushState link
+      // opened by a non-pushState browser.
+      this.fragment = fragment;
+      var loc = this.location;
+
+      // Transition from hashChange to pushState or vice versa if both are
+      // requested.
+      if (this._wantsHashChange && this._wantsPushState) {
+
+        // If we've started off with a route from a `pushState`-enabled
+        // browser, but we're currently in a browser that doesn't support it...
+        if (!this._hasPushState && !this.atRoot()) {
+          this.fragment = this.getFragment(null, true);
+          this.location.replace(this.root + '#' + this.fragment);
+          // Return immediately as browser will do redirect to new url
+          return true;
+
+        // Or if we've started out with a hash-based route, but we're currently
+        // in a browser where it could be `pushState`-based instead...
+        } else if (this._hasPushState && this.atRoot() && loc.hash) {
+          this.fragment = this.getHash().replace(routeStripper, '');
+          this.history.replaceState({}, document.title, this.root + this.fragment);
+        }
+
+      }
+
+      if (!this.options.silent) return this.loadUrl();
+    },
+
+    // Disable Backbone.history, perhaps temporarily. Not useful in a real app,
+    // but possibly useful for unit testing Routers.
+    stop: function() {
+      Backbone.$(window).off('popstate', this.checkUrl).off('hashchange', this.checkUrl);
+      if (this._checkUrlInterval) clearInterval(this._checkUrlInterval);
+      History.started = false;
+    },
+
+    // Add a route to be tested when the fragment changes. Routes added later
+    // may override previous routes.
+    route: function(route, callback) {
+      this.handlers.unshift({route: route, callback: callback});
+    },
+
+    // Checks the current URL to see if it has changed, and if it has,
+    // calls `loadUrl`, normalizing across the hidden iframe.
+    checkUrl: function(e) {
+      var current = this.getFragment();
+      if (current === this.fragment && this.iframe) {
+        current = this.getFragment(this.getHash(this.iframe));
+      }
+      if (current === this.fragment) return false;
+      if (this.iframe) this.navigate(current);
+      this.loadUrl();
+    },
+
+    // Attempt to load the current URL fragment. If a route succeeds with a
+    // match, returns `true`. If no defined routes matches the fragment,
+    // returns `false`.
+    loadUrl: function(fragment) {
+      fragment = this.fragment = this.getFragment(fragment);
+      return _.any(this.handlers, function(handler) {
+        if (handler.route.test(fragment)) {
+          handler.callback(fragment);
+          return true;
+        }
+      });
+    },
+
+    // Save a fragment into the hash history, or replace the URL state if the
+    // 'replace' option is passed. You are responsible for properly URL-encoding
+    // the fragment in advance.
+    //
+    // The options object can contain `trigger: true` if you wish to have the
+    // route callback be fired (not usually desirable), or `replace: true`, if
+    // you wish to modify the current URL without adding an entry to the history.
+    navigate: function(fragment, options) {
+      if (!History.started) return false;
+      if (!options || options === true) options = {trigger: !!options};
+
+      var url = this.root + (fragment = this.getFragment(fragment || ''));
+
+      // Strip the hash for matching.
+      fragment = fragment.replace(pathStripper, '');
+
+      if (this.fragment === fragment) return;
+      this.fragment = fragment;
+
+      // Don't include a trailing slash on the root.
+      if (fragment === '' && url !== '/') url = url.slice(0, -1);
+
+      // If pushState is available, we use it to set the fragment as a real URL.
+      if (this._hasPushState) {
+        this.history[options.replace ? 'replaceState' : 'pushState']({}, document.title, url);
+
+      // If hash changes haven't been explicitly disabled, update the hash
+      // fragment to store history.
+      } else if (this._wantsHashChange) {
+        this._updateHash(this.location, fragment, options.replace);
+        if (this.iframe && (fragment !== this.getFragment(this.getHash(this.iframe)))) {
+          // Opening and closing the iframe tricks IE7 and earlier to push a
+          // history entry on hash-tag change.  When replace is true, we don't
+          // want this.
+          if(!options.replace) this.iframe.document.open().close();
+          this._updateHash(this.iframe.location, fragment, options.replace);
+        }
+
+      // If you've told us that you explicitly don't want fallback hashchange-
+      // based history, then `navigate` becomes a page refresh.
+      } else {
+        return this.location.assign(url);
+      }
+      if (options.trigger) return this.loadUrl(fragment);
+    },
+
+    // Update the hash location, either replacing the current entry, or adding
+    // a new one to the browser history.
+    _updateHash: function(location, fragment, replace) {
+      if (replace) {
+        var href = location.href.replace(/(javascript:|#).*$/, '');
+        location.replace(href + '#' + fragment);
+      } else {
+        // Some browsers require that `hash` contains a leading #.
+        location.hash = '#' + fragment;
+      }
+    }
+
+  });
+
+  // Create the default Backbone.history.
+  Backbone.history = new History;
+
+  // Helpers
+  // -------
+
+  // Helper function to correctly set up the prototype chain, for subclasses.
+  // Similar to `goog.inherits`, but uses a hash of prototype properties and
+  // class properties to be extended.
+  var extend = function(protoProps, staticProps) {
+    var parent = this;
+    var child;
+
+    // The constructor function for the new subclass is either defined by you
+    // (the "constructor" property in your `extend` definition), or defaulted
+    // by us to simply call the parent's constructor.
+    if (protoProps && _.has(protoProps, 'constructor')) {
+      child = protoProps.constructor;
+    } else {
+      child = function(){ return parent.apply(this, arguments); };
+    }
+
+    // Add static properties to the constructor function, if supplied.
+    _.extend(child, parent, staticProps);
+
+    // Set the prototype chain to inherit from `parent`, without calling
+    // `parent`'s constructor function.
+    var Surrogate = function(){ this.constructor = child; };
+    Surrogate.prototype = parent.prototype;
+    child.prototype = new Surrogate;
+
+    // Add prototype properties (instance properties) to the subclass,
+    // if supplied.
+    if (protoProps) _.extend(child.prototype, protoProps);
+
+    // Set a convenience property in case the parent's prototype is needed
+    // later.
+    child.__super__ = parent.prototype;
+
+    return child;
+  };
+
+  // Set up inheritance for the model, collection, router, view and history.
+  Model.extend = Collection.extend = Router.extend = View.extend = History.extend = extend;
+
+  // Throw an error when a URL is needed, and none is supplied.
+  var urlError = function() {
+    throw new Error('A "url" property or function must be specified');
+  };
+
+  // Wrap an optional error callback with a fallback error event.
+  var wrapError = function(model, options) {
+    var error = options.error;
+    options.error = function(resp) {
+      if (error) error(model, resp, options);
+      model.trigger('error', model, resp, options);
     };
+  };
+
+  return Backbone;
+
+}));
+
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/backbone/backbone.js","/node_modules/backbone")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"underscore":40}],18:[function(require,module,exports){
+
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],19:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/*!
+ * The buffer module from node.js, for the browser.
+ *
+ * @author   Feross Aboukhadijeh <feross@feross.org> <http://feross.org>
+ * @license  MIT
+ */
+
+var base64 = require('base64-js')
+var ieee754 = require('ieee754')
+
+exports.Buffer = Buffer
+exports.SlowBuffer = Buffer
+exports.INSPECT_MAX_BYTES = 50
+Buffer.poolSize = 8192
+
+/**
+ * If `Buffer._useTypedArrays`:
+ *   === true    Use Uint8Array implementation (fastest)
+ *   === false   Use Object implementation (compatible down to IE6)
+ */
+Buffer._useTypedArrays = (function () {
+  // Detect if browser supports Typed Arrays. Supported browsers are IE 10+, Firefox 4+,
+  // Chrome 7+, Safari 5.1+, Opera 11.6+, iOS 4.2+. If the browser does not support adding
+  // properties to `Uint8Array` instances, then that's the same as no `Uint8Array` support
+  // because we need to be able to add all the node Buffer API methods. This is an issue
+  // in Firefox 4-29. Now fixed: https://bugzilla.mozilla.org/show_bug.cgi?id=695438
+  try {
+    var buf = new ArrayBuffer(0)
+    var arr = new Uint8Array(buf)
+    arr.foo = function () { return 42 }
+    return 42 === arr.foo() &&
+        typeof arr.subarray === 'function' // Chrome 9-10 lack `subarray`
+  } catch (e) {
+    return false
   }
-} else {
-  exports.getOwnPropertyDescriptor = valueObject;
+})()
+
+/**
+ * Class: Buffer
+ * =============
+ *
+ * The Buffer constructor returns instances of `Uint8Array` that are augmented
+ * with function properties for all the node `Buffer` API functions. We use
+ * `Uint8Array` so that square bracket notation works as expected -- it returns
+ * a single octet.
+ *
+ * By augmenting the instances, we can avoid modifying the `Uint8Array`
+ * prototype.
+ */
+function Buffer (subject, encoding, noZero) {
+  if (!(this instanceof Buffer))
+    return new Buffer(subject, encoding, noZero)
+
+  var type = typeof subject
+
+  // Workaround: node's base64 implementation allows for non-padded strings
+  // while base64-js does not.
+  if (encoding === 'base64' && type === 'string') {
+    subject = stringtrim(subject)
+    while (subject.length % 4 !== 0) {
+      subject = subject + '='
+    }
+  }
+
+  // Find the length
+  var length
+  if (type === 'number')
+    length = coerce(subject)
+  else if (type === 'string')
+    length = Buffer.byteLength(subject, encoding)
+  else if (type === 'object')
+    length = coerce(subject.length) // assume that object is array-like
+  else
+    throw new Error('First argument needs to be a number, array or string.')
+
+  var buf
+  if (Buffer._useTypedArrays) {
+    // Preferred: Return an augmented `Uint8Array` instance for best performance
+    buf = Buffer._augment(new Uint8Array(length))
+  } else {
+    // Fallback: Return THIS instance of Buffer (created by `new`)
+    buf = this
+    buf.length = length
+    buf._isBuffer = true
+  }
+
+  var i
+  if (Buffer._useTypedArrays && typeof subject.byteLength === 'number') {
+    // Speed optimization -- use set if we're copying from a typed array
+    buf._set(subject)
+  } else if (isArrayish(subject)) {
+    // Treat array-ish objects as a byte array
+    for (i = 0; i < length; i++) {
+      if (Buffer.isBuffer(subject))
+        buf[i] = subject.readUInt8(i)
+      else
+        buf[i] = subject[i]
+    }
+  } else if (type === 'string') {
+    buf.write(subject, 0, encoding)
+  } else if (type === 'number' && !Buffer._useTypedArrays && !noZero) {
+    for (i = 0; i < length; i++) {
+      buf[i] = 0
+    }
+  }
+
+  return buf
 }
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],18:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/browserify/node_modules/browser-builtins/builtin/fs.js",__dirname="/node_modules/browserify/node_modules/browser-builtins/builtin";
-// not implemented
-// The reason for having an empty file and not throwing is to allow
-// untraditional implementation of this module.
+// STATIC METHODS
+// ==============
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],19:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/browserify/node_modules/browser-builtins/builtin/path.js",__dirname="/node_modules/browserify/node_modules/browser-builtins/builtin";// Copyright Joyent, Inc. and other Node contributors.
+Buffer.isEncoding = function (encoding) {
+  switch (String(encoding).toLowerCase()) {
+    case 'hex':
+    case 'utf8':
+    case 'utf-8':
+    case 'ascii':
+    case 'binary':
+    case 'base64':
+    case 'raw':
+    case 'ucs2':
+    case 'ucs-2':
+    case 'utf16le':
+    case 'utf-16le':
+      return true
+    default:
+      return false
+  }
+}
+
+Buffer.isBuffer = function (b) {
+  return !!(b !== null && b !== undefined && b._isBuffer)
+}
+
+Buffer.byteLength = function (str, encoding) {
+  var ret
+  str = str + ''
+  switch (encoding || 'utf8') {
+    case 'hex':
+      ret = str.length / 2
+      break
+    case 'utf8':
+    case 'utf-8':
+      ret = utf8ToBytes(str).length
+      break
+    case 'ascii':
+    case 'binary':
+    case 'raw':
+      ret = str.length
+      break
+    case 'base64':
+      ret = base64ToBytes(str).length
+      break
+    case 'ucs2':
+    case 'ucs-2':
+    case 'utf16le':
+    case 'utf-16le':
+      ret = str.length * 2
+      break
+    default:
+      throw new Error('Unknown encoding')
+  }
+  return ret
+}
+
+Buffer.concat = function (list, totalLength) {
+  assert(isArray(list), 'Usage: Buffer.concat(list, [totalLength])\n' +
+      'list should be an Array.')
+
+  if (list.length === 0) {
+    return new Buffer(0)
+  } else if (list.length === 1) {
+    return list[0]
+  }
+
+  var i
+  if (typeof totalLength !== 'number') {
+    totalLength = 0
+    for (i = 0; i < list.length; i++) {
+      totalLength += list[i].length
+    }
+  }
+
+  var buf = new Buffer(totalLength)
+  var pos = 0
+  for (i = 0; i < list.length; i++) {
+    var item = list[i]
+    item.copy(buf, pos)
+    pos += item.length
+  }
+  return buf
+}
+
+// BUFFER INSTANCE METHODS
+// =======================
+
+function _hexWrite (buf, string, offset, length) {
+  offset = Number(offset) || 0
+  var remaining = buf.length - offset
+  if (!length) {
+    length = remaining
+  } else {
+    length = Number(length)
+    if (length > remaining) {
+      length = remaining
+    }
+  }
+
+  // must be an even number of digits
+  var strLen = string.length
+  assert(strLen % 2 === 0, 'Invalid hex string')
+
+  if (length > strLen / 2) {
+    length = strLen / 2
+  }
+  for (var i = 0; i < length; i++) {
+    var byte = parseInt(string.substr(i * 2, 2), 16)
+    assert(!isNaN(byte), 'Invalid hex string')
+    buf[offset + i] = byte
+  }
+  Buffer._charsWritten = i * 2
+  return i
+}
+
+function _utf8Write (buf, string, offset, length) {
+  var charsWritten = Buffer._charsWritten =
+    blitBuffer(utf8ToBytes(string), buf, offset, length)
+  return charsWritten
+}
+
+function _asciiWrite (buf, string, offset, length) {
+  var charsWritten = Buffer._charsWritten =
+    blitBuffer(asciiToBytes(string), buf, offset, length)
+  return charsWritten
+}
+
+function _binaryWrite (buf, string, offset, length) {
+  return _asciiWrite(buf, string, offset, length)
+}
+
+function _base64Write (buf, string, offset, length) {
+  var charsWritten = Buffer._charsWritten =
+    blitBuffer(base64ToBytes(string), buf, offset, length)
+  return charsWritten
+}
+
+function _utf16leWrite (buf, string, offset, length) {
+  var charsWritten = Buffer._charsWritten =
+    blitBuffer(utf16leToBytes(string), buf, offset, length)
+  return charsWritten
+}
+
+Buffer.prototype.write = function (string, offset, length, encoding) {
+  // Support both (string, offset, length, encoding)
+  // and the legacy (string, encoding, offset, length)
+  if (isFinite(offset)) {
+    if (!isFinite(length)) {
+      encoding = length
+      length = undefined
+    }
+  } else {  // legacy
+    var swap = encoding
+    encoding = offset
+    offset = length
+    length = swap
+  }
+
+  offset = Number(offset) || 0
+  var remaining = this.length - offset
+  if (!length) {
+    length = remaining
+  } else {
+    length = Number(length)
+    if (length > remaining) {
+      length = remaining
+    }
+  }
+  encoding = String(encoding || 'utf8').toLowerCase()
+
+  var ret
+  switch (encoding) {
+    case 'hex':
+      ret = _hexWrite(this, string, offset, length)
+      break
+    case 'utf8':
+    case 'utf-8':
+      ret = _utf8Write(this, string, offset, length)
+      break
+    case 'ascii':
+      ret = _asciiWrite(this, string, offset, length)
+      break
+    case 'binary':
+      ret = _binaryWrite(this, string, offset, length)
+      break
+    case 'base64':
+      ret = _base64Write(this, string, offset, length)
+      break
+    case 'ucs2':
+    case 'ucs-2':
+    case 'utf16le':
+    case 'utf-16le':
+      ret = _utf16leWrite(this, string, offset, length)
+      break
+    default:
+      throw new Error('Unknown encoding')
+  }
+  return ret
+}
+
+Buffer.prototype.toString = function (encoding, start, end) {
+  var self = this
+
+  encoding = String(encoding || 'utf8').toLowerCase()
+  start = Number(start) || 0
+  end = (end !== undefined)
+    ? Number(end)
+    : end = self.length
+
+  // Fastpath empty strings
+  if (end === start)
+    return ''
+
+  var ret
+  switch (encoding) {
+    case 'hex':
+      ret = _hexSlice(self, start, end)
+      break
+    case 'utf8':
+    case 'utf-8':
+      ret = _utf8Slice(self, start, end)
+      break
+    case 'ascii':
+      ret = _asciiSlice(self, start, end)
+      break
+    case 'binary':
+      ret = _binarySlice(self, start, end)
+      break
+    case 'base64':
+      ret = _base64Slice(self, start, end)
+      break
+    case 'ucs2':
+    case 'ucs-2':
+    case 'utf16le':
+    case 'utf-16le':
+      ret = _utf16leSlice(self, start, end)
+      break
+    default:
+      throw new Error('Unknown encoding')
+  }
+  return ret
+}
+
+Buffer.prototype.toJSON = function () {
+  return {
+    type: 'Buffer',
+    data: Array.prototype.slice.call(this._arr || this, 0)
+  }
+}
+
+// copy(targetBuffer, targetStart=0, sourceStart=0, sourceEnd=buffer.length)
+Buffer.prototype.copy = function (target, target_start, start, end) {
+  var source = this
+
+  if (!start) start = 0
+  if (!end && end !== 0) end = this.length
+  if (!target_start) target_start = 0
+
+  // Copy 0 bytes; we're done
+  if (end === start) return
+  if (target.length === 0 || source.length === 0) return
+
+  // Fatal error conditions
+  assert(end >= start, 'sourceEnd < sourceStart')
+  assert(target_start >= 0 && target_start < target.length,
+      'targetStart out of bounds')
+  assert(start >= 0 && start < source.length, 'sourceStart out of bounds')
+  assert(end >= 0 && end <= source.length, 'sourceEnd out of bounds')
+
+  // Are we oob?
+  if (end > this.length)
+    end = this.length
+  if (target.length - target_start < end - start)
+    end = target.length - target_start + start
+
+  var len = end - start
+
+  if (len < 100 || !Buffer._useTypedArrays) {
+    for (var i = 0; i < len; i++)
+      target[i + target_start] = this[i + start]
+  } else {
+    target._set(this.subarray(start, start + len), target_start)
+  }
+}
+
+function _base64Slice (buf, start, end) {
+  if (start === 0 && end === buf.length) {
+    return base64.fromByteArray(buf)
+  } else {
+    return base64.fromByteArray(buf.slice(start, end))
+  }
+}
+
+function _utf8Slice (buf, start, end) {
+  var res = ''
+  var tmp = ''
+  end = Math.min(buf.length, end)
+
+  for (var i = start; i < end; i++) {
+    if (buf[i] <= 0x7F) {
+      res += decodeUtf8Char(tmp) + String.fromCharCode(buf[i])
+      tmp = ''
+    } else {
+      tmp += '%' + buf[i].toString(16)
+    }
+  }
+
+  return res + decodeUtf8Char(tmp)
+}
+
+function _asciiSlice (buf, start, end) {
+  var ret = ''
+  end = Math.min(buf.length, end)
+
+  for (var i = start; i < end; i++)
+    ret += String.fromCharCode(buf[i])
+  return ret
+}
+
+function _binarySlice (buf, start, end) {
+  return _asciiSlice(buf, start, end)
+}
+
+function _hexSlice (buf, start, end) {
+  var len = buf.length
+
+  if (!start || start < 0) start = 0
+  if (!end || end < 0 || end > len) end = len
+
+  var out = ''
+  for (var i = start; i < end; i++) {
+    out += toHex(buf[i])
+  }
+  return out
+}
+
+function _utf16leSlice (buf, start, end) {
+  var bytes = buf.slice(start, end)
+  var res = ''
+  for (var i = 0; i < bytes.length; i += 2) {
+    res += String.fromCharCode(bytes[i] + bytes[i+1] * 256)
+  }
+  return res
+}
+
+Buffer.prototype.slice = function (start, end) {
+  var len = this.length
+  start = clamp(start, len, 0)
+  end = clamp(end, len, len)
+
+  if (Buffer._useTypedArrays) {
+    return Buffer._augment(this.subarray(start, end))
+  } else {
+    var sliceLen = end - start
+    var newBuf = new Buffer(sliceLen, undefined, true)
+    for (var i = 0; i < sliceLen; i++) {
+      newBuf[i] = this[i + start]
+    }
+    return newBuf
+  }
+}
+
+// `get` will be removed in Node 0.13+
+Buffer.prototype.get = function (offset) {
+  console.log('.get() is deprecated. Access using array indexes instead.')
+  return this.readUInt8(offset)
+}
+
+// `set` will be removed in Node 0.13+
+Buffer.prototype.set = function (v, offset) {
+  console.log('.set() is deprecated. Access using array indexes instead.')
+  return this.writeUInt8(v, offset)
+}
+
+Buffer.prototype.readUInt8 = function (offset, noAssert) {
+  if (!noAssert) {
+    assert(offset !== undefined && offset !== null, 'missing offset')
+    assert(offset < this.length, 'Trying to read beyond buffer length')
+  }
+
+  if (offset >= this.length)
+    return
+
+  return this[offset]
+}
+
+function _readUInt16 (buf, offset, littleEndian, noAssert) {
+  if (!noAssert) {
+    assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
+    assert(offset !== undefined && offset !== null, 'missing offset')
+    assert(offset + 1 < buf.length, 'Trying to read beyond buffer length')
+  }
+
+  var len = buf.length
+  if (offset >= len)
+    return
+
+  var val
+  if (littleEndian) {
+    val = buf[offset]
+    if (offset + 1 < len)
+      val |= buf[offset + 1] << 8
+  } else {
+    val = buf[offset] << 8
+    if (offset + 1 < len)
+      val |= buf[offset + 1]
+  }
+  return val
+}
+
+Buffer.prototype.readUInt16LE = function (offset, noAssert) {
+  return _readUInt16(this, offset, true, noAssert)
+}
+
+Buffer.prototype.readUInt16BE = function (offset, noAssert) {
+  return _readUInt16(this, offset, false, noAssert)
+}
+
+function _readUInt32 (buf, offset, littleEndian, noAssert) {
+  if (!noAssert) {
+    assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
+    assert(offset !== undefined && offset !== null, 'missing offset')
+    assert(offset + 3 < buf.length, 'Trying to read beyond buffer length')
+  }
+
+  var len = buf.length
+  if (offset >= len)
+    return
+
+  var val
+  if (littleEndian) {
+    if (offset + 2 < len)
+      val = buf[offset + 2] << 16
+    if (offset + 1 < len)
+      val |= buf[offset + 1] << 8
+    val |= buf[offset]
+    if (offset + 3 < len)
+      val = val + (buf[offset + 3] << 24 >>> 0)
+  } else {
+    if (offset + 1 < len)
+      val = buf[offset + 1] << 16
+    if (offset + 2 < len)
+      val |= buf[offset + 2] << 8
+    if (offset + 3 < len)
+      val |= buf[offset + 3]
+    val = val + (buf[offset] << 24 >>> 0)
+  }
+  return val
+}
+
+Buffer.prototype.readUInt32LE = function (offset, noAssert) {
+  return _readUInt32(this, offset, true, noAssert)
+}
+
+Buffer.prototype.readUInt32BE = function (offset, noAssert) {
+  return _readUInt32(this, offset, false, noAssert)
+}
+
+Buffer.prototype.readInt8 = function (offset, noAssert) {
+  if (!noAssert) {
+    assert(offset !== undefined && offset !== null,
+        'missing offset')
+    assert(offset < this.length, 'Trying to read beyond buffer length')
+  }
+
+  if (offset >= this.length)
+    return
+
+  var neg = this[offset] & 0x80
+  if (neg)
+    return (0xff - this[offset] + 1) * -1
+  else
+    return this[offset]
+}
+
+function _readInt16 (buf, offset, littleEndian, noAssert) {
+  if (!noAssert) {
+    assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
+    assert(offset !== undefined && offset !== null, 'missing offset')
+    assert(offset + 1 < buf.length, 'Trying to read beyond buffer length')
+  }
+
+  var len = buf.length
+  if (offset >= len)
+    return
+
+  var val = _readUInt16(buf, offset, littleEndian, true)
+  var neg = val & 0x8000
+  if (neg)
+    return (0xffff - val + 1) * -1
+  else
+    return val
+}
+
+Buffer.prototype.readInt16LE = function (offset, noAssert) {
+  return _readInt16(this, offset, true, noAssert)
+}
+
+Buffer.prototype.readInt16BE = function (offset, noAssert) {
+  return _readInt16(this, offset, false, noAssert)
+}
+
+function _readInt32 (buf, offset, littleEndian, noAssert) {
+  if (!noAssert) {
+    assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
+    assert(offset !== undefined && offset !== null, 'missing offset')
+    assert(offset + 3 < buf.length, 'Trying to read beyond buffer length')
+  }
+
+  var len = buf.length
+  if (offset >= len)
+    return
+
+  var val = _readUInt32(buf, offset, littleEndian, true)
+  var neg = val & 0x80000000
+  if (neg)
+    return (0xffffffff - val + 1) * -1
+  else
+    return val
+}
+
+Buffer.prototype.readInt32LE = function (offset, noAssert) {
+  return _readInt32(this, offset, true, noAssert)
+}
+
+Buffer.prototype.readInt32BE = function (offset, noAssert) {
+  return _readInt32(this, offset, false, noAssert)
+}
+
+function _readFloat (buf, offset, littleEndian, noAssert) {
+  if (!noAssert) {
+    assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
+    assert(offset + 3 < buf.length, 'Trying to read beyond buffer length')
+  }
+
+  return ieee754.read(buf, offset, littleEndian, 23, 4)
+}
+
+Buffer.prototype.readFloatLE = function (offset, noAssert) {
+  return _readFloat(this, offset, true, noAssert)
+}
+
+Buffer.prototype.readFloatBE = function (offset, noAssert) {
+  return _readFloat(this, offset, false, noAssert)
+}
+
+function _readDouble (buf, offset, littleEndian, noAssert) {
+  if (!noAssert) {
+    assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
+    assert(offset + 7 < buf.length, 'Trying to read beyond buffer length')
+  }
+
+  return ieee754.read(buf, offset, littleEndian, 52, 8)
+}
+
+Buffer.prototype.readDoubleLE = function (offset, noAssert) {
+  return _readDouble(this, offset, true, noAssert)
+}
+
+Buffer.prototype.readDoubleBE = function (offset, noAssert) {
+  return _readDouble(this, offset, false, noAssert)
+}
+
+Buffer.prototype.writeUInt8 = function (value, offset, noAssert) {
+  if (!noAssert) {
+    assert(value !== undefined && value !== null, 'missing value')
+    assert(offset !== undefined && offset !== null, 'missing offset')
+    assert(offset < this.length, 'trying to write beyond buffer length')
+    verifuint(value, 0xff)
+  }
+
+  if (offset >= this.length) return
+
+  this[offset] = value
+}
+
+function _writeUInt16 (buf, value, offset, littleEndian, noAssert) {
+  if (!noAssert) {
+    assert(value !== undefined && value !== null, 'missing value')
+    assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
+    assert(offset !== undefined && offset !== null, 'missing offset')
+    assert(offset + 1 < buf.length, 'trying to write beyond buffer length')
+    verifuint(value, 0xffff)
+  }
+
+  var len = buf.length
+  if (offset >= len)
+    return
+
+  for (var i = 0, j = Math.min(len - offset, 2); i < j; i++) {
+    buf[offset + i] =
+        (value & (0xff << (8 * (littleEndian ? i : 1 - i)))) >>>
+            (littleEndian ? i : 1 - i) * 8
+  }
+}
+
+Buffer.prototype.writeUInt16LE = function (value, offset, noAssert) {
+  _writeUInt16(this, value, offset, true, noAssert)
+}
+
+Buffer.prototype.writeUInt16BE = function (value, offset, noAssert) {
+  _writeUInt16(this, value, offset, false, noAssert)
+}
+
+function _writeUInt32 (buf, value, offset, littleEndian, noAssert) {
+  if (!noAssert) {
+    assert(value !== undefined && value !== null, 'missing value')
+    assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
+    assert(offset !== undefined && offset !== null, 'missing offset')
+    assert(offset + 3 < buf.length, 'trying to write beyond buffer length')
+    verifuint(value, 0xffffffff)
+  }
+
+  var len = buf.length
+  if (offset >= len)
+    return
+
+  for (var i = 0, j = Math.min(len - offset, 4); i < j; i++) {
+    buf[offset + i] =
+        (value >>> (littleEndian ? i : 3 - i) * 8) & 0xff
+  }
+}
+
+Buffer.prototype.writeUInt32LE = function (value, offset, noAssert) {
+  _writeUInt32(this, value, offset, true, noAssert)
+}
+
+Buffer.prototype.writeUInt32BE = function (value, offset, noAssert) {
+  _writeUInt32(this, value, offset, false, noAssert)
+}
+
+Buffer.prototype.writeInt8 = function (value, offset, noAssert) {
+  if (!noAssert) {
+    assert(value !== undefined && value !== null, 'missing value')
+    assert(offset !== undefined && offset !== null, 'missing offset')
+    assert(offset < this.length, 'Trying to write beyond buffer length')
+    verifsint(value, 0x7f, -0x80)
+  }
+
+  if (offset >= this.length)
+    return
+
+  if (value >= 0)
+    this.writeUInt8(value, offset, noAssert)
+  else
+    this.writeUInt8(0xff + value + 1, offset, noAssert)
+}
+
+function _writeInt16 (buf, value, offset, littleEndian, noAssert) {
+  if (!noAssert) {
+    assert(value !== undefined && value !== null, 'missing value')
+    assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
+    assert(offset !== undefined && offset !== null, 'missing offset')
+    assert(offset + 1 < buf.length, 'Trying to write beyond buffer length')
+    verifsint(value, 0x7fff, -0x8000)
+  }
+
+  var len = buf.length
+  if (offset >= len)
+    return
+
+  if (value >= 0)
+    _writeUInt16(buf, value, offset, littleEndian, noAssert)
+  else
+    _writeUInt16(buf, 0xffff + value + 1, offset, littleEndian, noAssert)
+}
+
+Buffer.prototype.writeInt16LE = function (value, offset, noAssert) {
+  _writeInt16(this, value, offset, true, noAssert)
+}
+
+Buffer.prototype.writeInt16BE = function (value, offset, noAssert) {
+  _writeInt16(this, value, offset, false, noAssert)
+}
+
+function _writeInt32 (buf, value, offset, littleEndian, noAssert) {
+  if (!noAssert) {
+    assert(value !== undefined && value !== null, 'missing value')
+    assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
+    assert(offset !== undefined && offset !== null, 'missing offset')
+    assert(offset + 3 < buf.length, 'Trying to write beyond buffer length')
+    verifsint(value, 0x7fffffff, -0x80000000)
+  }
+
+  var len = buf.length
+  if (offset >= len)
+    return
+
+  if (value >= 0)
+    _writeUInt32(buf, value, offset, littleEndian, noAssert)
+  else
+    _writeUInt32(buf, 0xffffffff + value + 1, offset, littleEndian, noAssert)
+}
+
+Buffer.prototype.writeInt32LE = function (value, offset, noAssert) {
+  _writeInt32(this, value, offset, true, noAssert)
+}
+
+Buffer.prototype.writeInt32BE = function (value, offset, noAssert) {
+  _writeInt32(this, value, offset, false, noAssert)
+}
+
+function _writeFloat (buf, value, offset, littleEndian, noAssert) {
+  if (!noAssert) {
+    assert(value !== undefined && value !== null, 'missing value')
+    assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
+    assert(offset !== undefined && offset !== null, 'missing offset')
+    assert(offset + 3 < buf.length, 'Trying to write beyond buffer length')
+    verifIEEE754(value, 3.4028234663852886e+38, -3.4028234663852886e+38)
+  }
+
+  var len = buf.length
+  if (offset >= len)
+    return
+
+  ieee754.write(buf, value, offset, littleEndian, 23, 4)
+}
+
+Buffer.prototype.writeFloatLE = function (value, offset, noAssert) {
+  _writeFloat(this, value, offset, true, noAssert)
+}
+
+Buffer.prototype.writeFloatBE = function (value, offset, noAssert) {
+  _writeFloat(this, value, offset, false, noAssert)
+}
+
+function _writeDouble (buf, value, offset, littleEndian, noAssert) {
+  if (!noAssert) {
+    assert(value !== undefined && value !== null, 'missing value')
+    assert(typeof littleEndian === 'boolean', 'missing or invalid endian')
+    assert(offset !== undefined && offset !== null, 'missing offset')
+    assert(offset + 7 < buf.length,
+        'Trying to write beyond buffer length')
+    verifIEEE754(value, 1.7976931348623157E+308, -1.7976931348623157E+308)
+  }
+
+  var len = buf.length
+  if (offset >= len)
+    return
+
+  ieee754.write(buf, value, offset, littleEndian, 52, 8)
+}
+
+Buffer.prototype.writeDoubleLE = function (value, offset, noAssert) {
+  _writeDouble(this, value, offset, true, noAssert)
+}
+
+Buffer.prototype.writeDoubleBE = function (value, offset, noAssert) {
+  _writeDouble(this, value, offset, false, noAssert)
+}
+
+// fill(value, start=0, end=buffer.length)
+Buffer.prototype.fill = function (value, start, end) {
+  if (!value) value = 0
+  if (!start) start = 0
+  if (!end) end = this.length
+
+  if (typeof value === 'string') {
+    value = value.charCodeAt(0)
+  }
+
+  assert(typeof value === 'number' && !isNaN(value), 'value is not a number')
+  assert(end >= start, 'end < start')
+
+  // Fill 0 bytes; we're done
+  if (end === start) return
+  if (this.length === 0) return
+
+  assert(start >= 0 && start < this.length, 'start out of bounds')
+  assert(end >= 0 && end <= this.length, 'end out of bounds')
+
+  for (var i = start; i < end; i++) {
+    this[i] = value
+  }
+}
+
+Buffer.prototype.inspect = function () {
+  var out = []
+  var len = this.length
+  for (var i = 0; i < len; i++) {
+    out[i] = toHex(this[i])
+    if (i === exports.INSPECT_MAX_BYTES) {
+      out[i + 1] = '...'
+      break
+    }
+  }
+  return '<Buffer ' + out.join(' ') + '>'
+}
+
+/**
+ * Creates a new `ArrayBuffer` with the *copied* memory of the buffer instance.
+ * Added in Node 0.12. Only available in browsers that support ArrayBuffer.
+ */
+Buffer.prototype.toArrayBuffer = function () {
+  if (typeof Uint8Array !== 'undefined') {
+    if (Buffer._useTypedArrays) {
+      return (new Buffer(this)).buffer
+    } else {
+      var buf = new Uint8Array(this.length)
+      for (var i = 0, len = buf.length; i < len; i += 1)
+        buf[i] = this[i]
+      return buf.buffer
+    }
+  } else {
+    throw new Error('Buffer.toArrayBuffer not supported in this browser')
+  }
+}
+
+// HELPER FUNCTIONS
+// ================
+
+function stringtrim (str) {
+  if (str.trim) return str.trim()
+  return str.replace(/^\s+|\s+$/g, '')
+}
+
+var BP = Buffer.prototype
+
+/**
+ * Augment a Uint8Array *instance* (not the Uint8Array class!) with Buffer methods
+ */
+Buffer._augment = function (arr) {
+  arr._isBuffer = true
+
+  // save reference to original Uint8Array get/set methods before overwriting
+  arr._get = arr.get
+  arr._set = arr.set
+
+  // deprecated, will be removed in node 0.13+
+  arr.get = BP.get
+  arr.set = BP.set
+
+  arr.write = BP.write
+  arr.toString = BP.toString
+  arr.toLocaleString = BP.toString
+  arr.toJSON = BP.toJSON
+  arr.copy = BP.copy
+  arr.slice = BP.slice
+  arr.readUInt8 = BP.readUInt8
+  arr.readUInt16LE = BP.readUInt16LE
+  arr.readUInt16BE = BP.readUInt16BE
+  arr.readUInt32LE = BP.readUInt32LE
+  arr.readUInt32BE = BP.readUInt32BE
+  arr.readInt8 = BP.readInt8
+  arr.readInt16LE = BP.readInt16LE
+  arr.readInt16BE = BP.readInt16BE
+  arr.readInt32LE = BP.readInt32LE
+  arr.readInt32BE = BP.readInt32BE
+  arr.readFloatLE = BP.readFloatLE
+  arr.readFloatBE = BP.readFloatBE
+  arr.readDoubleLE = BP.readDoubleLE
+  arr.readDoubleBE = BP.readDoubleBE
+  arr.writeUInt8 = BP.writeUInt8
+  arr.writeUInt16LE = BP.writeUInt16LE
+  arr.writeUInt16BE = BP.writeUInt16BE
+  arr.writeUInt32LE = BP.writeUInt32LE
+  arr.writeUInt32BE = BP.writeUInt32BE
+  arr.writeInt8 = BP.writeInt8
+  arr.writeInt16LE = BP.writeInt16LE
+  arr.writeInt16BE = BP.writeInt16BE
+  arr.writeInt32LE = BP.writeInt32LE
+  arr.writeInt32BE = BP.writeInt32BE
+  arr.writeFloatLE = BP.writeFloatLE
+  arr.writeFloatBE = BP.writeFloatBE
+  arr.writeDoubleLE = BP.writeDoubleLE
+  arr.writeDoubleBE = BP.writeDoubleBE
+  arr.fill = BP.fill
+  arr.inspect = BP.inspect
+  arr.toArrayBuffer = BP.toArrayBuffer
+
+  return arr
+}
+
+// slice(start, end)
+function clamp (index, len, defaultValue) {
+  if (typeof index !== 'number') return defaultValue
+  index = ~~index;  // Coerce to integer.
+  if (index >= len) return len
+  if (index >= 0) return index
+  index += len
+  if (index >= 0) return index
+  return 0
+}
+
+function coerce (length) {
+  // Coerce length to a number (possibly NaN), round up
+  // in case it's fractional (e.g. 123.456) then do a
+  // double negate to coerce a NaN to 0. Easy, right?
+  length = ~~Math.ceil(+length)
+  return length < 0 ? 0 : length
+}
+
+function isArray (subject) {
+  return (Array.isArray || function (subject) {
+    return Object.prototype.toString.call(subject) === '[object Array]'
+  })(subject)
+}
+
+function isArrayish (subject) {
+  return isArray(subject) || Buffer.isBuffer(subject) ||
+      subject && typeof subject === 'object' &&
+      typeof subject.length === 'number'
+}
+
+function toHex (n) {
+  if (n < 16) return '0' + n.toString(16)
+  return n.toString(16)
+}
+
+function utf8ToBytes (str) {
+  var byteArray = []
+  for (var i = 0; i < str.length; i++) {
+    var b = str.charCodeAt(i)
+    if (b <= 0x7F)
+      byteArray.push(str.charCodeAt(i))
+    else {
+      var start = i
+      if (b >= 0xD800 && b <= 0xDFFF) i++
+      var h = encodeURIComponent(str.slice(start, i+1)).substr(1).split('%')
+      for (var j = 0; j < h.length; j++)
+        byteArray.push(parseInt(h[j], 16))
+    }
+  }
+  return byteArray
+}
+
+function asciiToBytes (str) {
+  var byteArray = []
+  for (var i = 0; i < str.length; i++) {
+    // Node's code seems to be doing this and not & 0x7F..
+    byteArray.push(str.charCodeAt(i) & 0xFF)
+  }
+  return byteArray
+}
+
+function utf16leToBytes (str) {
+  var c, hi, lo
+  var byteArray = []
+  for (var i = 0; i < str.length; i++) {
+    c = str.charCodeAt(i)
+    hi = c >> 8
+    lo = c % 256
+    byteArray.push(lo)
+    byteArray.push(hi)
+  }
+
+  return byteArray
+}
+
+function base64ToBytes (str) {
+  return base64.toByteArray(str)
+}
+
+function blitBuffer (src, dst, offset, length) {
+  var pos
+  for (var i = 0; i < length; i++) {
+    if ((i + offset >= dst.length) || (i >= src.length))
+      break
+    dst[i + offset] = src[i]
+  }
+  return i
+}
+
+function decodeUtf8Char (str) {
+  try {
+    return decodeURIComponent(str)
+  } catch (err) {
+    return String.fromCharCode(0xFFFD) // UTF 8 invalid char
+  }
+}
+
+/*
+ * We have to make sure that the value is a valid integer. This means that it
+ * is non-negative. It has no fractional component and that it does not
+ * exceed the maximum allowed value.
+ */
+function verifuint (value, max) {
+  assert(typeof value === 'number', 'cannot write a non-number as a number')
+  assert(value >= 0, 'specified a negative value for writing an unsigned value')
+  assert(value <= max, 'value is larger than maximum value for type')
+  assert(Math.floor(value) === value, 'value has a fractional component')
+}
+
+function verifsint (value, max, min) {
+  assert(typeof value === 'number', 'cannot write a non-number as a number')
+  assert(value <= max, 'value larger than maximum allowed value')
+  assert(value >= min, 'value smaller than minimum allowed value')
+  assert(Math.floor(value) === value, 'value has a fractional component')
+}
+
+function verifIEEE754 (value, max, min) {
+  assert(typeof value === 'number', 'cannot write a non-number as a number')
+  assert(value <= max, 'value larger than maximum allowed value')
+  assert(value >= min, 'value smaller than minimum allowed value')
+}
+
+function assert (test, message) {
+  if (!test) throw new Error(message || 'Failed assertion')
+}
+
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/index.js","/node_modules/browserify/node_modules/buffer")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"base64-js":20,"buffer":19,"ieee754":21}],20:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+;(function (exports) {
+	'use strict';
+
+  var Arr = (typeof Uint8Array !== 'undefined')
+    ? Uint8Array
+    : Array
+
+	var ZERO   = '0'.charCodeAt(0)
+	var PLUS   = '+'.charCodeAt(0)
+	var SLASH  = '/'.charCodeAt(0)
+	var NUMBER = '0'.charCodeAt(0)
+	var LOWER  = 'a'.charCodeAt(0)
+	var UPPER  = 'A'.charCodeAt(0)
+
+	function decode (elt) {
+		var code = elt.charCodeAt(0)
+		if (code === PLUS)
+			return 62 // '+'
+		if (code === SLASH)
+			return 63 // '/'
+		if (code < NUMBER)
+			return -1 //no match
+		if (code < NUMBER + 10)
+			return code - NUMBER + 26 + 26
+		if (code < UPPER + 26)
+			return code - UPPER
+		if (code < LOWER + 26)
+			return code - LOWER + 26
+	}
+
+	function b64ToByteArray (b64) {
+		var i, j, l, tmp, placeHolders, arr
+
+		if (b64.length % 4 > 0) {
+			throw new Error('Invalid string. Length must be a multiple of 4')
+		}
+
+		// the number of equal signs (place holders)
+		// if there are two placeholders, than the two characters before it
+		// represent one byte
+		// if there is only one, then the three characters before it represent 2 bytes
+		// this is just a cheap hack to not do indexOf twice
+		var len = b64.length
+		placeHolders = '=' === b64.charAt(len - 2) ? 2 : '=' === b64.charAt(len - 1) ? 1 : 0
+
+		// base64 is 4/3 + up to two characters of the original data
+		arr = new Arr(b64.length * 3 / 4 - placeHolders)
+
+		// if there are placeholders, only get up to the last complete 4 chars
+		l = placeHolders > 0 ? b64.length - 4 : b64.length
+
+		var L = 0
+
+		function push (v) {
+			arr[L++] = v
+		}
+
+		for (i = 0, j = 0; i < l; i += 4, j += 3) {
+			tmp = (decode(b64.charAt(i)) << 18) | (decode(b64.charAt(i + 1)) << 12) | (decode(b64.charAt(i + 2)) << 6) | decode(b64.charAt(i + 3))
+			push((tmp & 0xFF0000) >> 16)
+			push((tmp & 0xFF00) >> 8)
+			push(tmp & 0xFF)
+		}
+
+		if (placeHolders === 2) {
+			tmp = (decode(b64.charAt(i)) << 2) | (decode(b64.charAt(i + 1)) >> 4)
+			push(tmp & 0xFF)
+		} else if (placeHolders === 1) {
+			tmp = (decode(b64.charAt(i)) << 10) | (decode(b64.charAt(i + 1)) << 4) | (decode(b64.charAt(i + 2)) >> 2)
+			push((tmp >> 8) & 0xFF)
+			push(tmp & 0xFF)
+		}
+
+		return arr
+	}
+
+	function uint8ToBase64 (uint8) {
+		var i,
+			extraBytes = uint8.length % 3, // if we have 1 byte left, pad 2 bytes
+			output = "",
+			temp, length
+
+		function encode (num) {
+			return lookup.charAt(num)
+		}
+
+		function tripletToBase64 (num) {
+			return encode(num >> 18 & 0x3F) + encode(num >> 12 & 0x3F) + encode(num >> 6 & 0x3F) + encode(num & 0x3F)
+		}
+
+		// go through the array every three bytes, we'll deal with trailing stuff later
+		for (i = 0, length = uint8.length - extraBytes; i < length; i += 3) {
+			temp = (uint8[i] << 16) + (uint8[i + 1] << 8) + (uint8[i + 2])
+			output += tripletToBase64(temp)
+		}
+
+		// pad the end with zeros, but make sure to not forget the extra bytes
+		switch (extraBytes) {
+			case 1:
+				temp = uint8[uint8.length - 1]
+				output += encode(temp >> 2)
+				output += encode((temp << 4) & 0x3F)
+				output += '=='
+				break
+			case 2:
+				temp = (uint8[uint8.length - 2] << 8) + (uint8[uint8.length - 1])
+				output += encode(temp >> 10)
+				output += encode((temp >> 4) & 0x3F)
+				output += encode((temp << 2) & 0x3F)
+				output += '='
+				break
+		}
+
+		return output
+	}
+
+	module.exports.toByteArray = b64ToByteArray
+	module.exports.fromByteArray = uint8ToBase64
+}())
+
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib/b64.js","/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],21:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+exports.read = function(buffer, offset, isLE, mLen, nBytes) {
+  var e, m,
+      eLen = nBytes * 8 - mLen - 1,
+      eMax = (1 << eLen) - 1,
+      eBias = eMax >> 1,
+      nBits = -7,
+      i = isLE ? (nBytes - 1) : 0,
+      d = isLE ? -1 : 1,
+      s = buffer[offset + i];
+
+  i += d;
+
+  e = s & ((1 << (-nBits)) - 1);
+  s >>= (-nBits);
+  nBits += eLen;
+  for (; nBits > 0; e = e * 256 + buffer[offset + i], i += d, nBits -= 8);
+
+  m = e & ((1 << (-nBits)) - 1);
+  e >>= (-nBits);
+  nBits += mLen;
+  for (; nBits > 0; m = m * 256 + buffer[offset + i], i += d, nBits -= 8);
+
+  if (e === 0) {
+    e = 1 - eBias;
+  } else if (e === eMax) {
+    return m ? NaN : ((s ? -1 : 1) * Infinity);
+  } else {
+    m = m + Math.pow(2, mLen);
+    e = e - eBias;
+  }
+  return (s ? -1 : 1) * m * Math.pow(2, e - mLen);
+};
+
+exports.write = function(buffer, value, offset, isLE, mLen, nBytes) {
+  var e, m, c,
+      eLen = nBytes * 8 - mLen - 1,
+      eMax = (1 << eLen) - 1,
+      eBias = eMax >> 1,
+      rt = (mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0),
+      i = isLE ? 0 : (nBytes - 1),
+      d = isLE ? 1 : -1,
+      s = value < 0 || (value === 0 && 1 / value < 0) ? 1 : 0;
+
+  value = Math.abs(value);
+
+  if (isNaN(value) || value === Infinity) {
+    m = isNaN(value) ? 1 : 0;
+    e = eMax;
+  } else {
+    e = Math.floor(Math.log(value) / Math.LN2);
+    if (value * (c = Math.pow(2, -e)) < 1) {
+      e--;
+      c *= 2;
+    }
+    if (e + eBias >= 1) {
+      value += rt / c;
+    } else {
+      value += rt * Math.pow(2, 1 - eBias);
+    }
+    if (value * c >= 2) {
+      e++;
+      c /= 2;
+    }
+
+    if (e + eBias >= eMax) {
+      m = 0;
+      e = eMax;
+    } else if (e + eBias >= 1) {
+      m = (value * c - 1) * Math.pow(2, mLen);
+      e = e + eBias;
+    } else {
+      m = value * Math.pow(2, eBias - 1) * Math.pow(2, mLen);
+      e = 0;
+    }
+  }
+
+  for (; mLen >= 8; buffer[offset + i] = m & 0xff, i += d, m /= 256, mLen -= 8);
+
+  e = (e << mLen) | m;
+  eLen += mLen;
+  for (; eLen > 0; buffer[offset + i] = e & 0xff, i += d, e /= 256, eLen -= 8);
+
+  buffer[offset + i - d] |= s * 128;
+};
+
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/node_modules/ieee754/index.js","/node_modules/browserify/node_modules/buffer/node_modules/ieee754")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],22:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+// shim for using process in browser
+
+var process = module.exports = {};
+
+process.nextTick = (function () {
+    var canSetImmediate = typeof window !== 'undefined'
+    && window.setImmediate;
+    var canPost = typeof window !== 'undefined'
+    && window.postMessage && window.addEventListener
+    ;
+
+    if (canSetImmediate) {
+        return function (f) { return window.setImmediate(f) };
+    }
+
+    if (canPost) {
+        var queue = [];
+        window.addEventListener('message', function (ev) {
+            var source = ev.source;
+            if ((source === window || source === null) && ev.data === 'process-tick') {
+                ev.stopPropagation();
+                if (queue.length > 0) {
+                    var fn = queue.shift();
+                    fn();
+                }
+            }
+        }, true);
+
+        return function nextTick(fn) {
+            queue.push(fn);
+            window.postMessage('process-tick', '*');
+        };
+    }
+
+    return function nextTick(fn) {
+        setTimeout(fn, 0);
+    };
+})();
+
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+
+function noop() {}
+
+process.on = noop;
+process.once = noop;
+process.off = noop;
+process.emit = noop;
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+}
+
+// TODO(shtylman)
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js","/node_modules/browserify/node_modules/insert-module-globals/node_modules/process")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],23:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+// Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -4219,9 +7295,6 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var util = require('util');
-var shims = require('_shims');
 
 // resolves . and .. elements in a path array with directory names there
 // must be no slashes, empty elements, or device names (c:\) in the array
@@ -4271,7 +7344,7 @@ exports.resolve = function() {
     var path = (i >= 0) ? arguments[i] : process.cwd();
 
     // Skip empty and invalid entries
-    if (!util.isString(path)) {
+    if (typeof path !== 'string') {
       throw new TypeError('Arguments to path.resolve must be strings');
     } else if (!path) {
       continue;
@@ -4285,7 +7358,7 @@ exports.resolve = function() {
   // handle relative paths to be safe (might happen when process.cwd() fails)
 
   // Normalize the path
-  resolvedPath = normalizeArray(shims.filter(resolvedPath.split('/'), function(p) {
+  resolvedPath = normalizeArray(filter(resolvedPath.split('/'), function(p) {
     return !!p;
   }), !resolvedAbsolute).join('/');
 
@@ -4296,10 +7369,10 @@ exports.resolve = function() {
 // posix version
 exports.normalize = function(path) {
   var isAbsolute = exports.isAbsolute(path),
-      trailingSlash = shims.substr(path, -1) === '/';
+      trailingSlash = substr(path, -1) === '/';
 
   // Normalize the path
-  path = normalizeArray(shims.filter(path.split('/'), function(p) {
+  path = normalizeArray(filter(path.split('/'), function(p) {
     return !!p;
   }), !isAbsolute).join('/');
 
@@ -4321,8 +7394,8 @@ exports.isAbsolute = function(path) {
 // posix version
 exports.join = function() {
   var paths = Array.prototype.slice.call(arguments, 0);
-  return exports.normalize(shims.filter(paths, function(p, index) {
-    if (!util.isString(p)) {
+  return exports.normalize(filter(paths, function(p, index) {
+    if (typeof p !== 'string') {
       throw new TypeError('Arguments to path.join must be strings');
     }
     return p;
@@ -4409,3007 +7482,60 @@ exports.extname = function(path) {
   return splitPath(path)[3];
 };
 
-},{"__browserify_Buffer":21,"__browserify_process":22,"_shims":17,"util":20}],20:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/browserify/node_modules/browser-builtins/builtin/util.js",__dirname="/node_modules/browserify/node_modules/browser-builtins/builtin";// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var shims = require('_shims');
-
-var formatRegExp = /%[sdj%]/g;
-exports.format = function(f) {
-  if (!isString(f)) {
-    var objects = [];
-    for (var i = 0; i < arguments.length; i++) {
-      objects.push(inspect(arguments[i]));
+function filter (xs, f) {
+    if (xs.filter) return xs.filter(f);
+    var res = [];
+    for (var i = 0; i < xs.length; i++) {
+        if (f(xs[i], i, xs)) res.push(xs[i]);
     }
-    return objects.join(' ');
-  }
-
-  var i = 1;
-  var args = arguments;
-  var len = args.length;
-  var str = String(f).replace(formatRegExp, function(x) {
-    if (x === '%%') return '%';
-    if (i >= len) return x;
-    switch (x) {
-      case '%s': return String(args[i++]);
-      case '%d': return Number(args[i++]);
-      case '%j':
-        try {
-          return JSON.stringify(args[i++]);
-        } catch (_) {
-          return '[Circular]';
-        }
-      default:
-        return x;
-    }
-  });
-  for (var x = args[i]; i < len; x = args[++i]) {
-    if (isNull(x) || !isObject(x)) {
-      str += ' ' + x;
-    } else {
-      str += ' ' + inspect(x);
-    }
-  }
-  return str;
-};
-
-/**
- * Echos the value of a value. Trys to print the value out
- * in the best way possible given the different types.
- *
- * @param {Object} obj The object to print out.
- * @param {Object} opts Optional options object that alters the output.
- */
-/* legacy: obj, showHidden, depth, colors*/
-function inspect(obj, opts) {
-  // default options
-  var ctx = {
-    seen: [],
-    stylize: stylizeNoColor
-  };
-  // legacy...
-  if (arguments.length >= 3) ctx.depth = arguments[2];
-  if (arguments.length >= 4) ctx.colors = arguments[3];
-  if (isBoolean(opts)) {
-    // legacy...
-    ctx.showHidden = opts;
-  } else if (opts) {
-    // got an "options" object
-    exports._extend(ctx, opts);
-  }
-  // set default options
-  if (isUndefined(ctx.showHidden)) ctx.showHidden = false;
-  if (isUndefined(ctx.depth)) ctx.depth = 2;
-  if (isUndefined(ctx.colors)) ctx.colors = false;
-  if (isUndefined(ctx.customInspect)) ctx.customInspect = true;
-  if (ctx.colors) ctx.stylize = stylizeWithColor;
-  return formatValue(ctx, obj, ctx.depth);
+    return res;
 }
-exports.inspect = inspect;
-
-
-// http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
-inspect.colors = {
-  'bold' : [1, 22],
-  'italic' : [3, 23],
-  'underline' : [4, 24],
-  'inverse' : [7, 27],
-  'white' : [37, 39],
-  'grey' : [90, 39],
-  'black' : [30, 39],
-  'blue' : [34, 39],
-  'cyan' : [36, 39],
-  'green' : [32, 39],
-  'magenta' : [35, 39],
-  'red' : [31, 39],
-  'yellow' : [33, 39]
-};
-
-// Don't use 'blue' not visible on cmd.exe
-inspect.styles = {
-  'special': 'cyan',
-  'number': 'yellow',
-  'boolean': 'yellow',
-  'undefined': 'grey',
-  'null': 'bold',
-  'string': 'green',
-  'date': 'magenta',
-  // "name": intentionally not styling
-  'regexp': 'red'
-};
-
-
-function stylizeWithColor(str, styleType) {
-  var style = inspect.styles[styleType];
-
-  if (style) {
-    return '\u001b[' + inspect.colors[style][0] + 'm' + str +
-           '\u001b[' + inspect.colors[style][1] + 'm';
-  } else {
-    return str;
-  }
-}
-
-
-function stylizeNoColor(str, styleType) {
-  return str;
-}
-
-
-function arrayToHash(array) {
-  var hash = {};
-
-  shims.forEach(array, function(val, idx) {
-    hash[val] = true;
-  });
-
-  return hash;
-}
-
-
-function formatValue(ctx, value, recurseTimes) {
-  // Provide a hook for user-specified inspect functions.
-  // Check that value is an object with an inspect function on it
-  if (ctx.customInspect &&
-      value &&
-      isFunction(value.inspect) &&
-      // Filter out the util module, it's inspect function is special
-      value.inspect !== exports.inspect &&
-      // Also filter out any prototype objects using the circular check.
-      !(value.constructor && value.constructor.prototype === value)) {
-    var ret = value.inspect(recurseTimes);
-    if (!isString(ret)) {
-      ret = formatValue(ctx, ret, recurseTimes);
-    }
-    return ret;
-  }
-
-  // Primitive types cannot have properties
-  var primitive = formatPrimitive(ctx, value);
-  if (primitive) {
-    return primitive;
-  }
-
-  // Look up the keys of the object.
-  var keys = shims.keys(value);
-  var visibleKeys = arrayToHash(keys);
-
-  if (ctx.showHidden) {
-    keys = shims.getOwnPropertyNames(value);
-  }
-
-  // Some type of object without properties can be shortcutted.
-  if (keys.length === 0) {
-    if (isFunction(value)) {
-      var name = value.name ? ': ' + value.name : '';
-      return ctx.stylize('[Function' + name + ']', 'special');
-    }
-    if (isRegExp(value)) {
-      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
-    }
-    if (isDate(value)) {
-      return ctx.stylize(Date.prototype.toString.call(value), 'date');
-    }
-    if (isError(value)) {
-      return formatError(value);
-    }
-  }
-
-  var base = '', array = false, braces = ['{', '}'];
-
-  // Make Array say that they are Array
-  if (isArray(value)) {
-    array = true;
-    braces = ['[', ']'];
-  }
-
-  // Make functions say that they are functions
-  if (isFunction(value)) {
-    var n = value.name ? ': ' + value.name : '';
-    base = ' [Function' + n + ']';
-  }
-
-  // Make RegExps say that they are RegExps
-  if (isRegExp(value)) {
-    base = ' ' + RegExp.prototype.toString.call(value);
-  }
-
-  // Make dates with properties first say the date
-  if (isDate(value)) {
-    base = ' ' + Date.prototype.toUTCString.call(value);
-  }
-
-  // Make error with message first say the error
-  if (isError(value)) {
-    base = ' ' + formatError(value);
-  }
-
-  if (keys.length === 0 && (!array || value.length == 0)) {
-    return braces[0] + base + braces[1];
-  }
-
-  if (recurseTimes < 0) {
-    if (isRegExp(value)) {
-      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
-    } else {
-      return ctx.stylize('[Object]', 'special');
-    }
-  }
-
-  ctx.seen.push(value);
-
-  var output;
-  if (array) {
-    output = formatArray(ctx, value, recurseTimes, visibleKeys, keys);
-  } else {
-    output = keys.map(function(key) {
-      return formatProperty(ctx, value, recurseTimes, visibleKeys, key, array);
-    });
-  }
-
-  ctx.seen.pop();
-
-  return reduceToSingleString(output, base, braces);
-}
-
-
-function formatPrimitive(ctx, value) {
-  if (isUndefined(value))
-    return ctx.stylize('undefined', 'undefined');
-  if (isString(value)) {
-    var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
-                                             .replace(/'/g, "\\'")
-                                             .replace(/\\"/g, '"') + '\'';
-    return ctx.stylize(simple, 'string');
-  }
-  if (isNumber(value))
-    return ctx.stylize('' + value, 'number');
-  if (isBoolean(value))
-    return ctx.stylize('' + value, 'boolean');
-  // For some reason typeof null is "object", so special case here.
-  if (isNull(value))
-    return ctx.stylize('null', 'null');
-}
-
-
-function formatError(value) {
-  return '[' + Error.prototype.toString.call(value) + ']';
-}
-
-
-function formatArray(ctx, value, recurseTimes, visibleKeys, keys) {
-  var output = [];
-  for (var i = 0, l = value.length; i < l; ++i) {
-    if (hasOwnProperty(value, String(i))) {
-      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
-          String(i), true));
-    } else {
-      output.push('');
-    }
-  }
-
-  shims.forEach(keys, function(key) {
-    if (!key.match(/^\d+$/)) {
-      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
-          key, true));
-    }
-  });
-  return output;
-}
-
-
-function formatProperty(ctx, value, recurseTimes, visibleKeys, key, array) {
-  var name, str, desc;
-  desc = shims.getOwnPropertyDescriptor(value, key) || { value: value[key] };
-  if (desc.get) {
-    if (desc.set) {
-      str = ctx.stylize('[Getter/Setter]', 'special');
-    } else {
-      str = ctx.stylize('[Getter]', 'special');
-    }
-  } else {
-    if (desc.set) {
-      str = ctx.stylize('[Setter]', 'special');
-    }
-  }
-
-  if (!hasOwnProperty(visibleKeys, key)) {
-    name = '[' + key + ']';
-  }
-  if (!str) {
-    if (shims.indexOf(ctx.seen, desc.value) < 0) {
-      if (isNull(recurseTimes)) {
-        str = formatValue(ctx, desc.value, null);
-      } else {
-        str = formatValue(ctx, desc.value, recurseTimes - 1);
-      }
-      if (str.indexOf('\n') > -1) {
-        if (array) {
-          str = str.split('\n').map(function(line) {
-            return '  ' + line;
-          }).join('\n').substr(2);
-        } else {
-          str = '\n' + str.split('\n').map(function(line) {
-            return '   ' + line;
-          }).join('\n');
-        }
-      }
-    } else {
-      str = ctx.stylize('[Circular]', 'special');
-    }
-  }
-  if (isUndefined(name)) {
-    if (array && key.match(/^\d+$/)) {
-      return str;
-    }
-    name = JSON.stringify('' + key);
-    if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
-      name = name.substr(1, name.length - 2);
-      name = ctx.stylize(name, 'name');
-    } else {
-      name = name.replace(/'/g, "\\'")
-                 .replace(/\\"/g, '"')
-                 .replace(/(^"|"$)/g, "'");
-      name = ctx.stylize(name, 'string');
-    }
-  }
-
-  return name + ': ' + str;
-}
-
-
-function reduceToSingleString(output, base, braces) {
-  var numLinesEst = 0;
-  var length = shims.reduce(output, function(prev, cur) {
-    numLinesEst++;
-    if (cur.indexOf('\n') >= 0) numLinesEst++;
-    return prev + cur.replace(/\u001b\[\d\d?m/g, '').length + 1;
-  }, 0);
-
-  if (length > 60) {
-    return braces[0] +
-           (base === '' ? '' : base + '\n ') +
-           ' ' +
-           output.join(',\n  ') +
-           ' ' +
-           braces[1];
-  }
-
-  return braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
-}
-
-
-// NOTE: These type checking functions intentionally don't use `instanceof`
-// because it is fragile and can be easily faked with `Object.create()`.
-function isArray(ar) {
-  return shims.isArray(ar);
-}
-exports.isArray = isArray;
-
-function isBoolean(arg) {
-  return typeof arg === 'boolean';
-}
-exports.isBoolean = isBoolean;
-
-function isNull(arg) {
-  return arg === null;
-}
-exports.isNull = isNull;
-
-function isNullOrUndefined(arg) {
-  return arg == null;
-}
-exports.isNullOrUndefined = isNullOrUndefined;
-
-function isNumber(arg) {
-  return typeof arg === 'number';
-}
-exports.isNumber = isNumber;
-
-function isString(arg) {
-  return typeof arg === 'string';
-}
-exports.isString = isString;
-
-function isSymbol(arg) {
-  return typeof arg === 'symbol';
-}
-exports.isSymbol = isSymbol;
-
-function isUndefined(arg) {
-  return arg === void 0;
-}
-exports.isUndefined = isUndefined;
-
-function isRegExp(re) {
-  return isObject(re) && objectToString(re) === '[object RegExp]';
-}
-exports.isRegExp = isRegExp;
-
-function isObject(arg) {
-  return typeof arg === 'object' && arg;
-}
-exports.isObject = isObject;
-
-function isDate(d) {
-  return isObject(d) && objectToString(d) === '[object Date]';
-}
-exports.isDate = isDate;
-
-function isError(e) {
-  return isObject(e) && objectToString(e) === '[object Error]';
-}
-exports.isError = isError;
-
-function isFunction(arg) {
-  return typeof arg === 'function';
-}
-exports.isFunction = isFunction;
-
-function isPrimitive(arg) {
-  return arg === null ||
-         typeof arg === 'boolean' ||
-         typeof arg === 'number' ||
-         typeof arg === 'string' ||
-         typeof arg === 'symbol' ||  // ES6 symbol
-         typeof arg === 'undefined';
-}
-exports.isPrimitive = isPrimitive;
-
-function isBuffer(arg) {
-  return arg && typeof arg === 'object'
-    && typeof arg.copy === 'function'
-    && typeof arg.fill === 'function'
-    && typeof arg.binarySlice === 'function'
-  ;
-}
-exports.isBuffer = isBuffer;
-
-function objectToString(o) {
-  return Object.prototype.toString.call(o);
-}
-
-
-function pad(n) {
-  return n < 10 ? '0' + n.toString(10) : n.toString(10);
-}
-
-
-var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
-              'Oct', 'Nov', 'Dec'];
-
-// 26 Feb 16:19:34
-function timestamp() {
-  var d = new Date();
-  var time = [pad(d.getHours()),
-              pad(d.getMinutes()),
-              pad(d.getSeconds())].join(':');
-  return [d.getDate(), months[d.getMonth()], time].join(' ');
-}
-
-
-// log is just a thin wrapper to console.log that prepends a timestamp
-exports.log = function() {
-  console.log('%s - %s', timestamp(), exports.format.apply(exports, arguments));
-};
-
-
-/**
- * Inherit the prototype methods from one constructor into another.
- *
- * The Function.prototype.inherits from lang.js rewritten as a standalone
- * function (not on Function.prototype). NOTE: If this file is to be loaded
- * during bootstrapping this function needs to be rewritten using some native
- * functions as prototype setup using normal JavaScript does not work as
- * expected during bootstrapping (see mirror.js in r114903).
- *
- * @param {function} ctor Constructor function which needs to inherit the
- *     prototype.
- * @param {function} superCtor Constructor function to inherit prototype from.
- */
-exports.inherits = function(ctor, superCtor) {
-  ctor.super_ = superCtor;
-  ctor.prototype = shims.create(superCtor.prototype, {
-    constructor: {
-      value: ctor,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    }
-  });
-};
-
-exports._extend = function(origin, add) {
-  // Don't do anything if add isn't an object
-  if (!add || !isObject(add)) return origin;
-
-  var keys = shims.keys(add);
-  var i = keys.length;
-  while (i--) {
-    origin[keys[i]] = add[keys[i]];
-  }
-  return origin;
-};
-
-function hasOwnProperty(obj, prop) {
-  return Object.prototype.hasOwnProperty.call(obj, prop);
-}
-
-},{"__browserify_Buffer":21,"__browserify_process":22,"_shims":17}],21:[function(require,module,exports){
-require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-exports.readIEEE754 = function(buffer, offset, isBE, mLen, nBytes) {
-  var e, m,
-      eLen = nBytes * 8 - mLen - 1,
-      eMax = (1 << eLen) - 1,
-      eBias = eMax >> 1,
-      nBits = -7,
-      i = isBE ? 0 : (nBytes - 1),
-      d = isBE ? 1 : -1,
-      s = buffer[offset + i];
-
-  i += d;
-
-  e = s & ((1 << (-nBits)) - 1);
-  s >>= (-nBits);
-  nBits += eLen;
-  for (; nBits > 0; e = e * 256 + buffer[offset + i], i += d, nBits -= 8);
-
-  m = e & ((1 << (-nBits)) - 1);
-  e >>= (-nBits);
-  nBits += mLen;
-  for (; nBits > 0; m = m * 256 + buffer[offset + i], i += d, nBits -= 8);
-
-  if (e === 0) {
-    e = 1 - eBias;
-  } else if (e === eMax) {
-    return m ? NaN : ((s ? -1 : 1) * Infinity);
-  } else {
-    m = m + Math.pow(2, mLen);
-    e = e - eBias;
-  }
-  return (s ? -1 : 1) * m * Math.pow(2, e - mLen);
-};
-
-exports.writeIEEE754 = function(buffer, value, offset, isBE, mLen, nBytes) {
-  var e, m, c,
-      eLen = nBytes * 8 - mLen - 1,
-      eMax = (1 << eLen) - 1,
-      eBias = eMax >> 1,
-      rt = (mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0),
-      i = isBE ? (nBytes - 1) : 0,
-      d = isBE ? -1 : 1,
-      s = value < 0 || (value === 0 && 1 / value < 0) ? 1 : 0;
-
-  value = Math.abs(value);
-
-  if (isNaN(value) || value === Infinity) {
-    m = isNaN(value) ? 1 : 0;
-    e = eMax;
-  } else {
-    e = Math.floor(Math.log(value) / Math.LN2);
-    if (value * (c = Math.pow(2, -e)) < 1) {
-      e--;
-      c *= 2;
-    }
-    if (e + eBias >= 1) {
-      value += rt / c;
-    } else {
-      value += rt * Math.pow(2, 1 - eBias);
-    }
-    if (value * c >= 2) {
-      e++;
-      c /= 2;
-    }
-
-    if (e + eBias >= eMax) {
-      m = 0;
-      e = eMax;
-    } else if (e + eBias >= 1) {
-      m = (value * c - 1) * Math.pow(2, mLen);
-      e = e + eBias;
-    } else {
-      m = value * Math.pow(2, eBias - 1) * Math.pow(2, mLen);
-      e = 0;
-    }
-  }
-
-  for (; mLen >= 8; buffer[offset + i] = m & 0xff, i += d, m /= 256, mLen -= 8);
-
-  e = (e << mLen) | m;
-  eLen += mLen;
-  for (; eLen > 0; buffer[offset + i] = e & 0xff, i += d, e /= 256, eLen -= 8);
-
-  buffer[offset + i - d] |= s * 128;
-};
-
-},{}],"q9TxCC":[function(require,module,exports){
-var assert;
-exports.Buffer = Buffer;
-exports.SlowBuffer = Buffer;
-Buffer.poolSize = 8192;
-exports.INSPECT_MAX_BYTES = 50;
-
-function stringtrim(str) {
-  if (str.trim) return str.trim();
-  return str.replace(/^\s+|\s+$/g, '');
-}
-
-function Buffer(subject, encoding, offset) {
-  if(!assert) assert= require('assert');
-  if (!(this instanceof Buffer)) {
-    return new Buffer(subject, encoding, offset);
-  }
-  this.parent = this;
-  this.offset = 0;
-
-  // Work-around: node's base64 implementation
-  // allows for non-padded strings while base64-js
-  // does not..
-  if (encoding == "base64" && typeof subject == "string") {
-    subject = stringtrim(subject);
-    while (subject.length % 4 != 0) {
-      subject = subject + "="; 
-    }
-  }
-
-  var type;
-
-  // Are we slicing?
-  if (typeof offset === 'number') {
-    this.length = coerce(encoding);
-    // slicing works, with limitations (no parent tracking/update)
-    // check https://github.com/toots/buffer-browserify/issues/19
-    for (var i = 0; i < this.length; i++) {
-        this[i] = subject.get(i+offset);
-    }
-  } else {
-    // Find the length
-    switch (type = typeof subject) {
-      case 'number':
-        this.length = coerce(subject);
-        break;
-
-      case 'string':
-        this.length = Buffer.byteLength(subject, encoding);
-        break;
-
-      case 'object': // Assume object is an array
-        this.length = coerce(subject.length);
-        break;
-
-      default:
-        throw new Error('First argument needs to be a number, ' +
-                        'array or string.');
-    }
-
-    // Treat array-ish objects as a byte array.
-    if (isArrayIsh(subject)) {
-      for (var i = 0; i < this.length; i++) {
-        if (subject instanceof Buffer) {
-          this[i] = subject.readUInt8(i);
-        }
-        else {
-          this[i] = subject[i];
-        }
-      }
-    } else if (type == 'string') {
-      // We are a string
-      this.length = this.write(subject, 0, encoding);
-    } else if (type === 'number') {
-      for (var i = 0; i < this.length; i++) {
-        this[i] = 0;
-      }
-    }
-  }
-}
-
-Buffer.prototype.get = function get(i) {
-  if (i < 0 || i >= this.length) throw new Error('oob');
-  return this[i];
-};
-
-Buffer.prototype.set = function set(i, v) {
-  if (i < 0 || i >= this.length) throw new Error('oob');
-  return this[i] = v;
-};
-
-Buffer.byteLength = function (str, encoding) {
-  switch (encoding || "utf8") {
-    case 'hex':
-      return str.length / 2;
-
-    case 'utf8':
-    case 'utf-8':
-      return utf8ToBytes(str).length;
-
-    case 'ascii':
-    case 'binary':
-      return str.length;
-
-    case 'base64':
-      return base64ToBytes(str).length;
-
-    default:
-      throw new Error('Unknown encoding');
-  }
-};
-
-Buffer.prototype.utf8Write = function (string, offset, length) {
-  var bytes, pos;
-  return Buffer._charsWritten =  blitBuffer(utf8ToBytes(string), this, offset, length);
-};
-
-Buffer.prototype.asciiWrite = function (string, offset, length) {
-  var bytes, pos;
-  return Buffer._charsWritten =  blitBuffer(asciiToBytes(string), this, offset, length);
-};
-
-Buffer.prototype.binaryWrite = Buffer.prototype.asciiWrite;
-
-Buffer.prototype.base64Write = function (string, offset, length) {
-  var bytes, pos;
-  return Buffer._charsWritten = blitBuffer(base64ToBytes(string), this, offset, length);
-};
-
-Buffer.prototype.base64Slice = function (start, end) {
-  var bytes = Array.prototype.slice.apply(this, arguments)
-  return require("base64-js").fromByteArray(bytes);
-};
-
-Buffer.prototype.utf8Slice = function () {
-  var bytes = Array.prototype.slice.apply(this, arguments);
-  var res = "";
-  var tmp = "";
-  var i = 0;
-  while (i < bytes.length) {
-    if (bytes[i] <= 0x7F) {
-      res += decodeUtf8Char(tmp) + String.fromCharCode(bytes[i]);
-      tmp = "";
-    } else
-      tmp += "%" + bytes[i].toString(16);
-
-    i++;
-  }
-
-  return res + decodeUtf8Char(tmp);
-}
-
-Buffer.prototype.asciiSlice = function () {
-  var bytes = Array.prototype.slice.apply(this, arguments);
-  var ret = "";
-  for (var i = 0; i < bytes.length; i++)
-    ret += String.fromCharCode(bytes[i]);
-  return ret;
-}
-
-Buffer.prototype.binarySlice = Buffer.prototype.asciiSlice;
-
-Buffer.prototype.inspect = function() {
-  var out = [],
-      len = this.length;
-  for (var i = 0; i < len; i++) {
-    out[i] = toHex(this[i]);
-    if (i == exports.INSPECT_MAX_BYTES) {
-      out[i + 1] = '...';
-      break;
-    }
-  }
-  return '<Buffer ' + out.join(' ') + '>';
-};
-
-
-Buffer.prototype.hexSlice = function(start, end) {
-  var len = this.length;
-
-  if (!start || start < 0) start = 0;
-  if (!end || end < 0 || end > len) end = len;
-
-  var out = '';
-  for (var i = start; i < end; i++) {
-    out += toHex(this[i]);
-  }
-  return out;
-};
-
-
-Buffer.prototype.toString = function(encoding, start, end) {
-  encoding = String(encoding || 'utf8').toLowerCase();
-  start = +start || 0;
-  if (typeof end == 'undefined') end = this.length;
-
-  // Fastpath empty strings
-  if (+end == start) {
-    return '';
-  }
-
-  switch (encoding) {
-    case 'hex':
-      return this.hexSlice(start, end);
-
-    case 'utf8':
-    case 'utf-8':
-      return this.utf8Slice(start, end);
-
-    case 'ascii':
-      return this.asciiSlice(start, end);
-
-    case 'binary':
-      return this.binarySlice(start, end);
-
-    case 'base64':
-      return this.base64Slice(start, end);
-
-    case 'ucs2':
-    case 'ucs-2':
-      return this.ucs2Slice(start, end);
-
-    default:
-      throw new Error('Unknown encoding');
-  }
-};
-
-
-Buffer.prototype.hexWrite = function(string, offset, length) {
-  offset = +offset || 0;
-  var remaining = this.length - offset;
-  if (!length) {
-    length = remaining;
-  } else {
-    length = +length;
-    if (length > remaining) {
-      length = remaining;
-    }
-  }
-
-  // must be an even number of digits
-  var strLen = string.length;
-  if (strLen % 2) {
-    throw new Error('Invalid hex string');
-  }
-  if (length > strLen / 2) {
-    length = strLen / 2;
-  }
-  for (var i = 0; i < length; i++) {
-    var byte = parseInt(string.substr(i * 2, 2), 16);
-    if (isNaN(byte)) throw new Error('Invalid hex string');
-    this[offset + i] = byte;
-  }
-  Buffer._charsWritten = i * 2;
-  return i;
-};
-
-
-Buffer.prototype.write = function(string, offset, length, encoding) {
-  // Support both (string, offset, length, encoding)
-  // and the legacy (string, encoding, offset, length)
-  if (isFinite(offset)) {
-    if (!isFinite(length)) {
-      encoding = length;
-      length = undefined;
-    }
-  } else {  // legacy
-    var swap = encoding;
-    encoding = offset;
-    offset = length;
-    length = swap;
-  }
-
-  offset = +offset || 0;
-  var remaining = this.length - offset;
-  if (!length) {
-    length = remaining;
-  } else {
-    length = +length;
-    if (length > remaining) {
-      length = remaining;
-    }
-  }
-  encoding = String(encoding || 'utf8').toLowerCase();
-
-  switch (encoding) {
-    case 'hex':
-      return this.hexWrite(string, offset, length);
-
-    case 'utf8':
-    case 'utf-8':
-      return this.utf8Write(string, offset, length);
-
-    case 'ascii':
-      return this.asciiWrite(string, offset, length);
-
-    case 'binary':
-      return this.binaryWrite(string, offset, length);
-
-    case 'base64':
-      return this.base64Write(string, offset, length);
-
-    case 'ucs2':
-    case 'ucs-2':
-      return this.ucs2Write(string, offset, length);
-
-    default:
-      throw new Error('Unknown encoding');
-  }
-};
-
-// slice(start, end)
-function clamp(index, len, defaultValue) {
-  if (typeof index !== 'number') return defaultValue;
-  index = ~~index;  // Coerce to integer.
-  if (index >= len) return len;
-  if (index >= 0) return index;
-  index += len;
-  if (index >= 0) return index;
-  return 0;
-}
-
-Buffer.prototype.slice = function(start, end) {
-  var len = this.length;
-  start = clamp(start, len, 0);
-  end = clamp(end, len, len);
-  return new Buffer(this, end - start, +start);
-};
-
-// copy(targetBuffer, targetStart=0, sourceStart=0, sourceEnd=buffer.length)
-Buffer.prototype.copy = function(target, target_start, start, end) {
-  var source = this;
-  start || (start = 0);
-  if (end === undefined || isNaN(end)) {
-    end = this.length;
-  }
-  target_start || (target_start = 0);
-
-  if (end < start) throw new Error('sourceEnd < sourceStart');
-
-  // Copy 0 bytes; we're done
-  if (end === start) return 0;
-  if (target.length == 0 || source.length == 0) return 0;
-
-  if (target_start < 0 || target_start >= target.length) {
-    throw new Error('targetStart out of bounds');
-  }
-
-  if (start < 0 || start >= source.length) {
-    throw new Error('sourceStart out of bounds');
-  }
-
-  if (end < 0 || end > source.length) {
-    throw new Error('sourceEnd out of bounds');
-  }
-
-  // Are we oob?
-  if (end > this.length) {
-    end = this.length;
-  }
-
-  if (target.length - target_start < end - start) {
-    end = target.length - target_start + start;
-  }
-
-  var temp = [];
-  for (var i=start; i<end; i++) {
-    assert.ok(typeof this[i] !== 'undefined', "copying undefined buffer bytes!");
-    temp.push(this[i]);
-  }
-
-  for (var i=target_start; i<target_start+temp.length; i++) {
-    target[i] = temp[i-target_start];
-  }
-};
-
-// fill(value, start=0, end=buffer.length)
-Buffer.prototype.fill = function fill(value, start, end) {
-  value || (value = 0);
-  start || (start = 0);
-  end || (end = this.length);
-
-  if (typeof value === 'string') {
-    value = value.charCodeAt(0);
-  }
-  if (!(typeof value === 'number') || isNaN(value)) {
-    throw new Error('value is not a number');
-  }
-
-  if (end < start) throw new Error('end < start');
-
-  // Fill 0 bytes; we're done
-  if (end === start) return 0;
-  if (this.length == 0) return 0;
-
-  if (start < 0 || start >= this.length) {
-    throw new Error('start out of bounds');
-  }
-
-  if (end < 0 || end > this.length) {
-    throw new Error('end out of bounds');
-  }
-
-  for (var i = start; i < end; i++) {
-    this[i] = value;
-  }
-}
-
-// Static methods
-Buffer.isBuffer = function isBuffer(b) {
-  return b instanceof Buffer || b instanceof Buffer;
-};
-
-Buffer.concat = function (list, totalLength) {
-  if (!isArray(list)) {
-    throw new Error("Usage: Buffer.concat(list, [totalLength])\n \
-      list should be an Array.");
-  }
-
-  if (list.length === 0) {
-    return new Buffer(0);
-  } else if (list.length === 1) {
-    return list[0];
-  }
-
-  if (typeof totalLength !== 'number') {
-    totalLength = 0;
-    for (var i = 0; i < list.length; i++) {
-      var buf = list[i];
-      totalLength += buf.length;
-    }
-  }
-
-  var buffer = new Buffer(totalLength);
-  var pos = 0;
-  for (var i = 0; i < list.length; i++) {
-    var buf = list[i];
-    buf.copy(buffer, pos);
-    pos += buf.length;
-  }
-  return buffer;
-};
-
-Buffer.isEncoding = function(encoding) {
-  switch ((encoding + '').toLowerCase()) {
-    case 'hex':
-    case 'utf8':
-    case 'utf-8':
-    case 'ascii':
-    case 'binary':
-    case 'base64':
-    case 'ucs2':
-    case 'ucs-2':
-    case 'utf16le':
-    case 'utf-16le':
-    case 'raw':
-      return true;
-
-    default:
-      return false;
-  }
-};
-
-// helpers
-
-function coerce(length) {
-  // Coerce length to a number (possibly NaN), round up
-  // in case it's fractional (e.g. 123.456) then do a
-  // double negate to coerce a NaN to 0. Easy, right?
-  length = ~~Math.ceil(+length);
-  return length < 0 ? 0 : length;
-}
-
-function isArray(subject) {
-  return (Array.isArray ||
-    function(subject){
-      return {}.toString.apply(subject) == '[object Array]'
-    })
-    (subject)
-}
-
-function isArrayIsh(subject) {
-  return isArray(subject) || Buffer.isBuffer(subject) ||
-         subject && typeof subject === 'object' &&
-         typeof subject.length === 'number';
-}
-
-function toHex(n) {
-  if (n < 16) return '0' + n.toString(16);
-  return n.toString(16);
-}
-
-function utf8ToBytes(str) {
-  var byteArray = [];
-  for (var i = 0; i < str.length; i++)
-    if (str.charCodeAt(i) <= 0x7F)
-      byteArray.push(str.charCodeAt(i));
-    else {
-      var h = encodeURIComponent(str.charAt(i)).substr(1).split('%');
-      for (var j = 0; j < h.length; j++)
-        byteArray.push(parseInt(h[j], 16));
-    }
-
-  return byteArray;
-}
-
-function asciiToBytes(str) {
-  var byteArray = []
-  for (var i = 0; i < str.length; i++ )
-    // Node's code seems to be doing this and not & 0x7F..
-    byteArray.push( str.charCodeAt(i) & 0xFF );
-
-  return byteArray;
-}
-
-function base64ToBytes(str) {
-  return require("base64-js").toByteArray(str);
-}
-
-function blitBuffer(src, dst, offset, length) {
-  var pos, i = 0;
-  while (i < length) {
-    if ((i+offset >= dst.length) || (i >= src.length))
-      break;
-
-    dst[i + offset] = src[i];
-    i++;
-  }
-  return i;
-}
-
-function decodeUtf8Char(str) {
-  try {
-    return decodeURIComponent(str);
-  } catch (err) {
-    return String.fromCharCode(0xFFFD); // UTF 8 invalid char
-  }
-}
-
-// read/write bit-twiddling
-
-Buffer.prototype.readUInt8 = function(offset, noAssert) {
-  var buffer = this;
-
-  if (!noAssert) {
-    assert.ok(offset !== undefined && offset !== null,
-        'missing offset');
-
-    assert.ok(offset < buffer.length,
-        'Trying to read beyond buffer length');
-  }
-
-  if (offset >= buffer.length) return;
-
-  return buffer[offset];
-};
-
-function readUInt16(buffer, offset, isBigEndian, noAssert) {
-  var val = 0;
-
-
-  if (!noAssert) {
-    assert.ok(typeof (isBigEndian) === 'boolean',
-        'missing or invalid endian');
-
-    assert.ok(offset !== undefined && offset !== null,
-        'missing offset');
-
-    assert.ok(offset + 1 < buffer.length,
-        'Trying to read beyond buffer length');
-  }
-
-  if (offset >= buffer.length) return 0;
-
-  if (isBigEndian) {
-    val = buffer[offset] << 8;
-    if (offset + 1 < buffer.length) {
-      val |= buffer[offset + 1];
-    }
-  } else {
-    val = buffer[offset];
-    if (offset + 1 < buffer.length) {
-      val |= buffer[offset + 1] << 8;
-    }
-  }
-
-  return val;
-}
-
-Buffer.prototype.readUInt16LE = function(offset, noAssert) {
-  return readUInt16(this, offset, false, noAssert);
-};
-
-Buffer.prototype.readUInt16BE = function(offset, noAssert) {
-  return readUInt16(this, offset, true, noAssert);
-};
-
-function readUInt32(buffer, offset, isBigEndian, noAssert) {
-  var val = 0;
-
-  if (!noAssert) {
-    assert.ok(typeof (isBigEndian) === 'boolean',
-        'missing or invalid endian');
-
-    assert.ok(offset !== undefined && offset !== null,
-        'missing offset');
-
-    assert.ok(offset + 3 < buffer.length,
-        'Trying to read beyond buffer length');
-  }
-
-  if (offset >= buffer.length) return 0;
-
-  if (isBigEndian) {
-    if (offset + 1 < buffer.length)
-      val = buffer[offset + 1] << 16;
-    if (offset + 2 < buffer.length)
-      val |= buffer[offset + 2] << 8;
-    if (offset + 3 < buffer.length)
-      val |= buffer[offset + 3];
-    val = val + (buffer[offset] << 24 >>> 0);
-  } else {
-    if (offset + 2 < buffer.length)
-      val = buffer[offset + 2] << 16;
-    if (offset + 1 < buffer.length)
-      val |= buffer[offset + 1] << 8;
-    val |= buffer[offset];
-    if (offset + 3 < buffer.length)
-      val = val + (buffer[offset + 3] << 24 >>> 0);
-  }
-
-  return val;
-}
-
-Buffer.prototype.readUInt32LE = function(offset, noAssert) {
-  return readUInt32(this, offset, false, noAssert);
-};
-
-Buffer.prototype.readUInt32BE = function(offset, noAssert) {
-  return readUInt32(this, offset, true, noAssert);
-};
-
-
-/*
- * Signed integer types, yay team! A reminder on how two's complement actually
- * works. The first bit is the signed bit, i.e. tells us whether or not the
- * number should be positive or negative. If the two's complement value is
- * positive, then we're done, as it's equivalent to the unsigned representation.
- *
- * Now if the number is positive, you're pretty much done, you can just leverage
- * the unsigned translations and return those. Unfortunately, negative numbers
- * aren't quite that straightforward.
- *
- * At first glance, one might be inclined to use the traditional formula to
- * translate binary numbers between the positive and negative values in two's
- * complement. (Though it doesn't quite work for the most negative value)
- * Mainly:
- *  - invert all the bits
- *  - add one to the result
- *
- * Of course, this doesn't quite work in Javascript. Take for example the value
- * of -128. This could be represented in 16 bits (big-endian) as 0xff80. But of
- * course, Javascript will do the following:
- *
- * > ~0xff80
- * -65409
- *
- * Whoh there, Javascript, that's not quite right. But wait, according to
- * Javascript that's perfectly correct. When Javascript ends up seeing the
- * constant 0xff80, it has no notion that it is actually a signed number. It
- * assumes that we've input the unsigned value 0xff80. Thus, when it does the
- * binary negation, it casts it into a signed value, (positive 0xff80). Then
- * when you perform binary negation on that, it turns it into a negative number.
- *
- * Instead, we're going to have to use the following general formula, that works
- * in a rather Javascript friendly way. I'm glad we don't support this kind of
- * weird numbering scheme in the kernel.
- *
- * (BIT-MAX - (unsigned)val + 1) * -1
- *
- * The astute observer, may think that this doesn't make sense for 8-bit numbers
- * (really it isn't necessary for them). However, when you get 16-bit numbers,
- * you do. Let's go back to our prior example and see how this will look:
- *
- * (0xffff - 0xff80 + 1) * -1
- * (0x007f + 1) * -1
- * (0x0080) * -1
- */
-Buffer.prototype.readInt8 = function(offset, noAssert) {
-  var buffer = this;
-  var neg;
-
-  if (!noAssert) {
-    assert.ok(offset !== undefined && offset !== null,
-        'missing offset');
-
-    assert.ok(offset < buffer.length,
-        'Trying to read beyond buffer length');
-  }
-
-  if (offset >= buffer.length) return;
-
-  neg = buffer[offset] & 0x80;
-  if (!neg) {
-    return (buffer[offset]);
-  }
-
-  return ((0xff - buffer[offset] + 1) * -1);
-};
-
-function readInt16(buffer, offset, isBigEndian, noAssert) {
-  var neg, val;
-
-  if (!noAssert) {
-    assert.ok(typeof (isBigEndian) === 'boolean',
-        'missing or invalid endian');
-
-    assert.ok(offset !== undefined && offset !== null,
-        'missing offset');
-
-    assert.ok(offset + 1 < buffer.length,
-        'Trying to read beyond buffer length');
-  }
-
-  val = readUInt16(buffer, offset, isBigEndian, noAssert);
-  neg = val & 0x8000;
-  if (!neg) {
-    return val;
-  }
-
-  return (0xffff - val + 1) * -1;
-}
-
-Buffer.prototype.readInt16LE = function(offset, noAssert) {
-  return readInt16(this, offset, false, noAssert);
-};
-
-Buffer.prototype.readInt16BE = function(offset, noAssert) {
-  return readInt16(this, offset, true, noAssert);
-};
-
-function readInt32(buffer, offset, isBigEndian, noAssert) {
-  var neg, val;
-
-  if (!noAssert) {
-    assert.ok(typeof (isBigEndian) === 'boolean',
-        'missing or invalid endian');
-
-    assert.ok(offset !== undefined && offset !== null,
-        'missing offset');
-
-    assert.ok(offset + 3 < buffer.length,
-        'Trying to read beyond buffer length');
-  }
-
-  val = readUInt32(buffer, offset, isBigEndian, noAssert);
-  neg = val & 0x80000000;
-  if (!neg) {
-    return (val);
-  }
-
-  return (0xffffffff - val + 1) * -1;
-}
-
-Buffer.prototype.readInt32LE = function(offset, noAssert) {
-  return readInt32(this, offset, false, noAssert);
-};
-
-Buffer.prototype.readInt32BE = function(offset, noAssert) {
-  return readInt32(this, offset, true, noAssert);
-};
-
-function readFloat(buffer, offset, isBigEndian, noAssert) {
-  if (!noAssert) {
-    assert.ok(typeof (isBigEndian) === 'boolean',
-        'missing or invalid endian');
-
-    assert.ok(offset + 3 < buffer.length,
-        'Trying to read beyond buffer length');
-  }
-
-  return require('./buffer_ieee754').readIEEE754(buffer, offset, isBigEndian,
-      23, 4);
-}
-
-Buffer.prototype.readFloatLE = function(offset, noAssert) {
-  return readFloat(this, offset, false, noAssert);
-};
-
-Buffer.prototype.readFloatBE = function(offset, noAssert) {
-  return readFloat(this, offset, true, noAssert);
-};
-
-function readDouble(buffer, offset, isBigEndian, noAssert) {
-  if (!noAssert) {
-    assert.ok(typeof (isBigEndian) === 'boolean',
-        'missing or invalid endian');
-
-    assert.ok(offset + 7 < buffer.length,
-        'Trying to read beyond buffer length');
-  }
-
-  return require('./buffer_ieee754').readIEEE754(buffer, offset, isBigEndian,
-      52, 8);
-}
-
-Buffer.prototype.readDoubleLE = function(offset, noAssert) {
-  return readDouble(this, offset, false, noAssert);
-};
-
-Buffer.prototype.readDoubleBE = function(offset, noAssert) {
-  return readDouble(this, offset, true, noAssert);
-};
-
-
-/*
- * We have to make sure that the value is a valid integer. This means that it is
- * non-negative. It has no fractional component and that it does not exceed the
- * maximum allowed value.
- *
- *      value           The number to check for validity
- *
- *      max             The maximum value
- */
-function verifuint(value, max) {
-  assert.ok(typeof (value) == 'number',
-      'cannot write a non-number as a number');
-
-  assert.ok(value >= 0,
-      'specified a negative value for writing an unsigned value');
-
-  assert.ok(value <= max, 'value is larger than maximum value for type');
-
-  assert.ok(Math.floor(value) === value, 'value has a fractional component');
-}
-
-Buffer.prototype.writeUInt8 = function(value, offset, noAssert) {
-  var buffer = this;
-
-  if (!noAssert) {
-    assert.ok(value !== undefined && value !== null,
-        'missing value');
-
-    assert.ok(offset !== undefined && offset !== null,
-        'missing offset');
-
-    assert.ok(offset < buffer.length,
-        'trying to write beyond buffer length');
-
-    verifuint(value, 0xff);
-  }
-
-  if (offset < buffer.length) {
-    buffer[offset] = value;
-  }
-};
-
-function writeUInt16(buffer, value, offset, isBigEndian, noAssert) {
-  if (!noAssert) {
-    assert.ok(value !== undefined && value !== null,
-        'missing value');
-
-    assert.ok(typeof (isBigEndian) === 'boolean',
-        'missing or invalid endian');
-
-    assert.ok(offset !== undefined && offset !== null,
-        'missing offset');
-
-    assert.ok(offset + 1 < buffer.length,
-        'trying to write beyond buffer length');
-
-    verifuint(value, 0xffff);
-  }
-
-  for (var i = 0; i < Math.min(buffer.length - offset, 2); i++) {
-    buffer[offset + i] =
-        (value & (0xff << (8 * (isBigEndian ? 1 - i : i)))) >>>
-            (isBigEndian ? 1 - i : i) * 8;
-  }
-
-}
-
-Buffer.prototype.writeUInt16LE = function(value, offset, noAssert) {
-  writeUInt16(this, value, offset, false, noAssert);
-};
-
-Buffer.prototype.writeUInt16BE = function(value, offset, noAssert) {
-  writeUInt16(this, value, offset, true, noAssert);
-};
-
-function writeUInt32(buffer, value, offset, isBigEndian, noAssert) {
-  if (!noAssert) {
-    assert.ok(value !== undefined && value !== null,
-        'missing value');
-
-    assert.ok(typeof (isBigEndian) === 'boolean',
-        'missing or invalid endian');
-
-    assert.ok(offset !== undefined && offset !== null,
-        'missing offset');
-
-    assert.ok(offset + 3 < buffer.length,
-        'trying to write beyond buffer length');
-
-    verifuint(value, 0xffffffff);
-  }
-
-  for (var i = 0; i < Math.min(buffer.length - offset, 4); i++) {
-    buffer[offset + i] =
-        (value >>> (isBigEndian ? 3 - i : i) * 8) & 0xff;
-  }
-}
-
-Buffer.prototype.writeUInt32LE = function(value, offset, noAssert) {
-  writeUInt32(this, value, offset, false, noAssert);
-};
-
-Buffer.prototype.writeUInt32BE = function(value, offset, noAssert) {
-  writeUInt32(this, value, offset, true, noAssert);
-};
-
-
-/*
- * We now move onto our friends in the signed number category. Unlike unsigned
- * numbers, we're going to have to worry a bit more about how we put values into
- * arrays. Since we are only worrying about signed 32-bit values, we're in
- * slightly better shape. Unfortunately, we really can't do our favorite binary
- * & in this system. It really seems to do the wrong thing. For example:
- *
- * > -32 & 0xff
- * 224
- *
- * What's happening above is really: 0xe0 & 0xff = 0xe0. However, the results of
- * this aren't treated as a signed number. Ultimately a bad thing.
- *
- * What we're going to want to do is basically create the unsigned equivalent of
- * our representation and pass that off to the wuint* functions. To do that
- * we're going to do the following:
- *
- *  - if the value is positive
- *      we can pass it directly off to the equivalent wuint
- *  - if the value is negative
- *      we do the following computation:
- *         mb + val + 1, where
- *         mb   is the maximum unsigned value in that byte size
- *         val  is the Javascript negative integer
- *
- *
- * As a concrete value, take -128. In signed 16 bits this would be 0xff80. If
- * you do out the computations:
- *
- * 0xffff - 128 + 1
- * 0xffff - 127
- * 0xff80
- *
- * You can then encode this value as the signed version. This is really rather
- * hacky, but it should work and get the job done which is our goal here.
- */
-
-/*
- * A series of checks to make sure we actually have a signed 32-bit number
- */
-function verifsint(value, max, min) {
-  assert.ok(typeof (value) == 'number',
-      'cannot write a non-number as a number');
-
-  assert.ok(value <= max, 'value larger than maximum allowed value');
-
-  assert.ok(value >= min, 'value smaller than minimum allowed value');
-
-  assert.ok(Math.floor(value) === value, 'value has a fractional component');
-}
-
-function verifIEEE754(value, max, min) {
-  assert.ok(typeof (value) == 'number',
-      'cannot write a non-number as a number');
-
-  assert.ok(value <= max, 'value larger than maximum allowed value');
-
-  assert.ok(value >= min, 'value smaller than minimum allowed value');
-}
-
-Buffer.prototype.writeInt8 = function(value, offset, noAssert) {
-  var buffer = this;
-
-  if (!noAssert) {
-    assert.ok(value !== undefined && value !== null,
-        'missing value');
-
-    assert.ok(offset !== undefined && offset !== null,
-        'missing offset');
-
-    assert.ok(offset < buffer.length,
-        'Trying to write beyond buffer length');
-
-    verifsint(value, 0x7f, -0x80);
-  }
-
-  if (value >= 0) {
-    buffer.writeUInt8(value, offset, noAssert);
-  } else {
-    buffer.writeUInt8(0xff + value + 1, offset, noAssert);
-  }
-};
-
-function writeInt16(buffer, value, offset, isBigEndian, noAssert) {
-  if (!noAssert) {
-    assert.ok(value !== undefined && value !== null,
-        'missing value');
-
-    assert.ok(typeof (isBigEndian) === 'boolean',
-        'missing or invalid endian');
-
-    assert.ok(offset !== undefined && offset !== null,
-        'missing offset');
-
-    assert.ok(offset + 1 < buffer.length,
-        'Trying to write beyond buffer length');
-
-    verifsint(value, 0x7fff, -0x8000);
-  }
-
-  if (value >= 0) {
-    writeUInt16(buffer, value, offset, isBigEndian, noAssert);
-  } else {
-    writeUInt16(buffer, 0xffff + value + 1, offset, isBigEndian, noAssert);
-  }
-}
-
-Buffer.prototype.writeInt16LE = function(value, offset, noAssert) {
-  writeInt16(this, value, offset, false, noAssert);
-};
-
-Buffer.prototype.writeInt16BE = function(value, offset, noAssert) {
-  writeInt16(this, value, offset, true, noAssert);
-};
-
-function writeInt32(buffer, value, offset, isBigEndian, noAssert) {
-  if (!noAssert) {
-    assert.ok(value !== undefined && value !== null,
-        'missing value');
-
-    assert.ok(typeof (isBigEndian) === 'boolean',
-        'missing or invalid endian');
-
-    assert.ok(offset !== undefined && offset !== null,
-        'missing offset');
-
-    assert.ok(offset + 3 < buffer.length,
-        'Trying to write beyond buffer length');
-
-    verifsint(value, 0x7fffffff, -0x80000000);
-  }
-
-  if (value >= 0) {
-    writeUInt32(buffer, value, offset, isBigEndian, noAssert);
-  } else {
-    writeUInt32(buffer, 0xffffffff + value + 1, offset, isBigEndian, noAssert);
-  }
-}
-
-Buffer.prototype.writeInt32LE = function(value, offset, noAssert) {
-  writeInt32(this, value, offset, false, noAssert);
-};
-
-Buffer.prototype.writeInt32BE = function(value, offset, noAssert) {
-  writeInt32(this, value, offset, true, noAssert);
-};
-
-function writeFloat(buffer, value, offset, isBigEndian, noAssert) {
-  if (!noAssert) {
-    assert.ok(value !== undefined && value !== null,
-        'missing value');
-
-    assert.ok(typeof (isBigEndian) === 'boolean',
-        'missing or invalid endian');
-
-    assert.ok(offset !== undefined && offset !== null,
-        'missing offset');
-
-    assert.ok(offset + 3 < buffer.length,
-        'Trying to write beyond buffer length');
-
-    verifIEEE754(value, 3.4028234663852886e+38, -3.4028234663852886e+38);
-  }
-
-  require('./buffer_ieee754').writeIEEE754(buffer, value, offset, isBigEndian,
-      23, 4);
-}
-
-Buffer.prototype.writeFloatLE = function(value, offset, noAssert) {
-  writeFloat(this, value, offset, false, noAssert);
-};
-
-Buffer.prototype.writeFloatBE = function(value, offset, noAssert) {
-  writeFloat(this, value, offset, true, noAssert);
-};
-
-function writeDouble(buffer, value, offset, isBigEndian, noAssert) {
-  if (!noAssert) {
-    assert.ok(value !== undefined && value !== null,
-        'missing value');
-
-    assert.ok(typeof (isBigEndian) === 'boolean',
-        'missing or invalid endian');
-
-    assert.ok(offset !== undefined && offset !== null,
-        'missing offset');
-
-    assert.ok(offset + 7 < buffer.length,
-        'Trying to write beyond buffer length');
-
-    verifIEEE754(value, 1.7976931348623157E+308, -1.7976931348623157E+308);
-  }
-
-  require('./buffer_ieee754').writeIEEE754(buffer, value, offset, isBigEndian,
-      52, 8);
-}
-
-Buffer.prototype.writeDoubleLE = function(value, offset, noAssert) {
-  writeDouble(this, value, offset, false, noAssert);
-};
-
-Buffer.prototype.writeDoubleBE = function(value, offset, noAssert) {
-  writeDouble(this, value, offset, true, noAssert);
-};
-
-},{"./buffer_ieee754":1,"assert":6,"base64-js":4}],"buffer-browserify":[function(require,module,exports){
-module.exports=require('q9TxCC');
-},{}],4:[function(require,module,exports){
-(function (exports) {
-	'use strict';
-
-	var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-	function b64ToByteArray(b64) {
-		var i, j, l, tmp, placeHolders, arr;
-	
-		if (b64.length % 4 > 0) {
-			throw 'Invalid string. Length must be a multiple of 4';
-		}
-
-		// the number of equal signs (place holders)
-		// if there are two placeholders, than the two characters before it
-		// represent one byte
-		// if there is only one, then the three characters before it represent 2 bytes
-		// this is just a cheap hack to not do indexOf twice
-		placeHolders = b64.indexOf('=');
-		placeHolders = placeHolders > 0 ? b64.length - placeHolders : 0;
-
-		// base64 is 4/3 + up to two characters of the original data
-		arr = [];//new Uint8Array(b64.length * 3 / 4 - placeHolders);
-
-		// if there are placeholders, only get up to the last complete 4 chars
-		l = placeHolders > 0 ? b64.length - 4 : b64.length;
-
-		for (i = 0, j = 0; i < l; i += 4, j += 3) {
-			tmp = (lookup.indexOf(b64[i]) << 18) | (lookup.indexOf(b64[i + 1]) << 12) | (lookup.indexOf(b64[i + 2]) << 6) | lookup.indexOf(b64[i + 3]);
-			arr.push((tmp & 0xFF0000) >> 16);
-			arr.push((tmp & 0xFF00) >> 8);
-			arr.push(tmp & 0xFF);
-		}
-
-		if (placeHolders === 2) {
-			tmp = (lookup.indexOf(b64[i]) << 2) | (lookup.indexOf(b64[i + 1]) >> 4);
-			arr.push(tmp & 0xFF);
-		} else if (placeHolders === 1) {
-			tmp = (lookup.indexOf(b64[i]) << 10) | (lookup.indexOf(b64[i + 1]) << 4) | (lookup.indexOf(b64[i + 2]) >> 2);
-			arr.push((tmp >> 8) & 0xFF);
-			arr.push(tmp & 0xFF);
-		}
-
-		return arr;
-	}
-
-	function uint8ToBase64(uint8) {
-		var i,
-			extraBytes = uint8.length % 3, // if we have 1 byte left, pad 2 bytes
-			output = "",
-			temp, length;
-
-		function tripletToBase64 (num) {
-			return lookup[num >> 18 & 0x3F] + lookup[num >> 12 & 0x3F] + lookup[num >> 6 & 0x3F] + lookup[num & 0x3F];
-		};
-
-		// go through the array every three bytes, we'll deal with trailing stuff later
-		for (i = 0, length = uint8.length - extraBytes; i < length; i += 3) {
-			temp = (uint8[i] << 16) + (uint8[i + 1] << 8) + (uint8[i + 2]);
-			output += tripletToBase64(temp);
-		}
-
-		// pad the end with zeros, but make sure to not forget the extra bytes
-		switch (extraBytes) {
-			case 1:
-				temp = uint8[uint8.length - 1];
-				output += lookup[temp >> 2];
-				output += lookup[(temp << 4) & 0x3F];
-				output += '==';
-				break;
-			case 2:
-				temp = (uint8[uint8.length - 2] << 8) + (uint8[uint8.length - 1]);
-				output += lookup[temp >> 10];
-				output += lookup[(temp >> 4) & 0x3F];
-				output += lookup[(temp << 2) & 0x3F];
-				output += '=';
-				break;
-		}
-
-		return output;
-	}
-
-	module.exports.toByteArray = b64ToByteArray;
-	module.exports.fromByteArray = uint8ToBase64;
-}());
-
-},{}],5:[function(require,module,exports){
-
-
-//
-// The shims in this file are not fully implemented shims for the ES5
-// features, but do work for the particular usecases there is in
-// the other modules.
-//
-
-var toString = Object.prototype.toString;
-var hasOwnProperty = Object.prototype.hasOwnProperty;
-
-// Array.isArray is supported in IE9
-function isArray(xs) {
-  return toString.call(xs) === '[object Array]';
-}
-exports.isArray = typeof Array.isArray === 'function' ? Array.isArray : isArray;
-
-// Array.prototype.indexOf is supported in IE9
-exports.indexOf = function indexOf(xs, x) {
-  if (xs.indexOf) return xs.indexOf(x);
-  for (var i = 0; i < xs.length; i++) {
-    if (x === xs[i]) return i;
-  }
-  return -1;
-};
-
-// Array.prototype.filter is supported in IE9
-exports.filter = function filter(xs, fn) {
-  if (xs.filter) return xs.filter(fn);
-  var res = [];
-  for (var i = 0; i < xs.length; i++) {
-    if (fn(xs[i], i, xs)) res.push(xs[i]);
-  }
-  return res;
-};
-
-// Array.prototype.forEach is supported in IE9
-exports.forEach = function forEach(xs, fn, self) {
-  if (xs.forEach) return xs.forEach(fn, self);
-  for (var i = 0; i < xs.length; i++) {
-    fn.call(self, xs[i], i, xs);
-  }
-};
-
-// Array.prototype.map is supported in IE9
-exports.map = function map(xs, fn) {
-  if (xs.map) return xs.map(fn);
-  var out = new Array(xs.length);
-  for (var i = 0; i < xs.length; i++) {
-    out[i] = fn(xs[i], i, xs);
-  }
-  return out;
-};
-
-// Array.prototype.reduce is supported in IE9
-exports.reduce = function reduce(array, callback, opt_initialValue) {
-  if (array.reduce) return array.reduce(callback, opt_initialValue);
-  var value, isValueSet = false;
-
-  if (2 < arguments.length) {
-    value = opt_initialValue;
-    isValueSet = true;
-  }
-  for (var i = 0, l = array.length; l > i; ++i) {
-    if (array.hasOwnProperty(i)) {
-      if (isValueSet) {
-        value = callback(value, array[i], i, array);
-      }
-      else {
-        value = array[i];
-        isValueSet = true;
-      }
-    }
-  }
-
-  return value;
-};
 
 // String.prototype.substr - negative index don't work in IE8
-if ('ab'.substr(-1) !== 'b') {
-  exports.substr = function (str, start, length) {
-    // did we get a negative start, calculate how much it is from the beginning of the string
-    if (start < 0) start = str.length + start;
-
-    // call the original function
-    return str.substr(start, length);
-  };
-} else {
-  exports.substr = function (str, start, length) {
-    return str.substr(start, length);
-  };
-}
-
-// String.prototype.trim is supported in IE9
-exports.trim = function (str) {
-  if (str.trim) return str.trim();
-  return str.replace(/^\s+|\s+$/g, '');
-};
-
-// Function.prototype.bind is supported in IE9
-exports.bind = function () {
-  var args = Array.prototype.slice.call(arguments);
-  var fn = args.shift();
-  if (fn.bind) return fn.bind.apply(fn, args);
-  var self = args.shift();
-  return function () {
-    fn.apply(self, args.concat([Array.prototype.slice.call(arguments)]));
-  };
-};
-
-// Object.create is supported in IE9
-function create(prototype, properties) {
-  var object;
-  if (prototype === null) {
-    object = { '__proto__' : null };
-  }
-  else {
-    if (typeof prototype !== 'object') {
-      throw new TypeError(
-        'typeof prototype[' + (typeof prototype) + '] != \'object\''
-      );
+var substr = 'ab'.substr(-1) === 'b'
+    ? function (str, start, len) { return str.substr(start, len) }
+    : function (str, start, len) {
+        if (start < 0) start = str.length + start;
+        return str.substr(start, len);
     }
-    var Type = function () {};
-    Type.prototype = prototype;
-    object = new Type();
-    object.__proto__ = prototype;
-  }
-  if (typeof properties !== 'undefined' && Object.defineProperties) {
-    Object.defineProperties(object, properties);
-  }
-  return object;
-}
-exports.create = typeof Object.create === 'function' ? Object.create : create;
+;
 
-// Object.keys and Object.getOwnPropertyNames is supported in IE9 however
-// they do show a description and number property on Error objects
-function notObject(object) {
-  return ((typeof object != "object" && typeof object != "function") || object === null);
-}
-
-function keysShim(object) {
-  if (notObject(object)) {
-    throw new TypeError("Object.keys called on a non-object");
-  }
-
-  var result = [];
-  for (var name in object) {
-    if (hasOwnProperty.call(object, name)) {
-      result.push(name);
-    }
-  }
-  return result;
-}
-
-// getOwnPropertyNames is almost the same as Object.keys one key feature
-//  is that it returns hidden properties, since that can't be implemented,
-//  this feature gets reduced so it just shows the length property on arrays
-function propertyShim(object) {
-  if (notObject(object)) {
-    throw new TypeError("Object.getOwnPropertyNames called on a non-object");
-  }
-
-  var result = keysShim(object);
-  if (exports.isArray(object) && exports.indexOf(object, 'length') === -1) {
-    result.push('length');
-  }
-  return result;
-}
-
-var keys = typeof Object.keys === 'function' ? Object.keys : keysShim;
-var getOwnPropertyNames = typeof Object.getOwnPropertyNames === 'function' ?
-  Object.getOwnPropertyNames : propertyShim;
-
-if (new Error().hasOwnProperty('description')) {
-  var ERROR_PROPERTY_FILTER = function (obj, array) {
-    if (toString.call(obj) === '[object Error]') {
-      array = exports.filter(array, function (name) {
-        return name !== 'description' && name !== 'number' && name !== 'message';
-      });
-    }
-    return array;
-  };
-
-  exports.keys = function (object) {
-    return ERROR_PROPERTY_FILTER(object, keys(object));
-  };
-  exports.getOwnPropertyNames = function (object) {
-    return ERROR_PROPERTY_FILTER(object, getOwnPropertyNames(object));
-  };
-} else {
-  exports.keys = keys;
-  exports.getOwnPropertyNames = getOwnPropertyNames;
-}
-
-// Object.getOwnPropertyDescriptor - supported in IE8 but only on dom elements
-function valueObject(value, key) {
-  return { value: value[key] };
-}
-
-if (typeof Object.getOwnPropertyDescriptor === 'function') {
-  try {
-    Object.getOwnPropertyDescriptor({'a': 1}, 'a');
-    exports.getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
-  } catch (e) {
-    // IE8 dom element issue - use a try catch and default to valueObject
-    exports.getOwnPropertyDescriptor = function (value, key) {
-      try {
-        return Object.getOwnPropertyDescriptor(value, key);
-      } catch (e) {
-        return valueObject(value, key);
-      }
-    };
-  }
-} else {
-  exports.getOwnPropertyDescriptor = valueObject;
-}
-
-},{}],6:[function(require,module,exports){
-// Copyright Joyent, Inc. and other Node contributors.
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/path-browserify/index.js","/node_modules/browserify/node_modules/path-browserify")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],24:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+// This is CodeMirror (http://codemirror.net), a code editor
+// implemented in JavaScript on top of the browser's DOM.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-// UTILITY
-var util = require('util');
-var shims = require('_shims');
-var pSlice = Array.prototype.slice;
-
-// 1. The assert module provides functions that throw
-// AssertionError's when particular conditions are not met. The
-// assert module must conform to the following interface.
-
-var assert = module.exports = ok;
-
-// 2. The AssertionError is defined in assert.
-// new assert.AssertionError({ message: message,
-//                             actual: actual,
-//                             expected: expected })
-
-assert.AssertionError = function AssertionError(options) {
-  this.name = 'AssertionError';
-  this.actual = options.actual;
-  this.expected = options.expected;
-  this.operator = options.operator;
-  this.message = options.message || getMessage(this);
-};
-
-// assert.AssertionError instanceof Error
-util.inherits(assert.AssertionError, Error);
-
-function replacer(key, value) {
-  if (util.isUndefined(value)) {
-    return '' + value;
-  }
-  if (util.isNumber(value) && (isNaN(value) || !isFinite(value))) {
-    return value.toString();
-  }
-  if (util.isFunction(value) || util.isRegExp(value)) {
-    return value.toString();
-  }
-  return value;
-}
-
-function truncate(s, n) {
-  if (util.isString(s)) {
-    return s.length < n ? s : s.slice(0, n);
-  } else {
-    return s;
-  }
-}
-
-function getMessage(self) {
-  return truncate(JSON.stringify(self.actual, replacer), 128) + ' ' +
-         self.operator + ' ' +
-         truncate(JSON.stringify(self.expected, replacer), 128);
-}
-
-// At present only the three keys mentioned above are used and
-// understood by the spec. Implementations or sub modules can pass
-// other keys to the AssertionError's constructor - they will be
-// ignored.
-
-// 3. All of the following functions must throw an AssertionError
-// when a corresponding condition is not met, with a message that
-// may be undefined if not provided.  All assertion methods provide
-// both the actual and expected values to the assertion error for
-// display purposes.
-
-function fail(actual, expected, message, operator, stackStartFunction) {
-  throw new assert.AssertionError({
-    message: message,
-    actual: actual,
-    expected: expected,
-    operator: operator,
-    stackStartFunction: stackStartFunction
-  });
-}
-
-// EXTENSION! allows for well behaved errors defined elsewhere.
-assert.fail = fail;
-
-// 4. Pure assertion tests whether a value is truthy, as determined
-// by !!guard.
-// assert.ok(guard, message_opt);
-// This statement is equivalent to assert.equal(true, !!guard,
-// message_opt);. To test strictly for the value true, use
-// assert.strictEqual(true, guard, message_opt);.
-
-function ok(value, message) {
-  if (!value) fail(value, true, message, '==', assert.ok);
-}
-assert.ok = ok;
-
-// 5. The equality assertion tests shallow, coercive equality with
-// ==.
-// assert.equal(actual, expected, message_opt);
-
-assert.equal = function equal(actual, expected, message) {
-  if (actual != expected) fail(actual, expected, message, '==', assert.equal);
-};
-
-// 6. The non-equality assertion tests for whether two objects are not equal
-// with != assert.notEqual(actual, expected, message_opt);
-
-assert.notEqual = function notEqual(actual, expected, message) {
-  if (actual == expected) {
-    fail(actual, expected, message, '!=', assert.notEqual);
-  }
-};
-
-// 7. The equivalence assertion tests a deep equality relation.
-// assert.deepEqual(actual, expected, message_opt);
-
-assert.deepEqual = function deepEqual(actual, expected, message) {
-  if (!_deepEqual(actual, expected)) {
-    fail(actual, expected, message, 'deepEqual', assert.deepEqual);
-  }
-};
-
-function _deepEqual(actual, expected) {
-  // 7.1. All identical values are equivalent, as determined by ===.
-  if (actual === expected) {
-    return true;
-
-  } else if (util.isBuffer(actual) && util.isBuffer(expected)) {
-    if (actual.length != expected.length) return false;
-
-    for (var i = 0; i < actual.length; i++) {
-      if (actual[i] !== expected[i]) return false;
-    }
-
-    return true;
-
-  // 7.2. If the expected value is a Date object, the actual value is
-  // equivalent if it is also a Date object that refers to the same time.
-  } else if (util.isDate(actual) && util.isDate(expected)) {
-    return actual.getTime() === expected.getTime();
-
-  // 7.3 If the expected value is a RegExp object, the actual value is
-  // equivalent if it is also a RegExp object with the same source and
-  // properties (`global`, `multiline`, `lastIndex`, `ignoreCase`).
-  } else if (util.isRegExp(actual) && util.isRegExp(expected)) {
-    return actual.source === expected.source &&
-           actual.global === expected.global &&
-           actual.multiline === expected.multiline &&
-           actual.lastIndex === expected.lastIndex &&
-           actual.ignoreCase === expected.ignoreCase;
-
-  // 7.4. Other pairs that do not both pass typeof value == 'object',
-  // equivalence is determined by ==.
-  } else if (!util.isObject(actual) && !util.isObject(expected)) {
-    return actual == expected;
-
-  // 7.5 For all other Object pairs, including Array objects, equivalence is
-  // determined by having the same number of owned properties (as verified
-  // with Object.prototype.hasOwnProperty.call), the same set of keys
-  // (although not necessarily the same order), equivalent values for every
-  // corresponding key, and an identical 'prototype' property. Note: this
-  // accounts for both named and indexed properties on Arrays.
-  } else {
-    return objEquiv(actual, expected);
-  }
-}
-
-function isArguments(object) {
-  return Object.prototype.toString.call(object) == '[object Arguments]';
-}
-
-function objEquiv(a, b) {
-  if (util.isNullOrUndefined(a) || util.isNullOrUndefined(b))
-    return false;
-  // an identical 'prototype' property.
-  if (a.prototype !== b.prototype) return false;
-  //~~~I've managed to break Object.keys through screwy arguments passing.
-  //   Converting to array solves the problem.
-  if (isArguments(a)) {
-    if (!isArguments(b)) {
-      return false;
-    }
-    a = pSlice.call(a);
-    b = pSlice.call(b);
-    return _deepEqual(a, b);
-  }
-  try {
-    var ka = shims.keys(a),
-        kb = shims.keys(b),
-        key, i;
-  } catch (e) {//happens when one is a string literal and the other isn't
-    return false;
-  }
-  // having the same number of owned properties (keys incorporates
-  // hasOwnProperty)
-  if (ka.length != kb.length)
-    return false;
-  //the same set of keys (although not necessarily the same order),
-  ka.sort();
-  kb.sort();
-  //~~~cheap key test
-  for (i = ka.length - 1; i >= 0; i--) {
-    if (ka[i] != kb[i])
-      return false;
-  }
-  //equivalent values for every corresponding key, and
-  //~~~possibly expensive deep test
-  for (i = ka.length - 1; i >= 0; i--) {
-    key = ka[i];
-    if (!_deepEqual(a[key], b[key])) return false;
-  }
-  return true;
-}
-
-// 8. The non-equivalence assertion tests for any deep inequality.
-// assert.notDeepEqual(actual, expected, message_opt);
-
-assert.notDeepEqual = function notDeepEqual(actual, expected, message) {
-  if (_deepEqual(actual, expected)) {
-    fail(actual, expected, message, 'notDeepEqual', assert.notDeepEqual);
-  }
-};
-
-// 9. The strict equality assertion tests strict equality, as determined by ===.
-// assert.strictEqual(actual, expected, message_opt);
-
-assert.strictEqual = function strictEqual(actual, expected, message) {
-  if (actual !== expected) {
-    fail(actual, expected, message, '===', assert.strictEqual);
-  }
-};
-
-// 10. The strict non-equality assertion tests for strict inequality, as
-// determined by !==.  assert.notStrictEqual(actual, expected, message_opt);
-
-assert.notStrictEqual = function notStrictEqual(actual, expected, message) {
-  if (actual === expected) {
-    fail(actual, expected, message, '!==', assert.notStrictEqual);
-  }
-};
-
-function expectedException(actual, expected) {
-  if (!actual || !expected) {
-    return false;
-  }
-
-  if (Object.prototype.toString.call(expected) == '[object RegExp]') {
-    return expected.test(actual);
-  } else if (actual instanceof expected) {
-    return true;
-  } else if (expected.call({}, actual) === true) {
-    return true;
-  }
-
-  return false;
-}
-
-function _throws(shouldThrow, block, expected, message) {
-  var actual;
-
-  if (util.isString(expected)) {
-    message = expected;
-    expected = null;
-  }
-
-  try {
-    block();
-  } catch (e) {
-    actual = e;
-  }
-
-  message = (expected && expected.name ? ' (' + expected.name + ').' : '.') +
-            (message ? ' ' + message : '.');
-
-  if (shouldThrow && !actual) {
-    fail(actual, expected, 'Missing expected exception' + message);
-  }
-
-  if (!shouldThrow && expectedException(actual, expected)) {
-    fail(actual, expected, 'Got unwanted exception' + message);
-  }
-
-  if ((shouldThrow && actual && expected &&
-      !expectedException(actual, expected)) || (!shouldThrow && actual)) {
-    throw actual;
-  }
-}
-
-// 11. Expected to throw an error:
-// assert.throws(block, Error_opt, message_opt);
-
-assert.throws = function(block, /*optional*/error, /*optional*/message) {
-  _throws.apply(this, [true].concat(pSlice.call(arguments)));
-};
-
-// EXTENSION! This is annoying to write outside this module.
-assert.doesNotThrow = function(block, /*optional*/message) {
-  _throws.apply(this, [false].concat(pSlice.call(arguments)));
-};
-
-assert.ifError = function(err) { if (err) {throw err;}};
-},{"_shims":5,"util":7}],7:[function(require,module,exports){
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var shims = require('_shims');
-
-var formatRegExp = /%[sdj%]/g;
-exports.format = function(f) {
-  if (!isString(f)) {
-    var objects = [];
-    for (var i = 0; i < arguments.length; i++) {
-      objects.push(inspect(arguments[i]));
-    }
-    return objects.join(' ');
-  }
-
-  var i = 1;
-  var args = arguments;
-  var len = args.length;
-  var str = String(f).replace(formatRegExp, function(x) {
-    if (x === '%%') return '%';
-    if (i >= len) return x;
-    switch (x) {
-      case '%s': return String(args[i++]);
-      case '%d': return Number(args[i++]);
-      case '%j':
-        try {
-          return JSON.stringify(args[i++]);
-        } catch (_) {
-          return '[Circular]';
-        }
-      default:
-        return x;
-    }
-  });
-  for (var x = args[i]; i < len; x = args[++i]) {
-    if (isNull(x) || !isObject(x)) {
-      str += ' ' + x;
-    } else {
-      str += ' ' + inspect(x);
-    }
-  }
-  return str;
-};
-
-/**
- * Echos the value of a value. Trys to print the value out
- * in the best way possible given the different types.
- *
- * @param {Object} obj The object to print out.
- * @param {Object} opts Optional options object that alters the output.
- */
-/* legacy: obj, showHidden, depth, colors*/
-function inspect(obj, opts) {
-  // default options
-  var ctx = {
-    seen: [],
-    stylize: stylizeNoColor
-  };
-  // legacy...
-  if (arguments.length >= 3) ctx.depth = arguments[2];
-  if (arguments.length >= 4) ctx.colors = arguments[3];
-  if (isBoolean(opts)) {
-    // legacy...
-    ctx.showHidden = opts;
-  } else if (opts) {
-    // got an "options" object
-    exports._extend(ctx, opts);
-  }
-  // set default options
-  if (isUndefined(ctx.showHidden)) ctx.showHidden = false;
-  if (isUndefined(ctx.depth)) ctx.depth = 2;
-  if (isUndefined(ctx.colors)) ctx.colors = false;
-  if (isUndefined(ctx.customInspect)) ctx.customInspect = true;
-  if (ctx.colors) ctx.stylize = stylizeWithColor;
-  return formatValue(ctx, obj, ctx.depth);
-}
-exports.inspect = inspect;
-
-
-// http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
-inspect.colors = {
-  'bold' : [1, 22],
-  'italic' : [3, 23],
-  'underline' : [4, 24],
-  'inverse' : [7, 27],
-  'white' : [37, 39],
-  'grey' : [90, 39],
-  'black' : [30, 39],
-  'blue' : [34, 39],
-  'cyan' : [36, 39],
-  'green' : [32, 39],
-  'magenta' : [35, 39],
-  'red' : [31, 39],
-  'yellow' : [33, 39]
-};
-
-// Don't use 'blue' not visible on cmd.exe
-inspect.styles = {
-  'special': 'cyan',
-  'number': 'yellow',
-  'boolean': 'yellow',
-  'undefined': 'grey',
-  'null': 'bold',
-  'string': 'green',
-  'date': 'magenta',
-  // "name": intentionally not styling
-  'regexp': 'red'
-};
-
-
-function stylizeWithColor(str, styleType) {
-  var style = inspect.styles[styleType];
-
-  if (style) {
-    return '\u001b[' + inspect.colors[style][0] + 'm' + str +
-           '\u001b[' + inspect.colors[style][1] + 'm';
-  } else {
-    return str;
-  }
-}
-
-
-function stylizeNoColor(str, styleType) {
-  return str;
-}
-
-
-function arrayToHash(array) {
-  var hash = {};
-
-  shims.forEach(array, function(val, idx) {
-    hash[val] = true;
-  });
-
-  return hash;
-}
-
-
-function formatValue(ctx, value, recurseTimes) {
-  // Provide a hook for user-specified inspect functions.
-  // Check that value is an object with an inspect function on it
-  if (ctx.customInspect &&
-      value &&
-      isFunction(value.inspect) &&
-      // Filter out the util module, it's inspect function is special
-      value.inspect !== exports.inspect &&
-      // Also filter out any prototype objects using the circular check.
-      !(value.constructor && value.constructor.prototype === value)) {
-    var ret = value.inspect(recurseTimes);
-    if (!isString(ret)) {
-      ret = formatValue(ctx, ret, recurseTimes);
-    }
-    return ret;
-  }
-
-  // Primitive types cannot have properties
-  var primitive = formatPrimitive(ctx, value);
-  if (primitive) {
-    return primitive;
-  }
-
-  // Look up the keys of the object.
-  var keys = shims.keys(value);
-  var visibleKeys = arrayToHash(keys);
-
-  if (ctx.showHidden) {
-    keys = shims.getOwnPropertyNames(value);
-  }
-
-  // Some type of object without properties can be shortcutted.
-  if (keys.length === 0) {
-    if (isFunction(value)) {
-      var name = value.name ? ': ' + value.name : '';
-      return ctx.stylize('[Function' + name + ']', 'special');
-    }
-    if (isRegExp(value)) {
-      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
-    }
-    if (isDate(value)) {
-      return ctx.stylize(Date.prototype.toString.call(value), 'date');
-    }
-    if (isError(value)) {
-      return formatError(value);
-    }
-  }
-
-  var base = '', array = false, braces = ['{', '}'];
-
-  // Make Array say that they are Array
-  if (isArray(value)) {
-    array = true;
-    braces = ['[', ']'];
-  }
-
-  // Make functions say that they are functions
-  if (isFunction(value)) {
-    var n = value.name ? ': ' + value.name : '';
-    base = ' [Function' + n + ']';
-  }
-
-  // Make RegExps say that they are RegExps
-  if (isRegExp(value)) {
-    base = ' ' + RegExp.prototype.toString.call(value);
-  }
-
-  // Make dates with properties first say the date
-  if (isDate(value)) {
-    base = ' ' + Date.prototype.toUTCString.call(value);
-  }
-
-  // Make error with message first say the error
-  if (isError(value)) {
-    base = ' ' + formatError(value);
-  }
-
-  if (keys.length === 0 && (!array || value.length == 0)) {
-    return braces[0] + base + braces[1];
-  }
-
-  if (recurseTimes < 0) {
-    if (isRegExp(value)) {
-      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
-    } else {
-      return ctx.stylize('[Object]', 'special');
-    }
-  }
-
-  ctx.seen.push(value);
-
-  var output;
-  if (array) {
-    output = formatArray(ctx, value, recurseTimes, visibleKeys, keys);
-  } else {
-    output = keys.map(function(key) {
-      return formatProperty(ctx, value, recurseTimes, visibleKeys, key, array);
-    });
-  }
-
-  ctx.seen.pop();
-
-  return reduceToSingleString(output, base, braces);
-}
-
-
-function formatPrimitive(ctx, value) {
-  if (isUndefined(value))
-    return ctx.stylize('undefined', 'undefined');
-  if (isString(value)) {
-    var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
-                                             .replace(/'/g, "\\'")
-                                             .replace(/\\"/g, '"') + '\'';
-    return ctx.stylize(simple, 'string');
-  }
-  if (isNumber(value))
-    return ctx.stylize('' + value, 'number');
-  if (isBoolean(value))
-    return ctx.stylize('' + value, 'boolean');
-  // For some reason typeof null is "object", so special case here.
-  if (isNull(value))
-    return ctx.stylize('null', 'null');
-}
-
-
-function formatError(value) {
-  return '[' + Error.prototype.toString.call(value) + ']';
-}
-
-
-function formatArray(ctx, value, recurseTimes, visibleKeys, keys) {
-  var output = [];
-  for (var i = 0, l = value.length; i < l; ++i) {
-    if (hasOwnProperty(value, String(i))) {
-      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
-          String(i), true));
-    } else {
-      output.push('');
-    }
-  }
-
-  shims.forEach(keys, function(key) {
-    if (!key.match(/^\d+$/)) {
-      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
-          key, true));
-    }
-  });
-  return output;
-}
-
-
-function formatProperty(ctx, value, recurseTimes, visibleKeys, key, array) {
-  var name, str, desc;
-  desc = shims.getOwnPropertyDescriptor(value, key) || { value: value[key] };
-  if (desc.get) {
-    if (desc.set) {
-      str = ctx.stylize('[Getter/Setter]', 'special');
-    } else {
-      str = ctx.stylize('[Getter]', 'special');
-    }
-  } else {
-    if (desc.set) {
-      str = ctx.stylize('[Setter]', 'special');
-    }
-  }
-
-  if (!hasOwnProperty(visibleKeys, key)) {
-    name = '[' + key + ']';
-  }
-  if (!str) {
-    if (shims.indexOf(ctx.seen, desc.value) < 0) {
-      if (isNull(recurseTimes)) {
-        str = formatValue(ctx, desc.value, null);
-      } else {
-        str = formatValue(ctx, desc.value, recurseTimes - 1);
-      }
-      if (str.indexOf('\n') > -1) {
-        if (array) {
-          str = str.split('\n').map(function(line) {
-            return '  ' + line;
-          }).join('\n').substr(2);
-        } else {
-          str = '\n' + str.split('\n').map(function(line) {
-            return '   ' + line;
-          }).join('\n');
-        }
-      }
-    } else {
-      str = ctx.stylize('[Circular]', 'special');
-    }
-  }
-  if (isUndefined(name)) {
-    if (array && key.match(/^\d+$/)) {
-      return str;
-    }
-    name = JSON.stringify('' + key);
-    if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
-      name = name.substr(1, name.length - 2);
-      name = ctx.stylize(name, 'name');
-    } else {
-      name = name.replace(/'/g, "\\'")
-                 .replace(/\\"/g, '"')
-                 .replace(/(^"|"$)/g, "'");
-      name = ctx.stylize(name, 'string');
-    }
-  }
-
-  return name + ': ' + str;
-}
-
-
-function reduceToSingleString(output, base, braces) {
-  var numLinesEst = 0;
-  var length = shims.reduce(output, function(prev, cur) {
-    numLinesEst++;
-    if (cur.indexOf('\n') >= 0) numLinesEst++;
-    return prev + cur.replace(/\u001b\[\d\d?m/g, '').length + 1;
-  }, 0);
-
-  if (length > 60) {
-    return braces[0] +
-           (base === '' ? '' : base + '\n ') +
-           ' ' +
-           output.join(',\n  ') +
-           ' ' +
-           braces[1];
-  }
-
-  return braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
-}
-
-
-// NOTE: These type checking functions intentionally don't use `instanceof`
-// because it is fragile and can be easily faked with `Object.create()`.
-function isArray(ar) {
-  return shims.isArray(ar);
-}
-exports.isArray = isArray;
-
-function isBoolean(arg) {
-  return typeof arg === 'boolean';
-}
-exports.isBoolean = isBoolean;
-
-function isNull(arg) {
-  return arg === null;
-}
-exports.isNull = isNull;
-
-function isNullOrUndefined(arg) {
-  return arg == null;
-}
-exports.isNullOrUndefined = isNullOrUndefined;
-
-function isNumber(arg) {
-  return typeof arg === 'number';
-}
-exports.isNumber = isNumber;
-
-function isString(arg) {
-  return typeof arg === 'string';
-}
-exports.isString = isString;
-
-function isSymbol(arg) {
-  return typeof arg === 'symbol';
-}
-exports.isSymbol = isSymbol;
-
-function isUndefined(arg) {
-  return arg === void 0;
-}
-exports.isUndefined = isUndefined;
-
-function isRegExp(re) {
-  return isObject(re) && objectToString(re) === '[object RegExp]';
-}
-exports.isRegExp = isRegExp;
-
-function isObject(arg) {
-  return typeof arg === 'object' && arg;
-}
-exports.isObject = isObject;
-
-function isDate(d) {
-  return isObject(d) && objectToString(d) === '[object Date]';
-}
-exports.isDate = isDate;
-
-function isError(e) {
-  return isObject(e) && objectToString(e) === '[object Error]';
-}
-exports.isError = isError;
-
-function isFunction(arg) {
-  return typeof arg === 'function';
-}
-exports.isFunction = isFunction;
-
-function isPrimitive(arg) {
-  return arg === null ||
-         typeof arg === 'boolean' ||
-         typeof arg === 'number' ||
-         typeof arg === 'string' ||
-         typeof arg === 'symbol' ||  // ES6 symbol
-         typeof arg === 'undefined';
-}
-exports.isPrimitive = isPrimitive;
-
-function isBuffer(arg) {
-  return arg instanceof Buffer;
-}
-exports.isBuffer = isBuffer;
-
-function objectToString(o) {
-  return Object.prototype.toString.call(o);
-}
-
-
-function pad(n) {
-  return n < 10 ? '0' + n.toString(10) : n.toString(10);
-}
-
-
-var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
-              'Oct', 'Nov', 'Dec'];
-
-// 26 Feb 16:19:34
-function timestamp() {
-  var d = new Date();
-  var time = [pad(d.getHours()),
-              pad(d.getMinutes()),
-              pad(d.getSeconds())].join(':');
-  return [d.getDate(), months[d.getMonth()], time].join(' ');
-}
-
-
-// log is just a thin wrapper to console.log that prepends a timestamp
-exports.log = function() {
-  console.log('%s - %s', timestamp(), exports.format.apply(exports, arguments));
-};
-
-
-/**
- * Inherit the prototype methods from one constructor into another.
- *
- * The Function.prototype.inherits from lang.js rewritten as a standalone
- * function (not on Function.prototype). NOTE: If this file is to be loaded
- * during bootstrapping this function needs to be rewritten using some native
- * functions as prototype setup using normal JavaScript does not work as
- * expected during bootstrapping (see mirror.js in r114903).
- *
- * @param {function} ctor Constructor function which needs to inherit the
- *     prototype.
- * @param {function} superCtor Constructor function to inherit prototype from.
- */
-exports.inherits = function(ctor, superCtor) {
-  ctor.super_ = superCtor;
-  ctor.prototype = shims.create(superCtor.prototype, {
-    constructor: {
-      value: ctor,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    }
-  });
-};
-
-exports._extend = function(origin, add) {
-  // Don't do anything if add isn't an object
-  if (!add || !isObject(add)) return origin;
-
-  var keys = shims.keys(add);
-  var i = keys.length;
-  while (i--) {
-    origin[keys[i]] = add[keys[i]];
-  }
-  return origin;
-};
-
-function hasOwnProperty(obj, prop) {
-  return Object.prototype.hasOwnProperty.call(obj, prop);
-}
-
-},{"_shims":5}]},{},[])
-;;module.exports=require("buffer-browserify")
-
-},{}],22:[function(require,module,exports){
-// shim for using process in browser
-
-var process = module.exports = {};
-
-process.nextTick = (function () {
-    var canSetImmediate = typeof window !== 'undefined'
-    && window.setImmediate;
-    var canPost = typeof window !== 'undefined'
-    && window.postMessage && window.addEventListener
-    ;
-
-    if (canSetImmediate) {
-        return function (f) { return window.setImmediate(f) };
-    }
-
-    if (canPost) {
-        var queue = [];
-        window.addEventListener('message', function (ev) {
-            var source = ev.source;
-            if ((source === window || source === null) && ev.data === 'process-tick') {
-                ev.stopPropagation();
-                if (queue.length > 0) {
-                    var fn = queue.shift();
-                    fn();
-                }
-            }
-        }, true);
-
-        return function nextTick(fn) {
-            queue.push(fn);
-            window.postMessage('process-tick', '*');
-        };
-    }
-
-    return function nextTick(fn) {
-        setTimeout(fn, 0);
-    };
-})();
-
-process.title = 'browser';
-process.browser = true;
-process.env = {};
-process.argv = [];
-
-process.binding = function (name) {
-    throw new Error('process.binding is not supported');
-}
-
-// TODO(shtylman)
-process.cwd = function () { return '/' };
-process.chdir = function (dir) {
-    throw new Error('process.chdir is not supported');
-};
-
-},{}],23:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/codemirror/lib/codemirror.js",__dirname="/node_modules/codemirror/lib";// CodeMirror is the only global var we claim
-window.CodeMirror = (function() {
+// You can find some technical background for some of the code below
+// at http://marijnhaverbeke.nl/blog/#cm-internals .
+
+(function(mod) {
+  if (typeof exports == "object" && typeof module == "object") // CommonJS
+    module.exports = mod();
+  else if (typeof define == "function" && define.amd) // AMD
+    return define([], mod);
+  else // Plain browser env
+    this.CodeMirror = mod();
+})(function() {
   "use strict";
 
   // BROWSER SNIFFING
 
-  // Crude, but necessary to handle a number of hard-to-feature-detect
-  // bugs and behavior differences.
+  // Kludges for bugs and behavior differences that can't be feature
+  // detected are enabled based on userAgent etc sniffing.
+
   var gecko = /gecko\/\d/i.test(navigator.userAgent);
-  // IE11 currently doesn't count as 'ie', since it has almost none of
-  // the same bugs as earlier versions. Use ie_gt10 to handle
-  // incompatibilities in that version.
-  var ie = /MSIE \d/.test(navigator.userAgent);
-  var ie_lt8 = ie && (document.documentMode == null || document.documentMode < 8);
-  var ie_lt9 = ie && (document.documentMode == null || document.documentMode < 9);
-  var ie_gt10 = /Trident\/([7-9]|\d{2,})\./.test(navigator.userAgent);
+  // ie_uptoN means Internet Explorer version N or lower
+  var ie_upto10 = /MSIE \d/.test(navigator.userAgent);
+  var ie_upto7 = ie_upto10 && (document.documentMode == null || document.documentMode < 8);
+  var ie_upto8 = ie_upto10 && (document.documentMode == null || document.documentMode < 9);
+  var ie_upto9 = ie_upto10 && (document.documentMode == null || document.documentMode < 10);
+  var ie_11up = /Trident\/([7-9]|\d{2,})\./.test(navigator.userAgent);
+  var ie = ie_upto10 || ie_11up;
   var webkit = /WebKit\//.test(navigator.userAgent);
   var qtwebkit = webkit && /Qt\/\d+\.\d+/.test(navigator.userAgent);
   var chrome = /Chrome\//.test(navigator.userAgent);
-  var opera = /Opera\//.test(navigator.userAgent);
+  var presto = /Opera\//.test(navigator.userAgent);
   var safari = /Apple Computer/.test(navigator.vendor);
   var khtml = /KHTML\//.test(navigator.userAgent);
   var mac_geLion = /Mac OS X 1\d\D([7-9]|\d\d)\D/.test(navigator.userAgent);
@@ -7422,151 +7548,182 @@ window.CodeMirror = (function() {
   var mac = ios || /Mac/.test(navigator.platform);
   var windows = /win/i.test(navigator.platform);
 
-  var opera_version = opera && navigator.userAgent.match(/Version\/(\d*\.\d*)/);
-  if (opera_version) opera_version = Number(opera_version[1]);
-  if (opera_version && opera_version >= 15) { opera = false; webkit = true; }
+  var presto_version = presto && navigator.userAgent.match(/Version\/(\d*\.\d*)/);
+  if (presto_version) presto_version = Number(presto_version[1]);
+  if (presto_version && presto_version >= 15) { presto = false; webkit = true; }
   // Some browsers use the wrong event properties to signal cmd/ctrl on OS X
-  var flipCtrlCmd = mac && (qtwebkit || opera && (opera_version == null || opera_version < 12.11));
-  var captureMiddleClick = gecko || (ie && !ie_lt9);
+  var flipCtrlCmd = mac && (qtwebkit || presto && (presto_version == null || presto_version < 12.11));
+  var captureRightClick = gecko || (ie && !ie_upto8);
 
-  // Optimize some code when these features are not used
+  // Optimize some code when these features are not used.
   var sawReadOnlySpans = false, sawCollapsedSpans = false;
 
-  // CONSTRUCTOR
+  // EDITOR CONSTRUCTOR
+
+  // A CodeMirror instance represents an editor. This is the object
+  // that user code is usually dealing with.
 
   function CodeMirror(place, options) {
     if (!(this instanceof CodeMirror)) return new CodeMirror(place, options);
 
     this.options = options = options || {};
     // Determine effective options based on given values and defaults.
-    for (var opt in defaults) if (!options.hasOwnProperty(opt) && defaults.hasOwnProperty(opt))
+    for (var opt in defaults) if (!options.hasOwnProperty(opt))
       options[opt] = defaults[opt];
     setGuttersForLineNumbers(options);
 
-    var docStart = typeof options.value == "string" ? 0 : options.value.first;
-    var display = this.display = makeDisplay(place, docStart);
+    var doc = options.value;
+    if (typeof doc == "string") doc = new Doc(doc, options.mode);
+    this.doc = doc;
+
+    var display = this.display = new Display(place, doc);
     display.wrapper.CodeMirror = this;
     updateGutters(this);
-    if (options.autofocus && !mobile) focusInput(this);
-
-    this.state = {keyMaps: [],
-                  overlays: [],
-                  modeGen: 0,
-                  overwrite: false, focused: false,
-                  suppressEdits: false, pasteIncoming: false,
-                  draggingText: false,
-                  highlight: new Delayed()};
-
     themeChanged(this);
     if (options.lineWrapping)
       this.display.wrapper.className += " CodeMirror-wrap";
+    if (options.autofocus && !mobile) focusInput(this);
 
-    var doc = options.value;
-    if (typeof doc == "string") doc = new Doc(options.value, options.mode);
-    operation(this, attachDoc)(this, doc);
+    this.state = {
+      keyMaps: [],  // stores maps added by addKeyMap
+      overlays: [], // highlighting overlays, as added by addOverlay
+      modeGen: 0,   // bumped when mode/overlay changes, used to invalidate highlighting info
+      overwrite: false, focused: false,
+      suppressEdits: false, // used to disable editing during key handlers when in readOnly mode
+      pasteIncoming: false, cutIncoming: false, // help recognize paste/cut edits in readInput
+      draggingText: false,
+      highlight: new Delayed() // stores highlight worker timeout
+    };
 
     // Override magic textarea content restore that IE sometimes does
     // on our hidden textarea on reload
-    if (ie) setTimeout(bind(resetInput, this, true), 20);
+    if (ie_upto10) setTimeout(bind(resetInput, this, true), 20);
 
     registerEventHandlers(this);
-    // IE throws unspecified error in certain cases, when
-    // trying to access activeElement before onload
-    var hasFocus; try { hasFocus = (document.activeElement == display.input); } catch(e) { }
-    if (hasFocus || (options.autofocus && !mobile)) setTimeout(bind(onFocus, this), 20);
-    else onBlur(this);
 
-    operation(this, function() {
-      for (var opt in optionHandlers)
-        if (optionHandlers.propertyIsEnumerable(opt))
-          optionHandlers[opt](this, options[opt], Init);
-      for (var i = 0; i < initHooks.length; ++i) initHooks[i](this);
-    })();
+    var cm = this;
+    runInOp(this, function() {
+      cm.curOp.forceUpdate = true;
+      attachDoc(cm, doc);
+
+      if ((options.autofocus && !mobile) || activeElt() == display.input)
+        setTimeout(bind(onFocus, cm), 20);
+      else
+        onBlur(cm);
+
+      for (var opt in optionHandlers) if (optionHandlers.hasOwnProperty(opt))
+        optionHandlers[opt](cm, options[opt], Init);
+      for (var i = 0; i < initHooks.length; ++i) initHooks[i](cm);
+    });
   }
 
   // DISPLAY CONSTRUCTOR
 
-  function makeDisplay(place, docStart) {
-    var d = {};
+  // The display handles the DOM integration, both for input reading
+  // and content drawing. It holds references to DOM nodes and
+  // display-related state.
 
-    var input = d.input = elt("textarea", null, null, "position: absolute; padding: 0; width: 1px; height: 1em; outline: none; font-size: 4px;");
+  function Display(place, doc) {
+    var d = this;
+
+    // The semihidden textarea that is focused when the editor is
+    // focused, and receives input.
+    var input = d.input = elt("textarea", null, null, "position: absolute; padding: 0; width: 1px; height: 1em; outline: none");
+    // The textarea is kept positioned near the cursor to prevent the
+    // fact that it'll be scrolled into view on input from scrolling
+    // our fake cursor out of view. On webkit, when wrap=off, paste is
+    // very slow. So make the area wide instead.
     if (webkit) input.style.width = "1000px";
     else input.setAttribute("wrap", "off");
-    // if border: 0; -- iOS fails to open keyboard (issue #1287)
+    // If border: 0; -- iOS fails to open keyboard (issue #1287)
     if (ios) input.style.border = "1px solid black";
     input.setAttribute("autocorrect", "off"); input.setAttribute("autocapitalize", "off"); input.setAttribute("spellcheck", "false");
 
     // Wraps and hides input textarea
     d.inputDiv = elt("div", [input], null, "overflow: hidden; position: relative; width: 3px; height: 0px;");
-    // The actual fake scrollbars.
-    d.scrollbarH = elt("div", [elt("div", null, null, "height: 1px")], "CodeMirror-hscrollbar");
-    d.scrollbarV = elt("div", [elt("div", null, null, "width: 1px")], "CodeMirror-vscrollbar");
+    // The fake scrollbar elements.
+    d.scrollbarH = elt("div", [elt("div", null, null, "height: 100%; min-height: 1px")], "CodeMirror-hscrollbar");
+    d.scrollbarV = elt("div", [elt("div", null, null, "min-width: 1px")], "CodeMirror-vscrollbar");
+    // Covers bottom-right square when both scrollbars are present.
     d.scrollbarFiller = elt("div", null, "CodeMirror-scrollbar-filler");
+    // Covers bottom of gutter when coverGutterNextToScrollbar is on
+    // and h scrollbar is present.
     d.gutterFiller = elt("div", null, "CodeMirror-gutter-filler");
-    // DIVs containing the selection and the actual code
+    // Will contain the actual code, positioned to cover the viewport.
     d.lineDiv = elt("div", null, "CodeMirror-code");
+    // Elements are added to these to represent selection and cursors.
     d.selectionDiv = elt("div", null, null, "position: relative; z-index: 1");
-    // Blinky cursor, and element used to ensure cursor fits at the end of a line
-    d.cursor = elt("div", "\u00a0", "CodeMirror-cursor");
-    // Secondary cursor, shown when on a 'jump' in bi-directional text
-    d.otherCursor = elt("div", "\u00a0", "CodeMirror-cursor CodeMirror-secondarycursor");
-    // Used to measure text size
+    d.cursorDiv = elt("div", null, "CodeMirror-cursors");
+    // A visibility: hidden element used to find the size of things.
     d.measure = elt("div", null, "CodeMirror-measure");
+    // When lines outside of the viewport are measured, they are drawn in this.
+    d.lineMeasure = elt("div", null, "CodeMirror-measure");
     // Wraps everything that needs to exist inside the vertically-padded coordinate system
-    d.lineSpace = elt("div", [d.measure, d.selectionDiv, d.lineDiv, d.cursor, d.otherCursor],
-                         null, "position: relative; outline: none");
-    // Moved around its parent to cover visible view
+    d.lineSpace = elt("div", [d.measure, d.lineMeasure, d.selectionDiv, d.cursorDiv, d.lineDiv],
+                      null, "position: relative; outline: none");
+    // Moved around its parent to cover visible view.
     d.mover = elt("div", [elt("div", [d.lineSpace], "CodeMirror-lines")], null, "position: relative");
-    // Set to the height of the text, causes scrolling
+    // Set to the height of the document, allowing scrolling.
     d.sizer = elt("div", [d.mover], "CodeMirror-sizer");
-    // D is needed because behavior of elts with overflow: auto and padding is inconsistent across browsers
+    // Behavior of elts with overflow: auto and padding is
+    // inconsistent across browsers. This is used to ensure the
+    // scrollable area is big enough.
     d.heightForcer = elt("div", null, null, "position: absolute; height: " + scrollerCutOff + "px; width: 1px;");
-    // Will contain the gutters, if any
+    // Will contain the gutters, if any.
     d.gutters = elt("div", null, "CodeMirror-gutters");
     d.lineGutter = null;
-    // Provides scrolling
+    // Actual scrollable element.
     d.scroller = elt("div", [d.sizer, d.heightForcer, d.gutters], "CodeMirror-scroll");
     d.scroller.setAttribute("tabIndex", "-1");
     // The element in which the editor lives.
     d.wrapper = elt("div", [d.inputDiv, d.scrollbarH, d.scrollbarV,
                             d.scrollbarFiller, d.gutterFiller, d.scroller], "CodeMirror");
-    // Work around IE7 z-index bug
-    if (ie_lt8) { d.gutters.style.zIndex = -1; d.scroller.style.paddingRight = 0; }
-    if (place.appendChild) place.appendChild(d.wrapper); else place(d.wrapper);
 
+    // Work around IE7 z-index bug (not perfect, hence IE7 not really being supported)
+    if (ie_upto7) { d.gutters.style.zIndex = -1; d.scroller.style.paddingRight = 0; }
     // Needed to hide big blue blinking cursor on Mobile Safari
     if (ios) input.style.width = "0px";
     if (!webkit) d.scroller.draggable = true;
     // Needed to handle Tab key in KHTML
     if (khtml) { d.inputDiv.style.height = "1px"; d.inputDiv.style.position = "absolute"; }
     // Need to set a minimum width to see the scrollbar on IE7 (but must not set it on IE8).
-    else if (ie_lt8) d.scrollbarH.style.minWidth = d.scrollbarV.style.minWidth = "18px";
+    if (ie_upto7) d.scrollbarH.style.minHeight = d.scrollbarV.style.minWidth = "18px";
 
-    // Current visible range (may be bigger than the view window).
-    d.viewOffset = d.lastSizeC = 0;
-    d.showingFrom = d.showingTo = docStart;
+    if (place.appendChild) place.appendChild(d.wrapper);
+    else place(d.wrapper);
+
+    // Current rendered range (may be bigger than the view window).
+    d.viewFrom = d.viewTo = doc.first;
+    // Information about the rendered lines.
+    d.view = [];
+    // Holds info about a single rendered line when it was rendered
+    // for measurement, while not in view.
+    d.externalMeasured = null;
+    // Empty space (in pixels) above the view
+    d.viewOffset = 0;
+    d.lastSizeC = 0;
+    d.updateLineNumbers = null;
 
     // Used to only resize the line number gutter when necessary (when
     // the amount of lines crosses a boundary that makes its width change)
     d.lineNumWidth = d.lineNumInnerWidth = d.lineNumChars = null;
     // See readInput and resetInput
     d.prevInput = "";
-    // Set to true when a non-horizontal-scrolling widget is added. As
-    // an optimization, widget aligning is skipped when d is false.
+    // Set to true when a non-horizontal-scrolling line widget is
+    // added. As an optimization, line widget aligning is skipped when
+    // this is false.
     d.alignWidgets = false;
-    // Flag that indicates whether we currently expect input to appear
-    // (after some event like 'keypress' or 'input') and are polling
-    // intensively.
+    // Flag that indicates whether we expect input to appear real soon
+    // now (after some event like 'keypress' or 'input') and are
+    // polling intensively.
     d.pollingFast = false;
     // Self-resetting timeout for the poller
     d.poll = new Delayed();
 
-    d.cachedCharWidth = d.cachedTextHeight = null;
-    d.measureLineCache = [];
-    d.measureLineCachePos = 0;
+    d.cachedCharWidth = d.cachedTextHeight = d.cachedPaddingH = null;
 
     // Tracks when resetInput has punted to just putting a short
-    // string instead of the (large) selection.
+    // string into the textarea instead of the full selection.
     d.inaccurateSelection = false;
 
     // Tracks the maximum line length so that the horizontal scrollbar
@@ -7578,7 +7735,8 @@ window.CodeMirror = (function() {
     // Used for measuring wheel scrolling granularity
     d.wheelDX = d.wheelDY = d.wheelStartX = d.wheelStartY = null;
 
-    return d;
+    // True when shift is held down.
+    d.shift = false;
   }
 
   // STATE UPDATES
@@ -7587,6 +7745,10 @@ window.CodeMirror = (function() {
 
   function loadMode(cm) {
     cm.doc.mode = CodeMirror.getMode(cm.options, cm.doc.modeOption);
+    resetModeState(cm);
+  }
+
+  function resetModeState(cm) {
     cm.doc.iter(function(line) {
       if (line.stateAfter) line.stateAfter = null;
       if (line.styles) line.styles = null;
@@ -7603,7 +7765,7 @@ window.CodeMirror = (function() {
       cm.display.sizer.style.minWidth = "";
     } else {
       cm.display.wrapper.className = cm.display.wrapper.className.replace(" CodeMirror-wrap", "");
-      computeMaxLength(cm);
+      findMaxLine(cm);
     }
     estimateLineHeights(cm);
     regChange(cm);
@@ -7611,16 +7773,24 @@ window.CodeMirror = (function() {
     setTimeout(function(){updateScrollbars(cm);}, 100);
   }
 
+  // Returns a function that estimates the height of a line, to use as
+  // first approximation until the line becomes visible (and is thus
+  // properly measurable).
   function estimateHeight(cm) {
     var th = textHeight(cm.display), wrapping = cm.options.lineWrapping;
     var perLine = wrapping && Math.max(5, cm.display.scroller.clientWidth / charWidth(cm.display) - 3);
     return function(line) {
-      if (lineIsHidden(cm.doc, line))
-        return 0;
-      else if (wrapping)
-        return (Math.ceil(line.text.length / perLine) || 1) * th;
+      if (lineIsHidden(cm.doc, line)) return 0;
+
+      var widgetsHeight = 0;
+      if (line.widgets) for (var i = 0; i < line.widgets.length; i++) {
+        if (line.widgets[i].height) widgetsHeight += line.widgets[i].height;
+      }
+
+      if (wrapping)
+        return widgetsHeight + (Math.ceil(line.text.length / perLine) || 1) * th;
       else
-        return th;
+        return widgetsHeight + th;
     };
   }
 
@@ -7636,7 +7806,6 @@ window.CodeMirror = (function() {
     var map = keyMap[cm.options.keyMap], style = map.style;
     cm.display.wrapper.className = cm.display.wrapper.className.replace(/\s*cm-keymap-\S+/g, "") +
       (style ? " cm-keymap-" + style : "");
-    cm.state.disableInput = map.disableInput;
   }
 
   function themeChanged(cm) {
@@ -7651,6 +7820,8 @@ window.CodeMirror = (function() {
     setTimeout(function(){alignHorizontally(cm);}, 20);
   }
 
+  // Rebuild the gutter elements, ensure the margin to the left of the
+  // code matches their width.
   function updateGutters(cm) {
     var gutters = cm.display.gutters, specs = cm.options.gutters;
     removeChildren(gutters);
@@ -7663,33 +7834,40 @@ window.CodeMirror = (function() {
       }
     }
     gutters.style.display = i ? "" : "none";
+    var width = gutters.offsetWidth;
+    cm.display.sizer.style.marginLeft = width + "px";
+    if (i) cm.display.scrollbarH.style.left = cm.options.fixedGutter ? width + "px" : 0;
   }
 
-  function lineLength(doc, line) {
+  // Compute the character length of a line, taking into account
+  // collapsed ranges (see markText) that might hide parts, and join
+  // other lines onto it.
+  function lineLength(line) {
     if (line.height == 0) return 0;
     var len = line.text.length, merged, cur = line;
     while (merged = collapsedSpanAtStart(cur)) {
-      var found = merged.find();
-      cur = getLine(doc, found.from.line);
+      var found = merged.find(0, true);
+      cur = found.from.line;
       len += found.from.ch - found.to.ch;
     }
     cur = line;
     while (merged = collapsedSpanAtEnd(cur)) {
-      var found = merged.find();
+      var found = merged.find(0, true);
       len -= cur.text.length - found.from.ch;
-      cur = getLine(doc, found.to.line);
+      cur = found.to.line;
       len += cur.text.length - found.to.ch;
     }
     return len;
   }
 
-  function computeMaxLength(cm) {
+  // Find the longest line in the document.
+  function findMaxLine(cm) {
     var d = cm.display, doc = cm.doc;
     d.maxLine = getLine(doc, doc.first);
-    d.maxLineLength = lineLength(doc, d.maxLine);
+    d.maxLineLength = lineLength(d.maxLine);
     d.maxLineChanged = true;
     doc.iter(function(line) {
-      var len = lineLength(doc, line);
+      var len = lineLength(line);
       if (len > d.maxLineLength) {
         d.maxLineLength = len;
         d.maxLine = line;
@@ -7711,21 +7889,33 @@ window.CodeMirror = (function() {
 
   // SCROLLBARS
 
+  // Prepare DOM reads needed to update the scrollbars. Done in one
+  // shot to minimize update/measure roundtrips.
+  function measureForScrollbars(cm) {
+    var scroll = cm.display.scroller;
+    return {
+      clientHeight: scroll.clientHeight,
+      barHeight: cm.display.scrollbarV.clientHeight,
+      scrollWidth: scroll.scrollWidth, clientWidth: scroll.clientWidth,
+      barWidth: cm.display.scrollbarH.clientWidth,
+      docHeight: Math.round(cm.doc.height + paddingVert(cm.display))
+    };
+  }
+
   // Re-synchronize the fake scrollbars with the actual size of the
-  // content. Optionally force a scrollTop.
-  function updateScrollbars(cm) {
-    var d = cm.display, docHeight = cm.doc.height;
-    var totalHeight = docHeight + paddingVert(d);
-    d.sizer.style.minHeight = d.heightForcer.style.top = totalHeight + "px";
-    d.gutters.style.height = Math.max(totalHeight, d.scroller.clientHeight - scrollerCutOff) + "px";
-    var scrollHeight = Math.max(totalHeight, d.scroller.scrollHeight);
-    var needsH = d.scroller.scrollWidth > (d.scroller.clientWidth + 1);
-    var needsV = scrollHeight > (d.scroller.clientHeight + 1);
+  // content.
+  function updateScrollbars(cm, measure) {
+    if (!measure) measure = measureForScrollbars(cm);
+    var d = cm.display;
+    var scrollHeight = measure.docHeight + scrollerCutOff;
+    var needsH = measure.scrollWidth > measure.clientWidth;
+    var needsV = scrollHeight > measure.clientHeight;
     if (needsV) {
       d.scrollbarV.style.display = "block";
       d.scrollbarV.style.bottom = needsH ? scrollbarWidth(d.measure) + "px" : "0";
+      // A bug in IE8 can cause this value to be negative, so guard it.
       d.scrollbarV.firstChild.style.height =
-        (scrollHeight - d.scroller.clientHeight + d.scrollbarV.clientHeight) + "px";
+        Math.max(0, scrollHeight - measure.clientHeight + (measure.barHeight || d.scrollbarV.clientHeight)) + "px";
     } else {
       d.scrollbarV.style.display = "";
       d.scrollbarV.firstChild.style.height = "0";
@@ -7734,7 +7924,7 @@ window.CodeMirror = (function() {
       d.scrollbarH.style.display = "block";
       d.scrollbarH.style.right = needsV ? scrollbarWidth(d.measure) + "px" : "0";
       d.scrollbarH.firstChild.style.width =
-        (d.scroller.scrollWidth - d.scroller.clientWidth + d.scrollbarH.clientWidth) + "px";
+        (measure.scrollWidth - measure.clientWidth + (measure.barWidth || d.scrollbarH.clientWidth)) + "px";
     } else {
       d.scrollbarH.style.display = "";
       d.scrollbarH.firstChild.style.width = "0";
@@ -7751,33 +7941,61 @@ window.CodeMirror = (function() {
 
     if (mac_geLion && scrollbarWidth(d.measure) === 0) {
       d.scrollbarV.style.minWidth = d.scrollbarH.style.minHeight = mac_geMountainLion ? "18px" : "12px";
-      d.scrollbarV.style.pointerEvents = d.scrollbarH.style.pointerEvents = "none";
+      var barMouseDown = function(e) {
+        if (e_target(e) != d.scrollbarV && e_target(e) != d.scrollbarH)
+          operation(cm, onMouseDown)(e);
+      };
+      on(d.scrollbarV, "mousedown", barMouseDown);
+      on(d.scrollbarH, "mousedown", barMouseDown);
     }
   }
 
+  // Compute the lines that are visible in a given viewport (defaults
+  // the the current scroll position). viewPort may contain top,
+  // height, and ensure (see op.scrollToPos) properties.
   function visibleLines(display, doc, viewPort) {
-    var top = display.scroller.scrollTop, height = display.wrapper.clientHeight;
-    if (typeof viewPort == "number") top = viewPort;
-    else if (viewPort) {top = viewPort.top; height = viewPort.bottom - viewPort.top;}
+    var top = viewPort && viewPort.top != null ? viewPort.top : display.scroller.scrollTop;
     top = Math.floor(top - paddingTop(display));
-    var bottom = Math.ceil(top + height);
-    return {from: lineAtHeight(doc, top), to: lineAtHeight(doc, bottom)};
+    var bottom = viewPort && viewPort.bottom != null ? viewPort.bottom : top + display.wrapper.clientHeight;
+
+    var from = lineAtHeight(doc, top), to = lineAtHeight(doc, bottom);
+    // Ensure is a {from: {line, ch}, to: {line, ch}} object, and
+    // forces those lines into the viewport (if possible).
+    if (viewPort && viewPort.ensure) {
+      var ensureFrom = viewPort.ensure.from.line, ensureTo = viewPort.ensure.to.line;
+      if (ensureFrom < from)
+        return {from: ensureFrom,
+                to: lineAtHeight(doc, heightAtLine(getLine(doc, ensureFrom)) + display.wrapper.clientHeight)};
+      if (Math.min(ensureTo, doc.lastLine()) >= to)
+        return {from: lineAtHeight(doc, heightAtLine(getLine(doc, ensureTo)) - display.wrapper.clientHeight),
+                to: ensureTo};
+    }
+    return {from: from, to: to};
   }
 
   // LINE NUMBERS
 
+  // Re-align line numbers and gutter marks to compensate for
+  // horizontal scrolling.
   function alignHorizontally(cm) {
-    var display = cm.display;
+    var display = cm.display, view = display.view;
     if (!display.alignWidgets && (!display.gutters.firstChild || !cm.options.fixedGutter)) return;
     var comp = compensateForHScroll(display) - display.scroller.scrollLeft + cm.doc.scrollLeft;
-    var gutterW = display.gutters.offsetWidth, l = comp + "px";
-    for (var n = display.lineDiv.firstChild; n; n = n.nextSibling) if (n.alignable) {
-      for (var i = 0, a = n.alignable; i < a.length; ++i) a[i].style.left = l;
+    var gutterW = display.gutters.offsetWidth, left = comp + "px";
+    for (var i = 0; i < view.length; i++) if (!view[i].hidden) {
+      if (cm.options.fixedGutter && view[i].gutter)
+        view[i].gutter.style.left = left;
+      var align = view[i].alignable;
+      if (align) for (var j = 0; j < align.length; j++)
+        align[j].style.left = left;
     }
     if (cm.options.fixedGutter)
       display.gutters.style.left = (comp + gutterW) + "px";
   }
 
+  // Used to ensure that the line number gutter is still the right
+  // size for the current document size. Returns true when an update
+  // is needed.
   function maybeUpdateLineNumberWidth(cm) {
     if (!cm.options.lineNumbers) return false;
     var doc = cm.doc, last = lineNumberFor(cm.options, doc.first + doc.size - 1), display = cm.display;
@@ -7790,6 +8008,9 @@ window.CodeMirror = (function() {
       display.lineNumWidth = display.lineNumInnerWidth + padding;
       display.lineNumChars = display.lineNumInnerWidth ? last.length : -1;
       display.lineGutter.style.width = display.lineNumWidth + "px";
+      var width = display.gutters.offsetWidth;
+      display.scrollbarH.style.left = cm.options.fixedGutter ? width + "px" : 0;
+      display.sizer.style.marginLeft = width + "px";
       return true;
     }
     return false;
@@ -7798,191 +8019,181 @@ window.CodeMirror = (function() {
   function lineNumberFor(options, i) {
     return String(options.lineNumberFormatter(i + options.firstLineNumber));
   }
+
+  // Computes display.scroller.scrollLeft + display.gutters.offsetWidth,
+  // but using getBoundingClientRect to get a sub-pixel-accurate
+  // result.
   function compensateForHScroll(display) {
-    return getRect(display.scroller).left - getRect(display.sizer).left;
+    return display.scroller.getBoundingClientRect().left - display.sizer.getBoundingClientRect().left;
   }
 
   // DISPLAY DRAWING
 
-  function updateDisplay(cm, changes, viewPort, forced) {
-    var oldFrom = cm.display.showingFrom, oldTo = cm.display.showingTo, updated;
+  // Updates the display, selection, and scrollbars, using the
+  // information in display.view to find out which nodes are no longer
+  // up-to-date. Tries to bail out early when no changes are needed,
+  // unless forced is true.
+  // Returns true if an actual update happened, false otherwise.
+  function updateDisplay(cm, viewPort, forced) {
+    var oldFrom = cm.display.viewFrom, oldTo = cm.display.viewTo, updated;
     var visible = visibleLines(cm.display, cm.doc, viewPort);
     for (var first = true;; first = false) {
       var oldWidth = cm.display.scroller.clientWidth;
-      if (!updateDisplayInner(cm, changes, visible, forced)) break;
+      if (!updateDisplayInner(cm, visible, forced)) break;
       updated = true;
-      changes = [];
+
+      // If the max line changed since it was last measured, measure it,
+      // and ensure the document's width matches it.
+      if (cm.display.maxLineChanged && !cm.options.lineWrapping)
+        adjustContentWidth(cm);
+
+      var barMeasure = measureForScrollbars(cm);
       updateSelection(cm);
-      updateScrollbars(cm);
+      setDocumentHeight(cm, barMeasure);
+      updateScrollbars(cm, barMeasure);
       if (first && cm.options.lineWrapping && oldWidth != cm.display.scroller.clientWidth) {
         forced = true;
         continue;
       }
       forced = false;
 
-      // Clip forced viewport to actual scrollable area
-      if (viewPort)
-        viewPort = Math.min(cm.display.scroller.scrollHeight - cm.display.scroller.clientHeight,
-                            typeof viewPort == "number" ? viewPort : viewPort.top);
+      // Clip forced viewport to actual scrollable area.
+      if (viewPort && viewPort.top != null)
+        viewPort = {top: Math.min(barMeasure.docHeight - scrollerCutOff - barMeasure.clientHeight, viewPort.top)};
+      // Updated line heights might result in the drawn area not
+      // actually covering the viewport. Keep looping until it does.
       visible = visibleLines(cm.display, cm.doc, viewPort);
-      if (visible.from >= cm.display.showingFrom && visible.to <= cm.display.showingTo)
+      if (visible.from >= cm.display.viewFrom && visible.to <= cm.display.viewTo)
         break;
     }
 
+    cm.display.updateLineNumbers = null;
     if (updated) {
       signalLater(cm, "update", cm);
-      if (cm.display.showingFrom != oldFrom || cm.display.showingTo != oldTo)
-        signalLater(cm, "viewportChange", cm, cm.display.showingFrom, cm.display.showingTo);
+      if (cm.display.viewFrom != oldFrom || cm.display.viewTo != oldTo)
+        signalLater(cm, "viewportChange", cm, cm.display.viewFrom, cm.display.viewTo);
     }
     return updated;
   }
 
-  // Uses a set of changes plus the current scroll position to
-  // determine which DOM updates have to be made, and makes the
-  // updates.
-  function updateDisplayInner(cm, changes, visible, forced) {
+  // Does the actual updating of the line display. Bails out
+  // (returning false) when there is nothing to be done and forced is
+  // false.
+  function updateDisplayInner(cm, visible, forced) {
     var display = cm.display, doc = cm.doc;
-    if (!display.wrapper.clientWidth) {
-      display.showingFrom = display.showingTo = doc.first;
-      display.viewOffset = 0;
+    if (!display.wrapper.offsetWidth) {
+      resetView(cm);
       return;
     }
 
     // Bail out if the visible area is already rendered and nothing changed.
-    if (!forced && changes.length == 0 &&
-        visible.from > display.showingFrom && visible.to < display.showingTo)
+    if (!forced && visible.from >= display.viewFrom && visible.to <= display.viewTo &&
+        countDirtyView(cm) == 0)
       return;
 
     if (maybeUpdateLineNumberWidth(cm))
-      changes = [{from: doc.first, to: doc.first + doc.size}];
-    var gutterW = display.sizer.style.marginLeft = display.gutters.offsetWidth + "px";
-    display.scrollbarH.style.left = cm.options.fixedGutter ? gutterW : "0";
+      resetView(cm);
+    var dims = getDimensions(cm);
 
-    // Used to determine which lines need their line numbers updated
-    var positionsChangedFrom = Infinity;
-    if (cm.options.lineNumbers)
-      for (var i = 0; i < changes.length; ++i)
-        if (changes[i].diff && changes[i].from < positionsChangedFrom) { positionsChangedFrom = changes[i].from; }
-
+    // Compute a suitable new viewport (from & to)
     var end = doc.first + doc.size;
     var from = Math.max(visible.from - cm.options.viewportMargin, doc.first);
     var to = Math.min(end, visible.to + cm.options.viewportMargin);
-    if (display.showingFrom < from && from - display.showingFrom < 20) from = Math.max(doc.first, display.showingFrom);
-    if (display.showingTo > to && display.showingTo - to < 20) to = Math.min(end, display.showingTo);
+    if (display.viewFrom < from && from - display.viewFrom < 20) from = Math.max(doc.first, display.viewFrom);
+    if (display.viewTo > to && display.viewTo - to < 20) to = Math.min(end, display.viewTo);
     if (sawCollapsedSpans) {
-      from = lineNo(visualLine(doc, getLine(doc, from)));
-      while (to < end && lineIsHidden(doc, getLine(doc, to))) ++to;
+      from = visualLineNo(cm.doc, from);
+      to = visualLineEndNo(cm.doc, to);
     }
 
-    // Create a range of theoretically intact lines, and punch holes
-    // in that using the change info.
-    var intact = [{from: Math.max(display.showingFrom, doc.first),
-                   to: Math.min(display.showingTo, end)}];
-    if (intact[0].from >= intact[0].to) intact = [];
-    else intact = computeIntact(intact, changes);
-    // When merged lines are present, we might have to reduce the
-    // intact ranges because changes in continued fragments of the
-    // intact lines do require the lines to be redrawn.
-    if (sawCollapsedSpans)
-      for (var i = 0; i < intact.length; ++i) {
-        var range = intact[i], merged;
-        while (merged = collapsedSpanAtEnd(getLine(doc, range.to - 1))) {
-          var newTo = merged.find().from.line;
-          if (newTo > range.from) range.to = newTo;
-          else { intact.splice(i--, 1); break; }
-        }
-      }
-
-    // Clip off the parts that won't be visible
-    var intactLines = 0;
-    for (var i = 0; i < intact.length; ++i) {
-      var range = intact[i];
-      if (range.from < from) range.from = from;
-      if (range.to > to) range.to = to;
-      if (range.from >= range.to) intact.splice(i--, 1);
-      else intactLines += range.to - range.from;
-    }
-    if (!forced && intactLines == to - from && from == display.showingFrom && to == display.showingTo) {
-      updateViewOffset(cm);
-      return;
-    }
-    intact.sort(function(a, b) {return a.from - b.from;});
-
-    // Avoid crashing on IE's "unspecified error" when in iframes
-    try {
-      var focused = document.activeElement;
-    } catch(e) {}
-    if (intactLines < (to - from) * .7) display.lineDiv.style.display = "none";
-    patchDisplay(cm, from, to, intact, positionsChangedFrom);
-    display.lineDiv.style.display = "";
-    if (focused && document.activeElement != focused && focused.offsetHeight) focused.focus();
-
-    var different = from != display.showingFrom || to != display.showingTo ||
+    var different = from != display.viewFrom || to != display.viewTo ||
       display.lastSizeC != display.wrapper.clientHeight;
-    // This is just a bogus formula that detects when the editor is
-    // resized or the font size changes.
+    adjustView(cm, from, to);
+
+    display.viewOffset = heightAtLine(getLine(cm.doc, display.viewFrom));
+    // Position the mover div to align with the current scroll position
+    cm.display.mover.style.top = display.viewOffset + "px";
+
+    var toUpdate = countDirtyView(cm);
+    if (!different && toUpdate == 0 && !forced) return;
+
+    // For big changes, we hide the enclosing element during the
+    // update, since that speeds up the operations on most browsers.
+    var focused = activeElt();
+    if (toUpdate > 4) display.lineDiv.style.display = "none";
+    patchDisplay(cm, display.updateLineNumbers, dims);
+    if (toUpdate > 4) display.lineDiv.style.display = "";
+    // There might have been a widget with a focused element that got
+    // hidden or updated, if so re-focus it.
+    if (focused && activeElt() != focused && focused.offsetHeight) focused.focus();
+
+    // Prevent selection and cursors from interfering with the scroll
+    // width.
+    removeChildren(display.cursorDiv);
+    removeChildren(display.selectionDiv);
+
     if (different) {
       display.lastSizeC = display.wrapper.clientHeight;
       startWorker(cm, 400);
     }
-    display.showingFrom = from; display.showingTo = to;
 
     updateHeightsInViewport(cm);
-    updateViewOffset(cm);
 
     return true;
   }
 
+  function adjustContentWidth(cm) {
+    var display = cm.display;
+    var width = measureChar(cm, display.maxLine, display.maxLine.text.length).left;
+    display.maxLineChanged = false;
+    var minWidth = Math.max(0, width + 3);
+    var maxScrollLeft = Math.max(0, display.sizer.offsetLeft + minWidth + scrollerCutOff - display.scroller.clientWidth);
+    display.sizer.style.minWidth = minWidth + "px";
+    if (maxScrollLeft < cm.doc.scrollLeft)
+      setScrollLeft(cm, Math.min(display.scroller.scrollLeft, maxScrollLeft), true);
+  }
+
+  function setDocumentHeight(cm, measure) {
+    cm.display.sizer.style.minHeight = cm.display.heightForcer.style.top = measure.docHeight + "px";
+    cm.display.gutters.style.height = Math.max(measure.docHeight, measure.clientHeight - scrollerCutOff) + "px";
+  }
+
+  // Read the actual heights of the rendered lines, and update their
+  // stored heights to match.
   function updateHeightsInViewport(cm) {
     var display = cm.display;
     var prevBottom = display.lineDiv.offsetTop;
-    for (var node = display.lineDiv.firstChild, height; node; node = node.nextSibling) if (node.lineObj) {
-      if (ie_lt8) {
-        var bot = node.offsetTop + node.offsetHeight;
+    for (var i = 0; i < display.view.length; i++) {
+      var cur = display.view[i], height;
+      if (cur.hidden) continue;
+      if (ie_upto7) {
+        var bot = cur.node.offsetTop + cur.node.offsetHeight;
         height = bot - prevBottom;
         prevBottom = bot;
       } else {
-        var box = getRect(node);
+        var box = cur.node.getBoundingClientRect();
         height = box.bottom - box.top;
       }
-      var diff = node.lineObj.height - height;
+      var diff = cur.line.height - height;
       if (height < 2) height = textHeight(display);
       if (diff > .001 || diff < -.001) {
-        updateLineHeight(node.lineObj, height);
-        var widgets = node.lineObj.widgets;
-        if (widgets) for (var i = 0; i < widgets.length; ++i)
-          widgets[i].height = widgets[i].node.offsetHeight;
+        updateLineHeight(cur.line, height);
+        updateWidgetHeight(cur.line);
+        if (cur.rest) for (var j = 0; j < cur.rest.length; j++)
+          updateWidgetHeight(cur.rest[j]);
       }
     }
   }
 
-  function updateViewOffset(cm) {
-    var off = cm.display.viewOffset = heightAtLine(cm, getLine(cm.doc, cm.display.showingFrom));
-    // Position the mover div to align with the current virtual scroll position
-    cm.display.mover.style.top = off + "px";
+  // Read and store the height of line widgets associated with the
+  // given line.
+  function updateWidgetHeight(line) {
+    if (line.widgets) for (var i = 0; i < line.widgets.length; ++i)
+      line.widgets[i].height = line.widgets[i].node.offsetHeight;
   }
 
-  function computeIntact(intact, changes) {
-    for (var i = 0, l = changes.length || 0; i < l; ++i) {
-      var change = changes[i], intact2 = [], diff = change.diff || 0;
-      for (var j = 0, l2 = intact.length; j < l2; ++j) {
-        var range = intact[j];
-        if (change.to <= range.from && change.diff) {
-          intact2.push({from: range.from + diff, to: range.to + diff});
-        } else if (change.to <= range.from || change.from >= range.to) {
-          intact2.push(range);
-        } else {
-          if (change.from > range.from)
-            intact2.push({from: range.from, to: change.from});
-          if (change.to < range.to)
-            intact2.push({from: change.to + diff, to: range.to + diff});
-        }
-      }
-      intact = intact2;
-    }
-    return intact;
-  }
-
+  // Do a bulk-read of the DOM positions and sizes needed to draw the
+  // view, so that we don't interleave reading and writing to the DOM.
   function getDimensions(cm) {
     var d = cm.display, left = {}, width = {};
     for (var n = d.gutters.firstChild, i = 0; n; n = n.nextSibling, ++i) {
@@ -7996,154 +8207,207 @@ window.CodeMirror = (function() {
             wrapperWidth: d.wrapper.clientWidth};
   }
 
-  function patchDisplay(cm, from, to, intact, updateNumbersFrom) {
-    var dims = getDimensions(cm);
+  // Sync the actual display DOM structure with display.view, removing
+  // nodes for lines that are no longer in view, and creating the ones
+  // that are not there yet, and updating the ones that are out of
+  // date.
+  function patchDisplay(cm, updateNumbersFrom, dims) {
     var display = cm.display, lineNumbers = cm.options.lineNumbers;
-    if (!intact.length && (!webkit || !cm.display.currentWheelTarget))
-      removeChildren(display.lineDiv);
     var container = display.lineDiv, cur = container.firstChild;
 
     function rm(node) {
       var next = node.nextSibling;
-      if (webkit && mac && cm.display.currentWheelTarget == node) {
+      // Works around a throw-scroll bug in OS X Webkit
+      if (webkit && mac && cm.display.currentWheelTarget == node)
         node.style.display = "none";
-        node.lineObj = null;
-      } else {
+      else
         node.parentNode.removeChild(node);
-      }
       return next;
     }
 
-    var nextIntact = intact.shift(), lineN = from;
-    cm.doc.iter(from, to, function(line) {
-      if (nextIntact && nextIntact.to == lineN) nextIntact = intact.shift();
-      if (lineIsHidden(cm.doc, line)) {
-        if (line.height != 0) updateLineHeight(line, 0);
-        if (line.widgets && cur && cur.previousSibling) for (var i = 0; i < line.widgets.length; ++i) {
-          var w = line.widgets[i];
-          if (w.showIfHidden) {
-            var prev = cur.previousSibling;
-            if (/pre/i.test(prev.nodeName)) {
-              var wrap = elt("div", null, null, "position: relative");
-              prev.parentNode.replaceChild(wrap, prev);
-              wrap.appendChild(prev);
-              prev = wrap;
-            }
-            var wnode = prev.appendChild(elt("div", [w.node], "CodeMirror-linewidget"));
-            if (!w.handleMouseEvents) wnode.ignoreEvents = true;
-            positionLineWidget(w, wnode, prev, dims);
-          }
+    var view = display.view, lineN = display.viewFrom;
+    // Loop over the elements in the view, syncing cur (the DOM nodes
+    // in display.lineDiv) with the view as we go.
+    for (var i = 0; i < view.length; i++) {
+      var lineView = view[i];
+      if (lineView.hidden) {
+      } else if (!lineView.node) { // Not drawn yet
+        var node = buildLineElement(cm, lineView, lineN, dims);
+        container.insertBefore(node, cur);
+      } else { // Already drawn
+        while (cur != lineView.node) cur = rm(cur);
+        var updateNumber = lineNumbers && updateNumbersFrom != null &&
+          updateNumbersFrom <= lineN && lineView.lineNumber;
+        if (lineView.changes) {
+          if (indexOf(lineView.changes, "gutter") > -1) updateNumber = false;
+          updateLineForChanges(cm, lineView, lineN, dims);
         }
-      } else if (nextIntact && nextIntact.from <= lineN && nextIntact.to > lineN) {
-        // This line is intact. Skip to the actual node. Update its
-        // line number if needed.
-        while (cur.lineObj != line) cur = rm(cur);
-        if (lineNumbers && updateNumbersFrom <= lineN && cur.lineNumber)
-          setTextContent(cur.lineNumber, lineNumberFor(cm.options, lineN));
-        cur = cur.nextSibling;
-      } else {
-        // For lines with widgets, make an attempt to find and reuse
-        // the existing element, so that widgets aren't needlessly
-        // removed and re-inserted into the dom
-        if (line.widgets) for (var j = 0, search = cur, reuse; search && j < 20; ++j, search = search.nextSibling)
-          if (search.lineObj == line && /div/i.test(search.nodeName)) { reuse = search; break; }
-        // This line needs to be generated.
-        var lineNode = buildLineElement(cm, line, lineN, dims, reuse);
-        if (lineNode != reuse) {
-          container.insertBefore(lineNode, cur);
-        } else {
-          while (cur != reuse) cur = rm(cur);
-          cur = cur.nextSibling;
+        if (updateNumber) {
+          removeChildren(lineView.lineNumber);
+          lineView.lineNumber.appendChild(document.createTextNode(lineNumberFor(cm.options, lineN)));
         }
-
-        lineNode.lineObj = line;
+        cur = lineView.node.nextSibling;
       }
-      ++lineN;
-    });
+      lineN += lineView.size;
+    }
     while (cur) cur = rm(cur);
   }
 
-  function buildLineElement(cm, line, lineNo, dims, reuse) {
-    var built = buildLineContent(cm, line), lineElement = built.pre;
-    var markers = line.gutterMarkers, display = cm.display, wrap;
-
-    var bgClass = built.bgClass ? built.bgClass + " " + (line.bgClass || "") : line.bgClass;
-    if (!cm.options.lineNumbers && !markers && !bgClass && !line.wrapClass && !line.widgets)
-      return lineElement;
-
-    // Lines with gutter elements, widgets or a background class need
-    // to be wrapped again, and have the extra elements added to the
-    // wrapper div
-
-    if (reuse) {
-      reuse.alignable = null;
-      var isOk = true, widgetsSeen = 0, insertBefore = null;
-      for (var n = reuse.firstChild, next; n; n = next) {
-        next = n.nextSibling;
-        if (!/\bCodeMirror-linewidget\b/.test(n.className)) {
-          reuse.removeChild(n);
-        } else {
-          for (var i = 0; i < line.widgets.length; ++i) {
-            var widget = line.widgets[i];
-            if (widget.node == n.firstChild) {
-              if (!widget.above && !insertBefore) insertBefore = n;
-              positionLineWidget(widget, n, reuse, dims);
-              ++widgetsSeen;
-              break;
-            }
-          }
-          if (i == line.widgets.length) { isOk = false; break; }
-        }
-      }
-      reuse.insertBefore(lineElement, insertBefore);
-      if (isOk && widgetsSeen == line.widgets.length) {
-        wrap = reuse;
-        reuse.className = line.wrapClass || "";
-      }
+  // When an aspect of a line changes, a string is added to
+  // lineView.changes. This updates the relevant part of the line's
+  // DOM structure.
+  function updateLineForChanges(cm, lineView, lineN, dims) {
+    for (var j = 0; j < lineView.changes.length; j++) {
+      var type = lineView.changes[j];
+      if (type == "text") updateLineText(cm, lineView);
+      else if (type == "gutter") updateLineGutter(cm, lineView, lineN, dims);
+      else if (type == "class") updateLineClasses(lineView);
+      else if (type == "widget") updateLineWidgets(lineView, dims);
     }
-    if (!wrap) {
-      wrap = elt("div", null, line.wrapClass, "position: relative");
-      wrap.appendChild(lineElement);
+    lineView.changes = null;
+  }
+
+  // Lines with gutter elements, widgets or a background class need to
+  // be wrapped, and have the extra elements added to the wrapper div
+  function ensureLineWrapped(lineView) {
+    if (lineView.node == lineView.text) {
+      lineView.node = elt("div", null, null, "position: relative");
+      if (lineView.text.parentNode)
+        lineView.text.parentNode.replaceChild(lineView.node, lineView.text);
+      lineView.node.appendChild(lineView.text);
+      if (ie_upto7) lineView.node.style.zIndex = 2;
     }
-    // Kludge to make sure the styled element lies behind the selection (by z-index)
-    if (bgClass)
-      wrap.insertBefore(elt("div", null, bgClass + " CodeMirror-linebackground"), wrap.firstChild);
+    return lineView.node;
+  }
+
+  function updateLineBackground(lineView) {
+    var cls = lineView.bgClass ? lineView.bgClass + " " + (lineView.line.bgClass || "") : lineView.line.bgClass;
+    if (cls) cls += " CodeMirror-linebackground";
+    if (lineView.background) {
+      if (cls) lineView.background.className = cls;
+      else { lineView.background.parentNode.removeChild(lineView.background); lineView.background = null; }
+    } else if (cls) {
+      var wrap = ensureLineWrapped(lineView);
+      lineView.background = wrap.insertBefore(elt("div", null, cls), wrap.firstChild);
+    }
+  }
+
+  // Wrapper around buildLineContent which will reuse the structure
+  // in display.externalMeasured when possible.
+  function getLineContent(cm, lineView) {
+    var ext = cm.display.externalMeasured;
+    if (ext && ext.line == lineView.line) {
+      cm.display.externalMeasured = null;
+      lineView.measure = ext.measure;
+      return ext.built;
+    }
+    return buildLineContent(cm, lineView);
+  }
+
+  // Redraw the line's text. Interacts with the background and text
+  // classes because the mode may output tokens that influence these
+  // classes.
+  function updateLineText(cm, lineView) {
+    var cls = lineView.text.className;
+    var built = getLineContent(cm, lineView);
+    if (lineView.text == lineView.node) lineView.node = built.pre;
+    lineView.text.parentNode.replaceChild(built.pre, lineView.text);
+    lineView.text = built.pre;
+    if (built.bgClass != lineView.bgClass || built.textClass != lineView.textClass) {
+      lineView.bgClass = built.bgClass;
+      lineView.textClass = built.textClass;
+      updateLineClasses(lineView);
+    } else if (cls) {
+      lineView.text.className = cls;
+    }
+  }
+
+  function updateLineClasses(lineView) {
+    updateLineBackground(lineView);
+    if (lineView.line.wrapClass)
+      ensureLineWrapped(lineView).className = lineView.line.wrapClass;
+    else if (lineView.node != lineView.text)
+      lineView.node.className = "";
+    var textClass = lineView.textClass ? lineView.textClass + " " + (lineView.line.textClass || "") : lineView.line.textClass;
+    lineView.text.className = textClass || "";
+  }
+
+  function updateLineGutter(cm, lineView, lineN, dims) {
+    if (lineView.gutter) {
+      lineView.node.removeChild(lineView.gutter);
+      lineView.gutter = null;
+    }
+    var markers = lineView.line.gutterMarkers;
     if (cm.options.lineNumbers || markers) {
-      var gutterWrap = wrap.insertBefore(elt("div", null, null, "position: absolute; left: " +
-                                             (cm.options.fixedGutter ? dims.fixedPos : -dims.gutterTotalWidth) + "px"),
-                                         wrap.firstChild);
-      if (cm.options.fixedGutter) (wrap.alignable || (wrap.alignable = [])).push(gutterWrap);
+      var wrap = ensureLineWrapped(lineView);
+      var gutterWrap = lineView.gutter =
+        wrap.insertBefore(elt("div", null, "CodeMirror-gutter-wrapper", "position: absolute; left: " +
+                              (cm.options.fixedGutter ? dims.fixedPos : -dims.gutterTotalWidth) + "px"),
+                          lineView.text);
       if (cm.options.lineNumbers && (!markers || !markers["CodeMirror-linenumbers"]))
-        wrap.lineNumber = gutterWrap.appendChild(
-          elt("div", lineNumberFor(cm.options, lineNo),
+        lineView.lineNumber = gutterWrap.appendChild(
+          elt("div", lineNumberFor(cm.options, lineN),
               "CodeMirror-linenumber CodeMirror-gutter-elt",
               "left: " + dims.gutterLeft["CodeMirror-linenumbers"] + "px; width: "
-              + display.lineNumInnerWidth + "px"));
-      if (markers)
-        for (var k = 0; k < cm.options.gutters.length; ++k) {
-          var id = cm.options.gutters[k], found = markers.hasOwnProperty(id) && markers[id];
-          if (found)
-            gutterWrap.appendChild(elt("div", [found], "CodeMirror-gutter-elt", "left: " +
-                                       dims.gutterLeft[id] + "px; width: " + dims.gutterWidth[id] + "px"));
-        }
+              + cm.display.lineNumInnerWidth + "px"));
+      if (markers) for (var k = 0; k < cm.options.gutters.length; ++k) {
+        var id = cm.options.gutters[k], found = markers.hasOwnProperty(id) && markers[id];
+        if (found)
+          gutterWrap.appendChild(elt("div", [found], "CodeMirror-gutter-elt", "left: " +
+                                     dims.gutterLeft[id] + "px; width: " + dims.gutterWidth[id] + "px"));
+      }
     }
-    if (ie_lt8) wrap.style.zIndex = 2;
-    if (line.widgets && wrap != reuse) for (var i = 0, ws = line.widgets; i < ws.length; ++i) {
+  }
+
+  function updateLineWidgets(lineView, dims) {
+    if (lineView.alignable) lineView.alignable = null;
+    for (var node = lineView.node.firstChild, next; node; node = next) {
+      var next = node.nextSibling;
+      if (node.className == "CodeMirror-linewidget")
+        lineView.node.removeChild(node);
+    }
+    insertLineWidgets(lineView, dims);
+  }
+
+  // Build a line's DOM representation from scratch
+  function buildLineElement(cm, lineView, lineN, dims) {
+    var built = getLineContent(cm, lineView);
+    lineView.text = lineView.node = built.pre;
+    if (built.bgClass) lineView.bgClass = built.bgClass;
+    if (built.textClass) lineView.textClass = built.textClass;
+
+    updateLineClasses(lineView);
+    updateLineGutter(cm, lineView, lineN, dims);
+    insertLineWidgets(lineView, dims);
+    return lineView.node;
+  }
+
+  // A lineView may contain multiple logical lines (when merged by
+  // collapsed spans). The widgets for all of them need to be drawn.
+  function insertLineWidgets(lineView, dims) {
+    insertLineWidgetsFor(lineView.line, lineView, dims, true);
+    if (lineView.rest) for (var i = 0; i < lineView.rest.length; i++)
+      insertLineWidgetsFor(lineView.rest[i], lineView, dims, false);
+  }
+
+  function insertLineWidgetsFor(line, lineView, dims, allowAbove) {
+    if (!line.widgets) return;
+    var wrap = ensureLineWrapped(lineView);
+    for (var i = 0, ws = line.widgets; i < ws.length; ++i) {
       var widget = ws[i], node = elt("div", [widget.node], "CodeMirror-linewidget");
       if (!widget.handleMouseEvents) node.ignoreEvents = true;
-      positionLineWidget(widget, node, wrap, dims);
-      if (widget.above)
-        wrap.insertBefore(node, cm.options.lineNumbers && line.height != 0 ? gutterWrap : lineElement);
+      positionLineWidget(widget, node, lineView, dims);
+      if (allowAbove && widget.above)
+        wrap.insertBefore(node, lineView.gutter || lineView.text);
       else
         wrap.appendChild(node);
       signalLater(widget, "redraw");
     }
-    return wrap;
   }
 
-  function positionLineWidget(widget, node, wrap, dims) {
+  function positionLineWidget(widget, node, lineView, dims) {
     if (widget.noHScroll) {
-      (wrap.alignable || (wrap.alignable = [])).push(node);
+      (lineView.alignable || (lineView.alignable = [])).push(node);
       var width = dims.wrapperWidth;
       node.style.left = dims.fixedPos + "px";
       if (!widget.coverGutter) {
@@ -8159,57 +8423,367 @@ window.CodeMirror = (function() {
     }
   }
 
+  // POSITION OBJECT
+
+  // A Pos instance represents a position within the text.
+  var Pos = CodeMirror.Pos = function(line, ch) {
+    if (!(this instanceof Pos)) return new Pos(line, ch);
+    this.line = line; this.ch = ch;
+  };
+
+  // Compare two positions, return 0 if they are the same, a negative
+  // number when a is less, and a positive number otherwise.
+  var cmp = CodeMirror.cmpPos = function(a, b) { return a.line - b.line || a.ch - b.ch; };
+
+  function copyPos(x) {return Pos(x.line, x.ch);}
+  function maxPos(a, b) { return cmp(a, b) < 0 ? b : a; }
+  function minPos(a, b) { return cmp(a, b) < 0 ? a : b; }
+
   // SELECTION / CURSOR
 
-  function updateSelection(cm) {
-    var display = cm.display;
-    var collapsed = posEq(cm.doc.sel.from, cm.doc.sel.to);
-    if (collapsed || cm.options.showCursorWhenSelecting)
-      updateSelectionCursor(cm);
-    else
-      display.cursor.style.display = display.otherCursor.style.display = "none";
-    if (!collapsed)
-      updateSelectionRange(cm);
-    else
-      display.selectionDiv.style.display = "none";
+  // Selection objects are immutable. A new one is created every time
+  // the selection changes. A selection is one or more non-overlapping
+  // (and non-touching) ranges, sorted, and an integer that indicates
+  // which one is the primary selection (the one that's scrolled into
+  // view, that getCursor returns, etc).
+  function Selection(ranges, primIndex) {
+    this.ranges = ranges;
+    this.primIndex = primIndex;
+  }
 
-    // Move the hidden textarea near the cursor to prevent scrolling artifacts
-    if (cm.options.moveInputWithCursor) {
-      var headPos = cursorCoords(cm, cm.doc.sel.head, "div");
-      var wrapOff = getRect(display.wrapper), lineOff = getRect(display.lineDiv);
-      display.inputDiv.style.top = Math.max(0, Math.min(display.wrapper.clientHeight - 10,
-                                                        headPos.top + lineOff.top - wrapOff.top)) + "px";
-      display.inputDiv.style.left = Math.max(0, Math.min(display.wrapper.clientWidth - 10,
-                                                         headPos.left + lineOff.left - wrapOff.left)) + "px";
+  Selection.prototype = {
+    primary: function() { return this.ranges[this.primIndex]; },
+    equals: function(other) {
+      if (other == this) return true;
+      if (other.primIndex != this.primIndex || other.ranges.length != this.ranges.length) return false;
+      for (var i = 0; i < this.ranges.length; i++) {
+        var here = this.ranges[i], there = other.ranges[i];
+        if (cmp(here.anchor, there.anchor) != 0 || cmp(here.head, there.head) != 0) return false;
+      }
+      return true;
+    },
+    deepCopy: function() {
+      for (var out = [], i = 0; i < this.ranges.length; i++)
+        out[i] = new Range(copyPos(this.ranges[i].anchor), copyPos(this.ranges[i].head));
+      return new Selection(out, this.primIndex);
+    },
+    somethingSelected: function() {
+      for (var i = 0; i < this.ranges.length; i++)
+        if (!this.ranges[i].empty()) return true;
+      return false;
+    },
+    contains: function(pos, end) {
+      if (!end) end = pos;
+      for (var i = 0; i < this.ranges.length; i++) {
+        var range = this.ranges[i];
+        if (cmp(end, range.from()) >= 0 && cmp(pos, range.to()) <= 0)
+          return i;
+      }
+      return -1;
+    }
+  };
+
+  function Range(anchor, head) {
+    this.anchor = anchor; this.head = head;
+  }
+
+  Range.prototype = {
+    from: function() { return minPos(this.anchor, this.head); },
+    to: function() { return maxPos(this.anchor, this.head); },
+    empty: function() {
+      return this.head.line == this.anchor.line && this.head.ch == this.anchor.ch;
+    }
+  };
+
+  // Take an unsorted, potentially overlapping set of ranges, and
+  // build a selection out of it. 'Consumes' ranges array (modifying
+  // it).
+  function normalizeSelection(ranges, primIndex) {
+    var prim = ranges[primIndex];
+    ranges.sort(function(a, b) { return cmp(a.from(), b.from()); });
+    primIndex = indexOf(ranges, prim);
+    for (var i = 1; i < ranges.length; i++) {
+      var cur = ranges[i], prev = ranges[i - 1];
+      if (cmp(prev.to(), cur.from()) >= 0) {
+        var from = minPos(prev.from(), cur.from()), to = maxPos(prev.to(), cur.to());
+        var inv = prev.empty() ? cur.from() == cur.head : prev.from() == prev.head;
+        if (i <= primIndex) --primIndex;
+        ranges.splice(--i, 2, new Range(inv ? to : from, inv ? from : to));
+      }
+    }
+    return new Selection(ranges, primIndex);
+  }
+
+  function simpleSelection(anchor, head) {
+    return new Selection([new Range(anchor, head || anchor)], 0);
+  }
+
+  // Most of the external API clips given positions to make sure they
+  // actually exist within the document.
+  function clipLine(doc, n) {return Math.max(doc.first, Math.min(n, doc.first + doc.size - 1));}
+  function clipPos(doc, pos) {
+    if (pos.line < doc.first) return Pos(doc.first, 0);
+    var last = doc.first + doc.size - 1;
+    if (pos.line > last) return Pos(last, getLine(doc, last).text.length);
+    return clipToLen(pos, getLine(doc, pos.line).text.length);
+  }
+  function clipToLen(pos, linelen) {
+    var ch = pos.ch;
+    if (ch == null || ch > linelen) return Pos(pos.line, linelen);
+    else if (ch < 0) return Pos(pos.line, 0);
+    else return pos;
+  }
+  function isLine(doc, l) {return l >= doc.first && l < doc.first + doc.size;}
+  function clipPosArray(doc, array) {
+    for (var out = [], i = 0; i < array.length; i++) out[i] = clipPos(doc, array[i]);
+    return out;
+  }
+
+  // SELECTION UPDATES
+
+  // The 'scroll' parameter given to many of these indicated whether
+  // the new cursor position should be scrolled into view after
+  // modifying the selection.
+
+  // If shift is held or the extend flag is set, extends a range to
+  // include a given position (and optionally a second position).
+  // Otherwise, simply returns the range between the given positions.
+  // Used for cursor motion and such.
+  function extendRange(doc, range, head, other) {
+    if (doc.cm && doc.cm.display.shift || doc.extend) {
+      var anchor = range.anchor;
+      if (other) {
+        var posBefore = cmp(head, anchor) < 0;
+        if (posBefore != (cmp(other, anchor) < 0)) {
+          anchor = head;
+          head = other;
+        } else if (posBefore != (cmp(head, other) < 0)) {
+          head = other;
+        }
+      }
+      return new Range(anchor, head);
+    } else {
+      return new Range(other || head, head);
     }
   }
 
-  // No selection, plain cursor
-  function updateSelectionCursor(cm) {
-    var display = cm.display, pos = cursorCoords(cm, cm.doc.sel.head, "div");
-    display.cursor.style.left = pos.left + "px";
-    display.cursor.style.top = pos.top + "px";
-    display.cursor.style.height = Math.max(0, pos.bottom - pos.top) * cm.options.cursorHeight + "px";
-    display.cursor.style.display = "";
-
-    if (pos.other) {
-      display.otherCursor.style.display = "";
-      display.otherCursor.style.left = pos.other.left + "px";
-      display.otherCursor.style.top = pos.other.top + "px";
-      display.otherCursor.style.height = (pos.other.bottom - pos.other.top) * .85 + "px";
-    } else { display.otherCursor.style.display = "none"; }
+  // Extend the primary selection range, discard the rest.
+  function extendSelection(doc, head, other, options) {
+    setSelection(doc, new Selection([extendRange(doc, doc.sel.primary(), head, other)], 0), options);
   }
 
-  // Highlight selection
-  function updateSelectionRange(cm) {
-    var display = cm.display, doc = cm.doc, sel = cm.doc.sel;
+  // Extend all selections (pos is an array of selections with length
+  // equal the number of selections)
+  function extendSelections(doc, heads, options) {
+    for (var out = [], i = 0; i < doc.sel.ranges.length; i++)
+      out[i] = extendRange(doc, doc.sel.ranges[i], heads[i], null);
+    var newSel = normalizeSelection(out, doc.sel.primIndex);
+    setSelection(doc, newSel, options);
+  }
+
+  // Updates a single range in the selection.
+  function replaceOneSelection(doc, i, range, options) {
+    var ranges = doc.sel.ranges.slice(0);
+    ranges[i] = range;
+    setSelection(doc, normalizeSelection(ranges, doc.sel.primIndex), options);
+  }
+
+  // Reset the selection to a single range.
+  function setSimpleSelection(doc, anchor, head, options) {
+    setSelection(doc, simpleSelection(anchor, head), options);
+  }
+
+  // Give beforeSelectionChange handlers a change to influence a
+  // selection update.
+  function filterSelectionChange(doc, sel) {
+    var obj = {
+      ranges: sel.ranges,
+      update: function(ranges) {
+        this.ranges = [];
+        for (var i = 0; i < ranges.length; i++)
+          this.ranges[i] = new Range(clipPos(doc, ranges[i].anchor),
+                                     clipPos(doc, ranges[i].head));
+      }
+    };
+    signal(doc, "beforeSelectionChange", doc, obj);
+    if (doc.cm) signal(doc.cm, "beforeSelectionChange", doc.cm, obj);
+    if (obj.ranges != sel.ranges) return normalizeSelection(obj.ranges, obj.ranges.length - 1);
+    else return sel;
+  }
+
+  function setSelectionReplaceHistory(doc, sel, options) {
+    var done = doc.history.done, last = lst(done);
+    if (last && last.ranges) {
+      done[done.length - 1] = sel;
+      setSelectionNoUndo(doc, sel, options);
+    } else {
+      setSelection(doc, sel, options);
+    }
+  }
+
+  // Set a new selection.
+  function setSelection(doc, sel, options) {
+    setSelectionNoUndo(doc, sel, options);
+    addSelectionToHistory(doc, doc.sel, doc.cm ? doc.cm.curOp.id : NaN, options);
+  }
+
+  function setSelectionNoUndo(doc, sel, options) {
+    if (hasHandler(doc, "beforeSelectionChange") || doc.cm && hasHandler(doc.cm, "beforeSelectionChange"))
+      sel = filterSelectionChange(doc, sel);
+
+    var bias = cmp(sel.primary().head, doc.sel.primary().head) < 0 ? -1 : 1;
+    setSelectionInner(doc, skipAtomicInSelection(doc, sel, bias, true));
+
+    if (!(options && options.scroll === false) && doc.cm)
+      ensureCursorVisible(doc.cm);
+  }
+
+  function setSelectionInner(doc, sel) {
+    if (sel.equals(doc.sel)) return;
+
+    doc.sel = sel;
+
+    if (doc.cm)
+      doc.cm.curOp.updateInput = doc.cm.curOp.selectionChanged =
+        doc.cm.curOp.cursorActivity = true;
+    signalLater(doc, "cursorActivity", doc);
+  }
+
+  // Verify that the selection does not partially select any atomic
+  // marked ranges.
+  function reCheckSelection(doc) {
+    setSelectionInner(doc, skipAtomicInSelection(doc, doc.sel, null, false), sel_dontScroll);
+  }
+
+  // Return a selection that does not partially select any atomic
+  // ranges.
+  function skipAtomicInSelection(doc, sel, bias, mayClear) {
+    var out;
+    for (var i = 0; i < sel.ranges.length; i++) {
+      var range = sel.ranges[i];
+      var newAnchor = skipAtomic(doc, range.anchor, bias, mayClear);
+      var newHead = skipAtomic(doc, range.head, bias, mayClear);
+      if (out || newAnchor != range.anchor || newHead != range.head) {
+        if (!out) out = sel.ranges.slice(0, i);
+        out[i] = new Range(newAnchor, newHead);
+      }
+    }
+    return out ? normalizeSelection(out, sel.primIndex) : sel;
+  }
+
+  // Ensure a given position is not inside an atomic range.
+  function skipAtomic(doc, pos, bias, mayClear) {
+    var flipped = false, curPos = pos;
+    var dir = bias || 1;
+    doc.cantEdit = false;
+    search: for (;;) {
+      var line = getLine(doc, curPos.line);
+      if (line.markedSpans) {
+        for (var i = 0; i < line.markedSpans.length; ++i) {
+          var sp = line.markedSpans[i], m = sp.marker;
+          if ((sp.from == null || (m.inclusiveLeft ? sp.from <= curPos.ch : sp.from < curPos.ch)) &&
+              (sp.to == null || (m.inclusiveRight ? sp.to >= curPos.ch : sp.to > curPos.ch))) {
+            if (mayClear) {
+              signal(m, "beforeCursorEnter");
+              if (m.explicitlyCleared) {
+                if (!line.markedSpans) break;
+                else {--i; continue;}
+              }
+            }
+            if (!m.atomic) continue;
+            var newPos = m.find(dir < 0 ? -1 : 1);
+            if (cmp(newPos, curPos) == 0) {
+              newPos.ch += dir;
+              if (newPos.ch < 0) {
+                if (newPos.line > doc.first) newPos = clipPos(doc, Pos(newPos.line - 1));
+                else newPos = null;
+              } else if (newPos.ch > line.text.length) {
+                if (newPos.line < doc.first + doc.size - 1) newPos = Pos(newPos.line + 1, 0);
+                else newPos = null;
+              }
+              if (!newPos) {
+                if (flipped) {
+                  // Driven in a corner -- no valid cursor position found at all
+                  // -- try again *with* clearing, if we didn't already
+                  if (!mayClear) return skipAtomic(doc, pos, bias, true);
+                  // Otherwise, turn off editing until further notice, and return the start of the doc
+                  doc.cantEdit = true;
+                  return Pos(doc.first, 0);
+                }
+                flipped = true; newPos = pos; dir = -dir;
+              }
+            }
+            curPos = newPos;
+            continue search;
+          }
+        }
+      }
+      return curPos;
+    }
+  }
+
+  // SELECTION DRAWING
+
+  // Redraw the selection and/or cursor
+  function updateSelection(cm) {
+    var display = cm.display, doc = cm.doc;
+    var curFragment = document.createDocumentFragment();
+    var selFragment = document.createDocumentFragment();
+
+    for (var i = 0; i < doc.sel.ranges.length; i++) {
+      var range = doc.sel.ranges[i];
+      var collapsed = range.empty();
+      if (collapsed || cm.options.showCursorWhenSelecting)
+        updateSelectionCursor(cm, range, curFragment);
+      if (!collapsed)
+        updateSelectionRange(cm, range, selFragment);
+    }
+
+    // Move the hidden textarea near the cursor to prevent scrolling artifacts
+    if (cm.options.moveInputWithCursor) {
+      var headPos = cursorCoords(cm, doc.sel.primary().head, "div");
+      var wrapOff = display.wrapper.getBoundingClientRect(), lineOff = display.lineDiv.getBoundingClientRect();
+      var top = Math.max(0, Math.min(display.wrapper.clientHeight - 10,
+                                     headPos.top + lineOff.top - wrapOff.top));
+      var left = Math.max(0, Math.min(display.wrapper.clientWidth - 10,
+                                      headPos.left + lineOff.left - wrapOff.left));
+      display.inputDiv.style.top = top + "px";
+      display.inputDiv.style.left = left + "px";
+    }
+
+    removeChildrenAndAdd(display.cursorDiv, curFragment);
+    removeChildrenAndAdd(display.selectionDiv, selFragment);
+  }
+
+  // Draws a cursor for the given range
+  function updateSelectionCursor(cm, range, output) {
+    var pos = cursorCoords(cm, range.head, "div");
+
+    var cursor = output.appendChild(elt("div", "\u00a0", "CodeMirror-cursor"));
+    cursor.style.left = pos.left + "px";
+    cursor.style.top = pos.top + "px";
+    cursor.style.height = Math.max(0, pos.bottom - pos.top) * cm.options.cursorHeight + "px";
+
+    if (pos.other) {
+      // Secondary cursor, shown when on a 'jump' in bi-directional text
+      var otherCursor = output.appendChild(elt("div", "\u00a0", "CodeMirror-cursor CodeMirror-secondarycursor"));
+      otherCursor.style.display = "";
+      otherCursor.style.left = pos.other.left + "px";
+      otherCursor.style.top = pos.other.top + "px";
+      otherCursor.style.height = (pos.other.bottom - pos.other.top) * .85 + "px";
+    }
+  }
+
+  // Draws the given range as a highlighted selection
+  function updateSelectionRange(cm, range, output) {
+    var display = cm.display, doc = cm.doc;
     var fragment = document.createDocumentFragment();
-    var clientWidth = display.lineSpace.offsetWidth, pl = paddingLeft(cm.display);
+    var padding = paddingH(cm.display), leftSide = padding.left, rightSide = display.lineSpace.offsetWidth - padding.right;
 
     function add(left, top, width, bottom) {
       if (top < 0) top = 0;
       fragment.appendChild(elt("div", null, "CodeMirror-selected", "position: absolute; left: " + left +
-                               "px; top: " + top + "px; width: " + (width == null ? clientWidth - left : width) +
+                               "px; top: " + top + "px; width: " + (width == null ? rightSide - left : width) +
                                "px; height: " + (bottom - top) + "px"));
     }
 
@@ -8232,44 +8806,44 @@ window.CodeMirror = (function() {
           left = leftPos.left;
           right = rightPos.right;
         }
-        if (fromArg == null && from == 0) left = pl;
+        if (fromArg == null && from == 0) left = leftSide;
         if (rightPos.top - leftPos.top > 3) { // Different lines, draw top part
           add(left, leftPos.top, null, leftPos.bottom);
-          left = pl;
+          left = leftSide;
           if (leftPos.bottom < rightPos.top) add(left, leftPos.bottom, null, rightPos.top);
         }
-        if (toArg == null && to == lineLen) right = clientWidth;
+        if (toArg == null && to == lineLen) right = rightSide;
         if (!start || leftPos.top < start.top || leftPos.top == start.top && leftPos.left < start.left)
           start = leftPos;
         if (!end || rightPos.bottom > end.bottom || rightPos.bottom == end.bottom && rightPos.right > end.right)
           end = rightPos;
-        if (left < pl + 1) left = pl;
+        if (left < leftSide + 1) left = leftSide;
         add(left, rightPos.top, right - left, rightPos.bottom);
       });
       return {start: start, end: end};
     }
 
-    if (sel.from.line == sel.to.line) {
-      drawForLine(sel.from.line, sel.from.ch, sel.to.ch);
+    var sFrom = range.from(), sTo = range.to();
+    if (sFrom.line == sTo.line) {
+      drawForLine(sFrom.line, sFrom.ch, sTo.ch);
     } else {
-      var fromLine = getLine(doc, sel.from.line), toLine = getLine(doc, sel.to.line);
-      var singleVLine = visualLine(doc, fromLine) == visualLine(doc, toLine);
-      var leftEnd = drawForLine(sel.from.line, sel.from.ch, singleVLine ? fromLine.text.length : null).end;
-      var rightStart = drawForLine(sel.to.line, singleVLine ? 0 : null, sel.to.ch).start;
+      var fromLine = getLine(doc, sFrom.line), toLine = getLine(doc, sTo.line);
+      var singleVLine = visualLine(fromLine) == visualLine(toLine);
+      var leftEnd = drawForLine(sFrom.line, sFrom.ch, singleVLine ? fromLine.text.length + 1 : null).end;
+      var rightStart = drawForLine(sTo.line, singleVLine ? 0 : null, sTo.ch).start;
       if (singleVLine) {
         if (leftEnd.top < rightStart.top - 2) {
           add(leftEnd.right, leftEnd.top, null, leftEnd.bottom);
-          add(pl, rightStart.top, rightStart.left, rightStart.bottom);
+          add(leftSide, rightStart.top, rightStart.left, rightStart.bottom);
         } else {
           add(leftEnd.right, leftEnd.top, rightStart.left - leftEnd.right, leftEnd.bottom);
         }
       }
       if (leftEnd.bottom < rightStart.top)
-        add(pl, leftEnd.bottom, null, rightStart.top);
+        add(leftSide, leftEnd.bottom, null, rightStart.top);
     }
 
-    removeChildrenAndAdd(display.selectionDiv, fragment);
-    display.selectionDiv.style.display = "";
+    output.appendChild(fragment);
   }
 
   // Cursor-blinking
@@ -8278,37 +8852,35 @@ window.CodeMirror = (function() {
     var display = cm.display;
     clearInterval(display.blinker);
     var on = true;
-    display.cursor.style.visibility = display.otherCursor.style.visibility = "";
+    display.cursorDiv.style.visibility = "";
     if (cm.options.cursorBlinkRate > 0)
       display.blinker = setInterval(function() {
-        display.cursor.style.visibility = display.otherCursor.style.visibility = (on = !on) ? "" : "hidden";
+        display.cursorDiv.style.visibility = (on = !on) ? "" : "hidden";
       }, cm.options.cursorBlinkRate);
   }
 
   // HIGHLIGHT WORKER
 
   function startWorker(cm, time) {
-    if (cm.doc.mode.startState && cm.doc.frontier < cm.display.showingTo)
+    if (cm.doc.mode.startState && cm.doc.frontier < cm.display.viewTo)
       cm.state.highlight.set(time, bind(highlightWorker, cm));
   }
 
   function highlightWorker(cm) {
     var doc = cm.doc;
     if (doc.frontier < doc.first) doc.frontier = doc.first;
-    if (doc.frontier >= cm.display.showingTo) return;
+    if (doc.frontier >= cm.display.viewTo) return;
     var end = +new Date + cm.options.workTime;
     var state = copyState(doc.mode, getStateBefore(cm, doc.frontier));
-    var changed = [], prevChange;
-    doc.iter(doc.frontier, Math.min(doc.first + doc.size, cm.display.showingTo + 500), function(line) {
-      if (doc.frontier >= cm.display.showingFrom) { // Visible
+
+    runInOp(cm, function() {
+    doc.iter(doc.frontier, Math.min(doc.first + doc.size, cm.display.viewTo + 500), function(line) {
+      if (doc.frontier >= cm.display.viewFrom) { // Visible
         var oldStyles = line.styles;
         line.styles = highlightLine(cm, line, state, true);
         var ischange = !oldStyles || oldStyles.length != line.styles.length;
         for (var i = 0; !ischange && i < oldStyles.length; ++i) ischange = oldStyles[i] != line.styles[i];
-        if (ischange) {
-          if (prevChange && prevChange.end == doc.frontier) prevChange.end++;
-          else changed.push(prevChange = {start: doc.frontier, end: doc.frontier + 1});
-        }
+        if (ischange) regLineChange(cm, doc.frontier, "text");
         line.stateAfter = copyState(doc.mode, state);
       } else {
         processLine(cm, line.text, state);
@@ -8320,11 +8892,7 @@ window.CodeMirror = (function() {
         return true;
       }
     });
-    if (changed.length)
-      operation(cm, function() {
-        for (var i = 0; i < changed.length; ++i)
-          regChange(this, changed[i].start, changed[i].end);
-      })();
+    });
   }
 
   // Finds the line to start with when starting a parse. Tries to
@@ -8356,7 +8924,7 @@ window.CodeMirror = (function() {
     else state = copyState(doc.mode, state);
     doc.iter(pos, n, function(line) {
       processLine(cm, line.text, state);
-      var save = pos == n - 1 || pos % 5 == 0 || pos >= display.showingFrom && pos < display.showingTo;
+      var save = pos == n - 1 || pos % 5 == 0 || pos >= display.viewFrom && pos < display.viewTo;
       line.stateAfter = save ? copyState(doc.mode, state) : null;
       ++pos;
     });
@@ -8368,183 +8936,222 @@ window.CodeMirror = (function() {
 
   function paddingTop(display) {return display.lineSpace.offsetTop;}
   function paddingVert(display) {return display.mover.offsetHeight - display.lineSpace.offsetHeight;}
-  function paddingLeft(display) {
-    var e = removeChildrenAndAdd(display.measure, elt("pre", null, null, "text-align: left")).appendChild(elt("span", "x"));
-    return e.offsetLeft;
+  function paddingH(display) {
+    if (display.cachedPaddingH) return display.cachedPaddingH;
+    var e = removeChildrenAndAdd(display.measure, elt("pre", "x"));
+    var style = window.getComputedStyle ? window.getComputedStyle(e) : e.currentStyle;
+    return display.cachedPaddingH = {left: parseInt(style.paddingLeft),
+                                     right: parseInt(style.paddingRight)};
   }
 
-  function measureChar(cm, line, ch, data, bias) {
-    var dir = -1;
-    data = data || measureLine(cm, line);
-    if (data.crude) {
-      var left = data.left + ch * data.width;
-      return {left: left, right: left + data.width, top: data.top, bottom: data.bottom};
-    }
-
-    for (var pos = ch;; pos += dir) {
-      var r = data[pos];
-      if (r) break;
-      if (dir < 0 && pos == 0) dir = 1;
-    }
-    bias = pos > ch ? "left" : pos < ch ? "right" : bias;
-    if (bias == "left" && r.leftSide) r = r.leftSide;
-    else if (bias == "right" && r.rightSide) r = r.rightSide;
-    return {left: pos < ch ? r.right : r.left,
-            right: pos > ch ? r.left : r.right,
-            top: r.top,
-            bottom: r.bottom};
-  }
-
-  function findCachedMeasurement(cm, line) {
-    var cache = cm.display.measureLineCache;
-    for (var i = 0; i < cache.length; ++i) {
-      var memo = cache[i];
-      if (memo.text == line.text && memo.markedSpans == line.markedSpans &&
-          cm.display.scroller.clientWidth == memo.width &&
-          memo.classes == line.textClass + "|" + line.wrapClass)
-        return memo;
-    }
-  }
-
-  function clearCachedMeasurement(cm, line) {
-    var exists = findCachedMeasurement(cm, line);
-    if (exists) exists.text = exists.measure = exists.markedSpans = null;
-  }
-
-  function measureLine(cm, line) {
-    // First look in the cache
-    var cached = findCachedMeasurement(cm, line);
-    if (cached) return cached.measure;
-
-    // Failing that, recompute and store result in cache
-    var measure = measureLineInner(cm, line);
-    var cache = cm.display.measureLineCache;
-    var memo = {text: line.text, width: cm.display.scroller.clientWidth,
-                markedSpans: line.markedSpans, measure: measure,
-                classes: line.textClass + "|" + line.wrapClass};
-    if (cache.length == 16) cache[++cm.display.measureLineCachePos % 16] = memo;
-    else cache.push(memo);
-    return measure;
-  }
-
-  function measureLineInner(cm, line) {
-    if (!cm.options.lineWrapping && line.text.length >= cm.options.crudeMeasuringFrom)
-      return crudelyMeasureLine(cm, line);
-
-    var display = cm.display, measure = emptyArray(line.text.length);
-    var pre = buildLineContent(cm, line, measure, true).pre;
-
-    // IE does not cache element positions of inline elements between
-    // calls to getBoundingClientRect. This makes the loop below,
-    // which gathers the positions of all the characters on the line,
-    // do an amount of layout work quadratic to the number of
-    // characters. When line wrapping is off, we try to improve things
-    // by first subdividing the line into a bunch of inline blocks, so
-    // that IE can reuse most of the layout information from caches
-    // for those blocks. This does interfere with line wrapping, so it
-    // doesn't work when wrapping is on, but in that case the
-    // situation is slightly better, since IE does cache line-wrapping
-    // information and only recomputes per-line.
-    if (ie && !ie_lt8 && !cm.options.lineWrapping && pre.childNodes.length > 100) {
-      var fragment = document.createDocumentFragment();
-      var chunk = 10, n = pre.childNodes.length;
-      for (var i = 0, chunks = Math.ceil(n / chunk); i < chunks; ++i) {
-        var wrap = elt("div", null, null, "display: inline-block");
-        for (var j = 0; j < chunk && n; ++j) {
-          wrap.appendChild(pre.firstChild);
-          --n;
-        }
-        fragment.appendChild(wrap);
-      }
-      pre.appendChild(fragment);
-    }
-
-    removeChildrenAndAdd(display.measure, pre);
-
-    var outer = getRect(display.lineDiv);
-    var vranges = [], data = emptyArray(line.text.length), maxBot = pre.offsetHeight;
-    // Work around an IE7/8 bug where it will sometimes have randomly
-    // replaced our pre with a clone at this point.
-    if (ie_lt9 && display.measure.first != pre)
-      removeChildrenAndAdd(display.measure, pre);
-
-    function measureRect(rect) {
-      var top = rect.top - outer.top, bot = rect.bottom - outer.top;
-      if (bot > maxBot) bot = maxBot;
-      if (top < 0) top = 0;
-      for (var i = vranges.length - 2; i >= 0; i -= 2) {
-        var rtop = vranges[i], rbot = vranges[i+1];
-        if (rtop > bot || rbot < top) continue;
-        if (rtop <= top && rbot >= bot ||
-            top <= rtop && bot >= rbot ||
-            Math.min(bot, rbot) - Math.max(top, rtop) >= (bot - top) >> 1) {
-          vranges[i] = Math.min(top, rtop);
-          vranges[i+1] = Math.max(bot, rbot);
-          break;
+  // Ensure the lineView.wrapping.heights array is populated. This is
+  // an array of bottom offsets for the lines that make up a drawn
+  // line. When lineWrapping is on, there might be more than one
+  // height.
+  function ensureLineHeights(cm, lineView, rect) {
+    var wrapping = cm.options.lineWrapping;
+    var curWidth = wrapping && cm.display.scroller.clientWidth;
+    if (!lineView.measure.heights || wrapping && lineView.measure.width != curWidth) {
+      var heights = lineView.measure.heights = [];
+      if (wrapping) {
+        lineView.measure.width = curWidth;
+        var rects = lineView.text.firstChild.getClientRects();
+        for (var i = 0; i < rects.length - 1; i++) {
+          var cur = rects[i], next = rects[i + 1];
+          if (Math.abs(cur.bottom - next.bottom) > 2)
+            heights.push((cur.bottom + next.top) / 2 - rect.top);
         }
       }
-      if (i < 0) { i = vranges.length; vranges.push(top, bot); }
-      return {left: rect.left - outer.left,
-              right: rect.right - outer.left,
-              top: i, bottom: null};
+      heights.push(rect.bottom - rect.top);
     }
-    function finishRect(rect) {
-      rect.bottom = vranges[rect.top+1];
-      rect.top = vranges[rect.top];
-    }
+  }
 
-    for (var i = 0, cur; i < measure.length; ++i) if (cur = measure[i]) {
-      var node = cur, rect = null;
-      // A widget might wrap, needs special care
-      if (/\bCodeMirror-widget\b/.test(cur.className) && cur.getClientRects) {
-        if (cur.firstChild.nodeType == 1) node = cur.firstChild;
-        var rects = node.getClientRects();
-        if (rects.length > 1) {
-          rect = data[i] = measureRect(rects[0]);
-          rect.rightSide = measureRect(rects[rects.length - 1]);
-        }
+  // Find a line map (mapping character offsets to text nodes) and a
+  // measurement cache for the given line number. (A line view might
+  // contain multiple lines when collapsed ranges are present.)
+  function mapFromLineView(lineView, line, lineN) {
+    if (lineView.line == line)
+      return {map: lineView.measure.map, cache: lineView.measure.cache};
+    for (var i = 0; i < lineView.rest.length; i++)
+      if (lineView.rest[i] == line)
+        return {map: lineView.measure.maps[i], cache: lineView.measure.caches[i]};
+    for (var i = 0; i < lineView.rest.length; i++)
+      if (lineNo(lineView.rest[i]) > lineN)
+        return {map: lineView.measure.maps[i], cache: lineView.measure.caches[i], before: true};
+  }
+
+  // Render a line into the hidden node display.externalMeasured. Used
+  // when measurement is needed for a line that's not in the viewport.
+  function updateExternalMeasurement(cm, line) {
+    line = visualLine(line);
+    var lineN = lineNo(line);
+    var view = cm.display.externalMeasured = new LineView(cm.doc, line, lineN);
+    view.lineN = lineN;
+    var built = view.built = buildLineContent(cm, view);
+    view.text = built.pre;
+    removeChildrenAndAdd(cm.display.lineMeasure, built.pre);
+    return view;
+  }
+
+  // Get a {top, bottom, left, right} box (in line-local coordinates)
+  // for a given character.
+  function measureChar(cm, line, ch, bias) {
+    return measureCharPrepared(cm, prepareMeasureForLine(cm, line), ch, bias);
+  }
+
+  // Find a line view that corresponds to the given line number.
+  function findViewForLine(cm, lineN) {
+    if (lineN >= cm.display.viewFrom && lineN < cm.display.viewTo)
+      return cm.display.view[findViewIndex(cm, lineN)];
+    var ext = cm.display.externalMeasured;
+    if (ext && lineN >= ext.lineN && lineN < ext.lineN + ext.size)
+      return ext;
+  }
+
+  // Measurement can be split in two steps, the set-up work that
+  // applies to the whole line, and the measurement of the actual
+  // character. Functions like coordsChar, that need to do a lot of
+  // measurements in a row, can thus ensure that the set-up work is
+  // only done once.
+  function prepareMeasureForLine(cm, line) {
+    var lineN = lineNo(line);
+    var view = findViewForLine(cm, lineN);
+    if (view && !view.text)
+      view = null;
+    else if (view && view.changes)
+      updateLineForChanges(cm, view, lineN, getDimensions(cm));
+    if (!view)
+      view = updateExternalMeasurement(cm, line);
+
+    var info = mapFromLineView(view, line, lineN);
+    return {
+      line: line, view: view, rect: null,
+      map: info.map, cache: info.cache, before: info.before,
+      hasHeights: false
+    };
+  }
+
+  // Given a prepared measurement object, measures the position of an
+  // actual character (or fetches it from the cache).
+  function measureCharPrepared(cm, prepared, ch, bias) {
+    if (prepared.before) ch = -1;
+    var key = ch + (bias || ""), found;
+    if (prepared.cache.hasOwnProperty(key)) {
+      found = prepared.cache[key];
+    } else {
+      if (!prepared.rect)
+        prepared.rect = prepared.view.text.getBoundingClientRect();
+      if (!prepared.hasHeights) {
+        ensureLineHeights(cm, prepared.view, prepared.rect);
+        prepared.hasHeights = true;
       }
-      if (!rect) rect = data[i] = measureRect(getRect(node));
-      if (cur.measureRight) rect.right = getRect(cur.measureRight).left;
-      if (cur.leftSide) rect.leftSide = measureRect(getRect(cur.leftSide));
+      found = measureCharInner(cm, prepared, ch, bias);
+      if (!found.bogus) prepared.cache[key] = found;
     }
-    removeChildren(cm.display.measure);
-    for (var i = 0, cur; i < data.length; ++i) if (cur = data[i]) {
-      finishRect(cur);
-      if (cur.leftSide) finishRect(cur.leftSide);
-      if (cur.rightSide) finishRect(cur.rightSide);
-    }
-    return data;
+    return {left: found.left, right: found.right, top: found.top, bottom: found.bottom};
   }
 
-  function crudelyMeasureLine(cm, line) {
-    var copy = new Line(line.text.slice(0, 100), null);
-    if (line.textClass) copy.textClass = line.textClass;
-    var measure = measureLineInner(cm, copy);
-    var left = measureChar(cm, copy, 0, measure, "left");
-    var right = measureChar(cm, copy, 99, measure, "right");
-    return {crude: true, top: left.top, left: left.left, bottom: left.bottom, width: (right.right - left.left) / 100};
+  var nullRect = {left: 0, right: 0, top: 0, bottom: 0};
+
+  function measureCharInner(cm, prepared, ch, bias) {
+    var map = prepared.map;
+
+    var node, start, end, collapse;
+    // First, search the line map for the text node corresponding to,
+    // or closest to, the target character.
+    for (var i = 0; i < map.length; i += 3) {
+      var mStart = map[i], mEnd = map[i + 1];
+      if (ch < mStart) {
+        start = 0; end = 1;
+        collapse = "left";
+      } else if (ch < mEnd) {
+        start = ch - mStart;
+        end = start + 1;
+      } else if (i == map.length - 3 || ch == mEnd && map[i + 3] > ch) {
+        end = mEnd - mStart;
+        start = end - 1;
+        if (ch >= mEnd) collapse = "right";
+      }
+      if (start != null) {
+        node = map[i + 2];
+        if (mStart == mEnd && bias == (node.insertLeft ? "left" : "right"))
+          collapse = bias;
+        if (bias == "left" && start == 0)
+          while (i && map[i - 2] == map[i - 3] && map[i - 1].insertLeft) {
+            node = map[(i -= 3) + 2];
+            collapse = "left";
+          }
+        if (bias == "right" && start == mEnd - mStart)
+          while (i < map.length - 3 && map[i + 3] == map[i + 4] && !map[i + 5].insertLeft) {
+            node = map[(i += 3) + 2];
+            collapse = "right";
+          }
+        break;
+      }
+    }
+
+    var rect;
+    if (node.nodeType == 3) { // If it is a text node, use a range to retrieve the coordinates.
+      while (start && isExtendingChar(prepared.line.text.charAt(mStart + start))) --start;
+      while (mStart + end < mEnd && isExtendingChar(prepared.line.text.charAt(mStart + end))) ++end;
+      if (ie_upto8 && start == 0 && end == mEnd - mStart) {
+        rect = node.parentNode.getBoundingClientRect();
+      } else if (ie && cm.options.lineWrapping) {
+        var rects = range(node, start, end).getClientRects();
+        if (rects.length)
+          rect = rects[bias == "right" ? rects.length - 1 : 0];
+        else
+          rect = nullRect;
+      } else {
+        rect = range(node, start, end).getBoundingClientRect();
+      }
+    } else { // If it is a widget, simply get the box for the whole widget.
+      if (start > 0) collapse = bias = "right";
+      var rects;
+      if (cm.options.lineWrapping && (rects = node.getClientRects()).length > 1)
+        rect = rects[bias == "right" ? rects.length - 1 : 0];
+      else
+        rect = node.getBoundingClientRect();
+    }
+    if (ie_upto8 && !start && (!rect || !rect.left && !rect.right)) {
+      var rSpan = node.parentNode.getClientRects()[0];
+      if (rSpan)
+        rect = {left: rSpan.left, right: rSpan.left + charWidth(cm.display), top: rSpan.top, bottom: rSpan.bottom};
+      else
+        rect = nullRect;
+    }
+
+    var top, bot = (rect.bottom + rect.top) / 2 - prepared.rect.top;
+    var heights = prepared.view.measure.heights;
+    for (var i = 0; i < heights.length - 1; i++)
+      if (bot < heights[i]) break;
+    top = i ? heights[i - 1] : 0; bot = heights[i];
+    var result = {left: (collapse == "right" ? rect.right : rect.left) - prepared.rect.left,
+                  right: (collapse == "left" ? rect.left : rect.right) - prepared.rect.left,
+                  top: top, bottom: bot};
+    if (!rect.left && !rect.right) result.bogus = true;
+    return result;
   }
 
-  function measureLineWidth(cm, line) {
-    var hasBadSpan = false;
-    if (line.markedSpans) for (var i = 0; i < line.markedSpans; ++i) {
-      var sp = line.markedSpans[i];
-      if (sp.collapsed && (sp.to == null || sp.to == line.text.length)) hasBadSpan = true;
+  function clearLineMeasurementCacheFor(lineView) {
+    if (lineView.measure) {
+      lineView.measure.cache = {};
+      lineView.measure.heights = null;
+      if (lineView.rest) for (var i = 0; i < lineView.rest.length; i++)
+        lineView.measure.caches[i] = {};
     }
-    var cached = !hasBadSpan && findCachedMeasurement(cm, line);
-    if (cached || line.text.length >= cm.options.crudeMeasuringFrom)
-      return measureChar(cm, line, line.text.length, cached && cached.measure, "right").right;
+  }
 
-    var pre = buildLineContent(cm, line, null, true).pre;
-    var end = pre.appendChild(zeroWidthElement(cm.display.measure));
-    removeChildrenAndAdd(cm.display.measure, pre);
-    return getRect(end).right - getRect(cm.display.lineDiv).left;
+  function clearLineMeasurementCache(cm) {
+    cm.display.externalMeasure = null;
+    removeChildren(cm.display.lineMeasure);
+    for (var i = 0; i < cm.display.view.length; i++)
+      clearLineMeasurementCacheFor(cm.display.view[i]);
   }
 
   function clearCaches(cm) {
-    cm.display.measureLineCache.length = cm.display.measureLineCachePos = 0;
-    cm.display.cachedCharWidth = cm.display.cachedTextHeight = null;
+    clearLineMeasurementCache(cm);
+    cm.display.cachedCharWidth = cm.display.cachedTextHeight = cm.display.cachedPaddingH = null;
     if (!cm.options.lineWrapping) cm.display.maxLineChanged = true;
     cm.display.lineNumChars = null;
   }
@@ -8552,7 +9159,9 @@ window.CodeMirror = (function() {
   function pageScrollX() { return window.pageXOffset || (document.documentElement || document.body).scrollLeft; }
   function pageScrollY() { return window.pageYOffset || (document.documentElement || document.body).scrollTop; }
 
-  // Context is one of "line", "div" (display.lineDiv), "local"/null (editor), or "page"
+  // Converts a {top, bottom, left, right} box from line-local
+  // coordinates into another coordinate system. Context may be one of
+  // "line", "div" (display.lineDiv), "local"/null (editor), or "page".
   function intoCoordSystem(cm, lineObj, rect, context) {
     if (lineObj.widgets) for (var i = 0; i < lineObj.widgets.length; ++i) if (lineObj.widgets[i].above) {
       var size = widgetHeight(lineObj.widgets[i]);
@@ -8560,11 +9169,11 @@ window.CodeMirror = (function() {
     }
     if (context == "line") return rect;
     if (!context) context = "local";
-    var yOff = heightAtLine(cm, lineObj);
+    var yOff = heightAtLine(lineObj);
     if (context == "local") yOff += paddingTop(cm.display);
     else yOff -= cm.display.viewOffset;
     if (context == "page" || context == "window") {
-      var lOff = getRect(cm.display.lineSpace);
+      var lOff = cm.display.lineSpace.getBoundingClientRect();
       yOff += lOff.top + (context == "window" ? 0 : pageScrollY());
       var xOff = lOff.left + (context == "window" ? 0 : pageScrollX());
       rect.left += xOff; rect.right += xOff;
@@ -8573,8 +9182,8 @@ window.CodeMirror = (function() {
     return rect;
   }
 
-  // Context may be "window", "page", "div", or "local"/null
-  // Result is in "div" coords
+  // Coverts a box from "div" coords to another coordinate system.
+  // Context may be "window", "page", "div", or "local"/null.
   function fromCoordSystem(cm, coords, context) {
     if (context == "div") return coords;
     var left = coords.left, top = coords.top;
@@ -8583,25 +9192,28 @@ window.CodeMirror = (function() {
       left -= pageScrollX();
       top -= pageScrollY();
     } else if (context == "local" || !context) {
-      var localBox = getRect(cm.display.sizer);
+      var localBox = cm.display.sizer.getBoundingClientRect();
       left += localBox.left;
       top += localBox.top;
     }
 
-    var lineSpaceBox = getRect(cm.display.lineSpace);
+    var lineSpaceBox = cm.display.lineSpace.getBoundingClientRect();
     return {left: left - lineSpaceBox.left, top: top - lineSpaceBox.top};
   }
 
   function charCoords(cm, pos, context, lineObj, bias) {
     if (!lineObj) lineObj = getLine(cm.doc, pos.line);
-    return intoCoordSystem(cm, lineObj, measureChar(cm, lineObj, pos.ch, null, bias), context);
+    return intoCoordSystem(cm, lineObj, measureChar(cm, lineObj, pos.ch, bias), context);
   }
 
-  function cursorCoords(cm, pos, context, lineObj, measurement) {
+  // Returns a box for a given cursor position, which may have an
+  // 'other' property containing the position of the secondary cursor
+  // on a bidi boundary.
+  function cursorCoords(cm, pos, context, lineObj, preparedMeasure) {
     lineObj = lineObj || getLine(cm.doc, pos.line);
-    if (!measurement) measurement = measureLine(cm, lineObj);
+    if (!preparedMeasure) preparedMeasure = prepareMeasureForLine(cm, lineObj);
     function get(ch, right) {
-      var m = measureChar(cm, lineObj, ch, measurement, right ? "right" : "left");
+      var m = measureCharPrepared(cm, preparedMeasure, ch, right ? "right" : "left");
       if (right) m.left = m.right; else m.right = m.left;
       return intoCoordSystem(cm, lineObj, m, context);
     }
@@ -8627,43 +9239,59 @@ window.CodeMirror = (function() {
     return val;
   }
 
+  // Used to cheaply estimate the coordinates for a position. Used for
+  // intermediate scroll updates.
+  function estimateCoords(cm, pos) {
+    var left = 0, pos = clipPos(cm.doc, pos);
+    if (!cm.options.lineWrapping) left = charWidth(cm.display) * pos.ch;
+    var lineObj = getLine(cm.doc, pos.line);
+    var top = heightAtLine(lineObj) + paddingTop(cm.display);
+    return {left: left, right: left, top: top, bottom: top + lineObj.height};
+  }
+
+  // Positions returned by coordsChar contain some extra information.
+  // xRel is the relative x position of the input coordinates compared
+  // to the found position (so xRel > 0 means the coordinates are to
+  // the right of the character position, for example). When outside
+  // is true, that means the coordinates lie outside the line's
+  // vertical range.
   function PosWithInfo(line, ch, outside, xRel) {
-    var pos = new Pos(line, ch);
+    var pos = Pos(line, ch);
     pos.xRel = xRel;
     if (outside) pos.outside = true;
     return pos;
   }
 
-  // Coords must be lineSpace-local
+  // Compute the character position closest to the given coordinates.
+  // Input must be lineSpace-local ("div" coordinate system).
   function coordsChar(cm, x, y) {
     var doc = cm.doc;
     y += cm.display.viewOffset;
     if (y < 0) return PosWithInfo(doc.first, 0, true, -1);
-    var lineNo = lineAtHeight(doc, y), last = doc.first + doc.size - 1;
-    if (lineNo > last)
+    var lineN = lineAtHeight(doc, y), last = doc.first + doc.size - 1;
+    if (lineN > last)
       return PosWithInfo(doc.first + doc.size - 1, getLine(doc, last).text.length, true, 1);
     if (x < 0) x = 0;
 
+    var lineObj = getLine(doc, lineN);
     for (;;) {
-      var lineObj = getLine(doc, lineNo);
-      var found = coordsCharInner(cm, lineObj, lineNo, x, y);
+      var found = coordsCharInner(cm, lineObj, lineN, x, y);
       var merged = collapsedSpanAtEnd(lineObj);
-      var mergedPos = merged && merged.find();
+      var mergedPos = merged && merged.find(0, true);
       if (merged && (found.ch > mergedPos.from.ch || found.ch == mergedPos.from.ch && found.xRel > 0))
-        lineNo = mergedPos.to.line;
+        lineN = lineNo(lineObj = mergedPos.to.line);
       else
         return found;
     }
   }
 
   function coordsCharInner(cm, lineObj, lineNo, x, y) {
-    var innerOff = y - heightAtLine(cm, lineObj);
+    var innerOff = y - heightAtLine(lineObj);
     var wrongLine = false, adjust = 2 * cm.display.wrapper.clientWidth;
-    var measurement = measureLine(cm, lineObj);
+    var preparedMeasure = prepareMeasureForLine(cm, lineObj);
 
     function getX(ch) {
-      var sp = cursorCoords(cm, Pos(lineNo, ch), "line",
-                            lineObj, measurement);
+      var sp = cursorCoords(cm, Pos(lineNo, ch), "line", lineObj, preparedMeasure);
       wrongLine = true;
       if (innerOff > sp.bottom) return sp.left - adjust;
       else if (innerOff < sp.top) return sp.left + adjust;
@@ -8681,9 +9309,9 @@ window.CodeMirror = (function() {
       if (bidi ? to == from || to == moveVisually(lineObj, from, 1) : to - from <= 1) {
         var ch = x < fromX || x - fromX <= toX - x ? from : to;
         var xDiff = x - (ch == from ? fromX : toX);
-        while (isExtendingChar.test(lineObj.text.charAt(ch))) ++ch;
+        while (isExtendingChar(lineObj.text.charAt(ch))) ++ch;
         var pos = PosWithInfo(lineNo, ch, ch == from ? fromOutside : toOutside,
-                              xDiff < 0 ? -1 : xDiff ? 1 : 0);
+                              xDiff < -1 ? -1 : xDiff > 1 ? 1 : 0);
         return pos;
       }
       var step = Math.ceil(dist / 2), middle = from + step;
@@ -8698,6 +9326,7 @@ window.CodeMirror = (function() {
   }
 
   var measureText;
+  // Compute the default text height.
   function textHeight(display) {
     if (display.cachedTextHeight != null) return display.cachedTextHeight;
     if (measureText == null) {
@@ -8717,84 +9346,88 @@ window.CodeMirror = (function() {
     return height || 1;
   }
 
+  // Compute the default character width.
   function charWidth(display) {
     if (display.cachedCharWidth != null) return display.cachedCharWidth;
-    var anchor = elt("span", "x");
+    var anchor = elt("span", "xxxxxxxxxx");
     var pre = elt("pre", [anchor]);
     removeChildrenAndAdd(display.measure, pre);
-    var width = anchor.offsetWidth;
+    var rect = anchor.getBoundingClientRect(), width = (rect.right - rect.left) / 10;
     if (width > 2) display.cachedCharWidth = width;
     return width || 10;
   }
 
   // OPERATIONS
 
-  // Operations are used to wrap changes in such a way that each
-  // change won't have to update the cursor and display (which would
-  // be awkward, slow, and error-prone), but instead updates are
-  // batched and then all combined and executed at once.
+  // Operations are used to wrap a series of changes to the editor
+  // state in such a way that each change won't have to update the
+  // cursor and display (which would be awkward, slow, and
+  // error-prone). Instead, display updates are batched and then all
+  // combined and executed at once.
 
   var nextOpId = 0;
+  // Start a new operation.
   function startOperation(cm) {
     cm.curOp = {
-      // An array of ranges of lines that have to be updated. See
-      // updateDisplay.
-      changes: [],
-      forceUpdate: false,
-      updateInput: null,
-      userSelChange: null,
-      textChanged: null,
-      selectionChanged: false,
-      cursorActivity: false,
-      updateMaxLine: false,
-      updateScrollPos: false,
-      id: ++nextOpId
+      viewChanged: false,      // Flag that indicates that lines might need to be redrawn
+      startHeight: cm.doc.height, // Used to detect need to update scrollbar
+      forceUpdate: false,      // Used to force a redraw
+      updateInput: null,       // Whether to reset the input textarea
+      typing: false,           // Whether this reset should be careful to leave existing text (for compositing)
+      changeObjs: null,        // Accumulated changes, for firing change events
+      cursorActivity: false,   // Whether to fire a cursorActivity event
+      selectionChanged: false, // Whether the selection needs to be redrawn
+      updateMaxLine: false,    // Set when the widest line needs to be determined anew
+      scrollLeft: null, scrollTop: null, // Intermediate scroll position, not pushed to DOM yet
+      scrollToPos: null,       // Used to scroll to a specific position
+      id: ++nextOpId           // Unique ID
     };
     if (!delayedCallbackDepth++) delayedCallbacks = [];
   }
 
+  // Finish an operation, updating the display and signalling delayed events
   function endOperation(cm) {
     var op = cm.curOp, doc = cm.doc, display = cm.display;
     cm.curOp = null;
 
-    if (op.updateMaxLine) computeMaxLength(cm);
-    if (display.maxLineChanged && !cm.options.lineWrapping && display.maxLine) {
-      var width = measureLineWidth(cm, display.maxLine);
-      display.sizer.style.minWidth = Math.max(0, width + 3 + scrollerCutOff) + "px";
-      display.maxLineChanged = false;
-      var maxScrollLeft = Math.max(0, display.sizer.offsetLeft + display.sizer.offsetWidth - display.scroller.clientWidth);
-      if (maxScrollLeft < doc.scrollLeft && !op.updateScrollPos)
-        setScrollLeft(cm, Math.min(display.scroller.scrollLeft, maxScrollLeft), true);
-    }
-    var newScrollPos, updated;
-    if (op.updateScrollPos) {
-      newScrollPos = op.updateScrollPos;
-    } else if (op.selectionChanged && display.scroller.clientHeight) { // don't rescroll if not visible
-      var coords = cursorCoords(cm, doc.sel.head);
-      newScrollPos = calculateScrollPos(cm, coords.left, coords.top, coords.left, coords.bottom);
-    }
-    if (op.changes.length || op.forceUpdate || newScrollPos && newScrollPos.scrollTop != null) {
-      updated = updateDisplay(cm, op.changes, newScrollPos && newScrollPos.scrollTop, op.forceUpdate);
+    if (op.updateMaxLine) findMaxLine(cm);
+
+    // If it looks like an update might be needed, call updateDisplay
+    if (op.viewChanged || op.forceUpdate || op.scrollTop != null ||
+        op.scrollToPos && (op.scrollToPos.from.line < display.viewFrom ||
+                           op.scrollToPos.to.line >= display.viewTo) ||
+        display.maxLineChanged && cm.options.lineWrapping) {
+      var updated = updateDisplay(cm, {top: op.scrollTop, ensure: op.scrollToPos}, op.forceUpdate);
       if (cm.display.scroller.offsetHeight) cm.doc.scrollTop = cm.display.scroller.scrollTop;
     }
+    // If no update was run, but the selection changed, redraw that.
     if (!updated && op.selectionChanged) updateSelection(cm);
-    if (op.updateScrollPos) {
-      var top = Math.max(0, Math.min(display.scroller.scrollHeight - display.scroller.clientHeight, newScrollPos.scrollTop));
-      var left = Math.max(0, Math.min(display.scroller.scrollWidth - display.scroller.clientWidth, newScrollPos.scrollLeft));
+    if (!updated && op.startHeight != cm.doc.height) updateScrollbars(cm);
+
+    // Propagate the scroll position to the actual DOM scroller
+    if (op.scrollTop != null && display.scroller.scrollTop != op.scrollTop) {
+      var top = Math.max(0, Math.min(display.scroller.scrollHeight - display.scroller.clientHeight, op.scrollTop));
       display.scroller.scrollTop = display.scrollbarV.scrollTop = doc.scrollTop = top;
+    }
+    if (op.scrollLeft != null && display.scroller.scrollLeft != op.scrollLeft) {
+      var left = Math.max(0, Math.min(display.scroller.scrollWidth - display.scroller.clientWidth, op.scrollLeft));
       display.scroller.scrollLeft = display.scrollbarH.scrollLeft = doc.scrollLeft = left;
       alignHorizontally(cm);
-      if (op.scrollToPos)
-        scrollPosIntoView(cm, clipPos(cm.doc, op.scrollToPos.from),
-                          clipPos(cm.doc, op.scrollToPos.to), op.scrollToPos.margin);
-    } else if (newScrollPos) {
-      scrollCursorIntoView(cm);
     }
+    // If we need to scroll a specific position into view, do so.
+    if (op.scrollToPos) {
+      var coords = scrollPosIntoView(cm, clipPos(cm.doc, op.scrollToPos.from),
+                                     clipPos(cm.doc, op.scrollToPos.to), op.scrollToPos.margin);
+      if (op.scrollToPos.isCursor && cm.state.focused) maybeScrollWindow(cm, coords);
+    }
+
     if (op.selectionChanged) restartBlink(cm);
 
     if (cm.state.focused && op.updateInput)
-      resetInput(cm, op.userSelChange);
+      resetInput(cm, op.typing);
 
+    // Fire events for markers that are hidden/unidden by editing or
+    // undoing
     var hidden = op.maybeHiddenMarkers, unhidden = op.maybeUnhiddenMarkers;
     if (hidden) for (var i = 0; i < hidden.length; ++i)
       if (!hidden[i].lines.length) signal(hidden[i], "hide");
@@ -8806,47 +9439,242 @@ window.CodeMirror = (function() {
       delayed = delayedCallbacks;
       delayedCallbacks = null;
     }
-    if (op.textChanged)
-      signal(cm, "change", cm, op.textChanged);
+    // Fire change events, and delayed event handlers
+    if (op.changeObjs) {
+      for (var i = 0; i < op.changeObjs.length; i++)
+        signal(cm, "change", cm, op.changeObjs[i]);
+      signal(cm, "changes", cm, op.changeObjs);
+    }
     if (op.cursorActivity) signal(cm, "cursorActivity", cm);
     if (delayed) for (var i = 0; i < delayed.length; ++i) delayed[i]();
   }
 
-  // Wraps a function in an operation. Returns the wrapped function.
-  function operation(cm1, f) {
-    return function() {
-      var cm = cm1 || this, withOp = !cm.curOp;
-      if (withOp) startOperation(cm);
-      try { var result = f.apply(cm, arguments); }
-      finally { if (withOp) endOperation(cm); }
-      return result;
-    };
-  }
-  function docOperation(f) {
-    return function() {
-      var withOp = this.cm && !this.cm.curOp, result;
-      if (withOp) startOperation(this.cm);
-      try { result = f.apply(this, arguments); }
-      finally { if (withOp) endOperation(this.cm); }
-      return result;
-    };
-  }
+  // Run the given function in an operation
   function runInOp(cm, f) {
-    var withOp = !cm.curOp, result;
-    if (withOp) startOperation(cm);
-    try { result = f(); }
-    finally { if (withOp) endOperation(cm); }
-    return result;
+    if (cm.curOp) return f();
+    startOperation(cm);
+    try { return f(); }
+    finally { endOperation(cm); }
+  }
+  // Wraps a function in an operation. Returns the wrapped function.
+  function operation(cm, f) {
+    return function() {
+      if (cm.curOp) return f.apply(cm, arguments);
+      startOperation(cm);
+      try { return f.apply(cm, arguments); }
+      finally { endOperation(cm); }
+    };
+  }
+  // Used to add methods to editor and doc instances, wrapping them in
+  // operations.
+  function methodOp(f) {
+    return function() {
+      if (this.curOp) return f.apply(this, arguments);
+      startOperation(this);
+      try { return f.apply(this, arguments); }
+      finally { endOperation(this); }
+    };
+  }
+  function docMethodOp(f) {
+    return function() {
+      var cm = this.cm;
+      if (!cm || cm.curOp) return f.apply(this, arguments);
+      startOperation(cm);
+      try { return f.apply(this, arguments); }
+      finally { endOperation(cm); }
+    };
   }
 
+  // VIEW TRACKING
+
+  // These objects are used to represent the visible (currently drawn)
+  // part of the document. A LineView may correspond to multiple
+  // logical lines, if those are connected by collapsed ranges.
+  function LineView(doc, line, lineN) {
+    // The starting line
+    this.line = line;
+    // Continuing lines, if any
+    this.rest = visualLineContinued(line);
+    // Number of logical lines in this visual line
+    this.size = this.rest ? lineNo(lst(this.rest)) - lineN + 1 : 1;
+    this.node = this.text = null;
+    this.hidden = lineIsHidden(doc, line);
+  }
+
+  // Create a range of LineView objects for the given lines.
+  function buildViewArray(cm, from, to) {
+    var array = [], nextPos;
+    for (var pos = from; pos < to; pos = nextPos) {
+      var view = new LineView(cm.doc, getLine(cm.doc, pos), pos);
+      nextPos = pos + view.size;
+      array.push(view);
+    }
+    return array;
+  }
+
+  // Updates the display.view data structure for a given change to the
+  // document. From and to are in pre-change coordinates. Lendiff is
+  // the amount of lines added or subtracted by the change. This is
+  // used for changes that span multiple lines, or change the way
+  // lines are divided into visual lines. regLineChange (below)
+  // registers single-line changes.
   function regChange(cm, from, to, lendiff) {
     if (from == null) from = cm.doc.first;
     if (to == null) to = cm.doc.first + cm.doc.size;
-    cm.curOp.changes.push({from: from, to: to, diff: lendiff});
+    if (!lendiff) lendiff = 0;
+
+    var display = cm.display;
+    if (lendiff && to < display.viewTo &&
+        (display.updateLineNumbers == null || display.updateLineNumbers > from))
+      display.updateLineNumbers = from;
+
+    cm.curOp.viewChanged = true;
+
+    if (from >= display.viewTo) { // Change after
+      if (sawCollapsedSpans && visualLineNo(cm.doc, from) < display.viewTo)
+        resetView(cm);
+    } else if (to <= display.viewFrom) { // Change before
+      if (sawCollapsedSpans && visualLineEndNo(cm.doc, to + lendiff) > display.viewFrom) {
+        resetView(cm);
+      } else {
+        display.viewFrom += lendiff;
+        display.viewTo += lendiff;
+      }
+    } else if (from <= display.viewFrom && to >= display.viewTo) { // Full overlap
+      resetView(cm);
+    } else if (from <= display.viewFrom) { // Top overlap
+      var cut = viewCuttingPoint(cm, to, to + lendiff, 1);
+      if (cut) {
+        display.view = display.view.slice(cut.index);
+        display.viewFrom = cut.lineN;
+        display.viewTo += lendiff;
+      } else {
+        resetView(cm);
+      }
+    } else if (to >= display.viewTo) { // Bottom overlap
+      var cut = viewCuttingPoint(cm, from, from, -1);
+      if (cut) {
+        display.view = display.view.slice(0, cut.index);
+        display.viewTo = cut.lineN;
+      } else {
+        resetView(cm);
+      }
+    } else { // Gap in the middle
+      var cutTop = viewCuttingPoint(cm, from, from, -1);
+      var cutBot = viewCuttingPoint(cm, to, to + lendiff, 1);
+      if (cutTop && cutBot) {
+        display.view = display.view.slice(0, cutTop.index)
+          .concat(buildViewArray(cm, cutTop.lineN, cutBot.lineN))
+          .concat(display.view.slice(cutBot.index));
+        display.viewTo += lendiff;
+      } else {
+        resetView(cm);
+      }
+    }
+
+    var ext = display.externalMeasured;
+    if (ext) {
+      if (to < ext.lineN)
+        ext.lineN += lendiff;
+      else if (from < ext.lineN + ext.size)
+        display.externalMeasured = null;
+    }
+  }
+
+  // Register a change to a single line. Type must be one of "text",
+  // "gutter", "class", "widget"
+  function regLineChange(cm, line, type) {
+    cm.curOp.viewChanged = true;
+    var display = cm.display, ext = cm.display.externalMeasured;
+    if (ext && line >= ext.lineN && line < ext.lineN + ext.size)
+      display.externalMeasured = null;
+
+    if (line < display.viewFrom || line >= display.viewTo) return;
+    var lineView = display.view[findViewIndex(cm, line)];
+    if (lineView.node == null) return;
+    var arr = lineView.changes || (lineView.changes = []);
+    if (indexOf(arr, type) == -1) arr.push(type);
+  }
+
+  // Clear the view.
+  function resetView(cm) {
+    cm.display.viewFrom = cm.display.viewTo = cm.doc.first;
+    cm.display.view = [];
+    cm.display.viewOffset = 0;
+  }
+
+  // Find the view element corresponding to a given line. Return null
+  // when the line isn't visible.
+  function findViewIndex(cm, n) {
+    if (n >= cm.display.viewTo) return null;
+    n -= cm.display.viewFrom;
+    if (n < 0) return null;
+    var view = cm.display.view;
+    for (var i = 0; i < view.length; i++) {
+      n -= view[i].size;
+      if (n < 0) return i;
+    }
+  }
+
+  function viewCuttingPoint(cm, oldN, newN, dir) {
+    var index = findViewIndex(cm, oldN), diff, view = cm.display.view;
+    if (!sawCollapsedSpans) return {index: index, lineN: newN};
+    for (var i = 0, n = cm.display.viewFrom; i < index; i++)
+      n += view[i].size;
+    if (n != oldN) {
+      if (dir > 0) {
+        if (index == view.length - 1) return null;
+        diff = (n + view[index].size) - oldN;
+        index++;
+      } else {
+        diff = n - oldN;
+      }
+      oldN += diff; newN += diff;
+    }
+    while (visualLineNo(cm.doc, newN) != newN) {
+      if (index == (dir < 0 ? 0 : view.length - 1)) return null;
+      newN += dir * view[index - (dir < 0 ? 1 : 0)].size;
+      index += dir;
+    }
+    return {index: index, lineN: newN};
+  }
+
+  // Force the view to cover a given range, adding empty view element
+  // or clipping off existing ones as needed.
+  function adjustView(cm, from, to) {
+    var display = cm.display, view = display.view;
+    if (view.length == 0 || from >= display.viewTo || to <= display.viewFrom) {
+      display.view = buildViewArray(cm, from, to);
+      display.viewFrom = from;
+    } else {
+      if (display.viewFrom > from)
+        display.view = buildViewArray(cm, from, display.viewFrom).concat(display.view);
+      else if (display.viewFrom < from)
+        display.view = display.view.slice(findViewIndex(cm, from));
+      display.viewFrom = from;
+      if (display.viewTo < to)
+        display.view = display.view.concat(buildViewArray(cm, display.viewTo, to));
+      else if (display.viewTo > to)
+        display.view = display.view.slice(0, findViewIndex(cm, to));
+    }
+    display.viewTo = to;
+  }
+
+  // Count the number of lines in the view whose DOM representation is
+  // out of date (or nonexistent).
+  function countDirtyView(cm) {
+    var view = cm.display.view, dirty = 0;
+    for (var i = 0; i < view.length; i++) {
+      var lineView = view[i];
+      if (!lineView.hidden && (!lineView.node || lineView.changes)) ++dirty;
+    }
+    return dirty;
   }
 
   // INPUT HANDLING
 
+  // Poll for input changes, using the normal rate of polling. This
+  // runs as long as the editor is focused.
   function slowPoll(cm) {
     if (cm.display.pollingFast) return;
     cm.display.poll.set(cm.options.pollInterval, function() {
@@ -8855,6 +9683,9 @@ window.CodeMirror = (function() {
     });
   }
 
+  // When an event has just come in that is likely to add or change
+  // something in the input textarea, we poll faster, to ensure that
+  // the change appears on the screen quickly.
   function fastPoll(cm) {
     var missed = false;
     cm.display.pollingFast = true;
@@ -8866,70 +9697,106 @@ window.CodeMirror = (function() {
     cm.display.poll.set(20, p);
   }
 
-  // prevInput is a hack to work with IME. If we reset the textarea
-  // on every change, that breaks IME. So we look for changes
-  // compared to the previous content instead. (Modern browsers have
-  // events that indicate IME taking place, but these are not widely
-  // supported or compatible enough yet to rely on.)
+  // Read input from the textarea, and update the document to match.
+  // When something is selected, it is present in the textarea, and
+  // selected (unless it is huge, in which case a placeholder is
+  // used). When nothing is selected, the cursor sits after previously
+  // seen text (can be empty), which is stored in prevInput (we must
+  // not reset the textarea when typing, because that breaks IME).
   function readInput(cm) {
-    var input = cm.display.input, prevInput = cm.display.prevInput, doc = cm.doc, sel = doc.sel;
-    if (!cm.state.focused || hasSelection(input) || isReadOnly(cm) || cm.state.disableInput) return false;
-    if (cm.state.pasteIncoming && cm.state.fakedLastChar) {
-      input.value = input.value.substring(0, input.value.length - 1);
-      cm.state.fakedLastChar = false;
-    }
+    var input = cm.display.input, prevInput = cm.display.prevInput, doc = cm.doc;
+    // Since this is called a *lot*, try to bail out as cheaply as
+    // possible when it is clear that nothing happened. hasSelection
+    // will be the case when there is a lot of text in the textarea,
+    // in which case reading its value would be expensive.
+    if (!cm.state.focused || hasSelection(input) || isReadOnly(cm) || cm.options.disableInput) return false;
     var text = input.value;
-    if (text == prevInput && posEq(sel.from, sel.to)) return false;
-    if (ie && !ie_lt9 && cm.display.inputHasSelection === text) {
-      resetInput(cm, true);
+    // If nothing changed, bail.
+    if (text == prevInput && !cm.somethingSelected()) return false;
+    // Work around nonsensical selection resetting in IE9/10
+    if (ie && !ie_upto8 && cm.display.inputHasSelection === text) {
+      resetInput(cm);
       return false;
     }
 
     var withOp = !cm.curOp;
     if (withOp) startOperation(cm);
-    sel.shift = false;
+    cm.display.shift = false;
+
+    // Find the part of the input that is actually new
     var same = 0, l = Math.min(prevInput.length, text.length);
     while (same < l && prevInput.charCodeAt(same) == text.charCodeAt(same)) ++same;
-    var from = sel.from, to = sel.to;
-    if (same < prevInput.length)
-      from = Pos(from.line, from.ch - (prevInput.length - same));
-    else if (cm.state.overwrite && posEq(from, to) && !cm.state.pasteIncoming)
-      to = Pos(to.line, Math.min(getLine(doc, to.line).text.length, to.ch + (text.length - same)));
+    var inserted = text.slice(same), textLines = splitLines(inserted);
 
-    var updateInput = cm.curOp.updateInput;
-    var changeEvent = {from: from, to: to, text: splitLines(text.slice(same)),
-                       origin: cm.state.pasteIncoming ? "paste" : "+input"};
-    makeChange(cm.doc, changeEvent, "end");
+    // When pasing N lines into N selections, insert one line per selection
+    var multiPaste = cm.state.pasteIncoming && textLines.length > 1 && doc.sel.ranges.length == textLines.length;
+
+    // Normal behavior is to insert the new text into every selection
+    for (var i = doc.sel.ranges.length - 1; i >= 0; i--) {
+      var range = doc.sel.ranges[i];
+      var from = range.from(), to = range.to();
+      // Handle deletion
+      if (same < prevInput.length)
+        from = Pos(from.line, from.ch - (prevInput.length - same));
+      // Handle overwrite
+      else if (cm.state.overwrite && range.empty() && !cm.state.pasteIncoming)
+        to = Pos(to.line, Math.min(getLine(doc, to.line).text.length, to.ch + lst(textLines).length));
+      var updateInput = cm.curOp.updateInput;
+      var changeEvent = {from: from, to: to, text: multiPaste ? [textLines[i]] : textLines,
+                         origin: cm.state.pasteIncoming ? "paste" : cm.state.cutIncoming ? "cut" : "+input"};
+      makeChange(cm.doc, changeEvent);
+      signalLater(cm, "inputRead", cm, changeEvent);
+      // When an 'electric' character is inserted, immediately trigger a reindent
+      if (inserted && !cm.state.pasteIncoming && cm.options.electricChars &&
+          cm.options.smartIndent && range.head.ch < 100 &&
+          (!i || doc.sel.ranges[i - 1].head.line != range.head.line)) {
+        var electric = cm.getModeAt(range.head).electricChars;
+        if (electric) for (var j = 0; j < electric.length; j++)
+          if (inserted.indexOf(electric.charAt(j)) > -1) {
+            indentLine(cm, range.head.line, "smart");
+            break;
+          }
+      }
+    }
+    ensureCursorVisible(cm);
     cm.curOp.updateInput = updateInput;
-    signalLater(cm, "inputRead", cm, changeEvent);
+    cm.curOp.typing = true;
 
+    // Don't leave long text in the textarea, since it makes further polling slow
     if (text.length > 1000 || text.indexOf("\n") > -1) input.value = cm.display.prevInput = "";
     else cm.display.prevInput = text;
     if (withOp) endOperation(cm);
-    cm.state.pasteIncoming = false;
+    cm.state.pasteIncoming = cm.state.cutIncoming = false;
     return true;
   }
 
-  function resetInput(cm, user) {
+  // Reset the input to correspond to the selection (or to be empty,
+  // when not typing and nothing is selected)
+  function resetInput(cm, typing) {
     var minimal, selected, doc = cm.doc;
-    if (!posEq(doc.sel.from, doc.sel.to)) {
+    if (cm.somethingSelected()) {
       cm.display.prevInput = "";
+      var range = doc.sel.primary();
       minimal = hasCopyEvent &&
-        (doc.sel.to.line - doc.sel.from.line > 100 || (selected = cm.getSelection()).length > 1000);
+        (range.to().line - range.from().line > 100 || (selected = cm.getSelection()).length > 1000);
       var content = minimal ? "-" : selected || cm.getSelection();
       cm.display.input.value = content;
       if (cm.state.focused) selectInput(cm.display.input);
-      if (ie && !ie_lt9) cm.display.inputHasSelection = content;
-    } else if (user) {
+      if (ie && !ie_upto8) cm.display.inputHasSelection = content;
+    } else if (!typing) {
       cm.display.prevInput = cm.display.input.value = "";
-      if (ie && !ie_lt9) cm.display.inputHasSelection = null;
+      if (ie && !ie_upto8) cm.display.inputHasSelection = null;
     }
     cm.display.inaccurateSelection = minimal;
   }
 
   function focusInput(cm) {
-    if (cm.options.readOnly != "nocursor" && (!mobile || document.activeElement != cm.display.input))
+    if (cm.options.readOnly != "nocursor" && (!mobile || activeElt() != cm.display.input))
       cm.display.input.focus();
+  }
+
+  function ensureFocus(cm) {
+    if (!cm.state.focused) { focusInput(cm); onFocus(cm); }
   }
 
   function isReadOnly(cm) {
@@ -8938,28 +9805,33 @@ window.CodeMirror = (function() {
 
   // EVENT HANDLERS
 
+  // Attach the necessary event handlers when initializing the editor
   function registerEventHandlers(cm) {
     var d = cm.display;
     on(d.scroller, "mousedown", operation(cm, onMouseDown));
-    if (ie)
+    // Older IE's will not fire a second mousedown for a double click
+    if (ie_upto10)
       on(d.scroller, "dblclick", operation(cm, function(e) {
         if (signalDOMEvent(cm, e)) return;
         var pos = posFromMouse(cm, e);
         if (!pos || clickInGutter(cm, e) || eventInWidget(cm.display, e)) return;
         e_preventDefault(e);
-        var word = findWordAt(getLine(cm.doc, pos.line).text, pos);
-        extendSelection(cm.doc, word.from, word.to);
+        var word = findWordAt(cm.doc, pos);
+        extendSelection(cm.doc, word.anchor, word.head);
       }));
     else
       on(d.scroller, "dblclick", function(e) { signalDOMEvent(cm, e) || e_preventDefault(e); });
+    // Prevent normal selection in the editor (we handle our own)
     on(d.lineSpace, "selectstart", function(e) {
       if (!eventInWidget(d, e)) e_preventDefault(e);
     });
-    // Gecko browsers fire contextmenu *after* opening the menu, at
+    // Some browsers fire contextmenu *after* opening the menu, at
     // which point we can't mess with it anymore. Context menu is
-    // handled in onMouseDown for Gecko.
-    if (!captureMiddleClick) on(d.scroller, "contextmenu", function(e) {onContextMenu(cm, e);});
+    // handled in onMouseDown for these browsers.
+    if (!captureRightClick) on(d.scroller, "contextmenu", function(e) {onContextMenu(cm, e);});
 
+    // Sync scrolling between fake scrollbars and real scrollable
+    // area, ensure viewport is updated when scrolling.
     on(d.scroller, "scroll", function() {
       if (d.scroller.clientHeight) {
         setScrollTop(cm, d.scroller.scrollTop);
@@ -8974,42 +9846,40 @@ window.CodeMirror = (function() {
       if (d.scroller.clientHeight) setScrollLeft(cm, d.scrollbarH.scrollLeft);
     });
 
+    // Listen to wheel events in order to try and update the viewport on time.
     on(d.scroller, "mousewheel", function(e){onScrollWheel(cm, e);});
     on(d.scroller, "DOMMouseScroll", function(e){onScrollWheel(cm, e);});
 
+    // Prevent clicks in the scrollbars from killing focus
     function reFocus() { if (cm.state.focused) setTimeout(bind(focusInput, cm), 0); }
     on(d.scrollbarH, "mousedown", reFocus);
     on(d.scrollbarV, "mousedown", reFocus);
     // Prevent wrapper from ever scrolling
     on(d.wrapper, "scroll", function() { d.wrapper.scrollTop = d.wrapper.scrollLeft = 0; });
 
+    // When the window resizes, we need to refresh active editors.
     var resizeTimer;
     function onResize() {
       if (resizeTimer == null) resizeTimer = setTimeout(function() {
         resizeTimer = null;
         // Might be a text scaling operation, clear size caches.
-        d.cachedCharWidth = d.cachedTextHeight = knownScrollbarWidth = null;
-        clearCaches(cm);
-        runInOp(cm, bind(regChange, cm));
+        d.cachedCharWidth = d.cachedTextHeight = d.cachedPaddingH = knownScrollbarWidth = null;
+        cm.setSize();
       }, 100);
     }
     on(window, "resize", onResize);
-    // Above handler holds on to the editor and its data structures.
-    // Here we poll to unregister it when the editor is no longer in
-    // the document, so that it can be garbage-collected.
+    // The above handler holds on to the editor and its data
+    // structures. Here we poll to unregister it when the editor is no
+    // longer in the document, so that it can be garbage-collected.
     function unregister() {
-      for (var p = d.wrapper.parentNode; p && p != document.body; p = p.parentNode) {}
-      if (p) setTimeout(unregister, 5000);
+      if (contains(document.body, d.wrapper)) setTimeout(unregister, 5000);
       else off(window, "resize", onResize);
     }
     setTimeout(unregister, 5000);
 
-    on(d.input, "keyup", operation(cm, function(e) {
-      if (signalDOMEvent(cm, e) || cm.options.onKeyEvent && cm.options.onKeyEvent(cm, addStop(e))) return;
-      if (e.keyCode == 16) cm.doc.sel.shift = false;
-    }));
+    on(d.input, "keyup", operation(cm, onKeyUp));
     on(d.input, "input", function() {
-      if (ie && !ie_lt9 && cm.display.inputHasSelection) cm.display.inputHasSelection = null;
+      if (ie && !ie_upto8 && cm.display.inputHasSelection) cm.display.inputHasSelection = null;
       fastPoll(cm);
     });
     on(d.input, "keydown", operation(cm, onKeyDown));
@@ -9018,8 +9888,7 @@ window.CodeMirror = (function() {
     on(d.input, "blur", bind(onBlur, cm));
 
     function drag_(e) {
-      if (signalDOMEvent(cm, e) || cm.options.onDragEvent && cm.options.onDragEvent(cm, addStop(e))) return;
-      e_stop(e);
+      if (!signalDOMEvent(cm, e)) e_stop(e);
     }
     if (cm.options.dragDrop) {
       on(d.scroller, "dragstart", function(e){onDragStart(cm, e);});
@@ -9029,70 +9898,81 @@ window.CodeMirror = (function() {
     }
     on(d.scroller, "paste", function(e) {
       if (eventInWidget(d, e)) return;
+      cm.state.pasteIncoming = true;
       focusInput(cm);
       fastPoll(cm);
     });
     on(d.input, "paste", function() {
-      // Workaround for webkit bug https://bugs.webkit.org/show_bug.cgi?id=90206
-      // Add a char to the end of textarea before paste occur so that
-      // selection doesn't span to the end of textarea.
-      if (webkit && !cm.state.fakedLastChar && !(new Date - cm.state.lastMiddleDown < 200)) {
-        var start = d.input.selectionStart, end = d.input.selectionEnd;
-        d.input.value += "$";
-        d.input.selectionStart = start;
-        d.input.selectionEnd = end;
-        cm.state.fakedLastChar = true;
-      }
       cm.state.pasteIncoming = true;
       fastPoll(cm);
     });
 
-    function prepareCopy() {
+    function prepareCopy(e) {
       if (d.inaccurateSelection) {
         d.prevInput = "";
         d.inaccurateSelection = false;
         d.input.value = cm.getSelection();
         selectInput(d.input);
       }
+      if (e.type == "cut") cm.state.cutIncoming = true;
     }
     on(d.input, "cut", prepareCopy);
     on(d.input, "copy", prepareCopy);
 
     // Needed to handle Tab key in KHTML
     if (khtml) on(d.sizer, "mouseup", function() {
-        if (document.activeElement == d.input) d.input.blur();
-        focusInput(cm);
+      if (activeElt() == d.input) d.input.blur();
+      focusInput(cm);
     });
   }
 
+  // MOUSE EVENTS
+
+  // Return true when the given mouse event happened in a widget
   function eventInWidget(display, e) {
     for (var n = e_target(e); n != display.wrapper; n = n.parentNode) {
       if (!n || n.ignoreEvents || n.parentNode == display.sizer && n != display.mover) return true;
     }
   }
 
-  function posFromMouse(cm, e, liberal) {
+  // Given a mouse event, find the corresponding position. If liberal
+  // is false, it checks whether a gutter or scrollbar was clicked,
+  // and returns null if it was. forRect is used by rectangular
+  // selections, and tries to estimate a character position even for
+  // coordinates beyond the right of the text.
+  function posFromMouse(cm, e, liberal, forRect) {
     var display = cm.display;
     if (!liberal) {
       var target = e_target(e);
-      if (target == display.scrollbarH || target == display.scrollbarH.firstChild ||
-          target == display.scrollbarV || target == display.scrollbarV.firstChild ||
+      if (target == display.scrollbarH || target == display.scrollbarV ||
           target == display.scrollbarFiller || target == display.gutterFiller) return null;
     }
-    var x, y, space = getRect(display.lineSpace);
+    var x, y, space = display.lineSpace.getBoundingClientRect();
     // Fails unpredictably on IE[67] when mouse is dragged around quickly.
-    try { x = e.clientX; y = e.clientY; } catch (e) { return null; }
-    return coordsChar(cm, x - space.left, y - space.top);
+    try { x = e.clientX - space.left; y = e.clientY - space.top; }
+    catch (e) { return null; }
+    var coords = coordsChar(cm, x, y), line;
+    if (forRect && coords.xRel == 1 && (line = getLine(cm.doc, coords.line).text).length == coords.ch) {
+      var colDiff = countColumn(line, line.length, cm.options.tabSize) - line.length;
+      coords = Pos(coords.line, Math.round((x - paddingH(cm.display).left) / charWidth(cm.display)) - colDiff);
+    }
+    return coords;
   }
 
-  var lastClick, lastDoubleClick;
+  // A mouse down can be a single click, double click, triple click,
+  // start of selection drag, start of text drag, new cursor
+  // (ctrl-click), rectangle drag (alt-drag), or xwin
+  // middle-click-paste. Or it might be a click on something we should
+  // not interfere with, such as a scrollbar or widget.
   function onMouseDown(e) {
     if (signalDOMEvent(this, e)) return;
-    var cm = this, display = cm.display, doc = cm.doc, sel = doc.sel;
-    sel.shift = e.shiftKey;
+    var cm = this, display = cm.display;
+    display.shift = e.shiftKey;
 
     if (eventInWidget(display, e)) {
       if (!webkit) {
+        // Briefly turn off draggability, to allow widgets to do
+        // normal dragging things.
         display.scroller.draggable = false;
         setTimeout(function(){display.scroller.draggable = true;}, 100);
       }
@@ -9100,89 +9980,168 @@ window.CodeMirror = (function() {
     }
     if (clickInGutter(cm, e)) return;
     var start = posFromMouse(cm, e);
+    window.focus();
 
     switch (e_button(e)) {
-    case 3:
-      if (captureMiddleClick) onContextMenu.call(cm, cm, e);
-      return;
+    case 1:
+      if (start)
+        leftButtonDown(cm, e, start);
+      else if (e_target(e) == display.scroller)
+        e_preventDefault(e);
+      break;
     case 2:
       if (webkit) cm.state.lastMiddleDown = +new Date;
       if (start) extendSelection(cm.doc, start);
       setTimeout(bind(focusInput, cm), 20);
       e_preventDefault(e);
-      return;
+      break;
+    case 3:
+      if (captureRightClick) onContextMenu(cm, e);
+      break;
     }
-    // For button 1, if it was clicked inside the editor
-    // (posFromMouse returning non-null), we have to adjust the
-    // selection.
-    if (!start) {if (e_target(e) == display.scroller) e_preventDefault(e); return;}
+  }
 
-    if (!cm.state.focused) onFocus(cm);
+  var lastClick, lastDoubleClick;
+  function leftButtonDown(cm, e, start) {
+    setTimeout(bind(ensureFocus, cm), 0);
 
-    var now = +new Date, type = "single";
-    if (lastDoubleClick && lastDoubleClick.time > now - 400 && posEq(lastDoubleClick.pos, start)) {
+    var now = +new Date, type;
+    if (lastDoubleClick && lastDoubleClick.time > now - 400 && cmp(lastDoubleClick.pos, start) == 0) {
       type = "triple";
-      e_preventDefault(e);
-      setTimeout(bind(focusInput, cm), 20);
-      selectLine(cm, start.line);
-    } else if (lastClick && lastClick.time > now - 400 && posEq(lastClick.pos, start)) {
+    } else if (lastClick && lastClick.time > now - 400 && cmp(lastClick.pos, start) == 0) {
       type = "double";
       lastDoubleClick = {time: now, pos: start};
-      e_preventDefault(e);
-      var word = findWordAt(getLine(doc, start.line).text, start);
-      extendSelection(cm.doc, word.from, word.to);
-    } else { lastClick = {time: now, pos: start}; }
-
-    var last = start;
-    if (cm.options.dragDrop && dragAndDrop && !isReadOnly(cm) && !posEq(sel.from, sel.to) &&
-        !posLess(start, sel.from) && !posLess(sel.to, start) && type == "single") {
-      var dragEnd = operation(cm, function(e2) {
-        if (webkit) display.scroller.draggable = false;
-        cm.state.draggingText = false;
-        off(document, "mouseup", dragEnd);
-        off(display.scroller, "drop", dragEnd);
-        if (Math.abs(e.clientX - e2.clientX) + Math.abs(e.clientY - e2.clientY) < 10) {
-          e_preventDefault(e2);
-          extendSelection(cm.doc, start);
-          focusInput(cm);
-        }
-      });
-      // Let the drag handler handle this.
-      if (webkit) display.scroller.draggable = true;
-      cm.state.draggingText = dragEnd;
-      // IE's approach to draggable
-      if (display.scroller.dragDrop) display.scroller.dragDrop();
-      on(document, "mouseup", dragEnd);
-      on(display.scroller, "drop", dragEnd);
-      return;
+    } else {
+      type = "single";
+      lastClick = {time: now, pos: start};
     }
+
+    var sel = cm.doc.sel, addNew = mac ? e.metaKey : e.ctrlKey;
+    if (cm.options.dragDrop && dragAndDrop && !addNew && !isReadOnly(cm) &&
+        type == "single" && sel.contains(start) > -1 && sel.somethingSelected())
+      leftButtonStartDrag(cm, e, start);
+    else
+      leftButtonSelect(cm, e, start, type, addNew);
+  }
+
+  // Start a text drag. When it ends, see if any dragging actually
+  // happen, and treat as a click if it didn't.
+  function leftButtonStartDrag(cm, e, start) {
+    var display = cm.display;
+    var dragEnd = operation(cm, function(e2) {
+      if (webkit) display.scroller.draggable = false;
+      cm.state.draggingText = false;
+      off(document, "mouseup", dragEnd);
+      off(display.scroller, "drop", dragEnd);
+      if (Math.abs(e.clientX - e2.clientX) + Math.abs(e.clientY - e2.clientY) < 10) {
+        e_preventDefault(e2);
+        extendSelection(cm.doc, start);
+        focusInput(cm);
+        // Work around unexplainable focus problem in IE9 (#2127)
+        if (ie_upto10 && !ie_upto8)
+          setTimeout(function() {document.body.focus(); focusInput(cm);}, 20);
+      }
+    });
+    // Let the drag handler handle this.
+    if (webkit) display.scroller.draggable = true;
+    cm.state.draggingText = dragEnd;
+    // IE's approach to draggable
+    if (display.scroller.dragDrop) display.scroller.dragDrop();
+    on(document, "mouseup", dragEnd);
+    on(display.scroller, "drop", dragEnd);
+  }
+
+  // Normal selection, as opposed to text dragging.
+  function leftButtonSelect(cm, e, start, type, addNew) {
+    var display = cm.display, doc = cm.doc;
     e_preventDefault(e);
-    if (type == "single") extendSelection(cm.doc, clipPos(doc, start));
 
-    var startstart = sel.from, startend = sel.to, lastPos = start;
+    var ourRange, ourIndex, startSel = doc.sel;
+    if (addNew) {
+      ourIndex = doc.sel.contains(start);
+      if (ourIndex > -1)
+        ourRange = doc.sel.ranges[ourIndex];
+      else
+        ourRange = new Range(start, start);
+    } else {
+      ourRange = doc.sel.primary();
+    }
 
-    function doSelect(cur) {
-      if (posEq(lastPos, cur)) return;
-      lastPos = cur;
+    if (e.altKey) {
+      type = "rect";
+      if (!addNew) ourRange = new Range(start, start);
+      start = posFromMouse(cm, e, true, true);
+      ourIndex = -1;
+    } else if (type == "double") {
+      var word = findWordAt(doc, start);
+      if (cm.display.shift || doc.extend)
+        ourRange = extendRange(doc, ourRange, word.anchor, word.head);
+      else
+        ourRange = word;
+    } else if (type == "triple") {
+      var line = new Range(Pos(start.line, 0), clipPos(doc, Pos(start.line + 1, 0)));
+      if (cm.display.shift || doc.extend)
+        ourRange = extendRange(doc, ourRange, line.anchor, line.head);
+      else
+        ourRange = line;
+    } else {
+      ourRange = extendRange(doc, ourRange, start);
+    }
 
-      if (type == "single") {
-        extendSelection(cm.doc, clipPos(doc, start), cur);
-        return;
-      }
+    if (!addNew) {
+      ourIndex = 0;
+      setSelection(doc, new Selection([ourRange], 0), sel_mouse);
+    } else if (ourIndex > -1) {
+      replaceOneSelection(doc, ourIndex, ourRange, sel_mouse);
+    } else {
+      ourIndex = doc.sel.ranges.length;
+      setSelection(doc, normalizeSelection(doc.sel.ranges.concat([ourRange]), ourIndex),
+                   {scroll: false, origin: "*mouse"});
+    }
 
-      startstart = clipPos(doc, startstart);
-      startend = clipPos(doc, startend);
-      if (type == "double") {
-        var word = findWordAt(getLine(doc, cur.line).text, cur);
-        if (posLess(cur, startstart)) extendSelection(cm.doc, word.from, startend);
-        else extendSelection(cm.doc, startstart, word.to);
-      } else if (type == "triple") {
-        if (posLess(cur, startstart)) extendSelection(cm.doc, startend, clipPos(doc, Pos(cur.line, 0)));
-        else extendSelection(cm.doc, startstart, clipPos(doc, Pos(cur.line + 1, 0)));
+    var lastPos = start;
+    function extendTo(pos) {
+      if (cmp(lastPos, pos) == 0) return;
+      lastPos = pos;
+
+      if (type == "rect") {
+        var ranges = [], tabSize = cm.options.tabSize;
+        var startCol = countColumn(getLine(doc, start.line).text, start.ch, tabSize);
+        var posCol = countColumn(getLine(doc, pos.line).text, pos.ch, tabSize);
+        var left = Math.min(startCol, posCol), right = Math.max(startCol, posCol);
+        for (var line = Math.min(start.line, pos.line), end = Math.min(cm.lastLine(), Math.max(start.line, pos.line));
+             line <= end; line++) {
+          var text = getLine(doc, line).text, leftPos = findColumn(text, left, tabSize);
+          if (left == right)
+            ranges.push(new Range(Pos(line, leftPos), Pos(line, leftPos)));
+          else if (text.length > leftPos)
+            ranges.push(new Range(Pos(line, leftPos), Pos(line, findColumn(text, right, tabSize))));
+        }
+        if (!ranges.length) ranges.push(new Range(start, start));
+        setSelection(doc, normalizeSelection(startSel.ranges.slice(0, ourIndex).concat(ranges), ourIndex), sel_mouse);
+      } else {
+        var oldRange = ourRange;
+        var anchor = oldRange.anchor, head = pos;
+        if (type != "single") {
+          if (type == "double")
+            var range = findWordAt(doc, pos);
+          else
+            var range = new Range(Pos(pos.line, 0), clipPos(doc, Pos(pos.line + 1, 0)));
+          if (cmp(range.anchor, anchor) > 0) {
+            head = range.head;
+            anchor = minPos(oldRange.from(), range.anchor);
+          } else {
+            head = range.anchor;
+            anchor = maxPos(oldRange.to(), range.head);
+          }
+        }
+        var ranges = startSel.ranges.slice(0);
+        ranges[ourIndex] = new Range(clipPos(doc, anchor), head);
+        setSelection(doc, normalizeSelection(ranges, ourIndex), sel_mouse);
       }
     }
 
-    var editorSize = getRect(display.wrapper);
+    var editorSize = display.wrapper.getBoundingClientRect();
     // Used to ensure timeout re-tries don't fire when another extend
     // happened in the meantime (clearTimeout isn't reliable -- at
     // least on Chrome, the timeouts still happen even when cleared,
@@ -9191,12 +10150,11 @@ window.CodeMirror = (function() {
 
     function extend(e) {
       var curCount = ++counter;
-      var cur = posFromMouse(cm, e, true);
+      var cur = posFromMouse(cm, e, true, type == "rect");
       if (!cur) return;
-      if (!posEq(cur, last)) {
-        if (!cm.state.focused) onFocus(cm);
-        last = cur;
-        doSelect(cur);
+      if (cmp(cur, lastPos) != 0) {
+        ensureFocus(cm);
+        extendTo(cur);
         var visible = visibleLines(display, doc);
         if (cur.line >= visible.to || cur.line < visible.from)
           setTimeout(operation(cm, function(){if (counter == curCount) extend(e);}), 150);
@@ -9216,10 +10174,11 @@ window.CodeMirror = (function() {
       focusInput(cm);
       off(document, "mousemove", move);
       off(document, "mouseup", up);
+      doc.history.lastSelOrigin = null;
     }
 
     var move = operation(cm, function(e) {
-      if (!ie && !e_button(e)) done(e);
+      if ((ie && !ie_upto9) ?  !e.buttons : !e_button(e)) done(e);
       else extend(e);
     });
     var up = operation(cm, done);
@@ -9227,32 +10186,29 @@ window.CodeMirror = (function() {
     on(document, "mouseup", up);
   }
 
+  // Determines whether an event happened in the gutter, and fires the
+  // handlers for the corresponding event.
   function gutterEvent(cm, e, type, prevent, signalfn) {
     try { var mX = e.clientX, mY = e.clientY; }
     catch(e) { return false; }
-    if (mX >= Math.floor(getRect(cm.display.gutters).right)) return false;
+    if (mX >= Math.floor(cm.display.gutters.getBoundingClientRect().right)) return false;
     if (prevent) e_preventDefault(e);
 
     var display = cm.display;
-    var lineBox = getRect(display.lineDiv);
+    var lineBox = display.lineDiv.getBoundingClientRect();
 
     if (mY > lineBox.bottom || !hasHandler(cm, type)) return e_defaultPrevented(e);
     mY -= lineBox.top - display.viewOffset;
 
     for (var i = 0; i < cm.options.gutters.length; ++i) {
       var g = display.gutters.childNodes[i];
-      if (g && getRect(g).right >= mX) {
+      if (g && g.getBoundingClientRect().right >= mX) {
         var line = lineAtHeight(cm.doc, mY);
         var gutter = cm.options.gutters[i];
         signalfn(cm, type, cm, line, gutter, e);
         return e_defaultPrevented(e);
       }
     }
-  }
-
-  function contextMenuInGutter(cm, e) {
-    if (!hasHandler(cm, "gutterContextMenu")) return false;
-    return gutterEvent(cm, e, "gutterContextMenu", false, signal);
   }
 
   function clickInGutter(cm, e) {
@@ -9265,12 +10221,14 @@ window.CodeMirror = (function() {
 
   function onDrop(e) {
     var cm = this;
-    if (signalDOMEvent(cm, e) || eventInWidget(cm.display, e) || (cm.options.onDragEvent && cm.options.onDragEvent(cm, addStop(e))))
+    if (signalDOMEvent(cm, e) || eventInWidget(cm.display, e))
       return;
     e_preventDefault(e);
-    if (ie) lastDrop = +new Date;
+    if (ie_upto10) lastDrop = +new Date;
     var pos = posFromMouse(cm, e, true), files = e.dataTransfer.files;
     if (!pos || isReadOnly(cm)) return;
+    // Might be a file drop, in which case we simply extract the text
+    // and insert it.
     if (files && files.length && window.FileReader && window.File) {
       var n = files.length, text = Array(n), read = 0;
       var loadFile = function(file, i) {
@@ -9279,15 +10237,17 @@ window.CodeMirror = (function() {
           text[i] = reader.result;
           if (++read == n) {
             pos = clipPos(cm.doc, pos);
-            makeChange(cm.doc, {from: pos, to: pos, text: splitLines(text.join("\n")), origin: "paste"}, "around");
+            var change = {from: pos, to: pos, text: splitLines(text.join("\n")), origin: "paste"};
+            makeChange(cm.doc, change);
+            setSelectionReplaceHistory(cm.doc, simpleSelection(pos, changeEnd(change)));
           }
         };
         reader.readAsText(file);
       };
       for (var i = 0; i < n; ++i) loadFile(files[i], i);
-    } else {
+    } else { // Normal drop
       // Don't do a replace if the drop happened inside of the selected text.
-      if (cm.state.draggingText && !(posLess(pos, cm.doc.sel.from) || posLess(cm.doc.sel.to, pos))) {
+      if (cm.state.draggingText && cm.doc.sel.contains(pos) > -1) {
         cm.state.draggingText(e);
         // Ensure the editor is re-focused
         setTimeout(bind(focusInput, cm), 20);
@@ -9296,10 +10256,11 @@ window.CodeMirror = (function() {
       try {
         var text = e.dataTransfer.getData("Text");
         if (text) {
-          var curFrom = cm.doc.sel.from, curTo = cm.doc.sel.to;
-          setSelection(cm.doc, pos, pos);
-          if (cm.state.draggingText) replaceRange(cm.doc, "", curFrom, curTo, "paste");
-          cm.replaceSelection(text, null, "paste");
+          var selected = cm.state.draggingText && cm.listSelections();
+          setSelectionNoUndo(cm.doc, simpleSelection(pos, pos));
+          if (selected) for (var i = 0; i < selected.length; ++i)
+            replaceRange(cm.doc, "", selected[i].anchor, selected[i].head, "drag");
+          cm.replaceSelection(text, "around", "paste");
           focusInput(cm);
         }
       }
@@ -9308,37 +10269,42 @@ window.CodeMirror = (function() {
   }
 
   function onDragStart(cm, e) {
-    if (ie && (!cm.state.draggingText || +new Date - lastDrop < 100)) { e_stop(e); return; }
+    if (ie_upto10 && (!cm.state.draggingText || +new Date - lastDrop < 100)) { e_stop(e); return; }
     if (signalDOMEvent(cm, e) || eventInWidget(cm.display, e)) return;
 
-    var txt = cm.getSelection();
-    e.dataTransfer.setData("Text", txt);
+    e.dataTransfer.setData("Text", cm.getSelection());
 
     // Use dummy image instead of default browsers image.
     // Recent Safari (~6.0.2) have a tendency to segfault when this happens, so we don't do it there.
     if (e.dataTransfer.setDragImage && !safari) {
       var img = elt("img", null, null, "position: fixed; left: 0; top: 0;");
       img.src = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
-      if (opera) {
+      if (presto) {
         img.width = img.height = 1;
         cm.display.wrapper.appendChild(img);
         // Force a relayout, or Opera won't use our image for some obscure reason
         img._top = img.offsetTop;
       }
       e.dataTransfer.setDragImage(img, 0, 0);
-      if (opera) img.parentNode.removeChild(img);
+      if (presto) img.parentNode.removeChild(img);
     }
   }
 
+  // SCROLL EVENTS
+
+  // Sync the scrollable area and scrollbars, ensure the viewport
+  // covers the visible area.
   function setScrollTop(cm, val) {
     if (Math.abs(cm.doc.scrollTop - val) < 2) return;
     cm.doc.scrollTop = val;
-    if (!gecko) updateDisplay(cm, [], val);
+    if (!gecko) updateDisplay(cm, {top: val});
     if (cm.display.scroller.scrollTop != val) cm.display.scroller.scrollTop = val;
     if (cm.display.scrollbarV.scrollTop != val) cm.display.scrollbarV.scrollTop = val;
-    if (gecko) updateDisplay(cm, []);
+    if (gecko) updateDisplay(cm);
     startWorker(cm, 100);
   }
+  // Sync scroller and scrollbar, ensure the gutter elements are
+  // aligned.
   function setScrollLeft(cm, val, isScroller) {
     if (isScroller ? val == cm.doc.scrollLeft : Math.abs(cm.doc.scrollLeft - val) < 2) return;
     val = Math.min(val, cm.display.scroller.scrollWidth - cm.display.scroller.clientWidth);
@@ -9385,10 +10351,12 @@ window.CodeMirror = (function() {
     // This hack (see related code in patchDisplay) makes sure the
     // element is kept around.
     if (dy && mac && webkit) {
-      for (var cur = e.target; cur != scroll; cur = cur.parentNode) {
-        if (cur.lineObj) {
-          cm.display.currentWheelTarget = cur;
-          break;
+      outer: for (var cur = e.target, view = display.view; cur != scroll; cur = cur.parentNode) {
+        for (var i = 0; i < view.length; i++) {
+          if (view[i].node == cur) {
+            cm.display.currentWheelTarget = cur;
+            break outer;
+          }
         }
       }
     }
@@ -9399,7 +10367,7 @@ window.CodeMirror = (function() {
     // estimated pixels/delta value, we just handle horizontal
     // scrolling entirely here. It'll be slightly off from native, but
     // better than glitching out.
-    if (dx && !gecko && !opera && wheelPixelsPerUnit != null) {
+    if (dx && !gecko && !presto && wheelPixelsPerUnit != null) {
       if (dy)
         setScrollTop(cm, Math.max(0, Math.min(scroll.scrollTop + dy * wheelPixelsPerUnit, scroll.scrollHeight - scroll.clientHeight)));
       setScrollLeft(cm, Math.max(0, Math.min(scroll.scrollLeft + dx * wheelPixelsPerUnit, scroll.scrollWidth - scroll.clientWidth)));
@@ -9408,12 +10376,14 @@ window.CodeMirror = (function() {
       return;
     }
 
+    // 'Project' the visible viewport to cover the area that is being
+    // scrolled into view (if we know enough to estimate it).
     if (dy && wheelPixelsPerUnit != null) {
       var pixels = dy * wheelPixelsPerUnit;
       var top = cm.doc.scrollTop, bot = top + display.wrapper.clientHeight;
       if (pixels < 0) top = Math.max(0, top + pixels - 50);
       else bot = Math.min(cm.doc.height, bot + pixels + 50);
-      updateDisplay(cm, [], {top: top, bottom: bot});
+      updateDisplay(cm, {top: top, bottom: bot});
     }
 
     if (wheelSamples < 20) {
@@ -9437,6 +10407,9 @@ window.CodeMirror = (function() {
     }
   }
 
+  // KEY EVENTS
+
+  // Run a handler that was bound to a key.
   function doHandleBinding(cm, bound, dropShift) {
     if (typeof bound == "string") {
       bound = commands[bound];
@@ -9445,18 +10418,19 @@ window.CodeMirror = (function() {
     // Ensure previous input has been read, so that the handler sees a
     // consistent view of the document
     if (cm.display.pollingFast && readInput(cm)) cm.display.pollingFast = false;
-    var doc = cm.doc, prevShift = doc.sel.shift, done = false;
+    var prevShift = cm.display.shift, done = false;
     try {
       if (isReadOnly(cm)) cm.state.suppressEdits = true;
-      if (dropShift) doc.sel.shift = false;
+      if (dropShift) cm.display.shift = false;
       done = bound(cm) != Pass;
     } finally {
-      doc.sel.shift = prevShift;
+      cm.display.shift = prevShift;
       cm.state.suppressEdits = false;
     }
     return done;
   }
 
+  // Collect the currently active keymaps.
   function allKeyMaps(cm) {
     var maps = cm.state.keyMaps.slice(0);
     if (cm.options.extraKeys) maps.push(cm.options.extraKeys);
@@ -9465,8 +10439,9 @@ window.CodeMirror = (function() {
   }
 
   var maybeTransition;
+  // Handle a key from the keydown event.
   function handleKeyBinding(cm, e) {
-    // Handle auto keymap transitions
+    // Handle automatic keymap transitions
     var startMap = getKeyMap(cm.options.keyMap), next = startMap.auto;
     clearTimeout(maybeTransition);
     if (next && !isModifierKey(e)) maybeTransition = setTimeout(function() {
@@ -9496,12 +10471,12 @@ window.CodeMirror = (function() {
     if (handled) {
       e_preventDefault(e);
       restartBlink(cm);
-      if (ie_lt9) { e.oldKeyCode = e.keyCode; e.keyCode = 0; }
       signalLater(cm, "keyHandled", cm, name, e);
     }
     return handled;
   }
 
+  // Handle a key from the keypress event
   function handleCharBinding(cm, e, ch) {
     var handled = lookupKey("'" + ch + "'", allKeyMaps(cm),
                             function(b) { return doHandleBinding(cm, b, true); });
@@ -9516,37 +10491,39 @@ window.CodeMirror = (function() {
   var lastStoppedKey = null;
   function onKeyDown(e) {
     var cm = this;
-    if (!cm.state.focused) onFocus(cm);
-    if (signalDOMEvent(cm, e) || cm.options.onKeyEvent && cm.options.onKeyEvent(cm, addStop(e))) return;
-    if (ie && e.keyCode == 27) e.returnValue = false;
-    var code = e.keyCode;
+    ensureFocus(cm);
+    if (signalDOMEvent(cm, e)) return;
     // IE does strange things with escape.
-    cm.doc.sel.shift = code == 16 || e.shiftKey;
-    // First give onKeyEvent option a chance to handle this.
+    if (ie_upto10 && e.keyCode == 27) e.returnValue = false;
+    var code = e.keyCode;
+    cm.display.shift = code == 16 || e.shiftKey;
     var handled = handleKeyBinding(cm, e);
-    if (opera) {
+    if (presto) {
       lastStoppedKey = handled ? code : null;
       // Opera has no cut event... we try to at least catch the key combo
       if (!handled && code == 88 && !hasCopyEvent && (mac ? e.metaKey : e.ctrlKey))
-        cm.replaceSelection("");
+        cm.replaceSelection("", null, "cut");
     }
+  }
+
+  function onKeyUp(e) {
+    if (signalDOMEvent(this, e)) return;
+    if (e.keyCode == 16) this.doc.sel.shift = false;
   }
 
   function onKeyPress(e) {
     var cm = this;
-    if (signalDOMEvent(cm, e) || cm.options.onKeyEvent && cm.options.onKeyEvent(cm, addStop(e))) return;
+    if (signalDOMEvent(cm, e)) return;
     var keyCode = e.keyCode, charCode = e.charCode;
-    if (opera && keyCode == lastStoppedKey) {lastStoppedKey = null; e_preventDefault(e); return;}
-    if (((opera && (!e.which || e.which < 10)) || khtml) && handleKeyBinding(cm, e)) return;
+    if (presto && keyCode == lastStoppedKey) {lastStoppedKey = null; e_preventDefault(e); return;}
+    if (((presto && (!e.which || e.which < 10)) || khtml) && handleKeyBinding(cm, e)) return;
     var ch = String.fromCharCode(charCode == null ? keyCode : charCode);
-    if (this.options.electricChars && this.doc.mode.electricChars &&
-        this.options.smartIndent && !isReadOnly(this) &&
-        this.doc.mode.electricChars.indexOf(ch) > -1)
-      setTimeout(operation(cm, function() {indentLine(cm, cm.doc.sel.to.line, "smart");}), 75);
     if (handleCharBinding(cm, e, ch)) return;
-    if (ie && !ie_lt9) cm.display.inputHasSelection = null;
+    if (ie && !ie_upto8) cm.display.inputHasSelection = null;
     fastPoll(cm);
   }
+
+  // FOCUS/BLUR EVENTS
 
   function onFocus(cm) {
     if (cm.options.readOnly == "nocursor") return;
@@ -9556,7 +10533,7 @@ window.CodeMirror = (function() {
       if (cm.display.wrapper.className.search(/\bCodeMirror-focused\b/) == -1)
         cm.display.wrapper.className += " CodeMirror-focused";
       if (!cm.curOp) {
-        resetInput(cm, true);
+        resetInput(cm);
         if (webkit) setTimeout(bind(resetInput, cm, true), 0); // Issue #1730
       }
     }
@@ -9570,37 +10547,46 @@ window.CodeMirror = (function() {
       cm.display.wrapper.className = cm.display.wrapper.className.replace(" CodeMirror-focused", "");
     }
     clearInterval(cm.display.blinker);
-    setTimeout(function() {if (!cm.state.focused) cm.doc.sel.shift = false;}, 150);
+    setTimeout(function() {if (!cm.state.focused) cm.display.shift = false;}, 150);
   }
 
+  // CONTEXT MENU HANDLING
+
   var detectingSelectAll;
+  // To make the context menu work, we need to briefly unhide the
+  // textarea (making it as unobtrusive as possible) to let the
+  // right-click take effect on it.
   function onContextMenu(cm, e) {
     if (signalDOMEvent(cm, e, "contextmenu")) return;
-    var display = cm.display, sel = cm.doc.sel;
+    var display = cm.display;
     if (eventInWidget(display, e) || contextMenuInGutter(cm, e)) return;
 
     var pos = posFromMouse(cm, e), scrollPos = display.scroller.scrollTop;
-    if (!pos || opera) return; // Opera is difficult.
+    if (!pos || presto) return; // Opera is difficult.
 
     // Reset the current text selection only if the click is done outside of the selection
     // and 'resetSelectionOnContextMenu' option is true.
     var reset = cm.options.resetSelectionOnContextMenu;
-    if (reset && (posEq(sel.from, sel.to) || posLess(pos, sel.from) || !posLess(pos, sel.to)))
-      operation(cm, setSelection)(cm.doc, pos, pos);
+    if (reset && cm.doc.sel.contains(pos) == -1)
+      operation(cm, setSelection)(cm.doc, simpleSelection(pos), sel_dontScroll);
 
     var oldCSS = display.input.style.cssText;
     display.inputDiv.style.position = "absolute";
     display.input.style.cssText = "position: fixed; width: 30px; height: 30px; top: " + (e.clientY - 5) +
-      "px; left: " + (e.clientX - 5) + "px; z-index: 1000; background: white; outline: none;" +
-      "border-width: 0; outline: none; overflow: hidden; opacity: .05; -ms-opacity: .05; filter: alpha(opacity=5);";
+      "px; left: " + (e.clientX - 5) + "px; z-index: 1000; background: " +
+      (ie ? "rgba(255, 255, 255, .05)" : "transparent") +
+      "; outline: none; border-width: 0; outline: none; overflow: hidden; opacity: .05; filter: alpha(opacity=5);";
     focusInput(cm);
-    resetInput(cm, true);
+    resetInput(cm);
     // Adds "Select all" to context menu in FF
-    if (posEq(sel.from, sel.to)) display.input.value = display.prevInput = " ";
+    if (!cm.somethingSelected()) display.input.value = display.prevInput = " ";
 
+    // Select-all will be greyed out if there's nothing to select, so
+    // this adds a zero-width space so that we can later check whether
+    // it got selected.
     function prepareSelectAllHack() {
       if (display.input.selectionStart != null) {
-        var extval = display.input.value = "\u200b" + (posEq(sel.from, sel.to) ? "" : display.input.value);
+        var extval = display.input.value = "\u200b" + (cm.somethingSelected() ? display.input.value : "");
         display.prevInput = "\u200b";
         display.input.selectionStart = 1; display.input.selectionEnd = extval.length;
       }
@@ -9608,15 +10594,15 @@ window.CodeMirror = (function() {
     function rehide() {
       display.inputDiv.style.position = "relative";
       display.input.style.cssText = oldCSS;
-      if (ie_lt9) display.scrollbarV.scrollTop = display.scroller.scrollTop = scrollPos;
+      if (ie_upto8) display.scrollbarV.scrollTop = display.scroller.scrollTop = scrollPos;
       slowPoll(cm);
 
       // Try to detect the user choosing select-all
       if (display.input.selectionStart != null) {
-        if (!ie || ie_lt9) prepareSelectAllHack();
+        if (!ie || ie_upto8) prepareSelectAllHack();
         clearTimeout(detectingSelectAll);
         var i = 0, poll = function(){
-          if (display.prevInput == " " && display.input.selectionStart == 0)
+          if (display.prevInput == "\u200b" && display.input.selectionStart == 0)
             operation(cm, commands.selectAll)(cm);
           else if (i++ < 10) detectingSelectAll = setTimeout(poll, 500);
           else resetInput(cm);
@@ -9625,8 +10611,8 @@ window.CodeMirror = (function() {
       }
     }
 
-    if (ie && !ie_lt9) prepareSelectAllHack();
-    if (captureMiddleClick) {
+    if (ie && !ie_upto8) prepareSelectAllHack();
+    if (captureRightClick) {
       e_stop(e);
       var mouseup = function() {
         off(window, "mouseup", mouseup);
@@ -9638,54 +10624,71 @@ window.CodeMirror = (function() {
     }
   }
 
+  function contextMenuInGutter(cm, e) {
+    if (!hasHandler(cm, "gutterContextMenu")) return false;
+    return gutterEvent(cm, e, "gutterContextMenu", false, signal);
+  }
+
   // UPDATING
 
+  // Compute the position of the end of a change (its 'to' property
+  // refers to the pre-change end).
   var changeEnd = CodeMirror.changeEnd = function(change) {
     if (!change.text) return change.to;
     return Pos(change.from.line + change.text.length - 1,
                lst(change.text).length + (change.text.length == 1 ? change.from.ch : 0));
   };
 
-  // Make sure a position will be valid after the given change.
-  function clipPostChange(doc, change, pos) {
-    if (!posLess(change.from, pos)) return clipPos(doc, pos);
-    var diff = (change.text.length - 1) - (change.to.line - change.from.line);
-    if (pos.line > change.to.line + diff) {
-      var preLine = pos.line - diff, lastLine = doc.first + doc.size - 1;
-      if (preLine > lastLine) return Pos(lastLine, getLine(doc, lastLine).text.length);
-      return clipToLen(pos, getLine(doc, preLine).text.length);
+  // Adjust a position to refer to the post-change position of the
+  // same text, or the end of the change if the change covers it.
+  function adjustForChange(pos, change) {
+    if (cmp(pos, change.from) < 0) return pos;
+    if (cmp(pos, change.to) <= 0) return changeEnd(change);
+
+    var line = pos.line + change.text.length - (change.to.line - change.from.line) - 1, ch = pos.ch;
+    if (pos.line == change.to.line) ch += changeEnd(change).ch - change.to.ch;
+    return Pos(line, ch);
+  }
+
+  function computeSelAfterChange(doc, change) {
+    var out = [];
+    for (var i = 0; i < doc.sel.ranges.length; i++) {
+      var range = doc.sel.ranges[i];
+      out.push(new Range(adjustForChange(range.anchor, change),
+                         adjustForChange(range.head, change)));
     }
-    if (pos.line == change.to.line + diff)
-      return clipToLen(pos, lst(change.text).length + (change.text.length == 1 ? change.from.ch : 0) +
-                       getLine(doc, change.to.line).text.length - change.to.ch);
-    var inside = pos.line - change.from.line;
-    return clipToLen(pos, change.text[inside].length + (inside ? 0 : change.from.ch));
+    return normalizeSelection(out, doc.sel.primIndex);
   }
 
-  // Hint can be null|"end"|"start"|"around"|{anchor,head}
-  function computeSelAfterChange(doc, change, hint) {
-    if (hint && typeof hint == "object") // Assumed to be {anchor, head} object
-      return {anchor: clipPostChange(doc, change, hint.anchor),
-              head: clipPostChange(doc, change, hint.head)};
-
-    if (hint == "start") return {anchor: change.from, head: change.from};
-
-    var end = changeEnd(change);
-    if (hint == "around") return {anchor: change.from, head: end};
-    if (hint == "end") return {anchor: end, head: end};
-
-    // hint is null, leave the selection alone as much as possible
-    var adjustPos = function(pos) {
-      if (posLess(pos, change.from)) return pos;
-      if (!posLess(change.to, pos)) return end;
-
-      var line = pos.line + change.text.length - (change.to.line - change.from.line) - 1, ch = pos.ch;
-      if (pos.line == change.to.line) ch += end.ch - change.to.ch;
-      return Pos(line, ch);
-    };
-    return {anchor: adjustPos(doc.sel.anchor), head: adjustPos(doc.sel.head)};
+  function offsetPos(pos, old, nw) {
+    if (pos.line == old.line)
+      return Pos(nw.line, pos.ch - old.ch + nw.ch);
+    else
+      return Pos(nw.line + (pos.line - old.line), pos.ch);
   }
 
+  // Used by replaceSelections to allow moving the selection to the
+  // start or around the replaced test. Hint may be "start" or "around".
+  function computeReplacedSel(doc, changes, hint) {
+    var out = [];
+    var oldPrev = Pos(doc.first, 0), newPrev = oldPrev;
+    for (var i = 0; i < changes.length; i++) {
+      var change = changes[i];
+      var from = offsetPos(change.from, oldPrev, newPrev);
+      var to = offsetPos(changeEnd(change), oldPrev, newPrev);
+      oldPrev = change.to;
+      newPrev = to;
+      if (hint == "around") {
+        var range = doc.sel.ranges[i], inv = cmp(range.head, range.anchor) < 0;
+        out[i] = new Range(inv ? to : from, inv ? from : to);
+      } else {
+        out[i] = new Range(from, from);
+      }
+    }
+    return new Selection(out, doc.sel.primIndex);
+  }
+
+  // Allow "beforeChange" event handlers to influence a change
   function filterChange(doc, change, update) {
     var obj = {
       canceled: false,
@@ -9708,11 +10711,11 @@ window.CodeMirror = (function() {
     return {from: obj.from, to: obj.to, text: obj.text, origin: obj.origin};
   }
 
-  // Replace the range from from to to by the strings in replacement.
-  // change is a {from, to, text [, origin]} object
-  function makeChange(doc, change, selUpdate, ignoreReadOnly) {
+  // Apply a change to a document, and add it to the document's
+  // history, and propagating it to all linked documents.
+  function makeChange(doc, change, ignoreReadOnly) {
     if (doc.cm) {
-      if (!doc.cm.curOp) return operation(doc.cm, makeChange)(doc, change, selUpdate, ignoreReadOnly);
+      if (!doc.cm.curOp) return operation(doc.cm, makeChange)(doc, change, ignoreReadOnly);
       if (doc.cm.state.suppressEdits) return;
     }
 
@@ -9725,19 +10728,17 @@ window.CodeMirror = (function() {
     // of read-only spans in its range.
     var split = sawReadOnlySpans && !ignoreReadOnly && removeReadOnlyRanges(doc, change.from, change.to);
     if (split) {
-      for (var i = split.length - 1; i >= 1; --i)
-        makeChangeNoReadonly(doc, {from: split[i].from, to: split[i].to, text: [""]});
-      if (split.length)
-        makeChangeNoReadonly(doc, {from: split[0].from, to: split[0].to, text: change.text}, selUpdate);
+      for (var i = split.length - 1; i >= 0; --i)
+        makeChangeInner(doc, {from: split[i].from, to: split[i].to, text: i ? [""] : change.text});
     } else {
-      makeChangeNoReadonly(doc, change, selUpdate);
+      makeChangeInner(doc, change);
     }
   }
 
-  function makeChangeNoReadonly(doc, change, selUpdate) {
-    if (change.text.length == 1 && change.text[0] == "" && posEq(change.from, change.to)) return;
-    var selAfter = computeSelAfterChange(doc, change, selUpdate);
-    addToHistory(doc, change, selAfter, doc.cm ? doc.cm.curOp.id : NaN);
+  function makeChangeInner(doc, change) {
+    if (change.text.length == 1 && change.text[0] == "" && cmp(change.from, change.to) == 0) return;
+    var selAfter = computeSelAfterChange(doc, change);
+    addChangeToHistory(doc, change, selAfter, doc.cm ? doc.cm.curOp.id : NaN);
 
     makeChangeSingleDoc(doc, change, selAfter, stretchSpansOverChange(doc, change));
     var rebased = [];
@@ -9751,17 +10752,41 @@ window.CodeMirror = (function() {
     });
   }
 
-  function makeChangeFromHistory(doc, type) {
+  // Revert a change stored in a document's history.
+  function makeChangeFromHistory(doc, type, allowSelectionOnly) {
     if (doc.cm && doc.cm.state.suppressEdits) return;
 
-    var hist = doc.history;
-    var event = (type == "undo" ? hist.done : hist.undone).pop();
-    if (!event) return;
+    var hist = doc.history, event, selAfter = doc.sel;
+    var source = type == "undo" ? hist.done : hist.undone, dest = type == "undo" ? hist.undone : hist.done;
 
-    var anti = {changes: [], anchorBefore: event.anchorAfter, headBefore: event.headAfter,
-                anchorAfter: event.anchorBefore, headAfter: event.headBefore,
-                generation: hist.generation};
-    (type == "undo" ? hist.undone : hist.done).push(anti);
+    // Verify that there is a useable event (so that ctrl-z won't
+    // needlessly clear selection events)
+    for (var i = 0; i < source.length; i++) {
+      event = source[i];
+      if (allowSelectionOnly ? event.ranges && !event.equals(doc.sel) : !event.ranges)
+        break;
+    }
+    if (i == source.length) return;
+    hist.lastOrigin = hist.lastSelOrigin = null;
+
+    for (;;) {
+      event = source.pop();
+      if (event.ranges) {
+        pushSelectionToHistory(event, dest);
+        if (allowSelectionOnly && !event.equals(doc.sel)) {
+          setSelection(doc, event, {clearRedo: false});
+          return;
+        }
+        selAfter = event;
+      }
+      else break;
+    }
+
+    // Build up a reverse change object to add to the opposite history
+    // stack (redo when undoing, and vice versa).
+    var antiChanges = [];
+    pushSelectionToHistory(selAfter, dest);
+    dest.push({changes: antiChanges, generation: hist.generation});
     hist.generation = event.generation || ++hist.maxGeneration;
 
     var filter = hasHandler(doc, "beforeChange") || doc.cm && hasHandler(doc.cm, "beforeChange");
@@ -9770,17 +10795,18 @@ window.CodeMirror = (function() {
       var change = event.changes[i];
       change.origin = type;
       if (filter && !filterChange(doc, change, false)) {
-        (type == "undo" ? hist.done : hist.undone).length = 0;
+        source.length = 0;
         return;
       }
 
-      anti.changes.push(historyChangeFromChange(doc, change));
+      antiChanges.push(historyChangeFromChange(doc, change));
 
-      var after = i ? computeSelAfterChange(doc, change, null)
-                    : {anchor: event.anchorBefore, head: event.headBefore};
+      var after = i ? computeSelAfterChange(doc, change, null) : lst(source);
       makeChangeSingleDoc(doc, change, after, mergeOldSpans(doc, change));
+      if (doc.cm) ensureCursorVisible(doc.cm);
       var rebased = [];
 
+      // Propagate to the linked documents
       linkedDocs(doc, function(doc, sharedHist) {
         if (!sharedHist && indexOf(rebased, doc.history) == -1) {
           rebaseHist(doc.history, change);
@@ -9791,14 +10817,19 @@ window.CodeMirror = (function() {
     }
   }
 
+  // Sub-views need their line numbers shifted when text is added
+  // above or below them in the parent document.
   function shiftDoc(doc, distance) {
-    function shiftPos(pos) {return Pos(pos.line + distance, pos.ch);}
     doc.first += distance;
-    if (doc.cm) regChange(doc.cm, doc.first, doc.first, distance);
-    doc.sel.head = shiftPos(doc.sel.head); doc.sel.anchor = shiftPos(doc.sel.anchor);
-    doc.sel.from = shiftPos(doc.sel.from); doc.sel.to = shiftPos(doc.sel.to);
+    doc.sel = new Selection(map(doc.sel.ranges, function(range) {
+      return new Range(Pos(range.anchor.line + distance, range.anchor.ch),
+                       Pos(range.head.line + distance, range.head.ch));
+    }), doc.sel.primIndex);
+    if (doc.cm) regChange(doc.cm, doc.first, doc.first - distance, distance);
   }
 
+  // More lower-level change function, handling only a single document
+  // (not linked ones).
   function makeChangeSingleDoc(doc, change, selAfter, spans) {
     if (doc.cm && !doc.cm.curOp)
       return operation(doc.cm, makeChangeSingleDoc)(doc, change, selAfter, spans);
@@ -9825,16 +10856,19 @@ window.CodeMirror = (function() {
     change.removed = getBetween(doc, change.from, change.to);
 
     if (!selAfter) selAfter = computeSelAfterChange(doc, change, null);
-    if (doc.cm) makeChangeSingleDocInEditor(doc.cm, change, spans, selAfter);
-    else updateDoc(doc, change, spans, selAfter);
+    if (doc.cm) makeChangeSingleDocInEditor(doc.cm, change, spans);
+    else updateDoc(doc, change, spans);
+    setSelectionNoUndo(doc, selAfter, sel_dontScroll);
   }
 
-  function makeChangeSingleDocInEditor(cm, change, spans, selAfter) {
+  // Handle the interaction of a change to a document with the editor
+  // that this document is part of.
+  function makeChangeSingleDocInEditor(cm, change, spans) {
     var doc = cm.doc, display = cm.display, from = change.from, to = change.to;
 
     var recomputeMaxLength = false, checkWidthStart = from.line;
     if (!cm.options.lineWrapping) {
-      checkWidthStart = lineNo(visualLine(doc, getLine(doc, from.line)));
+      checkWidthStart = lineNo(visualLine(getLine(doc, from.line)));
       doc.iter(checkWidthStart, to.line + 1, function(line) {
         if (line == display.maxLine) {
           recomputeMaxLength = true;
@@ -9843,14 +10877,14 @@ window.CodeMirror = (function() {
       });
     }
 
-    if (!posLess(doc.sel.head, change.from) && !posLess(change.to, doc.sel.head))
+    if (doc.sel.contains(change.from, change.to) > -1)
       cm.curOp.cursorActivity = true;
 
-    updateDoc(doc, change, spans, selAfter, estimateHeight(cm));
+    updateDoc(doc, change, spans, estimateHeight(cm));
 
     if (!cm.options.lineWrapping) {
       doc.iter(checkWidthStart, from.line + change.text.length, function(line) {
-        var len = lineLength(doc, line);
+        var len = lineLength(line);
         if (len > display.maxLineLength) {
           display.maxLine = line;
           display.maxLineLength = len;
@@ -9867,192 +10901,49 @@ window.CodeMirror = (function() {
 
     var lendiff = change.text.length - (to.line - from.line) - 1;
     // Remember that these lines changed, for updating the display
-    regChange(cm, from.line, to.line + 1, lendiff);
+    if (from.line == to.line && change.text.length == 1 && !isWholeLineUpdate(cm.doc, change))
+      regLineChange(cm, from.line, "text");
+    else
+      regChange(cm, from.line, to.line + 1, lendiff);
 
-    if (hasHandler(cm, "change")) {
-      var changeObj = {from: from, to: to,
-                       text: change.text,
-                       removed: change.removed,
-                       origin: change.origin};
-      if (cm.curOp.textChanged) {
-        for (var cur = cm.curOp.textChanged; cur.next; cur = cur.next) {}
-        cur.next = changeObj;
-      } else cm.curOp.textChanged = changeObj;
-    }
+    if (hasHandler(cm, "change") || hasHandler(cm, "changes"))
+      (cm.curOp.changeObjs || (cm.curOp.changeObjs = [])).push({
+        from: from, to: to,
+        text: change.text,
+        removed: change.removed,
+        origin: change.origin
+      });
   }
 
   function replaceRange(doc, code, from, to, origin) {
     if (!to) to = from;
-    if (posLess(to, from)) { var tmp = to; to = from; from = tmp; }
+    if (cmp(to, from) < 0) { var tmp = to; to = from; from = tmp; }
     if (typeof code == "string") code = splitLines(code);
-    makeChange(doc, {from: from, to: to, text: code, origin: origin}, null);
+    makeChange(doc, {from: from, to: to, text: code, origin: origin});
   }
 
-  // POSITION OBJECT
+  // SCROLLING THINGS INTO VIEW
 
-  function Pos(line, ch) {
-    if (!(this instanceof Pos)) return new Pos(line, ch);
-    this.line = line; this.ch = ch;
-  }
-  CodeMirror.Pos = Pos;
-
-  function posEq(a, b) {return a.line == b.line && a.ch == b.ch;}
-  function posLess(a, b) {return a.line < b.line || (a.line == b.line && a.ch < b.ch);}
-  function copyPos(x) {return Pos(x.line, x.ch);}
-
-  // SELECTION
-
-  function clipLine(doc, n) {return Math.max(doc.first, Math.min(n, doc.first + doc.size - 1));}
-  function clipPos(doc, pos) {
-    if (pos.line < doc.first) return Pos(doc.first, 0);
-    var last = doc.first + doc.size - 1;
-    if (pos.line > last) return Pos(last, getLine(doc, last).text.length);
-    return clipToLen(pos, getLine(doc, pos.line).text.length);
-  }
-  function clipToLen(pos, linelen) {
-    var ch = pos.ch;
-    if (ch == null || ch > linelen) return Pos(pos.line, linelen);
-    else if (ch < 0) return Pos(pos.line, 0);
-    else return pos;
-  }
-  function isLine(doc, l) {return l >= doc.first && l < doc.first + doc.size;}
-
-  // If shift is held, this will move the selection anchor. Otherwise,
-  // it'll set the whole selection.
-  function extendSelection(doc, pos, other, bias) {
-    if (doc.sel.shift || doc.sel.extend) {
-      var anchor = doc.sel.anchor;
-      if (other) {
-        var posBefore = posLess(pos, anchor);
-        if (posBefore != posLess(other, anchor)) {
-          anchor = pos;
-          pos = other;
-        } else if (posBefore != posLess(pos, other)) {
-          pos = other;
-        }
-      }
-      setSelection(doc, anchor, pos, bias);
-    } else {
-      setSelection(doc, pos, other || pos, bias);
-    }
-    if (doc.cm) doc.cm.curOp.userSelChange = true;
-  }
-
-  function filterSelectionChange(doc, anchor, head) {
-    var obj = {anchor: anchor, head: head};
-    signal(doc, "beforeSelectionChange", doc, obj);
-    if (doc.cm) signal(doc.cm, "beforeSelectionChange", doc.cm, obj);
-    obj.anchor = clipPos(doc, obj.anchor); obj.head = clipPos(doc, obj.head);
-    return obj;
-  }
-
-  // Update the selection. Last two args are only used by
-  // updateDoc, since they have to be expressed in the line
-  // numbers before the update.
-  function setSelection(doc, anchor, head, bias, checkAtomic) {
-    if (!checkAtomic && hasHandler(doc, "beforeSelectionChange") || doc.cm && hasHandler(doc.cm, "beforeSelectionChange")) {
-      var filtered = filterSelectionChange(doc, anchor, head);
-      head = filtered.head;
-      anchor = filtered.anchor;
-    }
-
-    var sel = doc.sel;
-    sel.goalColumn = null;
-    if (bias == null) bias = posLess(head, sel.head) ? -1 : 1;
-    // Skip over atomic spans.
-    if (checkAtomic || !posEq(anchor, sel.anchor))
-      anchor = skipAtomic(doc, anchor, bias, checkAtomic != "push");
-    if (checkAtomic || !posEq(head, sel.head))
-      head = skipAtomic(doc, head, bias, checkAtomic != "push");
-
-    if (posEq(sel.anchor, anchor) && posEq(sel.head, head)) return;
-
-    sel.anchor = anchor; sel.head = head;
-    var inv = posLess(head, anchor);
-    sel.from = inv ? head : anchor;
-    sel.to = inv ? anchor : head;
-
-    if (doc.cm)
-      doc.cm.curOp.updateInput = doc.cm.curOp.selectionChanged =
-        doc.cm.curOp.cursorActivity = true;
-
-    signalLater(doc, "cursorActivity", doc);
-  }
-
-  function reCheckSelection(cm) {
-    setSelection(cm.doc, cm.doc.sel.from, cm.doc.sel.to, null, "push");
-  }
-
-  function skipAtomic(doc, pos, bias, mayClear) {
-    var flipped = false, curPos = pos;
-    var dir = bias || 1;
-    doc.cantEdit = false;
-    search: for (;;) {
-      var line = getLine(doc, curPos.line);
-      if (line.markedSpans) {
-        for (var i = 0; i < line.markedSpans.length; ++i) {
-          var sp = line.markedSpans[i], m = sp.marker;
-          if ((sp.from == null || (m.inclusiveLeft ? sp.from <= curPos.ch : sp.from < curPos.ch)) &&
-              (sp.to == null || (m.inclusiveRight ? sp.to >= curPos.ch : sp.to > curPos.ch))) {
-            if (mayClear) {
-              signal(m, "beforeCursorEnter");
-              if (m.explicitlyCleared) {
-                if (!line.markedSpans) break;
-                else {--i; continue;}
-              }
-            }
-            if (!m.atomic) continue;
-            var newPos = m.find()[dir < 0 ? "from" : "to"];
-            if (posEq(newPos, curPos)) {
-              newPos.ch += dir;
-              if (newPos.ch < 0) {
-                if (newPos.line > doc.first) newPos = clipPos(doc, Pos(newPos.line - 1));
-                else newPos = null;
-              } else if (newPos.ch > line.text.length) {
-                if (newPos.line < doc.first + doc.size - 1) newPos = Pos(newPos.line + 1, 0);
-                else newPos = null;
-              }
-              if (!newPos) {
-                if (flipped) {
-                  // Driven in a corner -- no valid cursor position found at all
-                  // -- try again *with* clearing, if we didn't already
-                  if (!mayClear) return skipAtomic(doc, pos, bias, true);
-                  // Otherwise, turn off editing until further notice, and return the start of the doc
-                  doc.cantEdit = true;
-                  return Pos(doc.first, 0);
-                }
-                flipped = true; newPos = pos; dir = -dir;
-              }
-            }
-            curPos = newPos;
-            continue search;
-          }
-        }
-      }
-      return curPos;
-    }
-  }
-
-  // SCROLLING
-
-  function scrollCursorIntoView(cm) {
-    var coords = scrollPosIntoView(cm, cm.doc.sel.head, null, cm.options.cursorScrollMargin);
-    if (!cm.state.focused) return;
-    var display = cm.display, box = getRect(display.sizer), doScroll = null;
+  // If an editor sits on the top or bottom of the window, partially
+  // scrolled out of view, this ensures that the cursor is visible.
+  function maybeScrollWindow(cm, coords) {
+    var display = cm.display, box = display.sizer.getBoundingClientRect(), doScroll = null;
     if (coords.top + box.top < 0) doScroll = true;
     else if (coords.bottom + box.top > (window.innerHeight || document.documentElement.clientHeight)) doScroll = false;
     if (doScroll != null && !phantom) {
-      var hidden = display.cursor.style.display == "none";
-      if (hidden) {
-        display.cursor.style.display = "";
-        display.cursor.style.left = coords.left + "px";
-        display.cursor.style.top = (coords.top - display.viewOffset) + "px";
-      }
-      display.cursor.scrollIntoView(doScroll);
-      if (hidden) display.cursor.style.display = "none";
+      var scrollNode = elt("div", "\u200b", null, "position: absolute; top: " +
+                           (coords.top - display.viewOffset - paddingTop(cm.display)) + "px; height: " +
+                           (coords.bottom - coords.top + scrollerCutOff) + "px; left: " +
+                           coords.left + "px; width: 2px;");
+      cm.display.lineSpace.appendChild(scrollNode);
+      scrollNode.scrollIntoView(doScroll);
+      cm.display.lineSpace.removeChild(scrollNode);
     }
   }
 
+  // Scroll a given position into view (immediately), verifying that
+  // it actually became visible (as line heights are accurately
+  // measured, the position of something may 'drift' during drawing).
   function scrollPosIntoView(cm, pos, end, margin) {
     if (margin == null) margin = 0;
     for (;;) {
@@ -10075,16 +10966,22 @@ window.CodeMirror = (function() {
     }
   }
 
+  // Scroll a given set of coordinates into view (immediately).
   function scrollIntoView(cm, x1, y1, x2, y2) {
     var scrollPos = calculateScrollPos(cm, x1, y1, x2, y2);
     if (scrollPos.scrollTop != null) setScrollTop(cm, scrollPos.scrollTop);
     if (scrollPos.scrollLeft != null) setScrollLeft(cm, scrollPos.scrollLeft);
   }
 
+  // Calculate a new scroll position needed to scroll the given
+  // rectangle into view. Returns an object with scrollTop and
+  // scrollLeft properties. When these are undefined, the
+  // vertical/horizontal position does not need to be adjusted.
   function calculateScrollPos(cm, x1, y1, x2, y2) {
     var display = cm.display, snapMargin = textHeight(cm.display);
     if (y1 < 0) y1 = 0;
-    var screen = display.scroller.clientHeight - scrollerCutOff, screentop = display.scroller.scrollTop, result = {};
+    var screentop = cm.curOp && cm.curOp.scrollTop != null ? cm.curOp.scrollTop : display.scroller.scrollTop;
+    var screen = display.scroller.clientHeight - scrollerCutOff, result = {};
     var docBottom = cm.doc.height + paddingVert(display);
     var atTop = y1 < snapMargin, atBottom = y2 > docBottom - snapMargin;
     if (y1 < screentop) {
@@ -10094,7 +10991,8 @@ window.CodeMirror = (function() {
       if (newTop != screentop) result.scrollTop = newTop;
     }
 
-    var screenw = display.scroller.clientWidth - scrollerCutOff, screenleft = display.scroller.scrollLeft;
+    var screenleft = cm.curOp && cm.curOp.scrollLeft != null ? cm.curOp.scrollLeft : display.scroller.scrollLeft;
+    var screenw = display.scroller.clientWidth - scrollerCutOff;
     x1 += display.gutters.offsetWidth; x2 += display.gutters.offsetWidth;
     var gutterw = display.gutters.offsetWidth;
     var atLeft = x1 < gutterw + 10;
@@ -10107,32 +11005,70 @@ window.CodeMirror = (function() {
     return result;
   }
 
-  function updateScrollPos(cm, left, top) {
-    cm.curOp.updateScrollPos = {scrollLeft: left == null ? cm.doc.scrollLeft : left,
-                                scrollTop: top == null ? cm.doc.scrollTop : top};
+  // Store a relative adjustment to the scroll position in the current
+  // operation (to be applied when the operation finishes).
+  function addToScrollPos(cm, left, top) {
+    if (left != null || top != null) resolveScrollToPos(cm);
+    if (left != null)
+      cm.curOp.scrollLeft = (cm.curOp.scrollLeft == null ? cm.doc.scrollLeft : cm.curOp.scrollLeft) + left;
+    if (top != null)
+      cm.curOp.scrollTop = (cm.curOp.scrollTop == null ? cm.doc.scrollTop : cm.curOp.scrollTop) + top;
   }
 
-  function addToScrollPos(cm, left, top) {
-    var pos = cm.curOp.updateScrollPos || (cm.curOp.updateScrollPos = {scrollLeft: cm.doc.scrollLeft, scrollTop: cm.doc.scrollTop});
-    var scroll = cm.display.scroller;
-    pos.scrollTop = Math.max(0, Math.min(scroll.scrollHeight - scroll.clientHeight, pos.scrollTop + top));
-    pos.scrollLeft = Math.max(0, Math.min(scroll.scrollWidth - scroll.clientWidth, pos.scrollLeft + left));
+  // Make sure that at the end of the operation the current cursor is
+  // shown.
+  function ensureCursorVisible(cm) {
+    resolveScrollToPos(cm);
+    var cur = cm.getCursor(), from = cur, to = cur;
+    if (!cm.options.lineWrapping) {
+      from = cur.ch ? Pos(cur.line, cur.ch - 1) : cur;
+      to = Pos(cur.line, cur.ch + 1);
+    }
+    cm.curOp.scrollToPos = {from: from, to: to, margin: cm.options.cursorScrollMargin, isCursor: true};
+  }
+
+  // When an operation has its scrollToPos property set, and another
+  // scroll action is applied before the end of the operation, this
+  // 'simulates' scrolling that position into view in a cheap way, so
+  // that the effect of intermediate scroll commands is not ignored.
+  function resolveScrollToPos(cm) {
+    var range = cm.curOp.scrollToPos;
+    if (range) {
+      cm.curOp.scrollToPos = null;
+      var from = estimateCoords(cm, range.from), to = estimateCoords(cm, range.to);
+      var sPos = calculateScrollPos(cm, Math.min(from.left, to.left),
+                                    Math.min(from.top, to.top) - range.margin,
+                                    Math.max(from.right, to.right),
+                                    Math.max(from.bottom, to.bottom) + range.margin);
+      cm.scrollTo(sPos.scrollLeft, sPos.scrollTop);
+    }
   }
 
   // API UTILITIES
 
+  // Indent the given line. The how parameter can be "smart",
+  // "add"/null, "subtract", or "prev". When aggressive is false
+  // (typically set to true for forced single-line indents), empty
+  // lines are not indented, and places where the mode returns Pass
+  // are left alone.
   function indentLine(cm, n, how, aggressive) {
-    var doc = cm.doc;
+    var doc = cm.doc, state;
     if (how == null) how = "add";
     if (how == "smart") {
+      // Fall back to "prev" when the mode doesn't have an indentation
+      // method.
       if (!cm.doc.mode.indent) how = "prev";
-      else var state = getStateBefore(cm, n);
+      else state = getStateBefore(cm, n);
     }
 
     var tabSize = cm.options.tabSize;
     var line = getLine(doc, n), curSpace = countColumn(line.text, null, tabSize);
+    if (line.stateAfter) line.stateAfter = null;
     var curSpaceString = line.text.match(/^\s*/)[0], indentation;
-    if (how == "smart") {
+    if (!aggressive && !/\S/.test(line.text)) {
+      indentation = 0;
+      how = "not";
+    } else if (how == "smart") {
       indentation = cm.doc.mode.indent(state, line.text.slice(curSpaceString.length), line.text);
       if (indentation == Pass) {
         if (!aggressive) return;
@@ -10156,23 +11092,70 @@ window.CodeMirror = (function() {
       for (var i = Math.floor(indentation / tabSize); i; --i) {pos += tabSize; indentString += "\t";}
     if (pos < indentation) indentString += spaceStr(indentation - pos);
 
-    if (indentString != curSpaceString)
+    if (indentString != curSpaceString) {
       replaceRange(cm.doc, indentString, Pos(n, 0), Pos(n, curSpaceString.length), "+input");
-    else if (doc.sel.head.line == n && doc.sel.head.ch < curSpaceString.length)
-      setSelection(doc, Pos(n, curSpaceString.length), Pos(n, curSpaceString.length), 1);
+    } else {
+      // Ensure that, if the cursor was in the whitespace at the start
+      // of the line, it is moved to the end of that space.
+      for (var i = 0; i < doc.sel.ranges.length; i++) {
+        var range = doc.sel.ranges[i];
+        if (range.head.line == n && range.head.ch < curSpaceString.length) {
+          var pos = Pos(n, curSpaceString.length);
+          replaceOneSelection(doc, i, new Range(pos, pos));
+          break;
+        }
+      }
+    }
     line.stateAfter = null;
   }
 
-  function changeLine(cm, handle, op) {
+  // Utility for applying a change to a line by handle or number,
+  // returning the number and optionally registering the line as
+  // changed.
+  function changeLine(cm, handle, changeType, op) {
     var no = handle, line = handle, doc = cm.doc;
     if (typeof handle == "number") line = getLine(doc, clipLine(doc, handle));
     else no = lineNo(handle);
     if (no == null) return null;
-    if (op(line, no)) regChange(cm, no, no + 1);
+    if (op(line, no)) regLineChange(cm, no, changeType);
     else return null;
     return line;
   }
 
+  // Helper for deleting text near the selection(s), used to implement
+  // backspace, delete, and similar functionality.
+  function deleteNearSelection(cm, compute) {
+    var ranges = cm.doc.sel.ranges, kill = [];
+    // Build up a set of ranges to kill first, merging overlapping
+    // ranges.
+    for (var i = 0; i < ranges.length; i++) {
+      var toKill = compute(ranges[i]);
+      while (kill.length && cmp(toKill.from, lst(kill).to) <= 0) {
+        var replaced = kill.pop();
+        if (cmp(replaced.from, toKill.from) < 0) {
+          toKill.from = replaced.from;
+          break;
+        }
+      }
+      kill.push(toKill);
+    }
+    // Next, remove those actual ranges.
+    runInOp(cm, function() {
+      for (var i = kill.length - 1; i >= 0; i--)
+        replaceRange(cm.doc, "", kill[i].from, kill[i].to, "+delete");
+      ensureCursorVisible(cm);
+    });
+  }
+
+  // Used for horizontal relative motion. Dir is -1 or 1 (left or
+  // right), unit can be "char", "column" (like char, but doesn't
+  // cross line boundaries), "word" (across next word), or "group" (to
+  // the start of next group of word or non-word-non-whitespace
+  // chars). The visually param controls whether, in right-to-left
+  // text, direction 1 means to move towards the next index in the
+  // string, or towards the character to the right of the current
+  // position. The resulting position will have a hitSide=true
+  // property if it reached the end of the document.
   function findPosH(doc, pos, dir, unit, visually) {
     var line = pos.line, ch = pos.ch, origDir = dir;
     var lineObj = getLine(doc, line);
@@ -10202,13 +11185,15 @@ window.CodeMirror = (function() {
         if (dir < 0 && !moveOnce(!first)) break;
         var cur = lineObj.text.charAt(ch) || "\n";
         var type = isWordChar(cur) ? "w"
-          : !group ? null
-          : /\s/.test(cur) ? null
+          : group && cur == "\n" ? "n"
+          : !group || /\s/.test(cur) ? null
           : "p";
+        if (group && !first && !type) type = "s";
         if (sawType && sawType != type) {
           if (dir < 0) {dir = 1; moveOnce();}
           break;
         }
+
         if (type) sawType = type;
         if (dir > 0 && !moveOnce(!first)) break;
       }
@@ -10218,6 +11203,9 @@ window.CodeMirror = (function() {
     return result;
   }
 
+  // For relative vertical movement. Dir may be -1 or 1. Unit can be
+  // "page" or "line". The resulting position will have a hitSide=true
+  // property if it reached the end of the document.
   function findPosV(cm, pos, dir, unit) {
     var doc = cm.doc, x = pos.left, y;
     if (unit == "page") {
@@ -10235,7 +11223,9 @@ window.CodeMirror = (function() {
     return target;
   }
 
-  function findWordAt(line, pos) {
+  // Find the word at the given position (as returned by coordsChar).
+  function findWordAt(doc, pos) {
+    var line = getLine(doc, pos.line).text;
     var start = pos.ch, end = pos.ch;
     if (line) {
       if ((pos.xRel < 0 || end == line.length) && start) --start; else ++end;
@@ -10246,17 +11236,18 @@ window.CodeMirror = (function() {
       while (start > 0 && check(line.charAt(start - 1))) --start;
       while (end < line.length && check(line.charAt(end))) ++end;
     }
-    return {from: Pos(pos.line, start), to: Pos(pos.line, end)};
+    return new Range(Pos(pos.line, start), Pos(pos.line, end));
   }
 
-  function selectLine(cm, line) {
-    extendSelection(cm.doc, Pos(line, 0), clipPos(cm.doc, Pos(line + 1, 0)));
-  }
+  // EDITOR METHODS
 
-  // PROTOTYPE
+  // The publicly visible API. Note that methodOp(f) means
+  // 'wrap f in an operation, performed on its `this` parameter'.
 
-  // The publicly visible API. Note that operation(null, f) means
-  // 'wrap f in an operation, performed on its `this` parameter'
+  // This is not the complete set of editor methods. Most of the
+  // methods defined on the Doc type are also injected into
+  // CodeMirror.prototype, for backwards compatibility and
+  // convenience.
 
   CodeMirror.prototype = {
     constructor: CodeMirror,
@@ -10285,14 +11276,14 @@ window.CodeMirror = (function() {
         }
     },
 
-    addOverlay: operation(null, function(spec, options) {
+    addOverlay: methodOp(function(spec, options) {
       var mode = spec.token ? spec : CodeMirror.getMode(this.options, spec);
       if (mode.startState) throw new Error("Overlays may not be stateful.");
       this.state.overlays.push({mode: mode, modeSpec: spec, opaque: options && options.opaque});
       this.state.modeGen++;
       regChange(this);
     }),
-    removeOverlay: operation(null, function(spec) {
+    removeOverlay: methodOp(function(spec) {
       var overlays = this.state.overlays;
       for (var i = 0; i < overlays.length; ++i) {
         var cur = overlays[i].modeSpec;
@@ -10305,18 +11296,29 @@ window.CodeMirror = (function() {
       }
     }),
 
-    indentLine: operation(null, function(n, dir, aggressive) {
+    indentLine: methodOp(function(n, dir, aggressive) {
       if (typeof dir != "string" && typeof dir != "number") {
         if (dir == null) dir = this.options.smartIndent ? "smart" : "prev";
         else dir = dir ? "add" : "subtract";
       }
       if (isLine(this.doc, n)) indentLine(this, n, dir, aggressive);
     }),
-    indentSelection: operation(null, function(how) {
-      var sel = this.doc.sel;
-      if (posEq(sel.from, sel.to)) return indentLine(this, sel.from.line, how);
-      var e = sel.to.line - (sel.to.ch ? 0 : 1);
-      for (var i = sel.from.line; i <= e; ++i) indentLine(this, i, how);
+    indentSelection: methodOp(function(how) {
+      var ranges = this.doc.sel.ranges, end = -1;
+      for (var i = 0; i < ranges.length; i++) {
+        var range = ranges[i];
+        if (!range.empty()) {
+          var start = Math.max(end, range.from().line);
+          var to = range.to();
+          end = Math.min(this.lastLine(), to.line - (to.ch ? 0 : 1)) + 1;
+          for (var j = start; j < end; ++j)
+            indentLine(this, j, how);
+        } else if (range.head.line > end) {
+          indentLine(this, range.head.line, how, true);
+          end = range.head.line;
+          if (i == this.doc.sel.primIndex) ensureCursorVisible(this);
+        }
+      }
     }),
 
     // Fetch the parser token for a given character. Useful for hacks
@@ -10334,7 +11336,6 @@ window.CodeMirror = (function() {
       return {start: stream.start,
               end: stream.pos,
               string: stream.current(),
-              className: style || null, // Deprecated, use 'type' instead
               type: style || null,
               state: state};
     },
@@ -10359,11 +11360,31 @@ window.CodeMirror = (function() {
     },
 
     getHelper: function(pos, type) {
-      if (!helpers.hasOwnProperty(type)) return;
+      return this.getHelpers(pos, type)[0];
+    },
+
+    getHelpers: function(pos, type) {
+      var found = [];
+      if (!helpers.hasOwnProperty(type)) return helpers;
       var help = helpers[type], mode = this.getModeAt(pos);
-      return mode[type] && help[mode[type]] ||
-        mode.helperType && help[mode.helperType] ||
-        help[mode.name];
+      if (typeof mode[type] == "string") {
+        if (help[mode[type]]) found.push(help[mode[type]]);
+      } else if (mode[type]) {
+        for (var i = 0; i < mode[type].length; i++) {
+          var val = help[mode[type][i]];
+          if (val) found.push(val);
+        }
+      } else if (mode.helperType && help[mode.helperType]) {
+        found.push(help[mode.helperType]);
+      } else if (help[mode.name]) {
+        found.push(help[mode.name]);
+      }
+      for (var i = 0; i < help._global.length; i++) {
+        var cur = help._global[i];
+        if (cur.pred(mode, this) && indexOf(found, cur.val) == -1)
+          found.push(cur.val);
+      }
+      return found;
     },
 
     getStateAfter: function(line, precise) {
@@ -10373,10 +11394,10 @@ window.CodeMirror = (function() {
     },
 
     cursorCoords: function(start, mode) {
-      var pos, sel = this.doc.sel;
-      if (start == null) pos = sel.head;
+      var pos, range = this.doc.sel.primary();
+      if (start == null) pos = range.head;
       else if (typeof start == "object") pos = clipPos(this.doc, start);
-      else pos = start ? sel.from : sel.to;
+      else pos = start ? range.from() : range.to();
       return cursorCoords(this, pos, mode || "page");
     },
 
@@ -10398,15 +11419,15 @@ window.CodeMirror = (function() {
       if (line < this.doc.first) line = this.doc.first;
       else if (line > last) { line = last; end = true; }
       var lineObj = getLine(this.doc, line);
-      return intoCoordSystem(this, getLine(this.doc, line), {top: 0, left: 0}, mode || "page").top +
-        (end ? lineObj.height : 0);
+      return intoCoordSystem(this, lineObj, {top: 0, left: 0}, mode || "page").top +
+        (end ? this.doc.height - heightAtLine(lineObj) : 0);
     },
 
     defaultTextHeight: function() { return textHeight(this.display); },
     defaultCharWidth: function() { return charWidth(this.display); },
 
-    setGutterMarker: operation(null, function(line, gutterID, value) {
-      return changeLine(this, line, function(line) {
+    setGutterMarker: methodOp(function(line, gutterID, value) {
+      return changeLine(this, line, "gutter", function(line) {
         var markers = line.gutterMarkers || (line.gutterMarkers = {});
         markers[gutterID] = value;
         if (!value && isEmpty(markers)) line.gutterMarkers = null;
@@ -10414,20 +11435,20 @@ window.CodeMirror = (function() {
       });
     }),
 
-    clearGutter: operation(null, function(gutterID) {
+    clearGutter: methodOp(function(gutterID) {
       var cm = this, doc = cm.doc, i = doc.first;
       doc.iter(function(line) {
         if (line.gutterMarkers && line.gutterMarkers[gutterID]) {
           line.gutterMarkers[gutterID] = null;
-          regChange(cm, i, i + 1);
+          regLineChange(cm, i, "gutter");
           if (isEmpty(line.gutterMarkers)) line.gutterMarkers = null;
         }
         ++i;
       });
     }),
 
-    addLineClass: operation(null, function(handle, where, cls) {
-      return changeLine(this, handle, function(line) {
+    addLineClass: methodOp(function(handle, where, cls) {
+      return changeLine(this, handle, "class", function(line) {
         var prop = where == "text" ? "textClass" : where == "background" ? "bgClass" : "wrapClass";
         if (!line[prop]) line[prop] = cls;
         else if (new RegExp("(?:^|\\s)" + cls + "(?:$|\\s)").test(line[prop])) return false;
@@ -10436,8 +11457,8 @@ window.CodeMirror = (function() {
       });
     }),
 
-    removeLineClass: operation(null, function(handle, where, cls) {
-      return changeLine(this, handle, function(line) {
+    removeLineClass: methodOp(function(handle, where, cls) {
+      return changeLine(this, handle, "class", function(line) {
         var prop = where == "text" ? "textClass" : where == "background" ? "bgClass" : "wrapClass";
         var cur = line[prop];
         if (!cur) return false;
@@ -10452,7 +11473,7 @@ window.CodeMirror = (function() {
       });
     }),
 
-    addLineWidget: operation(null, function(handle, node, options) {
+    addLineWidget: methodOp(function(handle, node, options) {
       return addLineWidget(this, handle, node, options);
     }),
 
@@ -10473,7 +11494,7 @@ window.CodeMirror = (function() {
               widgets: line.widgets};
     },
 
-    getViewport: function() { return {from: this.display.showingFrom, to: this.display.showingTo};},
+    getViewport: function() { return {from: this.display.viewFrom, to: this.display.viewTo};},
 
     addWidget: function(pos, node, scroll, vert, horiz) {
       var display = this.display;
@@ -10508,9 +11529,14 @@ window.CodeMirror = (function() {
         scrollIntoView(this, left, top, left + node.offsetWidth, top + node.offsetHeight);
     },
 
-    triggerOnKeyDown: operation(null, onKeyDown),
+    triggerOnKeyDown: methodOp(onKeyDown),
+    triggerOnKeyPress: methodOp(onKeyPress),
+    triggerOnKeyUp: methodOp(onKeyUp),
 
-    execCommand: function(cmd) {return commands[cmd](this);},
+    execCommand: function(cmd) {
+      if (commands.hasOwnProperty(cmd))
+        return commands[cmd](this);
+    },
 
     findPosH: function(from, amount, unit, visually) {
       var dir = 1;
@@ -10522,20 +11548,25 @@ window.CodeMirror = (function() {
       return cur;
     },
 
-    moveH: operation(null, function(dir, unit) {
-      var sel = this.doc.sel, pos;
-      if (sel.shift || sel.extend || posEq(sel.from, sel.to))
-        pos = findPosH(this.doc, sel.head, dir, unit, this.options.rtlMoveVisually);
-      else
-        pos = dir < 0 ? sel.from : sel.to;
-      extendSelection(this.doc, pos, pos, dir);
+    moveH: methodOp(function(dir, unit) {
+      var cm = this;
+      cm.extendSelectionsBy(function(range) {
+        if (cm.display.shift || cm.doc.extend || range.empty())
+          return findPosH(cm.doc, range.head, dir, unit, cm.options.rtlMoveVisually);
+        else
+          return dir < 0 ? range.from() : range.to();
+      }, sel_move);
     }),
 
-    deleteH: operation(null, function(dir, unit) {
-      var sel = this.doc.sel;
-      if (!posEq(sel.from, sel.to)) replaceRange(this.doc, "", sel.from, sel.to, "+delete");
-      else replaceRange(this.doc, "", sel.from, findPosH(this.doc, sel.head, dir, unit, false), "+delete");
-      this.curOp.userSelChange = true;
+    deleteH: methodOp(function(dir, unit) {
+      var sel = this.doc.sel, doc = this.doc;
+      if (sel.somethingSelected())
+        doc.replaceSelection("", null, "+delete");
+      else
+        deleteNearSelection(this, function(range) {
+          var other = findPosH(doc, range.head, dir, unit, false);
+          return dir < 0 ? {from: other, to: range.head} : {from: range.head, to: other};
+        });
     }),
 
     findPosV: function(from, amount, unit, goalColumn) {
@@ -10551,28 +11582,39 @@ window.CodeMirror = (function() {
       return cur;
     },
 
-    moveV: operation(null, function(dir, unit) {
-      var sel = this.doc.sel;
-      var pos = cursorCoords(this, sel.head, "div");
-      if (sel.goalColumn != null) pos.left = sel.goalColumn;
-      var target = findPosV(this, pos, dir, unit);
-
-      if (unit == "page") addToScrollPos(this, 0, charCoords(this, target, "div").top - pos.top);
-      extendSelection(this.doc, target, target, dir);
-      sel.goalColumn = pos.left;
+    moveV: methodOp(function(dir, unit) {
+      var cm = this, doc = this.doc, goals = [];
+      var collapse = !cm.display.shift && !doc.extend && doc.sel.somethingSelected();
+      doc.extendSelectionsBy(function(range) {
+        if (collapse)
+          return dir < 0 ? range.from() : range.to();
+        var headPos = cursorCoords(cm, range.head, "div");
+        if (range.goalColumn != null) headPos.left = range.goalColumn;
+        goals.push(headPos.left);
+        var pos = findPosV(cm, headPos, dir, unit);
+        if (unit == "page" && range == doc.sel.primary())
+          addToScrollPos(cm, null, charCoords(cm, pos, "div").top - headPos.top);
+        return pos;
+      }, sel_move);
+      if (goals.length) for (var i = 0; i < doc.sel.ranges.length; i++)
+        doc.sel.ranges[i].goalColumn = goals[i];
     }),
 
     toggleOverwrite: function(value) {
       if (value != null && value == this.state.overwrite) return;
       if (this.state.overwrite = !this.state.overwrite)
-        this.display.cursor.className += " CodeMirror-overwrite";
+        this.display.cursorDiv.className += " CodeMirror-overwrite";
       else
-        this.display.cursor.className = this.display.cursor.className.replace(" CodeMirror-overwrite", "");
-    },
-    hasFocus: function() { return this.state.focused; },
+        this.display.cursorDiv.className = this.display.cursorDiv.className.replace(" CodeMirror-overwrite", "");
 
-    scrollTo: operation(null, function(x, y) {
-      updateScrollPos(this, x, y);
+      signal(this, "overwriteToggle", this, this.state.overwrite);
+    },
+    hasFocus: function() { return activeElt() == this.display.input; },
+
+    scrollTo: methodOp(function(x, y) {
+      if (x != null || y != null) resolveScrollToPos(this);
+      if (x != null) this.curOp.scrollLeft = x;
+      if (y != null) this.curOp.scrollTop = y;
     }),
     getScrollInfo: function() {
       var scroller = this.display.scroller, co = scrollerCutOff;
@@ -10581,54 +11623,60 @@ window.CodeMirror = (function() {
               clientHeight: scroller.clientHeight - co, clientWidth: scroller.clientWidth - co};
     },
 
-    scrollIntoView: operation(null, function(range, margin) {
-      if (range == null) range = {from: this.doc.sel.head, to: null};
-      else if (typeof range == "number") range = {from: Pos(range, 0), to: null};
-      else if (range.from == null) range = {from: range, to: null};
-      if (!range.to) range.to = range.from;
-      if (!margin) margin = 0;
-
-      var coords = range;
-      if (range.from.line != null) {
-        this.curOp.scrollToPos = {from: range.from, to: range.to, margin: margin};
-        coords = {from: cursorCoords(this, range.from),
-                  to: cursorCoords(this, range.to)};
+    scrollIntoView: methodOp(function(range, margin) {
+      if (range == null) {
+        range = {from: this.doc.sel.primary().head, to: null};
+        if (margin == null) margin = this.options.cursorScrollMargin;
+      } else if (typeof range == "number") {
+        range = {from: Pos(range, 0), to: null};
+      } else if (range.from == null) {
+        range = {from: range, to: null};
       }
-      var sPos = calculateScrollPos(this, Math.min(coords.from.left, coords.to.left),
-                                    Math.min(coords.from.top, coords.to.top) - margin,
-                                    Math.max(coords.from.right, coords.to.right),
-                                    Math.max(coords.from.bottom, coords.to.bottom) + margin);
-      updateScrollPos(this, sPos.scrollLeft, sPos.scrollTop);
+      if (!range.to) range.to = range.from;
+      range.margin = margin || 0;
+
+      if (range.from.line != null) {
+        resolveScrollToPos(this);
+        this.curOp.scrollToPos = range;
+      } else {
+        var sPos = calculateScrollPos(this, Math.min(range.from.left, range.to.left),
+                                      Math.min(range.from.top, range.to.top) - range.margin,
+                                      Math.max(range.from.right, range.to.right),
+                                      Math.max(range.from.bottom, range.to.bottom) + range.margin);
+        this.scrollTo(sPos.scrollLeft, sPos.scrollTop);
+      }
     }),
 
-    setSize: operation(null, function(width, height) {
+    setSize: methodOp(function(width, height) {
       function interpret(val) {
         return typeof val == "number" || /^\d+$/.test(String(val)) ? val + "px" : val;
       }
       if (width != null) this.display.wrapper.style.width = interpret(width);
       if (height != null) this.display.wrapper.style.height = interpret(height);
-      if (this.options.lineWrapping)
-        this.display.measureLineCache.length = this.display.measureLineCachePos = 0;
+      if (this.options.lineWrapping) clearLineMeasurementCache(this);
       this.curOp.forceUpdate = true;
+      signal(this, "refresh", this);
     }),
 
     operation: function(f){return runInOp(this, f);},
 
-    refresh: operation(null, function() {
-      var badHeight = this.display.cachedTextHeight == null;
-      clearCaches(this);
-      updateScrollPos(this, this.doc.scrollLeft, this.doc.scrollTop);
+    refresh: methodOp(function() {
+      var oldHeight = this.display.cachedTextHeight;
       regChange(this);
-      if (badHeight) estimateLineHeights(this);
+      clearCaches(this);
+      this.scrollTo(this.doc.scrollLeft, this.doc.scrollTop);
+      if (oldHeight == null || Math.abs(oldHeight - textHeight(this.display)) > .5)
+        estimateLineHeights(this);
+      signal(this, "refresh", this);
     }),
 
-    swapDoc: operation(null, function(doc) {
+    swapDoc: methodOp(function(doc) {
       var old = this.doc;
       old.cm = null;
       attachDoc(this, doc);
       clearCaches(this);
-      resetInput(this, true);
-      updateScrollPos(this, doc.scrollLeft, doc.scrollTop);
+      resetInput(this);
+      this.scrollTo(doc.scrollLeft, doc.scrollTop);
       signalLater(this, "swapDoc", this, old);
       return old;
     }),
@@ -10642,10 +11690,10 @@ window.CodeMirror = (function() {
 
   // OPTION DEFAULTS
 
-  var optionHandlers = CodeMirror.optionHandlers = {};
-
   // The default configuration options.
   var defaults = CodeMirror.defaults = {};
+  // Functions to run when options are changed.
+  var optionHandlers = CodeMirror.optionHandlers = {};
 
   function option(name, deflt, handle, notOnInit) {
     CodeMirror.defaults[name] = deflt;
@@ -10653,6 +11701,7 @@ window.CodeMirror = (function() {
       notOnInit ? function(cm, val, old) {if (old != Init) handle(cm, val, old);} : handle;
   }
 
+  // Passed to option handlers when there is no old value.
   var Init = CodeMirror.Init = {toString: function(){return "CodeMirror.Init";}};
 
   // These two are, on init, called from the constructor because they
@@ -10669,7 +11718,7 @@ window.CodeMirror = (function() {
   option("indentWithTabs", false);
   option("smartIndent", true);
   option("tabSize", 4, function(cm) {
-    loadMode(cm);
+    resetModeState(cm);
     clearCaches(cm);
     regChange(cm);
   }, true);
@@ -10688,9 +11737,6 @@ window.CodeMirror = (function() {
   }, true);
   option("keyMap", "default", keyMapChanged);
   option("extraKeys", null);
-
-  option("onKeyEvent", null);
-  option("onDragEvent", null);
 
   option("lineWrapping", false, wrappingChanged, true);
   option("gutters", [], function(cm) {
@@ -10719,9 +11765,10 @@ window.CodeMirror = (function() {
       cm.display.disabled = true;
     } else {
       cm.display.disabled = false;
-      if (!val) resetInput(cm, true);
+      if (!val) resetInput(cm);
     }
   });
+  option("disableInput", false, function(cm, val) {if (!val) resetInput(cm);}, true);
   option("dragDrop", true);
 
   option("cursorBlinkRate", 530);
@@ -10729,13 +11776,13 @@ window.CodeMirror = (function() {
   option("cursorHeight", 1);
   option("workTime", 100);
   option("workDelay", 100);
-  option("flattenSpans", true);
+  option("flattenSpans", true, resetModeState, true);
+  option("addModeClass", false, resetModeState, true);
   option("pollInterval", 100);
-  option("undoDepth", 40, function(cm, val){cm.doc.history.undoDepth = val;});
-  option("historyEventDelay", 500);
+  option("undoDepth", 200, function(cm, val){cm.doc.history.undoDepth = val;});
+  option("historyEventDelay", 1250);
   option("viewportMargin", 10, function(cm){cm.refresh();}, true);
-  option("maxHighlightLength", 10000, function(cm){loadMode(cm); cm.refresh();}, true);
-  option("crudeMeasuringFrom", 10000);
+  option("maxHighlightLength", 10000, resetModeState, true);
   option("moveInputWithCursor", true, function(cm, val) {
     if (!val) cm.display.inputDiv.style.top = cm.display.inputDiv.style.left = 0;
   });
@@ -10750,6 +11797,9 @@ window.CodeMirror = (function() {
   // Known modes, by name and by MIME
   var modes = CodeMirror.modes = {}, mimeModes = CodeMirror.mimeModes = {};
 
+  // Extra arguments are stored as the mode's dependencies, which is
+  // used by (legacy) mechanisms like loadmode.js to automatically
+  // load a mode. (Preferred mechanism is the require/define calls.)
   CodeMirror.defineMode = function(name, mode) {
     if (!CodeMirror.defaults.mode && name != "null") CodeMirror.defaults.mode = name;
     if (arguments.length > 2) {
@@ -10763,11 +11813,14 @@ window.CodeMirror = (function() {
     mimeModes[mime] = spec;
   };
 
+  // Given a MIME type, a {name, ...options} config object, or a name
+  // string, return a mode config object.
   CodeMirror.resolveMode = function(spec) {
     if (typeof spec == "string" && mimeModes.hasOwnProperty(spec)) {
       spec = mimeModes[spec];
     } else if (spec && typeof spec.name == "string" && mimeModes.hasOwnProperty(spec.name)) {
       var found = mimeModes[spec.name];
+      if (typeof found == "string") found = {name: found};
       spec = createObj(found, spec);
       spec.name = found.name;
     } else if (typeof spec == "string" && /^[\w\-]+\/[\w\-]+\+xml$/.test(spec)) {
@@ -10777,6 +11830,8 @@ window.CodeMirror = (function() {
     else return spec || {name: "null"};
   };
 
+  // Given a mode spec (anything that resolveMode accepts), find and
+  // initialize an actual mode object.
   CodeMirror.getMode = function(options, spec) {
     var spec = CodeMirror.resolveMode(spec);
     var mfactory = modes[spec.name];
@@ -10791,15 +11846,21 @@ window.CodeMirror = (function() {
       }
     }
     modeObj.name = spec.name;
+    if (spec.helperType) modeObj.helperType = spec.helperType;
+    if (spec.modeProps) for (var prop in spec.modeProps)
+      modeObj[prop] = spec.modeProps[prop];
 
     return modeObj;
   };
 
+  // Minimal default mode.
   CodeMirror.defineMode("null", function() {
     return {token: function(stream) {stream.skipToEnd();}};
   });
   CodeMirror.defineMIME("text/plain", "null");
 
+  // This can be used to attach properties to mode objects from
+  // outside the actual mode definition.
   var modeExtensions = CodeMirror.modeExtensions = {};
   CodeMirror.extendMode = function(mode, properties) {
     var exts = modeExtensions.hasOwnProperty(mode) ? modeExtensions[mode] : (modeExtensions[mode] = {});
@@ -10821,19 +11882,20 @@ window.CodeMirror = (function() {
 
   var helpers = CodeMirror.helpers = {};
   CodeMirror.registerHelper = function(type, name, value) {
-    if (!helpers.hasOwnProperty(type)) helpers[type] = CodeMirror[type] = {};
+    if (!helpers.hasOwnProperty(type)) helpers[type] = CodeMirror[type] = {_global: []};
     helpers[type][name] = value;
   };
-
-  // UTILITIES
-
-  CodeMirror.isWordChar = isWordChar;
+  CodeMirror.registerGlobalHelper = function(type, name, predicate, value) {
+    CodeMirror.registerHelper(type, name, value);
+    helpers[type]._global.push({pred: predicate, val: value});
+  };
 
   // MODE STATE HANDLING
 
-  // Utility functions for working with state. Exported because modes
-  // sometimes need to do this.
-  function copyState(mode, state) {
+  // Utility functions for working with state. Exported because nested
+  // modes need to do this for their inner modes.
+
+  var copyState = CodeMirror.copyState = function(mode, state) {
     if (state === true) return state;
     if (mode.copyState) return mode.copyState(state);
     var nstate = {};
@@ -10843,14 +11905,14 @@ window.CodeMirror = (function() {
       nstate[n] = val;
     }
     return nstate;
-  }
-  CodeMirror.copyState = copyState;
+  };
 
-  function startState(mode, a1, a2) {
+  var startState = CodeMirror.startState = function(mode, a1, a2) {
     return mode.startState ? mode.startState(a1, a2) : true;
-  }
-  CodeMirror.startState = startState;
+  };
 
+  // Given a mode and a state (for that mode), find the inner mode and
+  // state at the position that the state refers to.
   CodeMirror.innerMode = function(mode, state) {
     while (mode.innerMode) {
       var info = mode.innerMode(state);
@@ -10863,49 +11925,73 @@ window.CodeMirror = (function() {
 
   // STANDARD COMMANDS
 
+  // Commands are parameter-less actions that can be performed on an
+  // editor, mostly used for keybindings.
   var commands = CodeMirror.commands = {
-    selectAll: function(cm) {cm.setSelection(Pos(cm.firstLine(), 0), Pos(cm.lastLine()));},
+    selectAll: function(cm) {cm.setSelection(Pos(cm.firstLine(), 0), Pos(cm.lastLine()), sel_dontScroll);},
+    singleSelection: function(cm) {
+      cm.setSelection(cm.getCursor("anchor"), cm.getCursor("head"), sel_dontScroll);
+    },
     killLine: function(cm) {
-      var from = cm.getCursor(true), to = cm.getCursor(false), sel = !posEq(from, to);
-      if (!sel && cm.getLine(from.line).length == from.ch)
-        cm.replaceRange("", from, Pos(from.line + 1, 0), "+delete");
-      else cm.replaceRange("", from, sel ? to : Pos(from.line), "+delete");
+      deleteNearSelection(cm, function(range) {
+        if (range.empty()) {
+          var len = getLine(cm.doc, range.head.line).text.length;
+          if (range.head.ch == len && range.head.line < cm.lastLine())
+            return {from: range.head, to: Pos(range.head.line + 1, 0)};
+          else
+            return {from: range.head, to: Pos(range.head.line, len)};
+        } else {
+          return {from: range.from(), to: range.to()};
+        }
+      });
     },
     deleteLine: function(cm) {
-      var l = cm.getCursor().line;
-      cm.replaceRange("", Pos(l, 0), Pos(l), "+delete");
+      deleteNearSelection(cm, function(range) {
+        return {from: Pos(range.from().line, 0),
+                to: clipPos(cm.doc, Pos(range.to().line + 1, 0))};
+      });
     },
     delLineLeft: function(cm) {
-      var cur = cm.getCursor();
-      cm.replaceRange("", Pos(cur.line, 0), cur, "+delete");
+      deleteNearSelection(cm, function(range) {
+        return {from: Pos(range.from().line, 0), to: range.from()};
+      });
     },
     undo: function(cm) {cm.undo();},
     redo: function(cm) {cm.redo();},
+    undoSelection: function(cm) {cm.undoSelection();},
+    redoSelection: function(cm) {cm.redoSelection();},
     goDocStart: function(cm) {cm.extendSelection(Pos(cm.firstLine(), 0));},
     goDocEnd: function(cm) {cm.extendSelection(Pos(cm.lastLine()));},
     goLineStart: function(cm) {
-      cm.extendSelection(lineStart(cm, cm.getCursor().line));
+      cm.extendSelectionsBy(function(range) { return lineStart(cm, range.head.line); }, sel_move);
     },
     goLineStartSmart: function(cm) {
-      var cur = cm.getCursor(), start = lineStart(cm, cur.line);
-      var line = cm.getLineHandle(start.line);
-      var order = getOrder(line);
-      if (!order || order[0].level == 0) {
-        var firstNonWS = Math.max(0, line.text.search(/\S/));
-        var inWS = cur.line == start.line && cur.ch <= firstNonWS && cur.ch;
-        cm.extendSelection(Pos(start.line, inWS ? 0 : firstNonWS));
-      } else cm.extendSelection(start);
+      cm.extendSelectionsBy(function(range) {
+        var start = lineStart(cm, range.head.line);
+        var line = cm.getLineHandle(start.line);
+        var order = getOrder(line);
+        if (!order || order[0].level == 0) {
+          var firstNonWS = Math.max(0, line.text.search(/\S/));
+          var inWS = range.head.line == start.line && range.head.ch <= firstNonWS && range.head.ch;
+          return Pos(start.line, inWS ? 0 : firstNonWS);
+        }
+        return start;
+      }, sel_move);
     },
     goLineEnd: function(cm) {
-      cm.extendSelection(lineEnd(cm, cm.getCursor().line));
+      cm.extendSelectionsBy(function(range) { return lineEnd(cm, range.head.line); }, sel_move);
     },
     goLineRight: function(cm) {
-      var top = cm.charCoords(cm.getCursor(), "div").top + 5;
-      cm.extendSelection(cm.coordsChar({left: cm.display.lineDiv.offsetWidth + 100, top: top}, "div"));
+      cm.extendSelectionsBy(function(range) {
+        var top = cm.charCoords(range.head, "div").top + 5;
+        return cm.coordsChar({left: cm.display.lineDiv.offsetWidth + 100, top: top}, "div");
+      }, sel_move);
     },
     goLineLeft: function(cm) {
-      var top = cm.charCoords(cm.getCursor(), "div").top + 5;
-      cm.extendSelection(cm.coordsChar({left: 0, top: top}, "div"));
+      cm.extendSelectionsBy(function(range) {
+        var top = cm.charCoords(range.head, "div").top + 5;
+        return cm.coordsChar({left: 0, top: top}, "div");
+      }, sel_move);
     },
     goLineUp: function(cm) {cm.moveV(-1, "line");},
     goLineDown: function(cm) {cm.moveV(1, "line");},
@@ -10928,22 +12014,32 @@ window.CodeMirror = (function() {
     indentAuto: function(cm) {cm.indentSelection("smart");},
     indentMore: function(cm) {cm.indentSelection("add");},
     indentLess: function(cm) {cm.indentSelection("subtract");},
-    insertTab: function(cm) {cm.replaceSelection("\t", "end", "+input");},
+    insertTab: function(cm) {cm.replaceSelection("\t");},
     defaultTab: function(cm) {
       if (cm.somethingSelected()) cm.indentSelection("add");
-      else cm.replaceSelection("\t", "end", "+input");
+      else cm.execCommand("insertTab");
     },
     transposeChars: function(cm) {
-      var cur = cm.getCursor(), line = cm.getLine(cur.line);
-      if (cur.ch > 0 && cur.ch < line.length - 1)
-        cm.replaceRange(line.charAt(cur.ch) + line.charAt(cur.ch - 1),
-                        Pos(cur.line, cur.ch - 1), Pos(cur.line, cur.ch + 1));
+      runInOp(cm, function() {
+        var ranges = cm.listSelections();
+        for (var i = 0; i < ranges.length; i++) {
+          var cur = ranges[i].head, line = getLine(cm.doc, cur.line).text;
+          if (cur.ch > 0 && cur.ch < line.length - 1)
+            cm.replaceRange(line.charAt(cur.ch) + line.charAt(cur.ch - 1),
+                            Pos(cur.line, cur.ch - 1), Pos(cur.line, cur.ch + 1));
+        }
+      });
     },
     newlineAndIndent: function(cm) {
-      operation(cm, function() {
-        cm.replaceSelection("\n", "end", "+input");
-        cm.indentLine(cm.getCursor().line, null, true);
-      })();
+      runInOp(cm, function() {
+        var len = cm.listSelections().length;
+        for (var i = 0; i < len; i++) {
+          var range = cm.listSelections()[i];
+          cm.replaceRange("\n", range.anchor, range.head, "+input");
+          cm.indentLine(range.from().line + 1, null, true);
+          ensureCursorVisible(cm);
+        }
+      });
     },
     toggleOverwrite: function(cm) {cm.toggleOverwrite();}
   };
@@ -10956,17 +12052,20 @@ window.CodeMirror = (function() {
     "End": "goLineEnd", "Home": "goLineStartSmart", "PageUp": "goPageUp", "PageDown": "goPageDown",
     "Delete": "delCharAfter", "Backspace": "delCharBefore", "Shift-Backspace": "delCharBefore",
     "Tab": "defaultTab", "Shift-Tab": "indentAuto",
-    "Enter": "newlineAndIndent", "Insert": "toggleOverwrite"
+    "Enter": "newlineAndIndent", "Insert": "toggleOverwrite",
+    "Esc": "singleSelection"
   };
   // Note that the save and find-related commands aren't defined by
-  // default. Unknown commands are simply ignored.
+  // default. User code or addons can define them. Unknown commands
+  // are simply ignored.
   keyMap.pcDefault = {
     "Ctrl-A": "selectAll", "Ctrl-D": "deleteLine", "Ctrl-Z": "undo", "Shift-Ctrl-Z": "redo", "Ctrl-Y": "redo",
-    "Ctrl-Home": "goDocStart", "Alt-Up": "goDocStart", "Ctrl-End": "goDocEnd", "Ctrl-Down": "goDocEnd",
+    "Ctrl-Home": "goDocStart", "Ctrl-Up": "goDocStart", "Ctrl-End": "goDocEnd", "Ctrl-Down": "goDocEnd",
     "Ctrl-Left": "goGroupLeft", "Ctrl-Right": "goGroupRight", "Alt-Left": "goLineStart", "Alt-Right": "goLineEnd",
     "Ctrl-Backspace": "delGroupBefore", "Ctrl-Delete": "delGroupAfter", "Ctrl-S": "save", "Ctrl-F": "find",
     "Ctrl-G": "findNext", "Shift-Ctrl-G": "findPrev", "Shift-Ctrl-F": "replace", "Shift-Ctrl-R": "replaceAll",
     "Ctrl-[": "indentLess", "Ctrl-]": "indentMore",
+    "Ctrl-U": "undoSelection", "Shift-Ctrl-U": "redoSelection", "Alt-U": "redoSelection",
     fallthrough: "basic"
   };
   keyMap.macDefault = {
@@ -10976,15 +12075,17 @@ window.CodeMirror = (function() {
     "Ctrl-Alt-Backspace": "delGroupAfter", "Alt-Delete": "delGroupAfter", "Cmd-S": "save", "Cmd-F": "find",
     "Cmd-G": "findNext", "Shift-Cmd-G": "findPrev", "Cmd-Alt-F": "replace", "Shift-Cmd-Alt-F": "replaceAll",
     "Cmd-[": "indentLess", "Cmd-]": "indentMore", "Cmd-Backspace": "delLineLeft",
+    "Cmd-U": "undoSelection", "Shift-Cmd-U": "redoSelection",
     fallthrough: ["basic", "emacsy"]
   };
-  keyMap["default"] = mac ? keyMap.macDefault : keyMap.pcDefault;
+  // Very basic readline/emacs-style bindings, which are standard on Mac.
   keyMap.emacsy = {
     "Ctrl-F": "goCharRight", "Ctrl-B": "goCharLeft", "Ctrl-P": "goLineUp", "Ctrl-N": "goLineDown",
     "Alt-F": "goWordRight", "Alt-B": "goWordLeft", "Ctrl-A": "goLineStart", "Ctrl-E": "goLineEnd",
     "Ctrl-V": "goPageDown", "Shift-Ctrl-V": "goPageUp", "Ctrl-D": "delCharAfter", "Ctrl-H": "delCharBefore",
     "Alt-D": "delWordAfter", "Alt-Backspace": "delWordBefore", "Ctrl-K": "killLine", "Ctrl-T": "transposeChars"
   };
+  keyMap["default"] = mac ? keyMap.macDefault : keyMap.pcDefault;
 
   // KEYMAP DISPATCH
 
@@ -10993,7 +12094,11 @@ window.CodeMirror = (function() {
     else return val;
   }
 
-  function lookupKey(name, maps, handle) {
+  // Given an array of keymaps and a key name, call handle on any
+  // bindings found, until that returns a truthy value, at which point
+  // we consider the key handled. Implements things like binding a key
+  // to false stopping further handling and keymap fallthrough.
+  var lookupKey = CodeMirror.lookupKey = function(name, maps, handle) {
     function lookup(map) {
       map = getKeyMap(map);
       var found = map[name];
@@ -11005,7 +12110,7 @@ window.CodeMirror = (function() {
       if (fallthrough == null) return false;
       if (Object.prototype.toString.call(fallthrough) != "[object Array]")
         return lookup(fallthrough);
-      for (var i = 0, e = fallthrough.length; i < e; ++i) {
+      for (var i = 0; i < fallthrough.length; ++i) {
         var done = lookup(fallthrough[i]);
         if (done) return done;
       }
@@ -11016,13 +12121,18 @@ window.CodeMirror = (function() {
       var done = lookup(maps[i]);
       if (done) return done != "stop";
     }
-  }
-  function isModifierKey(event) {
+  };
+
+  // Modifier key presses don't count as 'real' key presses for the
+  // purpose of keymap fallthrough.
+  var isModifierKey = CodeMirror.isModifierKey = function(event) {
     var name = keyNames[event.keyCode];
     return name == "Ctrl" || name == "Alt" || name == "Shift" || name == "Mod";
-  }
-  function keyName(event, noShift) {
-    if (opera && event.keyCode == 34 && event["char"]) return false;
+  };
+
+  // Look up the name of a key as indicated by an event object.
+  var keyName = CodeMirror.keyName = function(event, noShift) {
+    if (presto && event.keyCode == 34 && event["char"]) return false;
     var name = keyNames[event.keyCode];
     if (name == null || event.altGraphKey) return false;
     if (event.altKey) name = "Alt-" + name;
@@ -11030,10 +12140,7 @@ window.CodeMirror = (function() {
     if (flipCtrlCmd ? event.ctrlKey : event.metaKey) name = "Cmd-" + name;
     if (!noShift && event.shiftKey) name = "Shift-" + name;
     return name;
-  }
-  CodeMirror.lookupKey = lookupKey;
-  CodeMirror.isModifierKey = isModifierKey;
-  CodeMirror.keyName = keyName;
+  };
 
   // FROMTEXTAREA
 
@@ -11047,9 +12154,7 @@ window.CodeMirror = (function() {
     // Set autofocus to true if this textarea is focused, or if it has
     // autofocus and no other element is focused.
     if (options.autofocus == null) {
-      var hasFocus = document.body;
-      // doc.activeElement occasionally throws on IE
-      try { hasFocus = document.activeElement; } catch(e) {}
+      var hasFocus = activeElt();
       options.autofocus = hasFocus == textarea ||
         textarea.getAttribute("autofocus") != null && hasFocus == document.body;
     }
@@ -11095,17 +12200,17 @@ window.CodeMirror = (function() {
   // Fed to the mode parsers, provides helper functions to make
   // parsers more succinct.
 
-  // The character stream used by a mode's parser.
-  function StringStream(string, tabSize) {
+  var StringStream = CodeMirror.StringStream = function(string, tabSize) {
     this.pos = this.start = 0;
     this.string = string;
     this.tabSize = tabSize || 8;
     this.lastColumnPos = this.lastColumnValue = 0;
-  }
+    this.lineStart = 0;
+  };
 
   StringStream.prototype = {
     eol: function() {return this.pos >= this.string.length;},
-    sol: function() {return this.pos == 0;},
+    sol: function() {return this.pos == this.lineStart;},
     peek: function() {return this.string.charAt(this.pos) || undefined;},
     next: function() {
       if (this.pos < this.string.length)
@@ -11138,9 +12243,12 @@ window.CodeMirror = (function() {
         this.lastColumnValue = countColumn(this.string, this.start, this.tabSize, this.lastColumnPos, this.lastColumnValue);
         this.lastColumnPos = this.start;
       }
-      return this.lastColumnValue;
+      return this.lastColumnValue - (this.lineStart ? countColumn(this.string, this.lineStart, this.tabSize) : 0);
     },
-    indentation: function() {return countColumn(this.string, null, this.tabSize);},
+    indentation: function() {
+      return countColumn(this.string, null, this.tabSize) -
+        (this.lineStart ? countColumn(this.string, this.lineStart, this.tabSize) : 0);
+    },
     match: function(pattern, consume, caseInsensitive) {
       if (typeof pattern == "string") {
         var cased = function(str) {return caseInsensitive ? str.toLowerCase() : str;};
@@ -11156,20 +12264,34 @@ window.CodeMirror = (function() {
         return match;
       }
     },
-    current: function(){return this.string.slice(this.start, this.pos);}
+    current: function(){return this.string.slice(this.start, this.pos);},
+    hideFirstChars: function(n, inner) {
+      this.lineStart += n;
+      try { return inner(); }
+      finally { this.lineStart -= n; }
+    }
   };
-  CodeMirror.StringStream = StringStream;
 
   // TEXTMARKERS
 
-  function TextMarker(doc, type) {
+  // Created with markText and setBookmark methods. A TextMarker is a
+  // handle that can be used to clear or find a marked position in the
+  // document. Line objects hold arrays (markedSpans) containing
+  // {from, to, marker} object pointing to such marker objects, and
+  // indicating that such a marker is present on that line. Multiple
+  // lines may point to the same marker when it spans across lines.
+  // The spans will have null for their from/to properties when the
+  // marker continues beyond the start/end of the line. Markers have
+  // links back to the lines they currently touch.
+
+  var TextMarker = CodeMirror.TextMarker = function(doc, type) {
     this.lines = [];
     this.type = type;
     this.doc = doc;
-  }
-  CodeMirror.TextMarker = TextMarker;
+  };
   eventMixin(TextMarker);
 
+  // Clear the marker.
   TextMarker.prototype.clear = function() {
     if (this.explicitlyCleared) return;
     var cm = this.doc.cm, withOp = cm && !cm.curOp;
@@ -11182,15 +12304,17 @@ window.CodeMirror = (function() {
     for (var i = 0; i < this.lines.length; ++i) {
       var line = this.lines[i];
       var span = getMarkedSpanFor(line.markedSpans, this);
-      if (span.to != null) max = lineNo(line);
+      if (cm && !this.collapsed) regLineChange(cm, lineNo(line), "text");
+      else if (cm) {
+        if (span.to != null) max = lineNo(line);
+        if (span.from != null) min = lineNo(line);
+      }
       line.markedSpans = removeMarkedSpan(line.markedSpans, span);
-      if (span.from != null)
-        min = lineNo(line);
-      else if (this.collapsed && !lineIsHidden(this.doc, line) && cm)
+      if (span.from == null && this.collapsed && !lineIsHidden(this.doc, line) && cm)
         updateLineHeight(line, textHeight(cm.display));
     }
     if (cm && this.collapsed && !cm.options.lineWrapping) for (var i = 0; i < this.lines.length; ++i) {
-      var visual = visualLine(cm.doc, this.lines[i]), len = lineLength(cm.doc, visual);
+      var visual = visualLine(this.lines[i]), len = lineLength(visual);
       if (len > cm.display.maxLineLength) {
         cm.display.maxLine = visual;
         cm.display.maxLineLength = len;
@@ -11198,46 +12322,61 @@ window.CodeMirror = (function() {
       }
     }
 
-    if (min != null && cm) regChange(cm, min, max + 1);
+    if (min != null && cm && this.collapsed) regChange(cm, min, max + 1);
     this.lines.length = 0;
     this.explicitlyCleared = true;
     if (this.atomic && this.doc.cantEdit) {
       this.doc.cantEdit = false;
-      if (cm) reCheckSelection(cm);
+      if (cm) reCheckSelection(cm.doc);
     }
+    if (cm) signalLater(cm, "markerCleared", cm, this);
     if (withOp) endOperation(cm);
   };
 
-  TextMarker.prototype.find = function() {
+  // Find the position of the marker in the document. Returns a {from,
+  // to} object by default. Side can be passed to get a specific side
+  // -- 0 (both), -1 (left), or 1 (right). When lineObj is true, the
+  // Pos objects returned contain a line object, rather than a line
+  // number (used to prevent looking up the same line twice).
+  TextMarker.prototype.find = function(side, lineObj) {
+    if (side == null && this.type == "bookmark") side = 1;
     var from, to;
     for (var i = 0; i < this.lines.length; ++i) {
       var line = this.lines[i];
       var span = getMarkedSpanFor(line.markedSpans, this);
-      if (span.from != null || span.to != null) {
-        var found = lineNo(line);
-        if (span.from != null) from = Pos(found, span.from);
-        if (span.to != null) to = Pos(found, span.to);
+      if (span.from != null) {
+        from = Pos(lineObj ? line : lineNo(line), span.from);
+        if (side == -1) return from;
+      }
+      if (span.to != null) {
+        to = Pos(lineObj ? line : lineNo(line), span.to);
+        if (side == 1) return to;
       }
     }
-    if (this.type == "bookmark") return from;
     return from && {from: from, to: to};
   };
 
+  // Signals that the marker's widget changed, and surrounding layout
+  // should be recomputed.
   TextMarker.prototype.changed = function() {
-    var pos = this.find(), cm = this.doc.cm;
+    var pos = this.find(-1, true), widget = this, cm = this.doc.cm;
     if (!pos || !cm) return;
-    if (this.type != "bookmark") pos = pos.from;
-    var line = getLine(this.doc, pos.line);
-    clearCachedMeasurement(cm, line);
-    if (pos.line >= cm.display.showingFrom && pos.line < cm.display.showingTo) {
-      for (var node = cm.display.lineDiv.firstChild; node; node = node.nextSibling) if (node.lineObj == line) {
-        if (node.offsetHeight != line.height) updateLineHeight(line, node.offsetHeight);
-        break;
+    runInOp(cm, function() {
+      var line = pos.line, lineN = lineNo(pos.line);
+      var view = findViewForLine(cm, lineN);
+      if (view) {
+        clearLineMeasurementCacheFor(view);
+        cm.curOp.selectionChanged = cm.curOp.forceUpdate = true;
       }
-      runInOp(cm, function() {
-        cm.curOp.selectionChanged = cm.curOp.forceUpdate = cm.curOp.updateMaxLine = true;
-      });
-    }
+      cm.curOp.updateMaxLine = true;
+      if (!lineIsHidden(widget.doc, line) && widget.height != null) {
+        var oldHeight = widget.height;
+        widget.height = null;
+        var dHeight = widgetHeight(widget) - oldHeight;
+        if (dHeight)
+          updateLineHeight(line, line.height + dHeight);
+      }
+    });
   };
 
   TextMarker.prototype.attachLine = function(line) {
@@ -11256,42 +12395,53 @@ window.CodeMirror = (function() {
     }
   };
 
+  // Collapsed markers have unique ids, in order to be able to order
+  // them, which is needed for uniquely determining an outer marker
+  // when they overlap (they may nest, but not partially overlap).
+  var nextMarkerId = 0;
+
+  // Create a marker, wire it up to the right lines, and
   function markText(doc, from, to, options, type) {
+    // Shared markers (across linked documents) are handled separately
+    // (markTextShared will call out to this again, once per
+    // document).
     if (options && options.shared) return markTextShared(doc, from, to, options, type);
+    // Ensure we are in an operation.
     if (doc.cm && !doc.cm.curOp) return operation(doc.cm, markText)(doc, from, to, options, type);
 
-    var marker = new TextMarker(doc, type);
-    if (posLess(to, from) || posEq(from, to) && type == "range" &&
-        !(options.inclusiveLeft && options.inclusiveRight))
-      return marker;
+    var marker = new TextMarker(doc, type), diff = cmp(from, to);
     if (options) copyObj(options, marker);
+    // Don't connect empty markers unless clearWhenEmpty is false
+    if (diff > 0 || diff == 0 && marker.clearWhenEmpty !== false)
+      return marker;
     if (marker.replacedWith) {
+      // Showing up as a widget implies collapsed (widget replaces text)
       marker.collapsed = true;
-      marker.replacedWith = elt("span", [marker.replacedWith], "CodeMirror-widget");
-      if (!options.handleMouseEvents) marker.replacedWith.ignoreEvents = true;
+      marker.widgetNode = elt("span", [marker.replacedWith], "CodeMirror-widget");
+      if (!options.handleMouseEvents) marker.widgetNode.ignoreEvents = true;
+      if (options.insertLeft) marker.widgetNode.insertLeft = true;
     }
-    if (marker.collapsed) sawCollapsedSpans = true;
+    if (marker.collapsed) {
+      if (conflictingCollapsedRange(doc, from.line, from, to, marker) ||
+          from.line != to.line && conflictingCollapsedRange(doc, to.line, from, to, marker))
+        throw new Error("Inserting collapsed marker partially overlapping an existing one");
+      sawCollapsedSpans = true;
+    }
 
     if (marker.addToHistory)
-      addToHistory(doc, {from: from, to: to, origin: "markText"},
-                   {head: doc.sel.head, anchor: doc.sel.anchor}, NaN);
+      addChangeToHistory(doc, {from: from, to: to, origin: "markText"}, doc.sel, NaN);
 
-    var curLine = from.line, size = 0, collapsedAtStart, collapsedAtEnd, cm = doc.cm, updateMaxLine;
+    var curLine = from.line, cm = doc.cm, updateMaxLine;
     doc.iter(curLine, to.line + 1, function(line) {
-      if (cm && marker.collapsed && !cm.options.lineWrapping && visualLine(doc, line) == cm.display.maxLine)
+      if (cm && marker.collapsed && !cm.options.lineWrapping && visualLine(line) == cm.display.maxLine)
         updateMaxLine = true;
-      var span = {from: null, to: null, marker: marker};
-      size += line.text.length;
-      if (curLine == from.line) {span.from = from.ch; size -= from.ch;}
-      if (curLine == to.line) {span.to = to.ch; size -= line.text.length - to.ch;}
-      if (marker.collapsed) {
-        if (curLine == to.line) collapsedAtEnd = collapsedSpanAt(line, to.ch);
-        if (curLine == from.line) collapsedAtStart = collapsedSpanAt(line, from.ch);
-        else updateLineHeight(line, 0);
-      }
-      addMarkedSpan(line, span);
+      if (marker.collapsed && curLine != from.line) updateLineHeight(line, 0);
+      addMarkedSpan(line, new MarkedSpan(marker,
+                                         curLine == from.line ? from.ch : null,
+                                         curLine == to.line ? to.ch : null));
       ++curLine;
     });
+    // lineIsHidden depends on the presence of the spans, so needs a second pass
     if (marker.collapsed) doc.iter(from.line, to.line + 1, function(line) {
       if (lineIsHidden(doc, line)) updateLineHeight(line, 0);
     });
@@ -11304,31 +12454,35 @@ window.CodeMirror = (function() {
         doc.clearHistory();
     }
     if (marker.collapsed) {
-      if (collapsedAtStart != collapsedAtEnd)
-        throw new Error("Inserting collapsed marker overlapping an existing one");
-      marker.size = size;
+      marker.id = ++nextMarkerId;
       marker.atomic = true;
     }
     if (cm) {
+      // Sync editor state
       if (updateMaxLine) cm.curOp.updateMaxLine = true;
-      if (marker.className || marker.title || marker.startStyle || marker.endStyle || marker.collapsed)
+      if (marker.collapsed)
         regChange(cm, from.line, to.line + 1);
-      if (marker.atomic) reCheckSelection(cm);
+      else if (marker.className || marker.title || marker.startStyle || marker.endStyle)
+        for (var i = from.line; i <= to.line; i++) regLineChange(cm, i, "text");
+      if (marker.atomic) reCheckSelection(cm.doc);
+      signalLater(cm, "markerAdded", cm, marker);
     }
     return marker;
   }
 
   // SHARED TEXTMARKERS
 
-  function SharedTextMarker(markers, primary) {
+  // A shared marker spans multiple linked documents. It is
+  // implemented as a meta-marker-object controlling multiple normal
+  // markers.
+  var SharedTextMarker = CodeMirror.SharedTextMarker = function(markers, primary) {
     this.markers = markers;
     this.primary = primary;
     for (var i = 0, me = this; i < markers.length; ++i) {
       markers[i].parent = this;
       on(markers[i], "clear", function(){me.clear();});
     }
-  }
-  CodeMirror.SharedTextMarker = SharedTextMarker;
+  };
   eventMixin(SharedTextMarker);
 
   SharedTextMarker.prototype.clear = function() {
@@ -11338,17 +12492,17 @@ window.CodeMirror = (function() {
       this.markers[i].clear();
     signalLater(this, "clear");
   };
-  SharedTextMarker.prototype.find = function() {
-    return this.primary.find();
+  SharedTextMarker.prototype.find = function(side, lineObj) {
+    return this.primary.find(side, lineObj);
   };
 
   function markTextShared(doc, from, to, options, type) {
     options = copyObj(options);
     options.shared = false;
     var markers = [markText(doc, from, to, options, type)], primary = markers[0];
-    var widget = options.replacedWith;
+    var widget = options.widgetNode;
     linkedDocs(doc, function(doc) {
-      if (widget) options.replacedWith = widget.cloneNode(true);
+      if (widget) options.widgetNode = widget.cloneNode(true);
       markers.push(markText(doc, clipPos(doc, from), clipPos(doc, to), options, type));
       for (var i = 0; i < doc.linked.length; ++i)
         if (doc.linked[i].isParent) return;
@@ -11359,58 +12513,71 @@ window.CodeMirror = (function() {
 
   // TEXTMARKER SPANS
 
+  function MarkedSpan(marker, from, to) {
+    this.marker = marker;
+    this.from = from; this.to = to;
+  }
+
+  // Search an array of spans for a span matching the given marker.
   function getMarkedSpanFor(spans, marker) {
     if (spans) for (var i = 0; i < spans.length; ++i) {
       var span = spans[i];
       if (span.marker == marker) return span;
     }
   }
+  // Remove a span from an array, returning undefined if no spans are
+  // left (we don't store arrays for lines without spans).
   function removeMarkedSpan(spans, span) {
     for (var r, i = 0; i < spans.length; ++i)
       if (spans[i] != span) (r || (r = [])).push(spans[i]);
     return r;
   }
+  // Add a span to a line.
   function addMarkedSpan(line, span) {
     line.markedSpans = line.markedSpans ? line.markedSpans.concat([span]) : [span];
     span.marker.attachLine(line);
   }
 
+  // Used for the algorithm that adjusts markers for a change in the
+  // document. These functions cut an array of spans at a given
+  // character position, returning an array of remaining chunks (or
+  // undefined if nothing remains).
   function markedSpansBefore(old, startCh, isInsert) {
     if (old) for (var i = 0, nw; i < old.length; ++i) {
       var span = old[i], marker = span.marker;
       var startsBefore = span.from == null || (marker.inclusiveLeft ? span.from <= startCh : span.from < startCh);
-      if (startsBefore ||
-          (marker.inclusiveLeft && marker.inclusiveRight || marker.type == "bookmark") &&
-          span.from == startCh && (!isInsert || !span.marker.insertLeft)) {
+      if (startsBefore || span.from == startCh && marker.type == "bookmark" && (!isInsert || !span.marker.insertLeft)) {
         var endsAfter = span.to == null || (marker.inclusiveRight ? span.to >= startCh : span.to > startCh);
-        (nw || (nw = [])).push({from: span.from,
-                                to: endsAfter ? null : span.to,
-                                marker: marker});
+        (nw || (nw = [])).push(new MarkedSpan(marker, span.from, endsAfter ? null : span.to));
       }
     }
     return nw;
   }
-
   function markedSpansAfter(old, endCh, isInsert) {
     if (old) for (var i = 0, nw; i < old.length; ++i) {
       var span = old[i], marker = span.marker;
       var endsAfter = span.to == null || (marker.inclusiveRight ? span.to >= endCh : span.to > endCh);
-      if (endsAfter || marker.type == "bookmark" && span.from == endCh && (!isInsert || span.marker.insertLeft)) {
+      if (endsAfter || span.from == endCh && marker.type == "bookmark" && (!isInsert || span.marker.insertLeft)) {
         var startsBefore = span.from == null || (marker.inclusiveLeft ? span.from <= endCh : span.from < endCh);
-        (nw || (nw = [])).push({from: startsBefore ? null : span.from - endCh,
-                                to: span.to == null ? null : span.to - endCh,
-                                marker: marker});
+        (nw || (nw = [])).push(new MarkedSpan(marker, startsBefore ? null : span.from - endCh,
+                                              span.to == null ? null : span.to - endCh));
       }
     }
     return nw;
   }
 
+  // Given a change object, compute the new set of marker spans that
+  // cover the line in which the change took place. Removes spans
+  // entirely within the change, reconnects spans belonging to the
+  // same marker that appear on both sides of the change, and cuts off
+  // spans partially within the change. Returns an array of span
+  // arrays with one element for each line in (after) the change.
   function stretchSpansOverChange(doc, change) {
     var oldFirst = isLine(doc, change.from.line) && getLine(doc, change.from.line).markedSpans;
     var oldLast = isLine(doc, change.to.line) && getLine(doc, change.to.line).markedSpans;
     if (!oldFirst && !oldLast) return null;
 
-    var startCh = change.from.ch, endCh = change.to.ch, isInsert = posEq(change.from, change.to);
+    var startCh = change.from.ch, endCh = change.to.ch, isInsert = cmp(change.from, change.to) == 0;
     // Get the spans that 'stick out' on both sides
     var first = markedSpansBefore(oldFirst, startCh, isInsert);
     var last = markedSpansAfter(oldLast, endCh, isInsert);
@@ -11445,13 +12612,9 @@ window.CodeMirror = (function() {
         }
       }
     }
-    if (sameLine && first) {
-      // Make sure we didn't create any zero-length spans
-      for (var i = 0; i < first.length; ++i)
-        if (first[i].from != null && first[i].from == first[i].to && first[i].marker.type != "bookmark")
-          first.splice(i--, 1);
-      if (!first.length) first = null;
-    }
+    // Make sure we didn't create any zero-length spans
+    if (first) first = clearEmptySpans(first);
+    if (last && last != first) last = clearEmptySpans(last);
 
     var newMarkers = [first];
     if (!sameLine) {
@@ -11460,7 +12623,7 @@ window.CodeMirror = (function() {
       if (gap > 0 && first)
         for (var i = 0; i < first.length; ++i)
           if (first[i].to == null)
-            (gapMarkers || (gapMarkers = [])).push({from: null, to: null, marker: first[i].marker});
+            (gapMarkers || (gapMarkers = [])).push(new MarkedSpan(first[i].marker, null, null));
       for (var i = 0; i < gap; ++i)
         newMarkers.push(gapMarkers);
       newMarkers.push(last);
@@ -11468,6 +12631,22 @@ window.CodeMirror = (function() {
     return newMarkers;
   }
 
+  // Remove spans that are empty and don't have a clearWhenEmpty
+  // option of false.
+  function clearEmptySpans(spans) {
+    for (var i = 0; i < spans.length; ++i) {
+      var span = spans[i];
+      if (span.from != null && span.from == span.to && span.marker.clearWhenEmpty !== false)
+        spans.splice(i--, 1);
+    }
+    if (!spans.length) return null;
+    return spans;
+  }
+
+  // Used for un/re-doing changes from the history. Combines the
+  // result of computing the existing spans with the set of spans that
+  // existed in the history (so that deleting around a span and then
+  // undoing brings back the span).
   function mergeOldSpans(doc, change) {
     var old = getOldSpans(doc, change);
     var stretched = stretchSpansOverChange(doc, change);
@@ -11490,6 +12669,7 @@ window.CodeMirror = (function() {
     return old;
   }
 
+  // Used to 'clip' out readOnly ranges when making a change.
   function removeReadOnlyRanges(doc, from, to) {
     var markers = null;
     doc.iter(from.line, to.line + 1, function(line) {
@@ -11502,14 +12682,14 @@ window.CodeMirror = (function() {
     if (!markers) return null;
     var parts = [{from: from, to: to}];
     for (var i = 0; i < markers.length; ++i) {
-      var mk = markers[i], m = mk.find();
+      var mk = markers[i], m = mk.find(0);
       for (var j = 0; j < parts.length; ++j) {
         var p = parts[j];
-        if (posLess(p.to, m.from) || posLess(m.to, p.from)) continue;
-        var newParts = [j, 1];
-        if (posLess(p.from, m.from) || !mk.inclusiveLeft && posEq(p.from, m.from))
+        if (cmp(p.to, m.from) < 0 || cmp(p.from, m.to) > 0) continue;
+        var newParts = [j, 1], dfrom = cmp(p.from, m.from), dto = cmp(p.to, m.to);
+        if (dfrom < 0 || !mk.inclusiveLeft && !dfrom)
           newParts.push({from: p.from, to: m.from});
-        if (posLess(m.to, p.to) || !mk.inclusiveRight && posEq(p.to, m.to))
+        if (dto > 0 || !mk.inclusiveRight && !dto)
           newParts.push({from: m.to, to: p.to});
         parts.splice.apply(parts, newParts);
         j += newParts.length - 1;
@@ -11518,54 +12698,7 @@ window.CodeMirror = (function() {
     return parts;
   }
 
-  function collapsedSpanAt(line, ch) {
-    var sps = sawCollapsedSpans && line.markedSpans, found;
-    if (sps) for (var sp, i = 0; i < sps.length; ++i) {
-      sp = sps[i];
-      if (!sp.marker.collapsed) continue;
-      if ((sp.from == null || sp.from < ch) &&
-          (sp.to == null || sp.to > ch) &&
-          (!found || found.width < sp.marker.width))
-        found = sp.marker;
-    }
-    return found;
-  }
-  function collapsedSpanAtStart(line) { return collapsedSpanAt(line, -1); }
-  function collapsedSpanAtEnd(line) { return collapsedSpanAt(line, line.text.length + 1); }
-
-  function visualLine(doc, line) {
-    var merged;
-    while (merged = collapsedSpanAtStart(line))
-      line = getLine(doc, merged.find().from.line);
-    return line;
-  }
-
-  function lineIsHidden(doc, line) {
-    var sps = sawCollapsedSpans && line.markedSpans;
-    if (sps) for (var sp, i = 0; i < sps.length; ++i) {
-      sp = sps[i];
-      if (!sp.marker.collapsed) continue;
-      if (sp.from == null) return true;
-      if (sp.marker.replacedWith) continue;
-      if (sp.from == 0 && sp.marker.inclusiveLeft && lineIsHiddenInner(doc, line, sp))
-        return true;
-    }
-  }
-  function lineIsHiddenInner(doc, line, span) {
-    if (span.to == null) {
-      var end = span.marker.find().to, endLine = getLine(doc, end.line);
-      return lineIsHiddenInner(doc, endLine, getMarkedSpanFor(endLine.markedSpans, span.marker));
-    }
-    if (span.marker.inclusiveRight && span.to == line.text.length)
-      return true;
-    for (var sp, i = 0; i < line.markedSpans.length; ++i) {
-      sp = line.markedSpans[i];
-      if (sp.marker.collapsed && !sp.marker.replacedWith && sp.from == span.to &&
-          (sp.marker.inclusiveLeft || span.marker.inclusiveRight) &&
-          lineIsHiddenInner(doc, line, sp)) return true;
-    }
-  }
-
+  // Connect or disconnect spans from a line.
   function detachMarkedSpans(line) {
     var spans = line.markedSpans;
     if (!spans) return;
@@ -11573,7 +12706,6 @@ window.CodeMirror = (function() {
       spans[i].marker.detachLine(line);
     line.markedSpans = null;
   }
-
   function attachMarkedSpans(line, spans) {
     if (!spans) return;
     for (var i = 0; i < spans.length; ++i)
@@ -11581,7 +12713,132 @@ window.CodeMirror = (function() {
     line.markedSpans = spans;
   }
 
+  // Helpers used when computing which overlapping collapsed span
+  // counts as the larger one.
+  function extraLeft(marker) { return marker.inclusiveLeft ? -1 : 0; }
+  function extraRight(marker) { return marker.inclusiveRight ? 1 : 0; }
+
+  // Returns a number indicating which of two overlapping collapsed
+  // spans is larger (and thus includes the other). Falls back to
+  // comparing ids when the spans cover exactly the same range.
+  function compareCollapsedMarkers(a, b) {
+    var lenDiff = a.lines.length - b.lines.length;
+    if (lenDiff != 0) return lenDiff;
+    var aPos = a.find(), bPos = b.find();
+    var fromCmp = cmp(aPos.from, bPos.from) || extraLeft(a) - extraLeft(b);
+    if (fromCmp) return -fromCmp;
+    var toCmp = cmp(aPos.to, bPos.to) || extraRight(a) - extraRight(b);
+    if (toCmp) return toCmp;
+    return b.id - a.id;
+  }
+
+  // Find out whether a line ends or starts in a collapsed span. If
+  // so, return the marker for that span.
+  function collapsedSpanAtSide(line, start) {
+    var sps = sawCollapsedSpans && line.markedSpans, found;
+    if (sps) for (var sp, i = 0; i < sps.length; ++i) {
+      sp = sps[i];
+      if (sp.marker.collapsed && (start ? sp.from : sp.to) == null &&
+          (!found || compareCollapsedMarkers(found, sp.marker) < 0))
+        found = sp.marker;
+    }
+    return found;
+  }
+  function collapsedSpanAtStart(line) { return collapsedSpanAtSide(line, true); }
+  function collapsedSpanAtEnd(line) { return collapsedSpanAtSide(line, false); }
+
+  // Test whether there exists a collapsed span that partially
+  // overlaps (covers the start or end, but not both) of a new span.
+  // Such overlap is not allowed.
+  function conflictingCollapsedRange(doc, lineNo, from, to, marker) {
+    var line = getLine(doc, lineNo);
+    var sps = sawCollapsedSpans && line.markedSpans;
+    if (sps) for (var i = 0; i < sps.length; ++i) {
+      var sp = sps[i];
+      if (!sp.marker.collapsed) continue;
+      var found = sp.marker.find(0);
+      var fromCmp = cmp(found.from, from) || extraLeft(sp.marker) - extraLeft(marker);
+      var toCmp = cmp(found.to, to) || extraRight(sp.marker) - extraRight(marker);
+      if (fromCmp >= 0 && toCmp <= 0 || fromCmp <= 0 && toCmp >= 0) continue;
+      if (fromCmp <= 0 && (cmp(found.to, from) || extraRight(sp.marker) - extraLeft(marker)) > 0 ||
+          fromCmp >= 0 && (cmp(found.from, to) || extraLeft(sp.marker) - extraRight(marker)) < 0)
+        return true;
+    }
+  }
+
+  // A visual line is a line as drawn on the screen. Folding, for
+  // example, can cause multiple logical lines to appear on the same
+  // visual line. This finds the start of the visual line that the
+  // given line is part of (usually that is the line itself).
+  function visualLine(line) {
+    var merged;
+    while (merged = collapsedSpanAtStart(line))
+      line = merged.find(-1, true).line;
+    return line;
+  }
+
+  // Returns an array of logical lines that continue the visual line
+  // started by the argument, or undefined if there are no such lines.
+  function visualLineContinued(line) {
+    var merged, lines;
+    while (merged = collapsedSpanAtEnd(line)) {
+      line = merged.find(1, true).line;
+      (lines || (lines = [])).push(line);
+    }
+    return lines;
+  }
+
+  // Get the line number of the start of the visual line that the
+  // given line number is part of.
+  function visualLineNo(doc, lineN) {
+    var line = getLine(doc, lineN), vis = visualLine(line);
+    if (line == vis) return lineN;
+    return lineNo(vis);
+  }
+  // Get the line number of the start of the next visual line after
+  // the given line.
+  function visualLineEndNo(doc, lineN) {
+    if (lineN > doc.lastLine()) return lineN;
+    var line = getLine(doc, lineN), merged;
+    if (!lineIsHidden(doc, line)) return lineN;
+    while (merged = collapsedSpanAtEnd(line))
+      line = merged.find(1, true).line;
+    return lineNo(line) + 1;
+  }
+
+  // Compute whether a line is hidden. Lines count as hidden when they
+  // are part of a visual line that starts with another line, or when
+  // they are entirely covered by collapsed, non-widget span.
+  function lineIsHidden(doc, line) {
+    var sps = sawCollapsedSpans && line.markedSpans;
+    if (sps) for (var sp, i = 0; i < sps.length; ++i) {
+      sp = sps[i];
+      if (!sp.marker.collapsed) continue;
+      if (sp.from == null) return true;
+      if (sp.marker.widgetNode) continue;
+      if (sp.from == 0 && sp.marker.inclusiveLeft && lineIsHiddenInner(doc, line, sp))
+        return true;
+    }
+  }
+  function lineIsHiddenInner(doc, line, span) {
+    if (span.to == null) {
+      var end = span.marker.find(1, true);
+      return lineIsHiddenInner(doc, end.line, getMarkedSpanFor(end.line.markedSpans, span.marker));
+    }
+    if (span.marker.inclusiveRight && span.to == line.text.length)
+      return true;
+    for (var sp, i = 0; i < line.markedSpans.length; ++i) {
+      sp = line.markedSpans[i];
+      if (sp.marker.collapsed && !sp.marker.widgetNode && sp.from == span.to &&
+          (sp.to == null || sp.to != span.from) &&
+          (sp.marker.inclusiveLeft || span.marker.inclusiveRight) &&
+          lineIsHiddenInner(doc, line, sp)) return true;
+    }
+  }
+
   // LINE WIDGETS
+
+  // Line widgets are block elements displayed above or below a line.
 
   var LineWidget = CodeMirror.LineWidget = function(cm, node, options) {
     if (options) for (var opt in options) if (options.hasOwnProperty(opt))
@@ -11590,38 +12847,39 @@ window.CodeMirror = (function() {
     this.node = node;
   };
   eventMixin(LineWidget);
-  function widgetOperation(f) {
-    return function() {
-      var withOp = !this.cm.curOp;
-      if (withOp) startOperation(this.cm);
-      try {var result = f.apply(this, arguments);}
-      finally {if (withOp) endOperation(this.cm);}
-      return result;
-    };
+
+  function adjustScrollWhenAboveVisible(cm, line, diff) {
+    if (heightAtLine(line) < ((cm.curOp && cm.curOp.scrollTop) || cm.doc.scrollTop))
+      addToScrollPos(cm, null, diff);
   }
-  LineWidget.prototype.clear = widgetOperation(function() {
-    var ws = this.line.widgets, no = lineNo(this.line);
+
+  LineWidget.prototype.clear = function() {
+    var cm = this.cm, ws = this.line.widgets, line = this.line, no = lineNo(line);
     if (no == null || !ws) return;
     for (var i = 0; i < ws.length; ++i) if (ws[i] == this) ws.splice(i--, 1);
-    if (!ws.length) this.line.widgets = null;
-    var aboveVisible = heightAtLine(this.cm, this.line) < this.cm.doc.scrollTop;
-    updateLineHeight(this.line, Math.max(0, this.line.height - widgetHeight(this)));
-    if (aboveVisible) addToScrollPos(this.cm, 0, -this.height);
-    regChange(this.cm, no, no + 1);
-  });
-  LineWidget.prototype.changed = widgetOperation(function() {
-    var oldH = this.height;
+    if (!ws.length) line.widgets = null;
+    var height = widgetHeight(this);
+    runInOp(cm, function() {
+      adjustScrollWhenAboveVisible(cm, line, -height);
+      regLineChange(cm, no, "widget");
+      updateLineHeight(line, Math.max(0, line.height - height));
+    });
+  };
+  LineWidget.prototype.changed = function() {
+    var oldH = this.height, cm = this.cm, line = this.line;
     this.height = null;
     var diff = widgetHeight(this) - oldH;
     if (!diff) return;
-    updateLineHeight(this.line, this.line.height + diff);
-    var no = lineNo(this.line);
-    regChange(this.cm, no, no + 1);
-  });
+    runInOp(cm, function() {
+      cm.curOp.forceUpdate = true;
+      adjustScrollWhenAboveVisible(cm, line, diff);
+      updateLineHeight(line, line.height + diff);
+    });
+  };
 
   function widgetHeight(widget) {
     if (widget.height != null) return widget.height;
-    if (!widget.node.parentNode || widget.node.parentNode.nodeType != 1)
+    if (!contains(document.body, widget.node))
       removeChildrenAndAdd(widget.cm.display.measure, elt("div", [widget.node], null, "position: relative"));
     return widget.height = widget.node.offsetHeight;
   }
@@ -11629,15 +12887,16 @@ window.CodeMirror = (function() {
   function addLineWidget(cm, handle, node, options) {
     var widget = new LineWidget(cm, node, options);
     if (widget.noHScroll) cm.display.alignWidgets = true;
-    changeLine(cm, handle, function(line) {
+    changeLine(cm, handle, "widget", function(line) {
       var widgets = line.widgets || (line.widgets = []);
       if (widget.insertAt == null) widgets.push(widget);
       else widgets.splice(Math.min(widgets.length - 1, Math.max(0, widget.insertAt)), 0, widget);
       widget.line = line;
-      if (!lineIsHidden(cm.doc, line) || widget.showIfHidden) {
-        var aboveVisible = heightAtLine(cm, line) < cm.doc.scrollTop;
+      if (!lineIsHidden(cm.doc, line)) {
+        var aboveVisible = heightAtLine(line) < cm.doc.scrollTop;
         updateLineHeight(line, line.height + widgetHeight(widget));
-        if (aboveVisible) addToScrollPos(cm, 0, widget.height);
+        if (aboveVisible) addToScrollPos(cm, null, widget.height);
+        cm.curOp.forceUpdate = true;
       }
       return true;
     });
@@ -11656,6 +12915,9 @@ window.CodeMirror = (function() {
   eventMixin(Line);
   Line.prototype.lineNo = function() { return lineNo(this); };
 
+  // Change the content (text, markers) of a line. Automatically
+  // invalidates cached information and tries to re-estimate the
+  // line's height.
   function updateLine(line, text, markedSpans, estimateHeight) {
     line.text = text;
     if (line.stateAfter) line.stateAfter = null;
@@ -11667,14 +12929,13 @@ window.CodeMirror = (function() {
     if (estHeight != line.height) updateLineHeight(line, estHeight);
   }
 
+  // Detach a line from the document tree and its markers.
   function cleanUpLine(line) {
     line.parent = null;
     detachMarkedSpans(line);
   }
 
-  // Run the given mode's parser over a line, update the styles
-  // array, which contains alternating fragments of text and CSS
-  // classes.
+  // Run the given mode's parser over a line, calling f for each token.
   function runMode(cm, text, mode, state, f, forceToEnd) {
     var flattenSpans = mode.flattenSpans;
     if (flattenSpans == null) flattenSpans = cm.options.flattenSpans;
@@ -11690,6 +12951,10 @@ window.CodeMirror = (function() {
       } else {
         style = mode.token(stream, state);
       }
+      if (cm.options.addModeClass) {
+        var mName = CodeMirror.innerMode(mode, state).mode.name;
+        if (mName) style = "m-" + (style ? mName + " " + style : mName);
+      }
       if (!flattenSpans || curStyle != style) {
         if (curStart < stream.start) f(stream.start, curStyle);
         curStart = stream.start; curStyle = style;
@@ -11704,6 +12969,10 @@ window.CodeMirror = (function() {
     }
   }
 
+  // Compute a style array (an array starting with a mode generation
+  // -- for invalidation -- followed by pairs of end positions and
+  // style strings), which is used to highlight the tokens on the
+  // line.
   function highlightLine(cm, line, state, forceToEnd) {
     // A styles array always starts with a number identifying the
     // mode/overlays that it is based on (for easy invalidation).
@@ -11749,7 +13018,8 @@ window.CodeMirror = (function() {
   }
 
   // Lightweight form of highlight -- proceed over this line and
-  // update state, but don't save a style array.
+  // update state, but don't save a style array. Used for lines that
+  // aren't currently visible.
   function processLine(cm, text, state, startAt) {
     var mode = cm.doc.mode;
     var stream = new StringStream(text, cm.options.tabSize);
@@ -11761,11 +13031,14 @@ window.CodeMirror = (function() {
     }
   }
 
-  var styleToClassCache = {};
+  // Convert a style as returned by a mode (either null, or a string
+  // containing one or more styles) to a CSS style. This is cached,
+  // and also looks for line-wide styles.
+  var styleToClassCache = {}, styleToClassCacheWithMode = {};
   function interpretTokenStyle(style, builder) {
     if (!style) return null;
     for (;;) {
-      var lineClass = style.match(/(?:^|\s)line-(background-)?(\S+)/);
+      var lineClass = style.match(/(?:^|\s+)line-(background-)?(\S+)/);
       if (!lineClass) break;
       style = style.slice(0, lineClass.index) + style.slice(lineClass.index + lineClass[0].length);
       var prop = lineClass[1] ? "bgClass" : "textClass";
@@ -11774,58 +13047,54 @@ window.CodeMirror = (function() {
       else if (!(new RegExp("(?:^|\s)" + lineClass[2] + "(?:$|\s)")).test(builder[prop]))
         builder[prop] += " " + lineClass[2];
     }
-    return styleToClassCache[style] ||
-      (styleToClassCache[style] = "cm-" + style.replace(/ +/g, " cm-"));
+    if (/^\s*$/.test(style)) return null;
+    var cache = builder.cm.options.addModeClass ? styleToClassCacheWithMode : styleToClassCache;
+    return cache[style] ||
+      (cache[style] = style.replace(/\S+/g, "cm-$&"));
   }
 
-  function buildLineContent(cm, realLine, measure, copyWidgets) {
-    var merged, line = realLine, empty = true;
-    while (merged = collapsedSpanAtStart(line))
-      line = getLine(cm.doc, merged.find().from.line);
+  // Render the DOM representation of the text of a line. Also builds
+  // up a 'line map', which points at the DOM nodes that represent
+  // specific stretches of text, and is used by the measuring code.
+  // The returned object contains the DOM node, this map, and
+  // information about line-wide styles that were set by the mode.
+  function buildLineContent(cm, lineView) {
+    // The padding-right forces the element to have a 'border', which
+    // is needed on Webkit to be able to get line-level bounding
+    // rectangles for it (in measureChar).
+    var content = elt("span", null, null, webkit ? "padding-right: .1px" : null);
+    var builder = {pre: elt("pre", [content]), content: content, col: 0, pos: 0, cm: cm};
+    lineView.measure = {};
 
-    var builder = {pre: elt("pre"), col: 0, pos: 0,
-                   measure: null, measuredSomething: false, cm: cm,
-                   copyWidgets: copyWidgets};
-
-    do {
-      if (line.text) empty = false;
-      builder.measure = line == realLine && measure;
+    // Iterate over the logical lines that make up this visual line.
+    for (var i = 0; i <= (lineView.rest ? lineView.rest.length : 0); i++) {
+      var line = i ? lineView.rest[i - 1] : lineView.line, order;
       builder.pos = 0;
-      builder.addToken = builder.measure ? buildTokenMeasure : buildToken;
+      builder.addToken = buildToken;
+      // Optionally wire in some hacks into the token-rendering
+      // algorithm, to deal with browser quirks.
       if ((ie || webkit) && cm.getOption("lineWrapping"))
         builder.addToken = buildTokenSplitSpaces(builder.addToken);
-      var next = insertLineContent(line, builder, getLineStyles(cm, line));
-      if (measure && line == realLine && !builder.measuredSomething) {
-        measure[0] = builder.pre.appendChild(zeroWidthElement(cm.display.measure));
-        builder.measuredSomething = true;
-      }
-      if (next) line = getLine(cm.doc, next.to.line);
-    } while (next);
+      if (hasBadBidiRects(cm.display.measure) && (order = getOrder(line)))
+        builder.addToken = buildTokenBadBidi(builder.addToken, order);
+      builder.map = [];
+      insertLineContent(line, builder, getLineStyles(cm, line));
 
-    if (measure && !builder.measuredSomething && !measure[0])
-      measure[0] = builder.pre.appendChild(empty ? elt("span", "\u00a0") : zeroWidthElement(cm.display.measure));
-    if (!builder.pre.firstChild && !lineIsHidden(cm.doc, realLine))
-      builder.pre.appendChild(document.createTextNode("\u00a0"));
+      // Ensure at least a single node is present, for measuring.
+      if (builder.map.length == 0)
+        builder.map.push(0, 0, builder.content.appendChild(zeroWidthElement(cm.display.measure)));
 
-    var order;
-    // Work around problem with the reported dimensions of single-char
-    // direction spans on IE (issue #1129). See also the comment in
-    // cursorCoords.
-    if (measure && (ie || ie_gt10) && (order = getOrder(line))) {
-      var l = order.length - 1;
-      if (order[l].from == order[l].to) --l;
-      var last = order[l], prev = order[l - 1];
-      if (last.from + 1 == last.to && prev && last.level < prev.level) {
-        var span = measure[builder.pos - 1];
-        if (span) span.parentNode.insertBefore(span.measureRight = zeroWidthElement(cm.display.measure),
-                                               span.nextSibling);
+      // Store the map and a cache object for the current logical line
+      if (i == 0) {
+        lineView.measure.map = builder.map;
+        lineView.measure.cache = {};
+      } else {
+        (lineView.measure.maps || (lineView.measure.maps = [])).push(builder.map);
+        (lineView.measure.caches || (lineView.measure.caches = [])).push({});
       }
     }
 
-    var textClass = builder.textClass ? builder.textClass + " " + (realLine.textClass || "") : realLine.textClass;
-    if (textClass) builder.pre.className = textClass;
-
-    signal(cm, "renderLine", cm, realLine, builder.pre);
+    signal(cm, "renderLine", cm, lineView.line, builder.pre);
     return builder;
   }
 
@@ -11835,12 +13104,17 @@ window.CodeMirror = (function() {
     return token;
   }
 
+  // Build up the DOM representation for a single token, and add it to
+  // the line map. Takes care to render special characters separately.
   function buildToken(builder, text, style, startStyle, endStyle, title) {
     if (!text) return;
-    var special = builder.cm.options.specialChars;
+    var special = builder.cm.options.specialChars, mustWrap = false;
     if (!special.test(text)) {
       builder.col += text.length;
       var content = document.createTextNode(text);
+      builder.map.push(builder.pos, builder.pos + text.length, content);
+      if (ie_upto8) mustWrap = true;
+      builder.pos += text.length;
     } else {
       var content = document.createDocumentFragment(), pos = 0;
       while (true) {
@@ -11848,57 +13122,38 @@ window.CodeMirror = (function() {
         var m = special.exec(text);
         var skipped = m ? m.index - pos : text.length - pos;
         if (skipped) {
-          content.appendChild(document.createTextNode(text.slice(pos, pos + skipped)));
+          var txt = document.createTextNode(text.slice(pos, pos + skipped));
+          if (ie_upto8) content.appendChild(elt("span", [txt]));
+          else content.appendChild(txt);
+          builder.map.push(builder.pos, builder.pos + skipped, txt);
           builder.col += skipped;
+          builder.pos += skipped;
         }
         if (!m) break;
         pos += skipped + 1;
         if (m[0] == "\t") {
           var tabSize = builder.cm.options.tabSize, tabWidth = tabSize - builder.col % tabSize;
-          content.appendChild(elt("span", spaceStr(tabWidth), "cm-tab"));
+          var txt = content.appendChild(elt("span", spaceStr(tabWidth), "cm-tab"));
           builder.col += tabWidth;
         } else {
-          var token = builder.cm.options.specialCharPlaceholder(m[0]);
-          content.appendChild(token);
+          var txt = builder.cm.options.specialCharPlaceholder(m[0]);
+          if (ie_upto8) content.appendChild(elt("span", [txt]));
+          else content.appendChild(txt);
           builder.col += 1;
         }
+        builder.map.push(builder.pos, builder.pos + 1, txt);
+        builder.pos++;
       }
     }
-    if (style || startStyle || endStyle || builder.measure) {
+    if (style || startStyle || endStyle || mustWrap) {
       var fullStyle = style || "";
       if (startStyle) fullStyle += startStyle;
       if (endStyle) fullStyle += endStyle;
       var token = elt("span", [content], fullStyle);
       if (title) token.title = title;
-      return builder.pre.appendChild(token);
+      return builder.content.appendChild(token);
     }
-    builder.pre.appendChild(content);
-  }
-
-  function buildTokenMeasure(builder, text, style, startStyle, endStyle) {
-    var wrapping = builder.cm.options.lineWrapping;
-    for (var i = 0; i < text.length; ++i) {
-      var ch = text.charAt(i), start = i == 0;
-      if (ch >= "\ud800" && ch < "\udbff" && i < text.length - 1) {
-        ch = text.slice(i, i + 2);
-        ++i;
-      } else if (i && wrapping && spanAffectsWrapping(text, i)) {
-        builder.pre.appendChild(elt("wbr"));
-      }
-      var old = builder.measure[builder.pos];
-      var span = builder.measure[builder.pos] =
-        buildToken(builder, ch, style,
-                   start && startStyle, i == text.length - 1 && endStyle);
-      if (old) span.leftSide = old.leftSide || old;
-      // In IE single-space nodes wrap differently than spaces
-      // embedded in larger text nodes, except when set to
-      // white-space: normal (issue #1268).
-      if (ie && wrapping && ch == " " && i && !/\s/.test(text.charAt(i - 1)) &&
-          i < text.length - 1 && !/\s/.test(text.charAt(i + 1)))
-        span.style.whiteSpace = "normal";
-      builder.pos += ch.length;
-    }
-    if (text.length) builder.measuredSomething = true;
+    builder.content.appendChild(content);
   }
 
   function buildTokenSplitSpaces(inner) {
@@ -11909,29 +13164,36 @@ window.CodeMirror = (function() {
       return out;
     }
     return function(builder, text, style, startStyle, endStyle, title) {
-      return inner(builder, text.replace(/ {3,}/g, split), style, startStyle, endStyle, title);
+      inner(builder, text.replace(/ {3,}/g, split), style, startStyle, endStyle, title);
+    };
+  }
+
+  // Work around nonsense dimensions being reported for stretches of
+  // right-to-left text.
+  function buildTokenBadBidi(inner, order) {
+    return function(builder, text, style, startStyle, endStyle, title) {
+      style = style ? style + " cm-force-border" : "cm-force-border";
+      var start = builder.pos, end = start + text.length;
+      for (;;) {
+        // Find the part that overlaps with the start of this text
+        for (var i = 0; i < order.length; i++) {
+          var part = order[i];
+          if (part.to > start && part.from <= start) break;
+        }
+        if (part.to >= end) return inner(builder, text, style, startStyle, endStyle, title);
+        inner(builder, text.slice(0, part.to - start), style, startStyle, null, title);
+        startStyle = null;
+        text = text.slice(part.to - start);
+        start = part.to;
+      }
     };
   }
 
   function buildCollapsedSpan(builder, size, marker, ignoreWidget) {
-    var widget = !ignoreWidget && marker.replacedWith;
+    var widget = !ignoreWidget && marker.widgetNode;
     if (widget) {
-      if (builder.copyWidgets) widget = widget.cloneNode(true);
-      builder.pre.appendChild(widget);
-      if (builder.measure) {
-        if (size) {
-          builder.measure[builder.pos] = widget;
-        } else {
-          var elt = zeroWidthElement(builder.cm.display.measure);
-          if (marker.type == "bookmark" && !marker.insertLeft)
-            builder.measure[builder.pos] = builder.pre.appendChild(elt);
-          else if (builder.measure[builder.pos])
-            return;
-          else
-            builder.measure[builder.pos] = builder.pre.insertBefore(elt, widget);
-        }
-        builder.measuredSomething = true;
-      }
+      builder.map.push(builder.pos, builder.pos + size, widget);
+      builder.content.appendChild(widget);
     }
     builder.pos += size;
   }
@@ -11961,17 +13223,17 @@ window.CodeMirror = (function() {
             if (m.startStyle && sp.from == pos) spanStartStyle += " " + m.startStyle;
             if (m.endStyle && sp.to == nextChange) spanEndStyle += " " + m.endStyle;
             if (m.title && !title) title = m.title;
-            if (m.collapsed && (!collapsed || collapsed.marker.size < m.size))
+            if (m.collapsed && (!collapsed || compareCollapsedMarkers(collapsed.marker, m) < 0))
               collapsed = sp;
           } else if (sp.from > pos && nextChange > sp.from) {
             nextChange = sp.from;
           }
-          if (m.type == "bookmark" && sp.from == pos && m.replacedWith) foundBookmarks.push(m);
+          if (m.type == "bookmark" && sp.from == pos && m.widgetNode) foundBookmarks.push(m);
         }
         if (collapsed && (collapsed.from || 0) == pos) {
-          buildCollapsedSpan(builder, (collapsed.to == null ? len : collapsed.to) - pos,
+          buildCollapsedSpan(builder, (collapsed.to == null ? len + 1 : collapsed.to) - pos,
                              collapsed.marker, collapsed.from == null);
-          if (collapsed.to == null) return collapsed.marker.find();
+          if (collapsed.to == null) return;
         }
         if (!collapsed && foundBookmarks.length) for (var j = 0; j < foundBookmarks.length; ++j)
           buildCollapsedSpan(builder, 0, foundBookmarks[j]);
@@ -11999,7 +13261,16 @@ window.CodeMirror = (function() {
 
   // DOCUMENT DATA STRUCTURE
 
-  function updateDoc(doc, change, markedSpans, selAfter, estimateHeight) {
+  // By default, updates that start and end at the beginning of a line
+  // are treated specially, in order to make the association of line
+  // widgets and marker elements with the text behave more intuitive.
+  function isWholeLineUpdate(doc, change) {
+    return change.from.ch == 0 && change.to.ch == 0 && lst(change.text) == "" &&
+      (!doc.cm || doc.cm.options.wholeLineUpdateBefore);
+  }
+
+  // Perform a change on the document data structure.
+  function updateDoc(doc, change, markedSpans, estimateHeight) {
     function spansFor(n) {return markedSpans ? markedSpans[n] : null;}
     function update(line, text, spans) {
       updateLine(line, text, spans, estimateHeight);
@@ -12010,12 +13281,11 @@ window.CodeMirror = (function() {
     var firstLine = getLine(doc, from.line), lastLine = getLine(doc, to.line);
     var lastText = lst(text), lastSpans = spansFor(text.length - 1), nlines = to.line - from.line;
 
-    // First adjust the line structure
-    if (from.ch == 0 && to.ch == 0 && lastText == "" &&
-        (!doc.cm || doc.cm.options.wholeLineUpdateBefore)) {
+    // Adjust the line structure
+    if (isWholeLineUpdate(doc, change)) {
       // This is a whole-line replace. Treated specially to make
       // sure line objects move the way they are supposed to.
-      for (var i = 0, e = text.length - 1, added = []; i < e; ++i)
+      for (var i = 0, added = []; i < text.length - 1; ++i)
         added.push(new Line(text[i], spansFor(i), estimateHeight));
       update(lastLine, lastLine.text, lastSpans);
       if (nlines) doc.remove(from.line, nlines);
@@ -12024,7 +13294,7 @@ window.CodeMirror = (function() {
       if (text.length == 1) {
         update(firstLine, firstLine.text.slice(0, from.ch) + lastText + firstLine.text.slice(to.ch), lastSpans);
       } else {
-        for (var added = [], i = 1, e = text.length - 1; i < e; ++i)
+        for (var added = [], i = 1; i < text.length - 1; ++i)
           added.push(new Line(text[i], spansFor(i), estimateHeight));
         added.push(new Line(lastText + firstLine.text.slice(to.ch), lastSpans, estimateHeight));
         update(firstLine, firstLine.text.slice(0, from.ch) + text[0], spansFor(0));
@@ -12036,20 +13306,32 @@ window.CodeMirror = (function() {
     } else {
       update(firstLine, firstLine.text.slice(0, from.ch) + text[0], spansFor(0));
       update(lastLine, lastText + lastLine.text.slice(to.ch), lastSpans);
-      for (var i = 1, e = text.length - 1, added = []; i < e; ++i)
+      for (var i = 1, added = []; i < text.length - 1; ++i)
         added.push(new Line(text[i], spansFor(i), estimateHeight));
       if (nlines > 1) doc.remove(from.line + 1, nlines - 1);
       doc.insert(from.line + 1, added);
     }
 
     signalLater(doc, "change", doc, change);
-    setSelection(doc, selAfter.anchor, selAfter.head, null, true);
   }
+
+  // The document is represented as a BTree consisting of leaves, with
+  // chunk of lines in them, and branches, with up to ten leaves or
+  // other branch nodes below them. The top node is always a branch
+  // node, and is the document object itself (meaning it has
+  // additional methods and properties).
+  //
+  // All nodes have parent links. The tree is used both to go from
+  // line numbers to line objects, and to go from objects to numbers.
+  // It also indexes by height, and is used to convert between height
+  // and line object, and to find the total height of the document.
+  //
+  // See also http://marijnhaverbeke.nl/blog/codemirror-line-tree.html
 
   function LeafChunk(lines) {
     this.lines = lines;
     this.parent = null;
-    for (var i = 0, e = lines.length, height = 0; i < e; ++i) {
+    for (var i = 0, height = 0; i < lines.length; ++i) {
       lines[i].parent = this;
       height += lines[i].height;
     }
@@ -12058,6 +13340,7 @@ window.CodeMirror = (function() {
 
   LeafChunk.prototype = {
     chunkSize: function() { return this.lines.length; },
+    // Remove the n lines at offset 'at'.
     removeInner: function(at, n) {
       for (var i = at, e = at + n; i < e; ++i) {
         var line = this.lines[i];
@@ -12067,14 +13350,18 @@ window.CodeMirror = (function() {
       }
       this.lines.splice(at, n);
     },
+    // Helper used to collapse a small branch into a single leaf.
     collapse: function(lines) {
-      lines.splice.apply(lines, [lines.length, 0].concat(this.lines));
+      lines.push.apply(lines, this.lines);
     },
+    // Insert the given array of lines at offset 'at', count them as
+    // having the given height.
     insertInner: function(at, lines, height) {
       this.height += height;
       this.lines = this.lines.slice(0, at).concat(lines).concat(this.lines.slice(at));
-      for (var i = 0, e = lines.length; i < e; ++i) lines[i].parent = this;
+      for (var i = 0; i < lines.length; ++i) lines[i].parent = this;
     },
+    // Used to iterate over a part of the tree.
     iterN: function(at, n, op) {
       for (var e = at + n; at < e; ++at)
         if (op(this.lines[at])) return true;
@@ -12084,7 +13371,7 @@ window.CodeMirror = (function() {
   function BranchChunk(children) {
     this.children = children;
     var size = 0, height = 0;
-    for (var i = 0, e = children.length; i < e; ++i) {
+    for (var i = 0; i < children.length; ++i) {
       var ch = children[i];
       size += ch.chunkSize(); height += ch.height;
       ch.parent = this;
@@ -12109,7 +13396,10 @@ window.CodeMirror = (function() {
           at = 0;
         } else at -= sz;
       }
-      if (this.size - n < 25) {
+      // If the result is smaller than 25 lines, ensure that it is a
+      // single leaf node.
+      if (this.size - n < 25 &&
+          (this.children.length > 1 || !(this.children[0] instanceof LeafChunk))) {
         var lines = [];
         this.collapse(lines);
         this.children = [new LeafChunk(lines)];
@@ -12117,12 +13407,12 @@ window.CodeMirror = (function() {
       }
     },
     collapse: function(lines) {
-      for (var i = 0, e = this.children.length; i < e; ++i) this.children[i].collapse(lines);
+      for (var i = 0; i < this.children.length; ++i) this.children[i].collapse(lines);
     },
     insertInner: function(at, lines, height) {
       this.size += lines.length;
       this.height += height;
-      for (var i = 0, e = this.children.length; i < e; ++i) {
+      for (var i = 0; i < this.children.length; ++i) {
         var child = this.children[i], sz = child.chunkSize();
         if (at <= sz) {
           child.insertInner(at, lines, height);
@@ -12141,6 +13431,7 @@ window.CodeMirror = (function() {
         at -= sz;
       }
     },
+    // When a node has grown, check whether it should be split.
     maybeSpill: function() {
       if (this.children.length <= 10) return;
       var me = this;
@@ -12163,7 +13454,7 @@ window.CodeMirror = (function() {
       me.parent.maybeSpill();
     },
     iterN: function(at, n, op) {
-      for (var i = 0, e = this.children.length; i < e; ++i) {
+      for (var i = 0; i < this.children.length; ++i) {
         var child = this.children[i], sz = child.chunkSize();
         if (at < sz) {
           var used = Math.min(n, sz - at);
@@ -12184,43 +13475,52 @@ window.CodeMirror = (function() {
     this.first = firstLine;
     this.scrollTop = this.scrollLeft = 0;
     this.cantEdit = false;
-    this.history = makeHistory();
     this.cleanGeneration = 1;
     this.frontier = firstLine;
     var start = Pos(firstLine, 0);
-    this.sel = {from: start, to: start, head: start, anchor: start, shift: false, extend: false, goalColumn: null};
+    this.sel = simpleSelection(start);
+    this.history = new History(null);
     this.id = ++nextDocId;
     this.modeOption = mode;
 
     if (typeof text == "string") text = splitLines(text);
-    updateDoc(this, {from: start, to: start, text: text}, null, {head: start, anchor: start});
+    updateDoc(this, {from: start, to: start, text: text});
+    setSelection(this, simpleSelection(start), sel_dontScroll);
   };
 
   Doc.prototype = createObj(BranchChunk.prototype, {
     constructor: Doc,
+    // Iterate over the document. Supports two forms -- with only one
+    // argument, it calls that for each line in the document. With
+    // three, it iterates over the range given by the first two (with
+    // the second being non-inclusive).
     iter: function(from, to, op) {
       if (op) this.iterN(from - this.first, to - from, op);
       else this.iterN(this.first, this.first + this.size, from);
     },
 
+    // Non-public interface for adding and removing lines.
     insert: function(at, lines) {
       var height = 0;
-      for (var i = 0, e = lines.length; i < e; ++i) height += lines[i].height;
+      for (var i = 0; i < lines.length; ++i) height += lines[i].height;
       this.insertInner(at - this.first, lines, height);
     },
     remove: function(at, n) { this.removeInner(at - this.first, n); },
+
+    // From here, the methods are part of the public interface. Most
+    // are also available from CodeMirror (editor) instances.
 
     getValue: function(lineSep) {
       var lines = getLines(this, this.first, this.first + this.size);
       if (lineSep === false) return lines;
       return lines.join(lineSep || "\n");
     },
-    setValue: function(code) {
+    setValue: docMethodOp(function(code) {
       var top = Pos(this.first, 0), last = this.first + this.size - 1;
       makeChange(this, {from: top, to: Pos(last, getLine(this, last).text.length),
-                        text: splitLines(code), origin: "setValue"},
-                 {head: top, anchor: top}, true);
-    },
+                        text: splitLines(code), origin: "setValue"}, true);
+      setSelection(this, simpleSelection(top));
+    }),
     replaceRange: function(code, from, to, origin) {
       from = clipPos(this, from);
       to = to ? clipPos(this, to) : from;
@@ -12233,21 +13533,13 @@ window.CodeMirror = (function() {
     },
 
     getLine: function(line) {var l = this.getLineHandle(line); return l && l.text;},
-    setLine: function(line, text) {
-      if (isLine(this, line))
-        replaceRange(this, text, Pos(line, 0), clipPos(this, Pos(line)));
-    },
-    removeLine: function(line) {
-      if (line) replaceRange(this, "", clipPos(this, Pos(line - 1)), clipPos(this, Pos(line)));
-      else replaceRange(this, "", Pos(0, 0), clipPos(this, Pos(1, 0)));
-    },
 
     getLineHandle: function(line) {if (isLine(this, line)) return getLine(this, line);},
     getLineNumber: function(line) {return lineNo(line);},
 
     getLineHandleVisualStart: function(line) {
       if (typeof line == "number") line = getLine(this, line);
-      return visualLine(this, line);
+      return visualLine(line);
     },
 
     lineCount: function() {return this.size;},
@@ -12257,47 +13549,103 @@ window.CodeMirror = (function() {
     clipPos: function(pos) {return clipPos(this, pos);},
 
     getCursor: function(start) {
-      var sel = this.sel, pos;
-      if (start == null || start == "head") pos = sel.head;
-      else if (start == "anchor") pos = sel.anchor;
-      else if (start == "end" || start === false) pos = sel.to;
-      else pos = sel.from;
-      return copyPos(pos);
+      var range = this.sel.primary(), pos;
+      if (start == null || start == "head") pos = range.head;
+      else if (start == "anchor") pos = range.anchor;
+      else if (start == "end" || start == "to" || start === false) pos = range.to();
+      else pos = range.from();
+      return pos;
     },
-    somethingSelected: function() {return !posEq(this.sel.head, this.sel.anchor);},
+    listSelections: function() { return this.sel.ranges; },
+    somethingSelected: function() {return this.sel.somethingSelected();},
 
-    setCursor: docOperation(function(line, ch, extend) {
-      var pos = clipPos(this, typeof line == "number" ? Pos(line, ch || 0) : line);
-      if (extend) extendSelection(this, pos);
-      else setSelection(this, pos, pos);
+    setCursor: docMethodOp(function(line, ch, options) {
+      setSimpleSelection(this, clipPos(this, typeof line == "number" ? Pos(line, ch || 0) : line), null, options);
     }),
-    setSelection: docOperation(function(anchor, head, bias) {
-      setSelection(this, clipPos(this, anchor), clipPos(this, head || anchor), bias);
+    setSelection: docMethodOp(function(anchor, head, options) {
+      setSimpleSelection(this, clipPos(this, anchor), clipPos(this, head || anchor), options);
     }),
-    extendSelection: docOperation(function(from, to, bias) {
-      extendSelection(this, clipPos(this, from), to && clipPos(this, to), bias);
+    extendSelection: docMethodOp(function(head, other, options) {
+      extendSelection(this, clipPos(this, head), other && clipPos(this, other), options);
+    }),
+    extendSelections: docMethodOp(function(heads, options) {
+      extendSelections(this, clipPosArray(this, heads, options));
+    }),
+    extendSelectionsBy: docMethodOp(function(f, options) {
+      extendSelections(this, map(this.sel.ranges, f), options);
+    }),
+    setSelections: docMethodOp(function(ranges, primary, options) {
+      if (!ranges.length) return;
+      for (var i = 0, out = []; i < ranges.length; i++)
+        out[i] = new Range(clipPos(this, ranges[i].anchor),
+                           clipPos(this, ranges[i].head));
+      if (primary == null) primary = Math.min(ranges.length - 1, this.sel.primIndex);
+      setSelection(this, normalizeSelection(out, primary), options);
+    }),
+    addSelection: docMethodOp(function(anchor, head, options) {
+      var ranges = this.sel.ranges.slice(0);
+      ranges.push(new Range(clipPos(this, anchor), clipPos(this, head || anchor)));
+      setSelection(this, normalizeSelection(ranges, ranges.length - 1), options);
     }),
 
-    getSelection: function(lineSep) {return this.getRange(this.sel.from, this.sel.to, lineSep);},
-    replaceSelection: function(code, collapse, origin) {
-      makeChange(this, {from: this.sel.from, to: this.sel.to, text: splitLines(code), origin: origin}, collapse || "around");
+    getSelection: function(lineSep) {
+      var ranges = this.sel.ranges, lines;
+      for (var i = 0; i < ranges.length; i++) {
+        var sel = getBetween(this, ranges[i].from(), ranges[i].to());
+        lines = lines ? lines.concat(sel) : sel;
+      }
+      if (lineSep === false) return lines;
+      else return lines.join(lineSep || "\n");
     },
-    undo: docOperation(function() {makeChangeFromHistory(this, "undo");}),
-    redo: docOperation(function() {makeChangeFromHistory(this, "redo");}),
+    getSelections: function(lineSep) {
+      var parts = [], ranges = this.sel.ranges;
+      for (var i = 0; i < ranges.length; i++) {
+        var sel = getBetween(this, ranges[i].from(), ranges[i].to());
+        if (lineSep !== false) sel = sel.join(lineSep || "\n");
+        parts[i] = sel;
+      }
+      return parts;
+    },
+    replaceSelection: docMethodOp(function(code, collapse, origin) {
+      var dup = [];
+      for (var i = 0; i < this.sel.ranges.length; i++)
+        dup[i] = code;
+      this.replaceSelections(dup, collapse, origin || "+input");
+    }),
+    replaceSelections: function(code, collapse, origin) {
+      var changes = [], sel = this.sel;
+      for (var i = 0; i < sel.ranges.length; i++) {
+        var range = sel.ranges[i];
+        changes[i] = {from: range.from(), to: range.to(), text: splitLines(code[i]), origin: origin};
+      }
+      var newSel = collapse && collapse != "end" && computeReplacedSel(this, changes, collapse);
+      for (var i = changes.length - 1; i >= 0; i--)
+        makeChange(this, changes[i]);
+      if (newSel) setSelectionReplaceHistory(this, newSel);
+      else if (this.cm) ensureCursorVisible(this.cm);
+    },
+    undo: docMethodOp(function() {makeChangeFromHistory(this, "undo");}),
+    redo: docMethodOp(function() {makeChangeFromHistory(this, "redo");}),
+    undoSelection: docMethodOp(function() {makeChangeFromHistory(this, "undo", true);}),
+    redoSelection: docMethodOp(function() {makeChangeFromHistory(this, "redo", true);}),
 
-    setExtending: function(val) {this.sel.extend = val;},
+    setExtending: function(val) {this.extend = val;},
+    getExtending: function() {return this.extend;},
 
     historySize: function() {
-      var hist = this.history;
-      return {undo: hist.done.length, redo: hist.undone.length};
+      var hist = this.history, done = 0, undone = 0;
+      for (var i = 0; i < hist.done.length; i++) if (!hist.done[i].ranges) ++done;
+      for (var i = 0; i < hist.undone.length; i++) if (!hist.undone[i].ranges) ++undone;
+      return {undo: done, redo: undone};
     },
-    clearHistory: function() {this.history = makeHistory(this.history.maxGeneration);},
+    clearHistory: function() {this.history = new History(this.history.maxGeneration);},
 
     markClean: function() {
-      this.cleanGeneration = this.changeGeneration();
+      this.cleanGeneration = this.changeGeneration(true);
     },
-    changeGeneration: function() {
-      this.history.lastOp = this.history.lastOrigin = null;
+    changeGeneration: function(forceSplit) {
+      if (forceSplit)
+        this.history.lastOp = this.history.lastOrigin = null;
       return this.history.generation;
     },
     isClean: function (gen) {
@@ -12309,9 +13657,9 @@ window.CodeMirror = (function() {
               undone: copyHistoryArray(this.history.undone)};
     },
     setHistory: function(histData) {
-      var hist = this.history = makeHistory(this.history.maxGeneration);
-      hist.done = histData.done.slice(0);
-      hist.undone = histData.undone.slice(0);
+      var hist = this.history = new History(this.history.maxGeneration);
+      hist.done = copyHistoryArray(histData.done.slice(0), null, true);
+      hist.undone = copyHistoryArray(histData.undone.slice(0), null, true);
     },
 
     markText: function(from, to, options) {
@@ -12319,7 +13667,8 @@ window.CodeMirror = (function() {
     },
     setBookmark: function(pos, options) {
       var realOpts = {replacedWith: options && (options.nodeType == null ? options.widget : options),
-                      insertLeft: options && options.insertLeft};
+                      insertLeft: options && options.insertLeft,
+                      clearWhenEmpty: false, shared: options && options.shared};
       pos = clipPos(this, pos);
       return markText(this, pos, pos, realOpts, "bookmark");
     },
@@ -12333,6 +13682,22 @@ window.CodeMirror = (function() {
           markers.push(span.marker.parent || span.marker);
       }
       return markers;
+    },
+    findMarks: function(from, to) {
+      from = clipPos(this, from); to = clipPos(this, to);
+      var found = [], lineNo = from.line;
+      this.iter(from.line, to.line + 1, function(line) {
+        var spans = line.markedSpans;
+        if (spans) for (var i = 0; i < spans.length; i++) {
+          var span = spans[i];
+          if (!(lineNo == from.line && from.ch > span.to ||
+                span.from == null && lineNo != from.line||
+                lineNo == to.line && span.from > to.ch))
+            found.push(span.marker.parent || span.marker);
+        }
+        ++lineNo;
+      });
+      return found;
     },
     getAllMarks: function() {
       var markers = [];
@@ -12367,8 +13732,8 @@ window.CodeMirror = (function() {
     copy: function(copyHistory) {
       var doc = new Doc(getLines(this, this.first, this.first + this.size), this.modeOption, this.first);
       doc.scrollTop = this.scrollTop; doc.scrollLeft = this.scrollLeft;
-      doc.sel = {from: this.sel.from, to: this.sel.to, head: this.sel.head, anchor: this.sel.anchor,
-                 shift: this.sel.shift, extend: false, goalColumn: this.sel.goalColumn};
+      doc.sel = this.sel;
+      doc.extend = false;
       if (copyHistory) {
         doc.history.undoDepth = this.history.undoDepth;
         doc.setHistory(this.getHistory());
@@ -12400,7 +13765,7 @@ window.CodeMirror = (function() {
       if (other.history == this.history) {
         var splitIds = [other.id];
         linkedDocs(other, function(doc) {splitIds.push(doc.id);}, true);
-        other.history = makeHistory();
+        other.history = new History(null);
         other.history.done = copyHistoryArray(this.history.done, splitIds);
         other.history.undone = copyHistoryArray(this.history.undone, splitIds);
       }
@@ -12411,9 +13776,10 @@ window.CodeMirror = (function() {
     getEditor: function() {return this.cm;}
   });
 
+  // Public alias.
   Doc.prototype.eachLine = Doc.prototype.iter;
 
-  // The Doc methods that should be available on CodeMirror instances
+  // Set up methods on CodeMirror's prototype to redirect to the editor's document.
   var dontDelegate = "iter insert remove copy getEditor".split(" ");
   for (var prop in Doc.prototype) if (Doc.prototype.hasOwnProperty(prop) && indexOf(dontDelegate, prop) < 0)
     CodeMirror.prototype[prop] = (function(method) {
@@ -12422,6 +13788,7 @@ window.CodeMirror = (function() {
 
   eventMixin(Doc);
 
+  // Call f for all linked documents.
   function linkedDocs(doc, f, sharedHistOnly) {
     function propagate(doc, skip, sharedHist) {
       if (doc.linked) for (var i = 0; i < doc.linked.length; ++i) {
@@ -12436,22 +13803,25 @@ window.CodeMirror = (function() {
     propagate(doc, null, true);
   }
 
+  // Attach a document to an editor.
   function attachDoc(cm, doc) {
     if (doc.cm) throw new Error("This document is already in use.");
     cm.doc = doc;
     doc.cm = cm;
     estimateLineHeights(cm);
     loadMode(cm);
-    if (!cm.options.lineWrapping) computeMaxLength(cm);
+    if (!cm.options.lineWrapping) findMaxLine(cm);
     cm.options.mode = doc.modeOption;
     regChange(cm);
   }
 
   // LINE UTILITIES
 
-  function getLine(chunk, n) {
-    n -= chunk.first;
-    while (!chunk.lines) {
+  // Find the line object corresponding to the given line number.
+  function getLine(doc, n) {
+    n -= doc.first;
+    if (n < 0 || n >= doc.size) throw new Error("There is no line " + (n + doc.first) + " in the document.");
+    for (var chunk = doc; !chunk.lines;) {
       for (var i = 0;; ++i) {
         var child = chunk.children[i], sz = child.chunkSize();
         if (n < sz) { chunk = child; break; }
@@ -12461,6 +13831,8 @@ window.CodeMirror = (function() {
     return chunk.lines[n];
   }
 
+  // Get the part of a document between two positions, as an array of
+  // strings.
   function getBetween(doc, start, end) {
     var out = [], n = start.line;
     doc.iter(start.line, end.line + 1, function(line) {
@@ -12472,17 +13844,22 @@ window.CodeMirror = (function() {
     });
     return out;
   }
+  // Get the lines between from and to, as array of strings.
   function getLines(doc, from, to) {
     var out = [];
     doc.iter(from, to, function(line) { out.push(line.text); });
     return out;
   }
 
+  // Update the height of a line, propagating the height change
+  // upwards to parent nodes.
   function updateLineHeight(line, height) {
     var diff = height - line.height;
-    for (var n = line; n; n = n.parent) n.height += diff;
+    if (diff) for (var n = line; n; n = n.parent) n.height += diff;
   }
 
+  // Given a line object, find its line number by walking up through
+  // its parent links.
   function lineNo(line) {
     if (line.parent == null) return null;
     var cur = line.parent, no = indexOf(cur.lines, line);
@@ -12495,10 +13872,12 @@ window.CodeMirror = (function() {
     return no + cur.first;
   }
 
+  // Find the line at the given vertical position, using the height
+  // information in the document tree.
   function lineAtHeight(chunk, h) {
     var n = chunk.first;
     outer: do {
-      for (var i = 0, e = chunk.children.length; i < e; ++i) {
+      for (var i = 0; i < chunk.children.length; ++i) {
         var child = chunk.children[i], ch = child.height;
         if (h < ch) { chunk = child; continue outer; }
         h -= ch;
@@ -12506,7 +13885,7 @@ window.CodeMirror = (function() {
       }
       return n;
     } while (!chunk.lines);
-    for (var i = 0, e = chunk.lines.length; i < e; ++i) {
+    for (var i = 0; i < chunk.lines.length; ++i) {
       var line = chunk.lines[i], lh = line.height;
       if (h < lh) break;
       h -= lh;
@@ -12514,8 +13893,10 @@ window.CodeMirror = (function() {
     return n + i;
   }
 
-  function heightAtLine(cm, lineObj) {
-    lineObj = visualLine(cm.doc, lineObj);
+
+  // Find the height above the given line.
+  function heightAtLine(lineObj) {
+    lineObj = visualLine(lineObj);
 
     var h = 0, chunk = lineObj.parent;
     for (var i = 0; i < chunk.lines.length; ++i) {
@@ -12533,6 +13914,9 @@ window.CodeMirror = (function() {
     return h;
   }
 
+  // Get the bidi ordering for the given line (and cache it). Returns
+  // false for lines that are fully left-to-right, and an array of
+  // BidiSpan objects otherwise.
   function getOrder(line) {
     var order = line.order;
     if (order == null) order = line.order = bidiOrdering(line.text);
@@ -12541,20 +13925,141 @@ window.CodeMirror = (function() {
 
   // HISTORY
 
-  function makeHistory(startGen) {
-    return {
-      // Arrays of history events. Doing something adds an event to
-      // done and clears undo. Undoing moves events from done to
-      // undone, redoing moves them in the other direction.
-      done: [], undone: [], undoDepth: Infinity,
-      // Used to track when changes can be merged into a single undo
-      // event
-      lastTime: 0, lastOp: null, lastOrigin: null,
-      // Used by the isClean() method
-      generation: startGen || 1, maxGeneration: startGen || 1
-    };
+  function History(startGen) {
+    // Arrays of change events and selections. Doing something adds an
+    // event to done and clears undo. Undoing moves events from done
+    // to undone, redoing moves them in the other direction.
+    this.done = []; this.undone = [];
+    this.undoDepth = Infinity;
+    // Used to track when changes can be merged into a single undo
+    // event
+    this.lastModTime = this.lastSelTime = 0;
+    this.lastOp = null;
+    this.lastOrigin = this.lastSelOrigin = null;
+    // Used by the isClean() method
+    this.generation = this.maxGeneration = startGen || 1;
   }
 
+  // Create a history change event from an updateDoc-style change
+  // object.
+  function historyChangeFromChange(doc, change) {
+    var histChange = {from: copyPos(change.from), to: changeEnd(change), text: getBetween(doc, change.from, change.to)};
+    attachLocalSpans(doc, histChange, change.from.line, change.to.line + 1);
+    linkedDocs(doc, function(doc) {attachLocalSpans(doc, histChange, change.from.line, change.to.line + 1);}, true);
+    return histChange;
+  }
+
+  // Pop all selection events off the end of a history array. Stop at
+  // a change event.
+  function clearSelectionEvents(array) {
+    while (array.length) {
+      var last = lst(array);
+      if (last.ranges) array.pop();
+      else break;
+    }
+  }
+
+  // Find the top change event in the history. Pop off selection
+  // events that are in the way.
+  function lastChangeEvent(hist, force) {
+    if (force) {
+      clearSelectionEvents(hist.done);
+      return lst(hist.done);
+    } else if (hist.done.length && !lst(hist.done).ranges) {
+      return lst(hist.done);
+    } else if (hist.done.length > 1 && !hist.done[hist.done.length - 2].ranges) {
+      hist.done.pop();
+      return lst(hist.done);
+    }
+  }
+
+  // Register a change in the history. Merges changes that are within
+  // a single operation, ore are close together with an origin that
+  // allows merging (starting with "+") into a single event.
+  function addChangeToHistory(doc, change, selAfter, opId) {
+    var hist = doc.history;
+    hist.undone.length = 0;
+    var time = +new Date, cur;
+
+    if ((hist.lastOp == opId ||
+         hist.lastOrigin == change.origin && change.origin &&
+         ((change.origin.charAt(0) == "+" && doc.cm && hist.lastModTime > time - doc.cm.options.historyEventDelay) ||
+          change.origin.charAt(0) == "*")) &&
+        (cur = lastChangeEvent(hist, hist.lastOp == opId))) {
+      // Merge this change into the last event
+      var last = lst(cur.changes);
+      if (cmp(change.from, change.to) == 0 && cmp(change.from, last.to) == 0) {
+        // Optimized case for simple insertion -- don't want to add
+        // new changesets for every character typed
+        last.to = changeEnd(change);
+      } else {
+        // Add new sub-event
+        cur.changes.push(historyChangeFromChange(doc, change));
+      }
+    } else {
+      // Can not be merged, start a new event.
+      var before = lst(hist.done);
+      if (!before || !before.ranges)
+        pushSelectionToHistory(doc.sel, hist.done);
+      cur = {changes: [historyChangeFromChange(doc, change)],
+             generation: hist.generation};
+      hist.done.push(cur);
+      while (hist.done.length > hist.undoDepth) {
+        hist.done.shift();
+        if (!hist.done[0].ranges) hist.done.shift();
+      }
+    }
+    hist.done.push(selAfter);
+    hist.generation = ++hist.maxGeneration;
+    hist.lastModTime = hist.lastSelTime = time;
+    hist.lastOp = opId;
+    hist.lastOrigin = hist.lastSelOrigin = change.origin;
+
+    if (!last) signal(doc, "historyAdded");
+  }
+
+  function selectionEventCanBeMerged(doc, origin, prev, sel) {
+    var ch = origin.charAt(0);
+    return ch == "*" ||
+      ch == "+" &&
+      prev.ranges.length == sel.ranges.length &&
+      prev.somethingSelected() == sel.somethingSelected() &&
+      new Date - doc.history.lastSelTime <= (doc.cm ? doc.cm.options.historyEventDelay : 500);
+  }
+
+  // Called whenever the selection changes, sets the new selection as
+  // the pending selection in the history, and pushes the old pending
+  // selection into the 'done' array when it was significantly
+  // different (in number of selected ranges, emptiness, or time).
+  function addSelectionToHistory(doc, sel, opId, options) {
+    var hist = doc.history, origin = options && options.origin;
+
+    // A new event is started when the previous origin does not match
+    // the current, or the origins don't allow matching. Origins
+    // starting with * are always merged, those starting with + are
+    // merged when similar and close together in time.
+    if (opId == hist.lastOp ||
+        (origin && hist.lastSelOrigin == origin &&
+         (hist.lastModTime == hist.lastSelTime && hist.lastOrigin == origin ||
+          selectionEventCanBeMerged(doc, origin, lst(hist.done), sel))))
+      hist.done[hist.done.length - 1] = sel;
+    else
+      pushSelectionToHistory(sel, hist.done);
+
+    hist.lastSelTime = +new Date;
+    hist.lastSelOrigin = origin;
+    hist.lastOp = opId;
+    if (options && options.clearRedo !== false)
+      clearSelectionEvents(hist.undone);
+  }
+
+  function pushSelectionToHistory(sel, dest) {
+    var top = lst(dest);
+    if (!(top && top.ranges && top.equals(sel)))
+      dest.push(sel);
+  }
+
+  // Used to store marked span information in the history.
   function attachLocalSpans(doc, change, from, to) {
     var existing = change["spans_" + doc.id], n = 0;
     doc.iter(Math.max(doc.first, from), Math.min(doc.first + doc.size, to), function(line) {
@@ -12564,51 +14069,8 @@ window.CodeMirror = (function() {
     });
   }
 
-  function historyChangeFromChange(doc, change) {
-    var from = { line: change.from.line, ch: change.from.ch };
-    var histChange = {from: from, to: changeEnd(change), text: getBetween(doc, change.from, change.to)};
-    attachLocalSpans(doc, histChange, change.from.line, change.to.line + 1);
-    linkedDocs(doc, function(doc) {attachLocalSpans(doc, histChange, change.from.line, change.to.line + 1);}, true);
-    return histChange;
-  }
-
-  function addToHistory(doc, change, selAfter, opId) {
-    var hist = doc.history;
-    hist.undone.length = 0;
-    var time = +new Date, cur = lst(hist.done);
-
-    if (cur &&
-        (hist.lastOp == opId ||
-         hist.lastOrigin == change.origin && change.origin &&
-         ((change.origin.charAt(0) == "+" && doc.cm && hist.lastTime > time - doc.cm.options.historyEventDelay) ||
-          change.origin.charAt(0) == "*"))) {
-      // Merge this change into the last event
-      var last = lst(cur.changes);
-      if (posEq(change.from, change.to) && posEq(change.from, last.to)) {
-        // Optimized case for simple insertion -- don't want to add
-        // new changesets for every character typed
-        last.to = changeEnd(change);
-      } else {
-        // Add new sub-event
-        cur.changes.push(historyChangeFromChange(doc, change));
-      }
-      cur.anchorAfter = selAfter.anchor; cur.headAfter = selAfter.head;
-    } else {
-      // Can not be merged, start a new event.
-      cur = {changes: [historyChangeFromChange(doc, change)],
-             generation: hist.generation,
-             anchorBefore: doc.sel.anchor, headBefore: doc.sel.head,
-             anchorAfter: selAfter.anchor, headAfter: selAfter.head};
-      hist.done.push(cur);
-      hist.generation = ++hist.maxGeneration;
-      while (hist.done.length > hist.undoDepth)
-        hist.done.shift();
-    }
-    hist.lastTime = time;
-    hist.lastOp = opId;
-    hist.lastOrigin = change.origin;
-  }
-
+  // When un/re-doing restores text containing marked spans, those
+  // that have been explicitly cleared should not be restored.
   function removeClearedSpans(spans) {
     if (!spans) return null;
     for (var i = 0, out; i < spans.length; ++i) {
@@ -12618,6 +14080,7 @@ window.CodeMirror = (function() {
     return !out ? spans : out.length ? out : null;
   }
 
+  // Retrieve and filter the old marked spans stored in a change event.
   function getOldSpans(doc, change) {
     var found = change["spans_" + doc.id];
     if (!found) return null;
@@ -12628,11 +14091,15 @@ window.CodeMirror = (function() {
 
   // Used both to provide a JSON-safe object in .getHistory, and, when
   // detaching a document, to split the history in two
-  function copyHistoryArray(events, newGroup) {
+  function copyHistoryArray(events, newGroup, instantiateSel) {
     for (var i = 0, copy = []; i < events.length; ++i) {
-      var event = events[i], changes = event.changes, newChanges = [];
-      copy.push({changes: newChanges, anchorBefore: event.anchorBefore, headBefore: event.headBefore,
-                 anchorAfter: event.anchorAfter, headAfter: event.headAfter});
+      var event = events[i];
+      if (event.ranges) {
+        copy.push(instantiateSel ? Selection.prototype.deepCopy.call(event) : event);
+        continue;
+      }
+      var changes = event.changes, newChanges = [];
+      copy.push({changes: newChanges});
       for (var j = 0; j < changes.length; ++j) {
         var change = changes[j], m;
         newChanges.push({from: change.from, to: change.to, text: change.text});
@@ -12649,7 +14116,7 @@ window.CodeMirror = (function() {
 
   // Rebasing/resetting history to deal with externally-sourced changes
 
-  function rebaseHistSel(pos, from, to, diff) {
+  function rebaseHistSelSingle(pos, from, to, diff) {
     if (to < pos.line) {
       pos.line += diff;
     } else if (from < pos.line) {
@@ -12668,28 +14135,27 @@ window.CodeMirror = (function() {
   function rebaseHistArray(array, from, to, diff) {
     for (var i = 0; i < array.length; ++i) {
       var sub = array[i], ok = true;
+      if (sub.ranges) {
+        if (!sub.copied) { sub = array[i] = sub.deepCopy(); sub.copied = true; }
+        for (var j = 0; j < sub.ranges.length; j++) {
+          rebaseHistSelSingle(sub.ranges[j].anchor, from, to, diff);
+          rebaseHistSelSingle(sub.ranges[j].head, from, to, diff);
+        }
+        continue;
+      }
       for (var j = 0; j < sub.changes.length; ++j) {
         var cur = sub.changes[j];
-        if (!sub.copied) { cur.from = copyPos(cur.from); cur.to = copyPos(cur.to); }
         if (to < cur.from.line) {
-          cur.from.line += diff;
-          cur.to.line += diff;
+          cur.from = Pos(cur.from.line + diff, cur.from.ch);
+          cur.to = Pos(cur.to.line + diff, cur.to.ch);
         } else if (from <= cur.to.line) {
           ok = false;
           break;
         }
       }
-      if (!sub.copied) {
-        sub.anchorBefore = copyPos(sub.anchorBefore); sub.headBefore = copyPos(sub.headBefore);
-        sub.anchorAfter = copyPos(sub.anchorAfter); sub.readAfter = copyPos(sub.headAfter);
-        sub.copied = true;
-      }
       if (!ok) {
         array.splice(0, i + 1);
         i = 0;
-      } else {
-        rebaseHistSel(sub.anchorBefore); rebaseHistSel(sub.headBefore);
-        rebaseHistSel(sub.anchorAfter); rebaseHistSel(sub.headAfter);
       }
     }
   }
@@ -12700,30 +14166,23 @@ window.CodeMirror = (function() {
     rebaseHistArray(hist.undone, from, to, diff);
   }
 
-  // EVENT OPERATORS
+  // EVENT UTILITIES
 
-  function stopMethod() {e_stop(this);}
-  // Ensure an event has a stop method.
-  function addStop(event) {
-    if (!event.stop) event.stop = stopMethod;
-    return event;
-  }
+  // Due to the fact that we still support jurassic IE versions, some
+  // compatibility wrappers are needed.
 
-  function e_preventDefault(e) {
+  var e_preventDefault = CodeMirror.e_preventDefault = function(e) {
     if (e.preventDefault) e.preventDefault();
     else e.returnValue = false;
-  }
-  function e_stopPropagation(e) {
+  };
+  var e_stopPropagation = CodeMirror.e_stopPropagation = function(e) {
     if (e.stopPropagation) e.stopPropagation();
     else e.cancelBubble = true;
-  }
+  };
   function e_defaultPrevented(e) {
     return e.defaultPrevented != null ? e.defaultPrevented : e.returnValue == false;
   }
-  function e_stop(e) {e_preventDefault(e); e_stopPropagation(e);}
-  CodeMirror.e_stop = e_stop;
-  CodeMirror.e_preventDefault = e_preventDefault;
-  CodeMirror.e_stopPropagation = e_stopPropagation;
+  var e_stop = CodeMirror.e_stop = function(e) {e_preventDefault(e); e_stopPropagation(e);};
 
   function e_target(e) {return e.target || e.srcElement;}
   function e_button(e) {
@@ -12739,7 +14198,10 @@ window.CodeMirror = (function() {
 
   // EVENT HANDLING
 
-  function on(emitter, type, f) {
+  // Lightweight event framework. on/off also work on DOM nodes,
+  // registering native DOM handlers.
+
+  var on = CodeMirror.on = function(emitter, type, f) {
     if (emitter.addEventListener)
       emitter.addEventListener(type, f, false);
     else if (emitter.attachEvent)
@@ -12749,9 +14211,9 @@ window.CodeMirror = (function() {
       var arr = map[type] || (map[type] = []);
       arr.push(f);
     }
-  }
+  };
 
-  function off(emitter, type, f) {
+  var off = CodeMirror.off = function(emitter, type, f) {
     if (emitter.removeEventListener)
       emitter.removeEventListener(type, f, false);
     else if (emitter.detachEvent)
@@ -12762,15 +14224,22 @@ window.CodeMirror = (function() {
       for (var i = 0; i < arr.length; ++i)
         if (arr[i] == f) { arr.splice(i, 1); break; }
     }
-  }
+  };
 
-  function signal(emitter, type /*, values...*/) {
+  var signal = CodeMirror.signal = function(emitter, type /*, values...*/) {
     var arr = emitter._handlers && emitter._handlers[type];
     if (!arr) return;
     var args = Array.prototype.slice.call(arguments, 2);
     for (var i = 0; i < arr.length; ++i) arr[i].apply(null, args);
-  }
+  };
 
+  // Often, we want to signal events at a point where we are in the
+  // middle of some work, but don't want the handler to start calling
+  // other methods on the editor, which might be in an inconsistent
+  // state or simply not expect any other events to happen.
+  // signalLater looks whether there are any handlers, and schedules
+  // them to be executed when the last operation ends, or, if no
+  // operation is active, when a timeout fires.
   var delayedCallbacks, delayedCallbackDepth = 0;
   function signalLater(emitter, type /*, values...*/) {
     var arr = emitter._handlers && emitter._handlers[type];
@@ -12786,11 +14255,6 @@ window.CodeMirror = (function() {
       delayedCallbacks.push(bnd(arr[i]));
   }
 
-  function signalDOMEvent(cm, e, override) {
-    signal(cm, override || e.type, cm, e);
-    return e_defaultPrevented(e) || e.codemirrorIgnore;
-  }
-
   function fireDelayed() {
     --delayedCallbackDepth;
     var delayed = delayedCallbacks;
@@ -12798,13 +14262,21 @@ window.CodeMirror = (function() {
     for (var i = 0; i < delayed.length; ++i) delayed[i]();
   }
 
+  // The DOM events that CodeMirror handles can be overridden by
+  // registering a (non-DOM) handler on the editor for the event name,
+  // and preventDefault-ing the event in that handler.
+  function signalDOMEvent(cm, e, override) {
+    signal(cm, override || e.type, cm, e);
+    return e_defaultPrevented(e) || e.codemirrorIgnore;
+  }
+
   function hasHandler(emitter, type) {
     var arr = emitter._handlers && emitter._handlers[type];
     return arr && arr.length > 0;
   }
 
-  CodeMirror.on = on; CodeMirror.off = off; CodeMirror.signal = signal;
-
+  // Add on and off methods to a constructor's prototype, to make
+  // registering events on such objects more convenient.
   function eventMixin(ctor) {
     ctor.prototype.on = function(type, f) {on(this, type, f);};
     ctor.prototype.off = function(type, f) {off(this, type, f);};
@@ -12819,23 +14291,47 @@ window.CodeMirror = (function() {
   // handling this'.
   var Pass = CodeMirror.Pass = {toString: function(){return "CodeMirror.Pass";}};
 
+  // Reused option objects for setSelection & friends
+  var sel_dontScroll = {scroll: false}, sel_mouse = {origin: "*mouse"}, sel_move = {origin: "+move"};
+
   function Delayed() {this.id = null;}
-  Delayed.prototype = {set: function(ms, f) {clearTimeout(this.id); this.id = setTimeout(f, ms);}};
+  Delayed.prototype.set = function(ms, f) {
+    clearTimeout(this.id);
+    this.id = setTimeout(f, ms);
+  };
 
   // Counts the column offset in a string, taking tabs into account.
   // Used mostly to find indentation.
-  function countColumn(string, end, tabSize, startIndex, startValue) {
+  var countColumn = CodeMirror.countColumn = function(string, end, tabSize, startIndex, startValue) {
     if (end == null) {
       end = string.search(/[^\s\u00a0]/);
       if (end == -1) end = string.length;
     }
-    for (var i = startIndex || 0, n = startValue || 0; i < end; ++i) {
-      if (string.charAt(i) == "\t") n += tabSize - (n % tabSize);
-      else ++n;
+    for (var i = startIndex || 0, n = startValue || 0;;) {
+      var nextTab = string.indexOf("\t", i);
+      if (nextTab < 0 || nextTab >= end)
+        return n + (end - i);
+      n += nextTab - i;
+      n += tabSize - (n % tabSize);
+      i = nextTab + 1;
     }
-    return n;
+  };
+
+  // The inverse of countColumn -- find the offset that corresponds to
+  // a particular column.
+  function findColumn(string, goal, tabSize) {
+    for (var pos = 0, col = 0;;) {
+      var nextTab = string.indexOf("\t", pos);
+      if (nextTab == -1) nextTab = string.length;
+      var skipped = nextTab - pos;
+      if (nextTab == string.length || col + skipped >= goal)
+        return pos + Math.min(skipped, goal - col);
+      col += nextTab - pos;
+      col += tabSize - (col % tabSize);
+      pos = nextTab + 1;
+      if (col >= goal) return pos;
+    }
   }
-  CodeMirror.countColumn = countColumn;
 
   var spaceStrs = [""];
   function spaceStr(n) {
@@ -12846,31 +14342,37 @@ window.CodeMirror = (function() {
 
   function lst(arr) { return arr[arr.length-1]; }
 
-  function selectInput(node) {
-    if (ios) { // Mobile Safari apparently has a bug where select() is broken.
-      node.selectionStart = 0;
-      node.selectionEnd = node.value.length;
-    } else {
-      // Suppress mysterious IE10 errors
-      try { node.select(); }
-      catch(_e) {}
-    }
-  }
+  var selectInput = function(node) { node.select(); };
+  if (ios) // Mobile Safari apparently has a bug where select() is broken.
+    selectInput = function(node) { node.selectionStart = 0; node.selectionEnd = node.value.length; };
+  else if (ie) // Suppress mysterious IE10 errors
+    selectInput = function(node) { try { node.select(); } catch(_e) {} };
 
-  function indexOf(collection, elt) {
-    if (collection.indexOf) return collection.indexOf(elt);
-    for (var i = 0, e = collection.length; i < e; ++i)
-      if (collection[i] == elt) return i;
+  function indexOf(array, elt) {
+    for (var i = 0; i < array.length; ++i)
+      if (array[i] == elt) return i;
     return -1;
   }
+  if ([].indexOf) indexOf = function(array, elt) { return array.indexOf(elt); };
+  function map(array, f) {
+    var out = [];
+    for (var i = 0; i < array.length; i++) out[i] = f(array[i], i);
+    return out;
+  }
+  if ([].map) map = function(array, f) { return array.map(f); };
 
   function createObj(base, props) {
-    function Obj() {}
-    Obj.prototype = base;
-    var inst = new Obj();
+    var inst;
+    if (Object.create) {
+      inst = Object.create(base);
+    } else {
+      var ctor = function() {};
+      ctor.prototype = base;
+      inst = new ctor();
+    }
     if (props) copyObj(props, inst);
     return inst;
-  }
+  };
 
   function copyObj(obj, target) {
     if (!target) target = {};
@@ -12878,28 +14380,29 @@ window.CodeMirror = (function() {
     return target;
   }
 
-  function emptyArray(size) {
-    for (var a = [], i = 0; i < size; ++i) a.push(undefined);
-    return a;
-  }
-
   function bind(f) {
     var args = Array.prototype.slice.call(arguments, 1);
     return function(){return f.apply(null, args);};
   }
 
-  var nonASCIISingleCaseWordChar = /[\u3040-\u309f\u30a0-\u30ff\u3400-\u4db5\u4e00-\u9fcc\uac00-\ud7af]/;
-  function isWordChar(ch) {
+  var nonASCIISingleCaseWordChar = /[\u00df\u3040-\u309f\u30a0-\u30ff\u3400-\u4db5\u4e00-\u9fcc\uac00-\ud7af]/;
+  var isWordChar = CodeMirror.isWordChar = function(ch) {
     return /\w/.test(ch) || ch > "\x80" &&
       (ch.toUpperCase() != ch.toLowerCase() || nonASCIISingleCaseWordChar.test(ch));
-  }
+  };
 
   function isEmpty(obj) {
     for (var n in obj) if (obj.hasOwnProperty(n) && obj[n]) return false;
     return true;
   }
 
-  var isExtendingChar = /[\u0300-\u036F\u0483-\u0487\u0488-\u0489\u0591-\u05BD\u05BF\u05C1-\u05C2\u05C4-\u05C5\u05C7\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7-\u06E8\u06EA-\u06ED\uA66F\u1DC0–\u1DFF\u20D0–\u20FF\uA670-\uA672\uA674-\uA67D\uA69F\udc00-\udfff\uFE20–\uFE2F]/;
+  // Extending unicode characters. A series of a non-extending char +
+  // any number of extending chars is treated as a single unit as far
+  // as editing and measuring is concerned. This is not fully correct,
+  // since some scripts/fonts/browsers also treat other configurations
+  // of code points as a group.
+  var extendingChars = /[\u0300-\u036f\u0483-\u0489\u0591-\u05bd\u05bf\u05c1\u05c2\u05c4\u05c5\u05c7\u0610-\u061a\u064b-\u065e\u0670\u06d6-\u06dc\u06de-\u06e4\u06e7\u06e8\u06ea-\u06ed\u0711\u0730-\u074a\u07a6-\u07b0\u07eb-\u07f3\u0816-\u0819\u081b-\u0823\u0825-\u0827\u0829-\u082d\u0900-\u0902\u093c\u0941-\u0948\u094d\u0951-\u0955\u0962\u0963\u0981\u09bc\u09be\u09c1-\u09c4\u09cd\u09d7\u09e2\u09e3\u0a01\u0a02\u0a3c\u0a41\u0a42\u0a47\u0a48\u0a4b-\u0a4d\u0a51\u0a70\u0a71\u0a75\u0a81\u0a82\u0abc\u0ac1-\u0ac5\u0ac7\u0ac8\u0acd\u0ae2\u0ae3\u0b01\u0b3c\u0b3e\u0b3f\u0b41-\u0b44\u0b4d\u0b56\u0b57\u0b62\u0b63\u0b82\u0bbe\u0bc0\u0bcd\u0bd7\u0c3e-\u0c40\u0c46-\u0c48\u0c4a-\u0c4d\u0c55\u0c56\u0c62\u0c63\u0cbc\u0cbf\u0cc2\u0cc6\u0ccc\u0ccd\u0cd5\u0cd6\u0ce2\u0ce3\u0d3e\u0d41-\u0d44\u0d4d\u0d57\u0d62\u0d63\u0dca\u0dcf\u0dd2-\u0dd4\u0dd6\u0ddf\u0e31\u0e34-\u0e3a\u0e47-\u0e4e\u0eb1\u0eb4-\u0eb9\u0ebb\u0ebc\u0ec8-\u0ecd\u0f18\u0f19\u0f35\u0f37\u0f39\u0f71-\u0f7e\u0f80-\u0f84\u0f86\u0f87\u0f90-\u0f97\u0f99-\u0fbc\u0fc6\u102d-\u1030\u1032-\u1037\u1039\u103a\u103d\u103e\u1058\u1059\u105e-\u1060\u1071-\u1074\u1082\u1085\u1086\u108d\u109d\u135f\u1712-\u1714\u1732-\u1734\u1752\u1753\u1772\u1773\u17b7-\u17bd\u17c6\u17c9-\u17d3\u17dd\u180b-\u180d\u18a9\u1920-\u1922\u1927\u1928\u1932\u1939-\u193b\u1a17\u1a18\u1a56\u1a58-\u1a5e\u1a60\u1a62\u1a65-\u1a6c\u1a73-\u1a7c\u1a7f\u1b00-\u1b03\u1b34\u1b36-\u1b3a\u1b3c\u1b42\u1b6b-\u1b73\u1b80\u1b81\u1ba2-\u1ba5\u1ba8\u1ba9\u1c2c-\u1c33\u1c36\u1c37\u1cd0-\u1cd2\u1cd4-\u1ce0\u1ce2-\u1ce8\u1ced\u1dc0-\u1de6\u1dfd-\u1dff\u200c\u200d\u20d0-\u20f0\u2cef-\u2cf1\u2de0-\u2dff\u302a-\u302f\u3099\u309a\ua66f-\ua672\ua67c\ua67d\ua6f0\ua6f1\ua802\ua806\ua80b\ua825\ua826\ua8c4\ua8e0-\ua8f1\ua926-\ua92d\ua947-\ua951\ua980-\ua982\ua9b3\ua9b6-\ua9b9\ua9bc\uaa29-\uaa2e\uaa31\uaa32\uaa35\uaa36\uaa43\uaa4c\uaab0\uaab2-\uaab4\uaab7\uaab8\uaabe\uaabf\uaac1\uabe5\uabe8\uabed\udc00-\udfff\ufb1e\ufe00-\ufe0f\ufe20-\ufe26\uff9e\uff9f]/;
+  function isExtendingChar(ch) { return ch.charCodeAt(0) >= 768 && extendingChars.test(ch); }
 
   // DOM UTILITIES
 
@@ -12907,10 +14410,26 @@ window.CodeMirror = (function() {
     var e = document.createElement(tag);
     if (className) e.className = className;
     if (style) e.style.cssText = style;
-    if (typeof content == "string") setTextContent(e, content);
+    if (typeof content == "string") e.appendChild(document.createTextNode(content));
     else if (content) for (var i = 0; i < content.length; ++i) e.appendChild(content[i]);
     return e;
   }
+
+  var range;
+  if (document.createRange) range = function(node, start, end) {
+    var r = document.createRange();
+    r.setEnd(node, end);
+    r.setStart(node, start);
+    return r;
+  };
+  else range = function(node, start, end) {
+    var r = document.body.createTextRange();
+    r.moveToElementText(node.parentNode);
+    r.collapse(true);
+    r.moveEnd("character", end);
+    r.moveStart("character", start);
+    return r;
+  };
 
   function removeChildren(e) {
     for (var count = e.childNodes.length; count > 0; --count)
@@ -12922,17 +14441,20 @@ window.CodeMirror = (function() {
     return removeChildren(parent).appendChild(e);
   }
 
-  function setTextContent(e, str) {
-    if (ie_lt9) {
-      e.innerHTML = "";
-      e.appendChild(document.createTextNode(str));
-    } else e.textContent = str;
+  function contains(parent, child) {
+    if (parent.contains)
+      return parent.contains(child);
+    while (child = child.parentNode)
+      if (child == parent) return true;
   }
 
-  function getRect(node) {
-    return node.getBoundingClientRect();
-  }
-  CodeMirror.replaceGetRect = function(f) { getRect = f; };
+  function activeElt() { return document.activeElement; }
+  // Older versions of IE throws unspecified error when touching
+  // document.activeElement in some cases (during loading, in iframe)
+  if (ie_upto10) activeElt = function() {
+    try { return document.activeElement; }
+    catch(e) { return document.body; }
+  };
 
   // FEATURE DETECTION
 
@@ -12940,40 +14462,10 @@ window.CodeMirror = (function() {
   var dragAndDrop = function() {
     // There is *some* kind of drag-and-drop support in IE6-8, but I
     // couldn't get it to work yet.
-    if (ie_lt9) return false;
+    if (ie_upto8) return false;
     var div = elt('div');
     return "draggable" in div || "dragDrop" in div;
   }();
-
-  // For a reason I have yet to figure out, some browsers disallow
-  // word wrapping between certain characters *only* if a new inline
-  // element is started between them. This makes it hard to reliably
-  // measure the position of things, since that requires inserting an
-  // extra span. This terribly fragile set of tests matches the
-  // character combinations that suffer from this phenomenon on the
-  // various browsers.
-  function spanAffectsWrapping() { return false; }
-  if (gecko) // Only for "$'"
-    spanAffectsWrapping = function(str, i) {
-      return str.charCodeAt(i - 1) == 36 && str.charCodeAt(i) == 39;
-    };
-  else if (safari && !/Version\/([6-9]|\d\d)\b/.test(navigator.userAgent))
-    spanAffectsWrapping = function(str, i) {
-      return /\-[^ \-?]|\?[^ !\'\"\),.\-\/:;\?\]\}]/.test(str.slice(i - 1, i + 1));
-    };
-  else if (webkit && /Chrome\/(?:29|[3-9]\d|\d\d\d)\./.test(navigator.userAgent))
-    spanAffectsWrapping = function(str, i) {
-      var code = str.charCodeAt(i - 1);
-      return code >= 8208 && code <= 8212;
-    };
-  else if (webkit)
-    spanAffectsWrapping = function(str, i) {
-      if (i > 1 && str.charCodeAt(i - 1) == 45) {
-        if (/\w/.test(str.charAt(i - 2)) && /[^\-?\.]/.test(str.charAt(i))) return true;
-        if (i > 2 && /[\d\.,]/.test(str.charAt(i - 2)) && /[\d\.,]/.test(str.charAt(i))) return false;
-      }
-      return /[~!#%&*)=+}\]\\|\"\.>,:;][({[<]|-[^\-?\.\u2010-\u201f\u2026]|\?[\w~`@#$%\^&*(_=+{[|><]|…[\w~`@#$%\^&*(_=+{[><]/.test(str.slice(i - 1, i + 1));
-    };
 
   var knownScrollbarWidth;
   function scrollbarWidth(measure) {
@@ -12991,15 +14483,26 @@ window.CodeMirror = (function() {
       var test = elt("span", "\u200b");
       removeChildrenAndAdd(measure, elt("span", [test, document.createTextNode("x")]));
       if (measure.firstChild.offsetHeight != 0)
-        zwspSupported = test.offsetWidth <= 1 && test.offsetHeight > 2 && !ie_lt8;
+        zwspSupported = test.offsetWidth <= 1 && test.offsetHeight > 2 && !ie_upto7;
     }
     if (zwspSupported) return elt("span", "\u200b");
     else return elt("span", "\u00a0", null, "display: inline-block; width: 1px; margin-right: -1px");
   }
 
+  // Feature-detect IE's crummy client rect reporting for bidi text
+  var badBidiRects;
+  function hasBadBidiRects(measure) {
+    if (badBidiRects != null) return badBidiRects;
+    var txt = removeChildrenAndAdd(measure, document.createTextNode("A\u062eA"));
+    var r0 = range(txt, 0, 1).getBoundingClientRect();
+    if (r0.left == r0.right) return false;
+    var r1 = range(txt, 1, 2).getBoundingClientRect();
+    return badBidiRects = (r1.right - r0.right < 3);
+  }
+
   // See if "".split is the broken IE version, if so, provide an
   // alternative way to split lines.
-  var splitLines = "\n\nb".split(/\n/).length != 3 ? function(string) {
+  var splitLines = CodeMirror.splitLines = "\n\nb".split(/\n/).length != 3 ? function(string) {
     var pos = 0, result = [], l = string.length;
     while (pos <= l) {
       var nl = string.indexOf("\n", pos);
@@ -13016,7 +14519,6 @@ window.CodeMirror = (function() {
     }
     return result;
   } : function(string){return string.split(/\r\n?|\n/);};
-  CodeMirror.splitLines = splitLines;
 
   var hasSelection = window.getSelection ? function(te) {
     try { return te.selectionStart != te.selectionEnd; }
@@ -13032,22 +14534,22 @@ window.CodeMirror = (function() {
     var e = elt("div");
     if ("oncopy" in e) return true;
     e.setAttribute("oncopy", "return;");
-    return typeof e.oncopy == 'function';
+    return typeof e.oncopy == "function";
   })();
 
-  // KEY NAMING
+  // KEY NAMES
 
   var keyNames = {3: "Enter", 8: "Backspace", 9: "Tab", 13: "Enter", 16: "Shift", 17: "Ctrl", 18: "Alt",
                   19: "Pause", 20: "CapsLock", 27: "Esc", 32: "Space", 33: "PageUp", 34: "PageDown", 35: "End",
                   36: "Home", 37: "Left", 38: "Up", 39: "Right", 40: "Down", 44: "PrintScrn", 45: "Insert",
-                  46: "Delete", 59: ";", 91: "Mod", 92: "Mod", 93: "Mod", 109: "-", 107: "=", 127: "Delete",
-                  186: ";", 187: "=", 188: ",", 189: "-", 190: ".", 191: "/", 192: "`", 219: "[", 220: "\\",
-                  221: "]", 222: "'", 63276: "PageUp", 63277: "PageDown", 63275: "End", 63273: "Home",
-                  63234: "Left", 63232: "Up", 63235: "Right", 63233: "Down", 63302: "Insert", 63272: "Delete"};
+                  46: "Delete", 59: ";", 61: "=", 91: "Mod", 92: "Mod", 93: "Mod", 107: "=", 109: "-", 127: "Delete",
+                  173: "-", 186: ";", 187: "=", 188: ",", 189: "-", 190: ".", 191: "/", 192: "`", 219: "[", 220: "\\",
+                  221: "]", 222: "'", 63232: "Up", 63233: "Down", 63234: "Left", 63235: "Right", 63272: "Delete",
+                  63273: "Home", 63275: "End", 63276: "PageUp", 63277: "PageDown", 63302: "Insert"};
   CodeMirror.keyNames = keyNames;
   (function() {
     // Number keys
-    for (var i = 0; i < 10; i++) keyNames[i + 48] = String(i);
+    for (var i = 0; i < 10; i++) keyNames[i + 48] = keyNames[i + 96] = String(i);
     // Alphabetic keys
     for (var i = 65; i <= 90; i++) keyNames[i] = String.fromCharCode(i);
     // Function keys
@@ -13081,19 +14583,21 @@ window.CodeMirror = (function() {
 
   function lineStart(cm, lineN) {
     var line = getLine(cm.doc, lineN);
-    var visual = visualLine(cm.doc, line);
+    var visual = visualLine(line);
     if (visual != line) lineN = lineNo(visual);
     var order = getOrder(visual);
     var ch = !order ? 0 : order[0].level % 2 ? lineRight(visual) : lineLeft(visual);
     return Pos(lineN, ch);
   }
   function lineEnd(cm, lineN) {
-    var merged, line;
-    while (merged = collapsedSpanAtEnd(line = getLine(cm.doc, lineN)))
-      lineN = merged.find().to.line;
+    var merged, line = getLine(cm.doc, lineN);
+    while (merged = collapsedSpanAtEnd(line)) {
+      line = merged.find(1, true).line;
+      lineN = null;
+    }
     var order = getOrder(line);
     var ch = !order ? line.text.length : order[0].level % 2 ? lineLeft(line) : lineRight(line);
-    return Pos(lineN, ch);
+    return Pos(lineN == null ? lineNo(line) : lineN, ch);
   }
 
   function compareBidiLevel(order, a, b) {
@@ -13104,38 +14608,37 @@ window.CodeMirror = (function() {
   }
   var bidiOther;
   function getBidiPartAt(order, pos) {
+    bidiOther = null;
     for (var i = 0, found; i < order.length; ++i) {
       var cur = order[i];
-      if (cur.from < pos && cur.to > pos) { bidiOther = null; return i; }
-      if (cur.from == pos || cur.to == pos) {
+      if (cur.from < pos && cur.to > pos) return i;
+      if ((cur.from == pos || cur.to == pos)) {
         if (found == null) {
           found = i;
         } else if (compareBidiLevel(order, cur.level, order[found].level)) {
-          bidiOther = found;
+          if (cur.from != cur.to) bidiOther = found;
           return i;
         } else {
-          bidiOther = i;
+          if (cur.from != cur.to) bidiOther = i;
           return found;
         }
       }
     }
-    bidiOther = null;
     return found;
   }
 
   function moveInLine(line, pos, dir, byUnit) {
     if (!byUnit) return pos + dir;
     do pos += dir;
-    while (pos > 0 && isExtendingChar.test(line.text.charAt(pos)));
+    while (pos > 0 && isExtendingChar(line.text.charAt(pos)));
     return pos;
   }
 
-  // This is somewhat involved. It is needed in order to move
-  // 'visually' through bi-directional text -- i.e., pressing left
-  // should make the cursor go left, even when in RTL text. The
-  // tricky part is the 'jumps', where RTL and LTR text touch each
-  // other. This often requires the cursor offset to move more than
-  // one unit, in order to visually move one unit.
+  // This is needed in order to move 'visually' through bi-directional
+  // text -- i.e., pressing left should make the cursor go left, even
+  // when in RTL text. The tricky part is the 'jumps', where RTL and
+  // LTR text touch each other. This often requires the cursor offset
+  // to move more than one unit, in order to visually move one unit.
   function moveVisually(line, start, dir, byUnit) {
     var bidi = getOrder(line);
     if (!bidi) return moveLogically(line, start, dir, byUnit);
@@ -13161,7 +14664,7 @@ window.CodeMirror = (function() {
 
   function moveLogically(line, start, dir, byUnit) {
     var target = start + dir;
-    if (byUnit) while (target > 0 && isExtendingChar.test(line.text.charAt(target))) target += dir;
+    if (byUnit) while (target > 0 && isExtendingChar(line.text.charAt(target))) target += dir;
     return target < 0 || target > line.text.length ? null : target;
   }
 
@@ -13190,14 +14693,16 @@ window.CodeMirror = (function() {
   // objects) in the order in which they occur visually.
   var bidiOrdering = (function() {
     // Character types for codepoints 0 to 0xff
-    var lowTypes = "bbbbbbbbbtstwsbbbbbbbbbbbbbbssstwNN%%%NNNNNN,N,N1111111111NNNNNNNLLLLLLLLLLLLLLLLLLLLLLLLLLNNNNNNLLLLLLLLLLLLLLLLLLLLLLLLLLNNNNbbbbbbsbbbbbbbbbbbbbbbbbbbbbbbbbb,N%%%%NNNNLNNNNN%%11NLNNN1LNNNNNLLLLLLLLLLLLLLLLLLLLLLLNLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLNLLLLLLLL";
+    var lowTypes = "bbbbbbbbbtstwsbbbbbbbbbbbbbbssstwNN%%%NNNNNN,N,N1111111111NNNNNNNLLLLLLLLLLLLLLLLLLLLLLLLLLNNNNNNLLLLLLLLLLLLLLLLLLLLLLLLLLNNNNbbbbbbsbbbbbbbbbbbbbbbbbbbbbbbbbb,N%%%%NNNNLNNNNN%%11NLNNN1LNNNNNLLLLLLLLLLLLLLLLLLLLLLLNLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLN";
     // Character types for codepoints 0x600 to 0x6ff
-    var arabicTypes = "rrrrrrrrrrrr,rNNmmmmmmrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrmmmmmmmmmmmmmmrrrrrrrnnnnnnnnnn%nnrrrmrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrmmmmmmmmmmmmmmmmmmmNmmmmrrrrrrrrrrrrrrrrrr";
+    var arabicTypes = "rrrrrrrrrrrr,rNNmmmmmmrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrmmmmmmmmmmmmmmrrrrrrrnnnnnnnnnn%nnrrrmrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrmmmmmmmmmmmmmmmmmmmNmmmm";
     function charType(code) {
-      if (code <= 0xff) return lowTypes.charAt(code);
+      if (code <= 0xf7) return lowTypes.charAt(code);
       else if (0x590 <= code && code <= 0x5f4) return "R";
-      else if (0x600 <= code && code <= 0x6ff) return arabicTypes.charAt(code - 0x600);
-      else if (0x700 <= code && code <= 0x8ac) return "r";
+      else if (0x600 <= code && code <= 0x6ed) return arabicTypes.charAt(code - 0x600);
+      else if (0x6ee <= code && code <= 0x8ac) return "r";
+      else if (0x2000 <= code && code <= 0x200b) return "w";
+      else if (code == 0x200c) return "b";
       else return "L";
     }
 
@@ -13205,6 +14710,11 @@ window.CodeMirror = (function() {
     var isNeutral = /[stwN]/, isStrong = /[LRr]/, countsAsLeft = /[Lb1n]/, countsAsNum = /[1n]/;
     // Browsers seem to always treat the boundaries of block elements as being L.
     var outerType = "L";
+
+    function BidiSpan(level, from, to) {
+      this.level = level;
+      this.from = from; this.to = to;
+    }
 
     return function(str) {
       if (!bidiRE.test(str)) return false;
@@ -13253,7 +14763,7 @@ window.CodeMirror = (function() {
         if (type == ",") types[i] = "N";
         else if (type == "%") {
           for (var end = i + 1; end < len && types[end] == "%"; ++end) {}
-          var replace = (i && types[i-1] == "!") || (end < len - 1 && types[end] == "1") ? "1" : "N";
+          var replace = (i && types[i-1] == "!") || (end < len && types[end] == "1") ? "1" : "N";
           for (var j = i; j < end; ++j) types[j] = replace;
           i = end - 1;
         }
@@ -13278,7 +14788,7 @@ window.CodeMirror = (function() {
         if (isNeutral.test(types[i])) {
           for (var end = i + 1; end < len && isNeutral.test(types[end]); ++end) {}
           var before = (i ? types[i-1] : outerType) == "L";
-          var after = (end < len - 1 ? types[end] : outerType) == "L";
+          var after = (end < len ? types[end] : outerType) == "L";
           var replace = before || after ? "L" : "R";
           for (var j = i; j < end; ++j) types[j] = replace;
           i = end - 1;
@@ -13295,32 +14805,32 @@ window.CodeMirror = (function() {
         if (countsAsLeft.test(types[i])) {
           var start = i;
           for (++i; i < len && countsAsLeft.test(types[i]); ++i) {}
-          order.push({from: start, to: i, level: 0});
+          order.push(new BidiSpan(0, start, i));
         } else {
           var pos = i, at = order.length;
           for (++i; i < len && types[i] != "L"; ++i) {}
           for (var j = pos; j < i;) {
             if (countsAsNum.test(types[j])) {
-              if (pos < j) order.splice(at, 0, {from: pos, to: j, level: 1});
+              if (pos < j) order.splice(at, 0, new BidiSpan(1, pos, j));
               var nstart = j;
               for (++j; j < i && countsAsNum.test(types[j]); ++j) {}
-              order.splice(at, 0, {from: nstart, to: j, level: 2});
+              order.splice(at, 0, new BidiSpan(2, nstart, j));
               pos = j;
             } else ++j;
           }
-          if (pos < i) order.splice(at, 0, {from: pos, to: i, level: 1});
+          if (pos < i) order.splice(at, 0, new BidiSpan(1, pos, i));
         }
       }
       if (order[0].level == 1 && (m = str.match(/^\s+/))) {
         order[0].from = m[0].length;
-        order.unshift({from: 0, to: m[0].length, level: 0});
+        order.unshift(new BidiSpan(0, 0, m[0].length));
       }
       if (lst(order).level == 1 && (m = str.match(/\s+$/))) {
         lst(order).to -= m[0].length;
-        order.push({from: len - m[0].length, to: len, level: 0});
+        order.push(new BidiSpan(0, len - m[0].length, len));
       }
       if (order[0].level != lst(order).level)
-        order.push({from: len, to: len, level: order[0].level});
+        order.push(new BidiSpan(order[0].level, len, len));
 
       return order;
     };
@@ -13328,15 +14838,17 @@ window.CodeMirror = (function() {
 
   // THE END
 
-  CodeMirror.version = "3.20.0";
+  CodeMirror.version = "4.0.3";
 
   return CodeMirror;
-})();
+});
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],24:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/d3/d3.js",__dirname="/node_modules/d3";d3 = function() {
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/codemirror/lib/codemirror.js","/node_modules/codemirror/lib")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],25:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+!function() {
   var d3 = {
-    version: "3.3.13"
+    version: "3.4.4"
   };
   if (!Date.now) Date.now = function() {
     return +new Date();
@@ -13368,9 +14880,10 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
       d3_style_setProperty.call(this, name, value + "", priority);
     };
   }
-  d3.ascending = function(a, b) {
+  d3.ascending = d3_ascending;
+  function d3_ascending(a, b) {
     return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
-  };
+  }
   d3.descending = function(a, b) {
     return b < a ? -1 : b > a ? 1 : b >= a ? 0 : NaN;
   };
@@ -13441,16 +14954,16 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   d3.median = function(array, f) {
     if (arguments.length > 1) array = array.map(f);
     array = array.filter(d3_number);
-    return array.length ? d3.quantile(array.sort(d3.ascending), .5) : undefined;
+    return array.length ? d3.quantile(array.sort(d3_ascending), .5) : undefined;
   };
-  d3.bisector = function(f) {
+  function d3_bisector(compare) {
     return {
       left: function(a, x, lo, hi) {
         if (arguments.length < 3) lo = 0;
         if (arguments.length < 4) hi = a.length;
         while (lo < hi) {
           var mid = lo + hi >>> 1;
-          if (f.call(a, a[mid], mid) < x) lo = mid + 1; else hi = mid;
+          if (compare(a[mid], x) < 0) lo = mid + 1; else hi = mid;
         }
         return lo;
       },
@@ -13459,17 +14972,20 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
         if (arguments.length < 4) hi = a.length;
         while (lo < hi) {
           var mid = lo + hi >>> 1;
-          if (x < f.call(a, a[mid], mid)) hi = mid; else lo = mid + 1;
+          if (compare(a[mid], x) > 0) hi = mid; else lo = mid + 1;
         }
         return lo;
       }
     };
+  }
+  var d3_bisect = d3_bisector(d3_ascending);
+  d3.bisectLeft = d3_bisect.left;
+  d3.bisect = d3.bisectRight = d3_bisect.right;
+  d3.bisector = function(f) {
+    return d3_bisector(f.length === 1 ? function(d, x) {
+      return d3_ascending(f(d), x);
+    } : f);
   };
-  var d3_bisector = d3.bisector(function(d) {
-    return d;
-  });
-  d3.bisectLeft = d3_bisector.left;
-  d3.bisect = d3.bisectRight = d3_bisector.right;
   d3.shuffle = function(array) {
     var m = array.length, t, i;
     while (m) {
@@ -13575,26 +15091,15 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   };
   function d3_Map() {}
   d3_class(d3_Map, {
-    has: function(key) {
-      return d3_map_prefix + key in this;
-    },
+    has: d3_map_has,
     get: function(key) {
       return this[d3_map_prefix + key];
     },
     set: function(key, value) {
       return this[d3_map_prefix + key] = value;
     },
-    remove: function(key) {
-      key = d3_map_prefix + key;
-      return key in this && delete this[key];
-    },
-    keys: function() {
-      var keys = [];
-      this.forEach(function(key) {
-        keys.push(key);
-      });
-      return keys;
-    },
+    remove: d3_map_remove,
+    keys: d3_map_keys,
     values: function() {
       var values = [];
       this.forEach(function(key, value) {
@@ -13612,15 +15117,36 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
       });
       return entries;
     },
+    size: d3_map_size,
+    empty: d3_map_empty,
     forEach: function(f) {
-      for (var key in this) {
-        if (key.charCodeAt(0) === d3_map_prefixCode) {
-          f.call(this, key.substring(1), this[key]);
-        }
-      }
+      for (var key in this) if (key.charCodeAt(0) === d3_map_prefixCode) f.call(this, key.substring(1), this[key]);
     }
   });
   var d3_map_prefix = "\x00", d3_map_prefixCode = d3_map_prefix.charCodeAt(0);
+  function d3_map_has(key) {
+    return d3_map_prefix + key in this;
+  }
+  function d3_map_remove(key) {
+    key = d3_map_prefix + key;
+    return key in this && delete this[key];
+  }
+  function d3_map_keys() {
+    var keys = [];
+    this.forEach(function(key) {
+      keys.push(key);
+    });
+    return keys;
+  }
+  function d3_map_size() {
+    var size = 0;
+    for (var key in this) if (key.charCodeAt(0) === d3_map_prefixCode) ++size;
+    return size;
+  }
+  function d3_map_empty() {
+    for (var key in this) if (key.charCodeAt(0) === d3_map_prefixCode) return false;
+    return true;
+  }
   d3.nest = function() {
     var nest = {}, keys = [], sortKeys = [], sortValues, rollup;
     function map(mapType, array, depth) {
@@ -13691,9 +15217,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   };
   function d3_Set() {}
   d3_class(d3_Set, {
-    has: function(value) {
-      return d3_map_prefix + value in this;
-    },
+    has: d3_map_has,
     add: function(value) {
       this[d3_map_prefix + value] = true;
       return value;
@@ -13702,19 +15226,11 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
       value = d3_map_prefix + value;
       return value in this && delete this[value];
     },
-    values: function() {
-      var values = [];
-      this.forEach(function(value) {
-        values.push(value);
-      });
-      return values;
-    },
+    values: d3_map_keys,
+    size: d3_map_size,
+    empty: d3_map_empty,
     forEach: function(f) {
-      for (var value in this) {
-        if (value.charCodeAt(0) === d3_map_prefixCode) {
-          f.call(this, value.substring(1));
-        }
-      }
+      for (var value in this) if (value.charCodeAt(0) === d3_map_prefixCode) f.call(this, value.substring(1));
     }
   });
   d3.behavior = {};
@@ -13831,9 +15347,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
     d3_select = function(s, n) {
       return Sizzle(s, n)[0] || null;
     };
-    d3_selectAll = function(s, n) {
-      return Sizzle.uniqueSort(Sizzle(s, n));
-    };
+    d3_selectAll = Sizzle;
     d3_selectMatches = Sizzle.matchesSelector;
   }
   d3.selection = function() {
@@ -14208,7 +15722,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
     return this.order();
   };
   function d3_selection_sortComparator(comparator) {
-    if (!arguments.length) comparator = d3.ascending;
+    if (!arguments.length) comparator = d3_ascending;
     return function(a, b) {
       return a && b ? comparator(a.__data__, b.__data__) : !a - !b;
     };
@@ -14423,27 +15937,12 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   d3.mouse = function(container) {
     return d3_mousePoint(container, d3_eventSource());
   };
-  var d3_mouse_bug44083 = /WebKit/.test(d3_window.navigator.userAgent) ? -1 : 0;
   function d3_mousePoint(container, e) {
     if (e.changedTouches) e = e.changedTouches[0];
     var svg = container.ownerSVGElement || container;
     if (svg.createSVGPoint) {
       var point = svg.createSVGPoint();
-      if (d3_mouse_bug44083 < 0 && (d3_window.scrollX || d3_window.scrollY)) {
-        svg = d3.select("body").append("svg").style({
-          position: "absolute",
-          top: 0,
-          left: 0,
-          margin: 0,
-          padding: 0,
-          border: "none"
-        }, "important");
-        var ctm = svg[0][0].getScreenCTM();
-        d3_mouse_bug44083 = !(ctm.f || ctm.e);
-        svg.remove();
-      }
-      if (d3_mouse_bug44083) point.x = e.pageX, point.y = e.pageY; else point.x = e.clientX, 
-      point.y = e.clientY;
+      point.x = e.clientX, point.y = e.clientY;
       point = point.matrixTransform(container.getScreenCTM().inverse());
       return [ point.x, point.y ];
     }
@@ -14459,46 +15958,42 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
     }) : [];
   };
   d3.behavior.drag = function() {
-    var event = d3_eventDispatch(drag, "drag", "dragstart", "dragend"), origin = null, mousedown = dragstart(d3_noop, d3.mouse, "mousemove", "mouseup"), touchstart = dragstart(touchid, touchposition, "touchmove", "touchend");
+    var event = d3_eventDispatch(drag, "drag", "dragstart", "dragend"), origin = null, mousedown = dragstart(d3_noop, d3.mouse, d3_behavior_dragMouseSubject, "mousemove", "mouseup"), touchstart = dragstart(d3_behavior_dragTouchId, d3.touch, d3_behavior_dragTouchSubject, "touchmove", "touchend");
     function drag() {
       this.on("mousedown.drag", mousedown).on("touchstart.drag", touchstart);
     }
-    function touchid() {
-      return d3.event.changedTouches[0].identifier;
-    }
-    function touchposition(parent, id) {
-      return d3.touches(parent).filter(function(p) {
-        return p.identifier === id;
-      })[0];
-    }
-    function dragstart(id, position, move, end) {
+    function dragstart(id, position, subject, move, end) {
       return function() {
-        var target = this, parent = target.parentNode, event_ = event.of(target, arguments), eventTarget = d3.event.target, eventId = id(), drag = eventId == null ? "drag" : "drag-" + eventId, origin_ = position(parent, eventId), dragged = 0, offset, w = d3.select(d3_window).on(move + "." + drag, moved).on(end + "." + drag, ended), dragRestore = d3_event_dragSuppress();
+        var that = this, target = d3.event.target, parent = that.parentNode, dispatch = event.of(that, arguments), dragged = 0, dragId = id(), dragName = ".drag" + (dragId == null ? "" : "-" + dragId), dragOffset, dragSubject = d3.select(subject()).on(move + dragName, moved).on(end + dragName, ended), dragRestore = d3_event_dragSuppress(), position0 = position(parent, dragId);
         if (origin) {
-          offset = origin.apply(target, arguments);
-          offset = [ offset.x - origin_[0], offset.y - origin_[1] ];
+          dragOffset = origin.apply(that, arguments);
+          dragOffset = [ dragOffset.x - position0[0], dragOffset.y - position0[1] ];
         } else {
-          offset = [ 0, 0 ];
+          dragOffset = [ 0, 0 ];
         }
-        event_({
+        dispatch({
           type: "dragstart"
         });
         function moved() {
-          var p = position(parent, eventId), dx = p[0] - origin_[0], dy = p[1] - origin_[1];
+          var position1 = position(parent, dragId), dx, dy;
+          if (!position1) return;
+          dx = position1[0] - position0[0];
+          dy = position1[1] - position0[1];
           dragged |= dx | dy;
-          origin_ = p;
-          event_({
+          position0 = position1;
+          dispatch({
             type: "drag",
-            x: p[0] + offset[0],
-            y: p[1] + offset[1],
+            x: position1[0] + dragOffset[0],
+            y: position1[1] + dragOffset[1],
             dx: dx,
             dy: dy
           });
         }
         function ended() {
-          w.on(move + "." + drag, null).on(end + "." + drag, null);
-          dragRestore(dragged && d3.event.target === eventTarget);
-          event_({
+          if (!position(parent, dragId)) return;
+          dragSubject.on(move + dragName, null).on(end + dragName, null);
+          dragRestore(dragged && d3.event.target === target);
+          dispatch({
             type: "dragend"
           });
         }
@@ -14511,9 +16006,21 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
     };
     return d3.rebind(drag, event, "on");
   };
+  function d3_behavior_dragTouchId() {
+    return d3.event.changedTouches[0].identifier;
+  }
+  function d3_behavior_dragTouchSubject() {
+    return d3.event.target;
+  }
+  function d3_behavior_dragMouseSubject() {
+    return d3_window;
+  }
   var π = Math.PI, τ = 2 * π, halfπ = π / 2, ε = 1e-6, ε2 = ε * ε, d3_radians = π / 180, d3_degrees = 180 / π;
   function d3_sgn(x) {
     return x > 0 ? 1 : x < 0 ? -1 : 0;
+  }
+  function d3_cross2d(a, b, c) {
+    return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
   }
   function d3_acos(x) {
     return x > 1 ? 0 : x < -1 ? π : Math.acos(x);
@@ -14559,7 +16066,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
     }
     zoom.event = function(g) {
       g.each(function() {
-        var event_ = event.of(this, arguments), view1 = view;
+        var dispatch = event.of(this, arguments), view1 = view;
         if (d3_transitionInheritId) {
           d3.select(this).transition().each("start.zoom", function() {
             view = this.__chart__ || {
@@ -14567,7 +16074,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
               y: 0,
               k: 1
             };
-            zoomstarted(event_);
+            zoomstarted(dispatch);
           }).tween("zoom:zoom", function() {
             var dx = size[0], dy = size[1], cx = dx / 2, cy = dy / 2, i = d3.interpolateZoom([ (cx - view.x) / view.k, (cy - view.y) / view.k, dx / view.k ], [ (cx - view1.x) / view1.k, (cy - view1.y) / view1.k, dx / view1.k ]);
             return function(t) {
@@ -14577,16 +16084,16 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
                 y: cy - l[1] * k,
                 k: k
               };
-              zoomed(event_);
+              zoomed(dispatch);
             };
           }).each("end.zoom", function() {
-            zoomended(event_);
+            zoomended(dispatch);
           });
         } else {
           this.__chart__ = view;
-          zoomstarted(event_);
-          zoomed(event_);
-          zoomended(event_);
+          zoomstarted(dispatch);
+          zoomed(dispatch);
+          zoomended(dispatch);
         }
       });
     };
@@ -14669,46 +16176,46 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
         return (y - view.y) / view.k;
       }).map(y0.invert));
     }
-    function zoomstarted(event) {
-      event({
+    function zoomstarted(dispatch) {
+      dispatch({
         type: "zoomstart"
       });
     }
-    function zoomed(event) {
+    function zoomed(dispatch) {
       rescale();
-      event({
+      dispatch({
         type: "zoom",
         scale: view.k,
         translate: [ view.x, view.y ]
       });
     }
-    function zoomended(event) {
-      event({
+    function zoomended(dispatch) {
+      dispatch({
         type: "zoomend"
       });
     }
     function mousedowned() {
-      var target = this, event_ = event.of(target, arguments), eventTarget = d3.event.target, dragged = 0, w = d3.select(d3_window).on(mousemove, moved).on(mouseup, ended), l = location(d3.mouse(target)), dragRestore = d3_event_dragSuppress();
-      d3_selection_interrupt.call(target);
-      zoomstarted(event_);
+      var that = this, target = d3.event.target, dispatch = event.of(that, arguments), dragged = 0, subject = d3.select(d3_window).on(mousemove, moved).on(mouseup, ended), location0 = location(d3.mouse(that)), dragRestore = d3_event_dragSuppress();
+      d3_selection_interrupt.call(that);
+      zoomstarted(dispatch);
       function moved() {
         dragged = 1;
-        translateTo(d3.mouse(target), l);
-        zoomed(event_);
+        translateTo(d3.mouse(that), location0);
+        zoomed(dispatch);
       }
       function ended() {
-        w.on(mousemove, d3_window === target ? mousewheelreset : null).on(mouseup, null);
-        dragRestore(dragged && d3.event.target === eventTarget);
-        zoomended(event_);
+        subject.on(mousemove, d3_window === that ? mousewheelreset : null).on(mouseup, null);
+        dragRestore(dragged && d3.event.target === target);
+        zoomended(dispatch);
       }
     }
     function touchstarted() {
-      var target = this, event_ = event.of(target, arguments), locations0 = {}, distance0 = 0, scale0, eventId = d3.event.changedTouches[0].identifier, touchmove = "touchmove.zoom-" + eventId, touchend = "touchend.zoom-" + eventId, w = d3.select(d3_window).on(touchmove, moved).on(touchend, ended), t = d3.select(target).on(mousedown, null).on(touchstart, started), dragRestore = d3_event_dragSuppress();
-      d3_selection_interrupt.call(target);
+      var that = this, dispatch = event.of(that, arguments), locations0 = {}, distance0 = 0, scale0, zoomName = ".zoom-" + d3.event.changedTouches[0].identifier, touchmove = "touchmove" + zoomName, touchend = "touchend" + zoomName, target = d3.select(d3.event.target).on(touchmove, moved).on(touchend, ended), subject = d3.select(that).on(mousedown, null).on(touchstart, started), dragRestore = d3_event_dragSuppress();
+      d3_selection_interrupt.call(that);
       started();
-      zoomstarted(event_);
+      zoomstarted(dispatch);
       function relocate() {
-        var touches = d3.touches(target);
+        var touches = d3.touches(that);
         scale0 = view.k;
         touches.forEach(function(t) {
           if (t.identifier in locations0) locations0[t.identifier] = location(t);
@@ -14727,7 +16234,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
             scaleTo(view.k * 2);
             translateTo(p, l);
             d3_eventPreventDefault();
-            zoomed(event_);
+            zoomed(dispatch);
           }
           touchtime = now;
         } else if (touches.length > 1) {
@@ -14736,7 +16243,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
         }
       }
       function moved() {
-        var touches = d3.touches(target), p0, l0, p1, l1;
+        var touches = d3.touches(that), p0, l0, p1, l1;
         for (var i = 0, n = touches.length; i < n; ++i, l1 = null) {
           p1 = touches[i];
           if (l1 = locations0[p1.identifier]) {
@@ -14752,7 +16259,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
         }
         touchtime = null;
         translateTo(p0, l0);
-        zoomed(event_);
+        zoomed(dispatch);
       }
       function ended() {
         if (d3.event.touches.length) {
@@ -14764,37 +16271,37 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
             return void relocate();
           }
         }
-        w.on(touchmove, null).on(touchend, null);
-        t.on(mousedown, mousedowned).on(touchstart, touchstarted);
+        target.on(zoomName, null);
+        subject.on(mousedown, mousedowned).on(touchstart, touchstarted);
         dragRestore();
-        zoomended(event_);
+        zoomended(dispatch);
       }
     }
     function mousewheeled() {
-      var event_ = event.of(this, arguments);
+      var dispatch = event.of(this, arguments);
       if (mousewheelTimer) clearTimeout(mousewheelTimer); else d3_selection_interrupt.call(this), 
-      zoomstarted(event_);
+      zoomstarted(dispatch);
       mousewheelTimer = setTimeout(function() {
         mousewheelTimer = null;
-        zoomended(event_);
+        zoomended(dispatch);
       }, 50);
       d3_eventPreventDefault();
       var point = center || d3.mouse(this);
       if (!translate0) translate0 = location(point);
       scaleTo(Math.pow(2, d3_behavior_zoomDelta() * .002) * view.k);
       translateTo(point, translate0);
-      zoomed(event_);
+      zoomed(dispatch);
     }
     function mousewheelreset() {
       translate0 = null;
     }
     function dblclicked() {
-      var event_ = event.of(this, arguments), p = d3.mouse(this), l = location(p), k = Math.log(view.k) / Math.LN2;
-      zoomstarted(event_);
+      var dispatch = event.of(this, arguments), p = d3.mouse(this), l = location(p), k = Math.log(view.k) / Math.LN2;
+      zoomstarted(dispatch);
       scaleTo(Math.pow(2, d3.event.shiftKey ? Math.ceil(k) - 1 : Math.floor(k) + 1));
       translateTo(p, l);
-      zoomed(event_);
-      zoomended(event_);
+      zoomed(dispatch);
+      zoomended(dispatch);
     }
     return d3.rebind(zoom, event, "on");
   };
@@ -14961,7 +16468,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
     return v < 16 ? "0" + Math.max(0, v).toString(16) : Math.min(255, v).toString(16);
   }
   function d3_rgb_parse(format, rgb, hsl) {
-    var r = 0, g = 0, b = 0, m1, m2, name;
+    var r = 0, g = 0, b = 0, m1, m2, color;
     m1 = /([a-z]+)\((.*)\)/i.exec(format);
     if (m1) {
       m2 = m1[2].split(",");
@@ -14977,23 +16484,20 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
         }
       }
     }
-    if (name = d3_rgb_names.get(format)) return rgb(name.r, name.g, name.b);
-    if (format != null && format.charAt(0) === "#") {
+    if (color = d3_rgb_names.get(format)) return rgb(color.r, color.g, color.b);
+    if (format != null && format.charAt(0) === "#" && !isNaN(color = parseInt(format.substring(1), 16))) {
       if (format.length === 4) {
-        r = format.charAt(1);
-        r += r;
-        g = format.charAt(2);
-        g += g;
-        b = format.charAt(3);
-        b += b;
+        r = (color & 3840) >> 4;
+        r = r >> 4 | r;
+        g = color & 240;
+        g = g >> 4 | g;
+        b = color & 15;
+        b = b << 4 | b;
       } else if (format.length === 7) {
-        r = format.substring(1, 3);
-        g = format.substring(3, 5);
-        b = format.substring(5, 7);
+        r = (color & 16711680) >> 16;
+        g = (color & 65280) >> 8;
+        b = color & 255;
       }
-      r = parseInt(r, 16);
-      g = parseInt(g, 16);
-      b = parseInt(b, 16);
     }
     return rgb(r, g, b);
   }
@@ -15376,6 +16880,14 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   };
   d3.csv = d3.dsv(",", "text/csv");
   d3.tsv = d3.dsv("	", "text/tab-separated-values");
+  d3.touch = function(container, touches, identifier) {
+    if (arguments.length < 3) identifier = touches, touches = d3_eventSource().changedTouches;
+    if (touches) for (var i = 0, n = touches.length, touch; i < n; ++i) {
+      if ((touch = touches[i]).identifier === identifier) {
+        return d3_mousePoint(container, touch);
+      }
+    }
+  };
   var d3_timer_queueHead, d3_timer_queueTail, d3_timer_interval, d3_timer_timeout, d3_timer_active, d3_timer_frame = d3_window[d3_vendorSymbol(d3_window, "requestAnimationFrame")] || function(callback) {
     setTimeout(callback, 17);
   };
@@ -15436,7 +16948,12 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
     d3_timer_queueTail = t0;
     return time;
   }
-  var d3_format_decimalPoint = ".", d3_format_thousandsSeparator = ",", d3_format_grouping = [ 3, 3 ], d3_format_currencySymbol = "$";
+  function d3_format_precision(x, p) {
+    return p - (x ? Math.ceil(Math.log(x) / Math.LN10) : 1);
+  }
+  d3.round = function(x, n) {
+    return n ? Math.round(x * (n = Math.pow(10, n))) / n : Math.round(x);
+  };
   var d3_formatPrefixes = [ "y", "z", "a", "f", "p", "n", "µ", "m", "", "k", "M", "G", "T", "P", "E", "Z", "Y" ].map(d3_formatPrefix);
   d3.formatPrefix = function(value, precision) {
     var i = 0;
@@ -15444,7 +16961,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
       if (value < 0) value *= -1;
       if (precision) value = d3.round(value, d3_format_precision(value, precision));
       i = 1 + Math.floor(1e-12 + Math.log(value) / Math.LN10);
-      i = Math.max(-24, Math.min(24, Math.floor((i <= 0 ? i + 1 : i - 1) / 3) * 3));
+      i = Math.max(-24, Math.min(24, Math.floor((i - 1) / 3) * 3));
     }
     return d3_formatPrefixes[8 + i / 3];
   };
@@ -15459,79 +16976,87 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
       symbol: d
     };
   }
-  d3.round = function(x, n) {
-    return n ? Math.round(x * (n = Math.pow(10, n))) / n : Math.round(x);
-  };
-  d3.format = function(specifier) {
-    var match = d3_format_re.exec(specifier), fill = match[1] || " ", align = match[2] || ">", sign = match[3] || "", symbol = match[4] || "", zfill = match[5], width = +match[6], comma = match[7], precision = match[8], type = match[9], scale = 1, suffix = "", integer = false;
-    if (precision) precision = +precision.substring(1);
-    if (zfill || fill === "0" && align === "=") {
-      zfill = fill = "0";
-      align = "=";
-      if (comma) width -= Math.floor((width - 1) / 4);
-    }
-    switch (type) {
-     case "n":
-      comma = true;
-      type = "g";
-      break;
-
-     case "%":
-      scale = 100;
-      suffix = "%";
-      type = "f";
-      break;
-
-     case "p":
-      scale = 100;
-      suffix = "%";
-      type = "r";
-      break;
-
-     case "b":
-     case "o":
-     case "x":
-     case "X":
-      if (symbol === "#") symbol = "0" + type.toLowerCase();
-
-     case "c":
-     case "d":
-      integer = true;
-      precision = 0;
-      break;
-
-     case "s":
-      scale = -1;
-      type = "r";
-      break;
-    }
-    if (symbol === "#") symbol = ""; else if (symbol === "$") symbol = d3_format_currencySymbol;
-    if (type == "r" && !precision) type = "g";
-    if (precision != null) {
-      if (type == "g") precision = Math.max(1, Math.min(21, precision)); else if (type == "e" || type == "f") precision = Math.max(0, Math.min(20, precision));
-    }
-    type = d3_format_types.get(type) || d3_format_typeDefault;
-    var zcomma = zfill && comma;
-    return function(value) {
-      if (integer && value % 1) return "";
-      var negative = value < 0 || value === 0 && 1 / value < 0 ? (value = -value, "-") : sign;
-      if (scale < 0) {
-        var prefix = d3.formatPrefix(value, precision);
-        value = prefix.scale(value);
-        suffix = prefix.symbol;
-      } else {
-        value *= scale;
+  function d3_locale_numberFormat(locale) {
+    var locale_decimal = locale.decimal, locale_thousands = locale.thousands, locale_grouping = locale.grouping, locale_currency = locale.currency, formatGroup = locale_grouping ? function(value) {
+      var i = value.length, t = [], j = 0, g = locale_grouping[0];
+      while (i > 0 && g > 0) {
+        t.push(value.substring(i -= g, i + g));
+        g = locale_grouping[j = (j + 1) % locale_grouping.length];
       }
-      value = type(value, precision);
-      var i = value.lastIndexOf("."), before = i < 0 ? value : value.substring(0, i), after = i < 0 ? "" : d3_format_decimalPoint + value.substring(i + 1);
-      if (!zfill && comma) before = d3_format_group(before);
-      var length = symbol.length + before.length + after.length + (zcomma ? 0 : negative.length), padding = length < width ? new Array(length = width - length + 1).join(fill) : "";
-      if (zcomma) before = d3_format_group(padding + before);
-      negative += symbol;
-      value = before + after;
-      return (align === "<" ? negative + value + padding : align === ">" ? padding + negative + value : align === "^" ? padding.substring(0, length >>= 1) + negative + value + padding.substring(length) : negative + (zcomma ? value : padding + value)) + suffix;
+      return t.reverse().join(locale_thousands);
+    } : d3_identity;
+    return function(specifier) {
+      var match = d3_format_re.exec(specifier), fill = match[1] || " ", align = match[2] || ">", sign = match[3] || "", symbol = match[4] || "", zfill = match[5], width = +match[6], comma = match[7], precision = match[8], type = match[9], scale = 1, prefix = "", suffix = "", integer = false;
+      if (precision) precision = +precision.substring(1);
+      if (zfill || fill === "0" && align === "=") {
+        zfill = fill = "0";
+        align = "=";
+        if (comma) width -= Math.floor((width - 1) / 4);
+      }
+      switch (type) {
+       case "n":
+        comma = true;
+        type = "g";
+        break;
+
+       case "%":
+        scale = 100;
+        suffix = "%";
+        type = "f";
+        break;
+
+       case "p":
+        scale = 100;
+        suffix = "%";
+        type = "r";
+        break;
+
+       case "b":
+       case "o":
+       case "x":
+       case "X":
+        if (symbol === "#") prefix = "0" + type.toLowerCase();
+
+       case "c":
+       case "d":
+        integer = true;
+        precision = 0;
+        break;
+
+       case "s":
+        scale = -1;
+        type = "r";
+        break;
+      }
+      if (symbol === "$") prefix = locale_currency[0], suffix = locale_currency[1];
+      if (type == "r" && !precision) type = "g";
+      if (precision != null) {
+        if (type == "g") precision = Math.max(1, Math.min(21, precision)); else if (type == "e" || type == "f") precision = Math.max(0, Math.min(20, precision));
+      }
+      type = d3_format_types.get(type) || d3_format_typeDefault;
+      var zcomma = zfill && comma;
+      return function(value) {
+        var fullSuffix = suffix;
+        if (integer && value % 1) return "";
+        var negative = value < 0 || value === 0 && 1 / value < 0 ? (value = -value, "-") : sign;
+        if (scale < 0) {
+          var unit = d3.formatPrefix(value, precision);
+          value = unit.scale(value);
+          fullSuffix = unit.symbol + suffix;
+        } else {
+          value *= scale;
+        }
+        value = type(value, precision);
+        var i = value.lastIndexOf("."), before = i < 0 ? value : value.substring(0, i), after = i < 0 ? "" : locale_decimal + value.substring(i + 1);
+        if (!zfill && comma) before = formatGroup(before);
+        var length = prefix.length + before.length + after.length + (zcomma ? 0 : negative.length), padding = length < width ? new Array(length = width - length + 1).join(fill) : "";
+        if (zcomma) before = formatGroup(padding + before);
+        negative += prefix;
+        value = before + after;
+        return (align === "<" ? negative + value + padding : align === ">" ? padding + negative + value : align === "^" ? padding.substring(0, length >>= 1) + negative + value + padding.substring(length) : negative + (zcomma ? value : padding + value)) + fullSuffix;
+      };
     };
-  };
+  }
   var d3_format_re = /(?:([^{])?([<>=^]))?([+\- ])?([$#])?(0)?(\d+)?(,)?(\.-?\d+)?([a-z%])?/i;
   var d3_format_types = d3.map({
     b: function(x) {
@@ -15562,24 +17087,522 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
       return (x = d3.round(x, d3_format_precision(x, p))).toFixed(Math.max(0, Math.min(20, d3_format_precision(x * (1 + 1e-15), p))));
     }
   });
-  function d3_format_precision(x, p) {
-    return p - (x ? Math.ceil(Math.log(x) / Math.LN10) : 1);
-  }
   function d3_format_typeDefault(x) {
     return x + "";
   }
-  var d3_format_group = d3_identity;
-  if (d3_format_grouping) {
-    var d3_format_groupingLength = d3_format_grouping.length;
-    d3_format_group = function(value) {
-      var i = value.length, t = [], j = 0, g = d3_format_grouping[0];
-      while (i > 0 && g > 0) {
-        t.push(value.substring(i -= g, i + g));
-        g = d3_format_grouping[j = (j + 1) % d3_format_groupingLength];
+  var d3_time = d3.time = {}, d3_date = Date;
+  function d3_date_utc() {
+    this._ = new Date(arguments.length > 1 ? Date.UTC.apply(this, arguments) : arguments[0]);
+  }
+  d3_date_utc.prototype = {
+    getDate: function() {
+      return this._.getUTCDate();
+    },
+    getDay: function() {
+      return this._.getUTCDay();
+    },
+    getFullYear: function() {
+      return this._.getUTCFullYear();
+    },
+    getHours: function() {
+      return this._.getUTCHours();
+    },
+    getMilliseconds: function() {
+      return this._.getUTCMilliseconds();
+    },
+    getMinutes: function() {
+      return this._.getUTCMinutes();
+    },
+    getMonth: function() {
+      return this._.getUTCMonth();
+    },
+    getSeconds: function() {
+      return this._.getUTCSeconds();
+    },
+    getTime: function() {
+      return this._.getTime();
+    },
+    getTimezoneOffset: function() {
+      return 0;
+    },
+    valueOf: function() {
+      return this._.valueOf();
+    },
+    setDate: function() {
+      d3_time_prototype.setUTCDate.apply(this._, arguments);
+    },
+    setDay: function() {
+      d3_time_prototype.setUTCDay.apply(this._, arguments);
+    },
+    setFullYear: function() {
+      d3_time_prototype.setUTCFullYear.apply(this._, arguments);
+    },
+    setHours: function() {
+      d3_time_prototype.setUTCHours.apply(this._, arguments);
+    },
+    setMilliseconds: function() {
+      d3_time_prototype.setUTCMilliseconds.apply(this._, arguments);
+    },
+    setMinutes: function() {
+      d3_time_prototype.setUTCMinutes.apply(this._, arguments);
+    },
+    setMonth: function() {
+      d3_time_prototype.setUTCMonth.apply(this._, arguments);
+    },
+    setSeconds: function() {
+      d3_time_prototype.setUTCSeconds.apply(this._, arguments);
+    },
+    setTime: function() {
+      d3_time_prototype.setTime.apply(this._, arguments);
+    }
+  };
+  var d3_time_prototype = Date.prototype;
+  function d3_time_interval(local, step, number) {
+    function round(date) {
+      var d0 = local(date), d1 = offset(d0, 1);
+      return date - d0 < d1 - date ? d0 : d1;
+    }
+    function ceil(date) {
+      step(date = local(new d3_date(date - 1)), 1);
+      return date;
+    }
+    function offset(date, k) {
+      step(date = new d3_date(+date), k);
+      return date;
+    }
+    function range(t0, t1, dt) {
+      var time = ceil(t0), times = [];
+      if (dt > 1) {
+        while (time < t1) {
+          if (!(number(time) % dt)) times.push(new Date(+time));
+          step(time, 1);
+        }
+      } else {
+        while (time < t1) times.push(new Date(+time)), step(time, 1);
       }
-      return t.reverse().join(d3_format_thousandsSeparator);
+      return times;
+    }
+    function range_utc(t0, t1, dt) {
+      try {
+        d3_date = d3_date_utc;
+        var utc = new d3_date_utc();
+        utc._ = t0;
+        return range(utc, t1, dt);
+      } finally {
+        d3_date = Date;
+      }
+    }
+    local.floor = local;
+    local.round = round;
+    local.ceil = ceil;
+    local.offset = offset;
+    local.range = range;
+    var utc = local.utc = d3_time_interval_utc(local);
+    utc.floor = utc;
+    utc.round = d3_time_interval_utc(round);
+    utc.ceil = d3_time_interval_utc(ceil);
+    utc.offset = d3_time_interval_utc(offset);
+    utc.range = range_utc;
+    return local;
+  }
+  function d3_time_interval_utc(method) {
+    return function(date, k) {
+      try {
+        d3_date = d3_date_utc;
+        var utc = new d3_date_utc();
+        utc._ = date;
+        return method(utc, k)._;
+      } finally {
+        d3_date = Date;
+      }
     };
   }
+  d3_time.year = d3_time_interval(function(date) {
+    date = d3_time.day(date);
+    date.setMonth(0, 1);
+    return date;
+  }, function(date, offset) {
+    date.setFullYear(date.getFullYear() + offset);
+  }, function(date) {
+    return date.getFullYear();
+  });
+  d3_time.years = d3_time.year.range;
+  d3_time.years.utc = d3_time.year.utc.range;
+  d3_time.day = d3_time_interval(function(date) {
+    var day = new d3_date(2e3, 0);
+    day.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+    return day;
+  }, function(date, offset) {
+    date.setDate(date.getDate() + offset);
+  }, function(date) {
+    return date.getDate() - 1;
+  });
+  d3_time.days = d3_time.day.range;
+  d3_time.days.utc = d3_time.day.utc.range;
+  d3_time.dayOfYear = function(date) {
+    var year = d3_time.year(date);
+    return Math.floor((date - year - (date.getTimezoneOffset() - year.getTimezoneOffset()) * 6e4) / 864e5);
+  };
+  [ "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday" ].forEach(function(day, i) {
+    i = 7 - i;
+    var interval = d3_time[day] = d3_time_interval(function(date) {
+      (date = d3_time.day(date)).setDate(date.getDate() - (date.getDay() + i) % 7);
+      return date;
+    }, function(date, offset) {
+      date.setDate(date.getDate() + Math.floor(offset) * 7);
+    }, function(date) {
+      var day = d3_time.year(date).getDay();
+      return Math.floor((d3_time.dayOfYear(date) + (day + i) % 7) / 7) - (day !== i);
+    });
+    d3_time[day + "s"] = interval.range;
+    d3_time[day + "s"].utc = interval.utc.range;
+    d3_time[day + "OfYear"] = function(date) {
+      var day = d3_time.year(date).getDay();
+      return Math.floor((d3_time.dayOfYear(date) + (day + i) % 7) / 7);
+    };
+  });
+  d3_time.week = d3_time.sunday;
+  d3_time.weeks = d3_time.sunday.range;
+  d3_time.weeks.utc = d3_time.sunday.utc.range;
+  d3_time.weekOfYear = d3_time.sundayOfYear;
+  function d3_locale_timeFormat(locale) {
+    var locale_dateTime = locale.dateTime, locale_date = locale.date, locale_time = locale.time, locale_periods = locale.periods, locale_days = locale.days, locale_shortDays = locale.shortDays, locale_months = locale.months, locale_shortMonths = locale.shortMonths;
+    function d3_time_format(template) {
+      var n = template.length;
+      function format(date) {
+        var string = [], i = -1, j = 0, c, p, f;
+        while (++i < n) {
+          if (template.charCodeAt(i) === 37) {
+            string.push(template.substring(j, i));
+            if ((p = d3_time_formatPads[c = template.charAt(++i)]) != null) c = template.charAt(++i);
+            if (f = d3_time_formats[c]) c = f(date, p == null ? c === "e" ? " " : "0" : p);
+            string.push(c);
+            j = i + 1;
+          }
+        }
+        string.push(template.substring(j, i));
+        return string.join("");
+      }
+      format.parse = function(string) {
+        var d = {
+          y: 1900,
+          m: 0,
+          d: 1,
+          H: 0,
+          M: 0,
+          S: 0,
+          L: 0,
+          Z: null
+        }, i = d3_time_parse(d, template, string, 0);
+        if (i != string.length) return null;
+        if ("p" in d) d.H = d.H % 12 + d.p * 12;
+        var localZ = d.Z != null && d3_date !== d3_date_utc, date = new (localZ ? d3_date_utc : d3_date)();
+        if ("j" in d) date.setFullYear(d.y, 0, d.j); else if ("w" in d && ("W" in d || "U" in d)) {
+          date.setFullYear(d.y, 0, 1);
+          date.setFullYear(d.y, 0, "W" in d ? (d.w + 6) % 7 + d.W * 7 - (date.getDay() + 5) % 7 : d.w + d.U * 7 - (date.getDay() + 6) % 7);
+        } else date.setFullYear(d.y, d.m, d.d);
+        date.setHours(d.H + Math.floor(d.Z / 100), d.M + d.Z % 100, d.S, d.L);
+        return localZ ? date._ : date;
+      };
+      format.toString = function() {
+        return template;
+      };
+      return format;
+    }
+    function d3_time_parse(date, template, string, j) {
+      var c, p, t, i = 0, n = template.length, m = string.length;
+      while (i < n) {
+        if (j >= m) return -1;
+        c = template.charCodeAt(i++);
+        if (c === 37) {
+          t = template.charAt(i++);
+          p = d3_time_parsers[t in d3_time_formatPads ? template.charAt(i++) : t];
+          if (!p || (j = p(date, string, j)) < 0) return -1;
+        } else if (c != string.charCodeAt(j++)) {
+          return -1;
+        }
+      }
+      return j;
+    }
+    d3_time_format.utc = function(template) {
+      var local = d3_time_format(template);
+      function format(date) {
+        try {
+          d3_date = d3_date_utc;
+          var utc = new d3_date();
+          utc._ = date;
+          return local(utc);
+        } finally {
+          d3_date = Date;
+        }
+      }
+      format.parse = function(string) {
+        try {
+          d3_date = d3_date_utc;
+          var date = local.parse(string);
+          return date && date._;
+        } finally {
+          d3_date = Date;
+        }
+      };
+      format.toString = local.toString;
+      return format;
+    };
+    d3_time_format.multi = d3_time_format.utc.multi = d3_time_formatMulti;
+    var d3_time_periodLookup = d3.map(), d3_time_dayRe = d3_time_formatRe(locale_days), d3_time_dayLookup = d3_time_formatLookup(locale_days), d3_time_dayAbbrevRe = d3_time_formatRe(locale_shortDays), d3_time_dayAbbrevLookup = d3_time_formatLookup(locale_shortDays), d3_time_monthRe = d3_time_formatRe(locale_months), d3_time_monthLookup = d3_time_formatLookup(locale_months), d3_time_monthAbbrevRe = d3_time_formatRe(locale_shortMonths), d3_time_monthAbbrevLookup = d3_time_formatLookup(locale_shortMonths);
+    locale_periods.forEach(function(p, i) {
+      d3_time_periodLookup.set(p.toLowerCase(), i);
+    });
+    var d3_time_formats = {
+      a: function(d) {
+        return locale_shortDays[d.getDay()];
+      },
+      A: function(d) {
+        return locale_days[d.getDay()];
+      },
+      b: function(d) {
+        return locale_shortMonths[d.getMonth()];
+      },
+      B: function(d) {
+        return locale_months[d.getMonth()];
+      },
+      c: d3_time_format(locale_dateTime),
+      d: function(d, p) {
+        return d3_time_formatPad(d.getDate(), p, 2);
+      },
+      e: function(d, p) {
+        return d3_time_formatPad(d.getDate(), p, 2);
+      },
+      H: function(d, p) {
+        return d3_time_formatPad(d.getHours(), p, 2);
+      },
+      I: function(d, p) {
+        return d3_time_formatPad(d.getHours() % 12 || 12, p, 2);
+      },
+      j: function(d, p) {
+        return d3_time_formatPad(1 + d3_time.dayOfYear(d), p, 3);
+      },
+      L: function(d, p) {
+        return d3_time_formatPad(d.getMilliseconds(), p, 3);
+      },
+      m: function(d, p) {
+        return d3_time_formatPad(d.getMonth() + 1, p, 2);
+      },
+      M: function(d, p) {
+        return d3_time_formatPad(d.getMinutes(), p, 2);
+      },
+      p: function(d) {
+        return locale_periods[+(d.getHours() >= 12)];
+      },
+      S: function(d, p) {
+        return d3_time_formatPad(d.getSeconds(), p, 2);
+      },
+      U: function(d, p) {
+        return d3_time_formatPad(d3_time.sundayOfYear(d), p, 2);
+      },
+      w: function(d) {
+        return d.getDay();
+      },
+      W: function(d, p) {
+        return d3_time_formatPad(d3_time.mondayOfYear(d), p, 2);
+      },
+      x: d3_time_format(locale_date),
+      X: d3_time_format(locale_time),
+      y: function(d, p) {
+        return d3_time_formatPad(d.getFullYear() % 100, p, 2);
+      },
+      Y: function(d, p) {
+        return d3_time_formatPad(d.getFullYear() % 1e4, p, 4);
+      },
+      Z: d3_time_zone,
+      "%": function() {
+        return "%";
+      }
+    };
+    var d3_time_parsers = {
+      a: d3_time_parseWeekdayAbbrev,
+      A: d3_time_parseWeekday,
+      b: d3_time_parseMonthAbbrev,
+      B: d3_time_parseMonth,
+      c: d3_time_parseLocaleFull,
+      d: d3_time_parseDay,
+      e: d3_time_parseDay,
+      H: d3_time_parseHour24,
+      I: d3_time_parseHour24,
+      j: d3_time_parseDayOfYear,
+      L: d3_time_parseMilliseconds,
+      m: d3_time_parseMonthNumber,
+      M: d3_time_parseMinutes,
+      p: d3_time_parseAmPm,
+      S: d3_time_parseSeconds,
+      U: d3_time_parseWeekNumberSunday,
+      w: d3_time_parseWeekdayNumber,
+      W: d3_time_parseWeekNumberMonday,
+      x: d3_time_parseLocaleDate,
+      X: d3_time_parseLocaleTime,
+      y: d3_time_parseYear,
+      Y: d3_time_parseFullYear,
+      Z: d3_time_parseZone,
+      "%": d3_time_parseLiteralPercent
+    };
+    function d3_time_parseWeekdayAbbrev(date, string, i) {
+      d3_time_dayAbbrevRe.lastIndex = 0;
+      var n = d3_time_dayAbbrevRe.exec(string.substring(i));
+      return n ? (date.w = d3_time_dayAbbrevLookup.get(n[0].toLowerCase()), i + n[0].length) : -1;
+    }
+    function d3_time_parseWeekday(date, string, i) {
+      d3_time_dayRe.lastIndex = 0;
+      var n = d3_time_dayRe.exec(string.substring(i));
+      return n ? (date.w = d3_time_dayLookup.get(n[0].toLowerCase()), i + n[0].length) : -1;
+    }
+    function d3_time_parseMonthAbbrev(date, string, i) {
+      d3_time_monthAbbrevRe.lastIndex = 0;
+      var n = d3_time_monthAbbrevRe.exec(string.substring(i));
+      return n ? (date.m = d3_time_monthAbbrevLookup.get(n[0].toLowerCase()), i + n[0].length) : -1;
+    }
+    function d3_time_parseMonth(date, string, i) {
+      d3_time_monthRe.lastIndex = 0;
+      var n = d3_time_monthRe.exec(string.substring(i));
+      return n ? (date.m = d3_time_monthLookup.get(n[0].toLowerCase()), i + n[0].length) : -1;
+    }
+    function d3_time_parseLocaleFull(date, string, i) {
+      return d3_time_parse(date, d3_time_formats.c.toString(), string, i);
+    }
+    function d3_time_parseLocaleDate(date, string, i) {
+      return d3_time_parse(date, d3_time_formats.x.toString(), string, i);
+    }
+    function d3_time_parseLocaleTime(date, string, i) {
+      return d3_time_parse(date, d3_time_formats.X.toString(), string, i);
+    }
+    function d3_time_parseAmPm(date, string, i) {
+      var n = d3_time_periodLookup.get(string.substring(i, i += 2).toLowerCase());
+      return n == null ? -1 : (date.p = n, i);
+    }
+    return d3_time_format;
+  }
+  var d3_time_formatPads = {
+    "-": "",
+    _: " ",
+    "0": "0"
+  }, d3_time_numberRe = /^\s*\d+/, d3_time_percentRe = /^%/;
+  function d3_time_formatPad(value, fill, width) {
+    var sign = value < 0 ? "-" : "", string = (sign ? -value : value) + "", length = string.length;
+    return sign + (length < width ? new Array(width - length + 1).join(fill) + string : string);
+  }
+  function d3_time_formatRe(names) {
+    return new RegExp("^(?:" + names.map(d3.requote).join("|") + ")", "i");
+  }
+  function d3_time_formatLookup(names) {
+    var map = new d3_Map(), i = -1, n = names.length;
+    while (++i < n) map.set(names[i].toLowerCase(), i);
+    return map;
+  }
+  function d3_time_parseWeekdayNumber(date, string, i) {
+    d3_time_numberRe.lastIndex = 0;
+    var n = d3_time_numberRe.exec(string.substring(i, i + 1));
+    return n ? (date.w = +n[0], i + n[0].length) : -1;
+  }
+  function d3_time_parseWeekNumberSunday(date, string, i) {
+    d3_time_numberRe.lastIndex = 0;
+    var n = d3_time_numberRe.exec(string.substring(i));
+    return n ? (date.U = +n[0], i + n[0].length) : -1;
+  }
+  function d3_time_parseWeekNumberMonday(date, string, i) {
+    d3_time_numberRe.lastIndex = 0;
+    var n = d3_time_numberRe.exec(string.substring(i));
+    return n ? (date.W = +n[0], i + n[0].length) : -1;
+  }
+  function d3_time_parseFullYear(date, string, i) {
+    d3_time_numberRe.lastIndex = 0;
+    var n = d3_time_numberRe.exec(string.substring(i, i + 4));
+    return n ? (date.y = +n[0], i + n[0].length) : -1;
+  }
+  function d3_time_parseYear(date, string, i) {
+    d3_time_numberRe.lastIndex = 0;
+    var n = d3_time_numberRe.exec(string.substring(i, i + 2));
+    return n ? (date.y = d3_time_expandYear(+n[0]), i + n[0].length) : -1;
+  }
+  function d3_time_parseZone(date, string, i) {
+    return /^[+-]\d{4}$/.test(string = string.substring(i, i + 5)) ? (date.Z = +string, 
+    i + 5) : -1;
+  }
+  function d3_time_expandYear(d) {
+    return d + (d > 68 ? 1900 : 2e3);
+  }
+  function d3_time_parseMonthNumber(date, string, i) {
+    d3_time_numberRe.lastIndex = 0;
+    var n = d3_time_numberRe.exec(string.substring(i, i + 2));
+    return n ? (date.m = n[0] - 1, i + n[0].length) : -1;
+  }
+  function d3_time_parseDay(date, string, i) {
+    d3_time_numberRe.lastIndex = 0;
+    var n = d3_time_numberRe.exec(string.substring(i, i + 2));
+    return n ? (date.d = +n[0], i + n[0].length) : -1;
+  }
+  function d3_time_parseDayOfYear(date, string, i) {
+    d3_time_numberRe.lastIndex = 0;
+    var n = d3_time_numberRe.exec(string.substring(i, i + 3));
+    return n ? (date.j = +n[0], i + n[0].length) : -1;
+  }
+  function d3_time_parseHour24(date, string, i) {
+    d3_time_numberRe.lastIndex = 0;
+    var n = d3_time_numberRe.exec(string.substring(i, i + 2));
+    return n ? (date.H = +n[0], i + n[0].length) : -1;
+  }
+  function d3_time_parseMinutes(date, string, i) {
+    d3_time_numberRe.lastIndex = 0;
+    var n = d3_time_numberRe.exec(string.substring(i, i + 2));
+    return n ? (date.M = +n[0], i + n[0].length) : -1;
+  }
+  function d3_time_parseSeconds(date, string, i) {
+    d3_time_numberRe.lastIndex = 0;
+    var n = d3_time_numberRe.exec(string.substring(i, i + 2));
+    return n ? (date.S = +n[0], i + n[0].length) : -1;
+  }
+  function d3_time_parseMilliseconds(date, string, i) {
+    d3_time_numberRe.lastIndex = 0;
+    var n = d3_time_numberRe.exec(string.substring(i, i + 3));
+    return n ? (date.L = +n[0], i + n[0].length) : -1;
+  }
+  function d3_time_zone(d) {
+    var z = d.getTimezoneOffset(), zs = z > 0 ? "-" : "+", zh = ~~(abs(z) / 60), zm = abs(z) % 60;
+    return zs + d3_time_formatPad(zh, "0", 2) + d3_time_formatPad(zm, "0", 2);
+  }
+  function d3_time_parseLiteralPercent(date, string, i) {
+    d3_time_percentRe.lastIndex = 0;
+    var n = d3_time_percentRe.exec(string.substring(i, i + 1));
+    return n ? i + n[0].length : -1;
+  }
+  function d3_time_formatMulti(formats) {
+    var n = formats.length, i = -1;
+    while (++i < n) formats[i][0] = this(formats[i][0]);
+    return function(date) {
+      var i = 0, f = formats[i];
+      while (!f[1](date)) f = formats[++i];
+      return f[0](date);
+    };
+  }
+  d3.locale = function(locale) {
+    return {
+      numberFormat: d3_locale_numberFormat(locale),
+      timeFormat: d3_locale_timeFormat(locale)
+    };
+  };
+  var d3_locale_enUS = d3.locale({
+    decimal: ".",
+    thousands: ",",
+    grouping: [ 3 ],
+    currency: [ "$", "" ],
+    dateTime: "%a %b %e %X %Y",
+    date: "%m/%d/%Y",
+    time: "%H:%M:%S",
+    periods: [ "AM", "PM" ],
+    days: [ "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" ],
+    shortDays: [ "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" ],
+    months: [ "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" ],
+    shortMonths: [ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" ]
+  });
+  d3.format = d3_locale_enUS.numberFormat;
   d3.geo = {};
   function d3_adder() {}
   d3_adder.prototype = {
@@ -15699,7 +17722,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
     function nextPoint(λ, φ) {
       λ *= d3_radians;
       φ = φ * d3_radians / 2 + π / 4;
-      var dλ = λ - λ0, cosφ = Math.cos(φ), sinφ = Math.sin(φ), k = sinφ0 * sinφ, u = cosφ0 * cosφ + k * Math.cos(dλ), v = k * Math.sin(dλ);
+      var dλ = λ - λ0, sdλ = dλ >= 0 ? 1 : -1, adλ = sdλ * dλ, cosφ = Math.cos(φ), sinφ = Math.sin(φ), k = sinφ0 * sinφ, u = cosφ0 * cosφ + k * Math.cos(adλ), v = k * sdλ * Math.sin(adλ);
       d3_geo_areaRingSum.add(Math.atan2(v, u));
       λ0 = λ, cosφ0 = cosφ, sinφ0 = sinφ;
     }
@@ -16161,9 +18184,9 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
       while (true) {
         if (j === m) j = 0;
         point = ring[j];
-        var λ = point[0], φ = point[1] / 2 + π / 4, sinφ = Math.sin(φ), cosφ = Math.cos(φ), dλ = λ - λ0, antimeridian = abs(dλ) > π, k = sinφ0 * sinφ;
-        d3_geo_areaRingSum.add(Math.atan2(k * Math.sin(dλ), cosφ0 * cosφ + k * Math.cos(dλ)));
-        polarAngle += antimeridian ? dλ + (dλ >= 0 ? τ : -τ) : dλ;
+        var λ = point[0], φ = point[1] / 2 + π / 4, sinφ = Math.sin(φ), cosφ = Math.cos(φ), dλ = λ - λ0, sdλ = dλ >= 0 ? 1 : -1, adλ = sdλ * dλ, antimeridian = adλ > π, k = sinφ0 * sinφ;
+        d3_geo_areaRingSum.add(Math.atan2(k * sdλ * Math.sin(adλ), cosφ0 * cosφ + k * Math.cos(adλ)));
+        polarAngle += antimeridian ? dλ + sdλ * τ : dλ;
         if (antimeridian ^ λ0 >= meridian ^ λ >= meridian) {
           var arc = d3_geo_cartesianCross(d3_geo_cartesian(point0), d3_geo_cartesian(point));
           d3_geo_cartesianNormalize(arc);
@@ -16453,17 +18476,14 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
           for (var j = 1, v = polygon[i], m = v.length, a = v[0], b; j < m; ++j) {
             b = v[j];
             if (a[1] <= y) {
-              if (b[1] > y && isLeft(a, b, p) > 0) ++wn;
+              if (b[1] > y && d3_cross2d(a, b, p) > 0) ++wn;
             } else {
-              if (b[1] <= y && isLeft(a, b, p) < 0) --wn;
+              if (b[1] <= y && d3_cross2d(a, b, p) < 0) --wn;
             }
             a = b;
           }
         }
         return wn !== 0;
-      }
-      function isLeft(a, b, c) {
-        return (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]);
       }
       function interpolate(from, to, direction, listener) {
         var a = 0, a1 = 0;
@@ -17423,7 +19443,12 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
     }, n = φ0 === φ1 ? Math.sin(φ0) : Math.log(cosφ0 / Math.cos(φ1)) / Math.log(t(φ1) / t(φ0)), F = cosφ0 * Math.pow(t(φ0), n) / n;
     if (!n) return d3_geo_mercator;
     function forward(λ, φ) {
-      var ρ = abs(abs(φ) - halfπ) < ε ? 0 : F / Math.pow(t(φ), n);
+      if (F > 0) {
+        if (φ < -halfπ + ε) φ = -halfπ + ε;
+      } else {
+        if (φ > halfπ - ε) φ = halfπ - ε;
+      }
+      var ρ = F / Math.pow(t(φ), n);
       return [ ρ * Math.sin(n * λ), F - ρ * Math.cos(n * λ) ];
     }
     forward.invert = function(x, y) {
@@ -17533,65 +19558,17 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
     if (arguments.length) return hull(vertices);
     function hull(data) {
       if (data.length < 3) return [];
-      var fx = d3_functor(x), fy = d3_functor(y), n = data.length, vertices, plen = n - 1, points = [], stack = [], d, i, j, h = 0, x1, y1, x2, y2, u, v, a, sp;
-      if (fx === d3_geom_pointX && y === d3_geom_pointY) vertices = data; else for (i = 0, 
-      vertices = []; i < n; ++i) {
-        vertices.push([ +fx.call(this, d = data[i], i), +fy.call(this, d, i) ]);
+      var fx = d3_functor(x), fy = d3_functor(y), i, n = data.length, points = [], flippedPoints = [];
+      for (i = 0; i < n; i++) {
+        points.push([ +fx.call(this, data[i], i), +fy.call(this, data[i], i), i ]);
       }
-      for (i = 1; i < n; ++i) {
-        if (vertices[i][1] < vertices[h][1] || vertices[i][1] == vertices[h][1] && vertices[i][0] < vertices[h][0]) h = i;
-      }
-      for (i = 0; i < n; ++i) {
-        if (i === h) continue;
-        y1 = vertices[i][1] - vertices[h][1];
-        x1 = vertices[i][0] - vertices[h][0];
-        points.push({
-          angle: Math.atan2(y1, x1),
-          index: i
-        });
-      }
-      points.sort(function(a, b) {
-        return a.angle - b.angle;
-      });
-      a = points[0].angle;
-      v = points[0].index;
-      u = 0;
-      for (i = 1; i < plen; ++i) {
-        j = points[i].index;
-        if (a == points[i].angle) {
-          x1 = vertices[v][0] - vertices[h][0];
-          y1 = vertices[v][1] - vertices[h][1];
-          x2 = vertices[j][0] - vertices[h][0];
-          y2 = vertices[j][1] - vertices[h][1];
-          if (x1 * x1 + y1 * y1 >= x2 * x2 + y2 * y2) {
-            points[i].index = -1;
-            continue;
-          } else {
-            points[u].index = -1;
-          }
-        }
-        a = points[i].angle;
-        u = i;
-        v = j;
-      }
-      stack.push(h);
-      for (i = 0, j = 0; i < 2; ++j) {
-        if (points[j].index > -1) {
-          stack.push(points[j].index);
-          i++;
-        }
-      }
-      sp = stack.length;
-      for (;j < plen; ++j) {
-        if (points[j].index < 0) continue;
-        while (!d3_geom_hullCCW(stack[sp - 2], stack[sp - 1], points[j].index, vertices)) {
-          --sp;
-        }
-        stack[sp++] = points[j].index;
-      }
-      var poly = [];
-      for (i = sp - 1; i >= 0; --i) poly.push(data[stack[i]]);
-      return poly;
+      points.sort(d3_geom_hullOrder);
+      for (i = 0; i < n; i++) flippedPoints.push([ points[i][0], -points[i][1] ]);
+      var upper = d3_geom_hullUpper(points), lower = d3_geom_hullUpper(flippedPoints);
+      var skipLeft = lower[0] === upper[0], skipRight = lower[lower.length - 1] === upper[upper.length - 1], polygon = [];
+      for (i = upper.length - 1; i >= 0; --i) polygon.push(data[points[upper[i]][2]]);
+      for (i = +skipLeft; i < lower.length - skipRight; ++i) polygon.push(data[points[lower[i]][2]]);
+      return polygon;
     }
     hull.x = function(_) {
       return arguments.length ? (x = _, hull) : x;
@@ -17601,18 +19578,16 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
     };
     return hull;
   };
-  function d3_geom_hullCCW(i1, i2, i3, v) {
-    var t, a, b, c, d, e, f;
-    t = v[i1];
-    a = t[0];
-    b = t[1];
-    t = v[i2];
-    c = t[0];
-    d = t[1];
-    t = v[i3];
-    e = t[0];
-    f = t[1];
-    return (f - b) * (c - a) - (d - b) * (e - a) > 0;
+  function d3_geom_hullUpper(points) {
+    var n = points.length, hull = [ 0, 1 ], hs = 2;
+    for (var i = 2; i < n; i++) {
+      while (hs > 1 && d3_cross2d(points[hull[hs - 2]], points[hull[hs - 1]], points[i]) <= 0) --hs;
+      hull[hs++] = i;
+    }
+    return hull.slice(0, hs);
+  }
+  function d3_geom_hullOrder(a, b) {
+    return a[0] - b[0] || a[1] - b[1];
   }
   d3.geom.polygon = function(coordinates) {
     d3_subclass(coordinates, d3_geom_polygonPrototype);
@@ -18563,7 +20538,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   }
   d3.interpolators = [ function(a, b) {
     var t = typeof b;
-    return (t === "string" ? d3_rgb_names.has(b) || /^(#|rgb\(|hsl\()/.test(b) ? d3_interpolateRgb : d3_interpolateString : b instanceof d3_Color ? d3_interpolateRgb : t === "object" ? Array.isArray(b) ? d3_interpolateArray : d3_interpolateObject : d3_interpolateNumber)(a, b);
+    return (t === "string" ? d3_rgb_names.has(b) || /^(#|rgb\(|hsl\()/.test(b) ? d3_interpolateRgb : d3_interpolateString : b instanceof d3_Color ? d3_interpolateRgb : Array.isArray(b) ? d3_interpolateArray : t === "object" && isNaN(b) ? d3_interpolateObject : d3_interpolateNumber)(a, b);
   } ];
   d3.interpolateArray = d3_interpolateArray;
   function d3_interpolateArray(a, b) {
@@ -18983,19 +20958,21 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
     return chord;
   };
   d3.layout.force = function() {
-    var force = {}, event = d3.dispatch("start", "tick", "end"), size = [ 1, 1 ], drag, alpha, friction = .9, linkDistance = d3_layout_forceLinkDistance, linkStrength = d3_layout_forceLinkStrength, charge = -30, gravity = .1, theta = .8, nodes = [], links = [], distances, strengths, charges;
+    var force = {}, event = d3.dispatch("start", "tick", "end"), size = [ 1, 1 ], drag, alpha, friction = .9, linkDistance = d3_layout_forceLinkDistance, linkStrength = d3_layout_forceLinkStrength, charge = -30, chargeDistance2 = d3_layout_forceChargeDistance2, gravity = .1, theta2 = .64, nodes = [], links = [], distances, strengths, charges;
     function repulse(node) {
       return function(quad, x1, _, x2) {
         if (quad.point !== node) {
-          var dx = quad.cx - node.x, dy = quad.cy - node.y, dn = 1 / Math.sqrt(dx * dx + dy * dy);
-          if ((x2 - x1) * dn < theta) {
-            var k = quad.charge * dn * dn;
-            node.px -= dx * k;
-            node.py -= dy * k;
+          var dx = quad.cx - node.x, dy = quad.cy - node.y, dw = x2 - x1, dn = dx * dx + dy * dy;
+          if (dw * dw / theta2 < dn) {
+            if (dn < chargeDistance2) {
+              var k = quad.charge / dn;
+              node.px -= dx * k;
+              node.py -= dy * k;
+            }
             return true;
           }
-          if (quad.point && isFinite(dn)) {
-            var k = quad.pointCharge * dn * dn;
+          if (quad.point && dn && dn < chargeDistance2) {
+            var k = quad.pointCharge / dn;
             node.px -= dx * k;
             node.py -= dy * k;
           }
@@ -19099,14 +21076,19 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
       charge = typeof x === "function" ? x : +x;
       return force;
     };
+    force.chargeDistance = function(x) {
+      if (!arguments.length) return Math.sqrt(chargeDistance2);
+      chargeDistance2 = x * x;
+      return force;
+    };
     force.gravity = function(x) {
       if (!arguments.length) return gravity;
       gravity = +x;
       return force;
     };
     force.theta = function(x) {
-      if (!arguments.length) return theta;
-      theta = +x;
+      if (!arguments.length) return Math.sqrt(theta2);
+      theta2 = x * x;
       return force;
     };
     force.alpha = function(x) {
@@ -19224,7 +21206,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
     quad.cx = cx / quad.charge;
     quad.cy = cy / quad.charge;
   }
-  var d3_layout_forceLinkDistance = 20, d3_layout_forceLinkStrength = 1;
+  var d3_layout_forceLinkDistance = 20, d3_layout_forceLinkStrength = 1, d3_layout_forceChargeDistance2 = Infinity;
   d3.layout.hierarchy = function() {
     var sort = d3_layout_hierarchySort, children = d3_layout_hierarchyChildren, value = d3_layout_hierarchyValue;
     function recurse(node, depth, nodes) {
@@ -20334,9 +22316,24 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   }
   function d3_scale_linearTickFormat(domain, m, format) {
     var range = d3_scale_linearTickRange(domain, m);
-    return d3.format(format ? format.replace(d3_format_re, function(a, b, c, d, e, f, g, h, i, j) {
-      return [ b, c, d, e, f, g, h, i || "." + d3_scale_linearFormatPrecision(j, range), j ].join("");
-    }) : ",." + d3_scale_linearPrecision(range[2]) + "f");
+    if (format) {
+      var match = d3_format_re.exec(format);
+      match.shift();
+      if (match[8] === "s") {
+        var prefix = d3.formatPrefix(Math.max(abs(range[0]), abs(range[1])));
+        if (!match[7]) match[7] = "." + d3_scale_linearPrecision(prefix.scale(range[2]));
+        match[8] = "f";
+        format = d3.format(match.join(""));
+        return function(d) {
+          return format(prefix.scale(d)) + prefix.symbol;
+        };
+      }
+      if (!match[7]) match[7] = "." + d3_scale_linearFormatPrecision(match[8], range);
+      format = match.join("");
+    } else {
+      format = ",." + d3_scale_linearPrecision(range[2]) + "f";
+    }
+    return d3.format(format);
   }
   var d3_scale_linearFormatSignificant = {
     s: 1,
@@ -20350,7 +22347,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   }
   function d3_scale_linearFormatPrecision(type, range) {
     var p = d3_scale_linearPrecision(range[2]);
-    return type in d3_scale_linearFormatSignificant ? Math.abs(p - d3_scale_linearPrecision(Math.max(Math.abs(range[0]), Math.abs(range[1])))) + +(type !== "e") : p - (type === "%") * 2;
+    return type in d3_scale_linearFormatSignificant ? Math.abs(p - d3_scale_linearPrecision(Math.max(abs(range[0]), abs(range[1])))) + +(type !== "e") : p - (type === "%") * 2;
   }
   d3.scale.log = function() {
     return d3_scale_log(d3.scale.linear().domain([ 0, 1 ]), 10, true, [ 1, 10 ]);
@@ -20478,7 +22475,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   function d3_scale_ordinal(domain, ranger) {
     var index, range, rangeBand;
     function scale(x) {
-      return range[((index.get(x) || ranger.t === "range" && index.set(x, domain.push(x))) - 1) % range.length];
+      return range[((index.get(x) || (ranger.t === "range" ? index.set(x, domain.push(x)) : NaN)) - 1) % range.length];
     }
     function steps(start, step) {
       return d3.range(domain.length).map(function(i) {
@@ -20585,7 +22582,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
       if (!arguments.length) return domain;
       domain = x.filter(function(d) {
         return !isNaN(d);
-      }).sort(d3.ascending);
+      }).sort(d3_ascending);
       return rescale();
     };
     scale.range = function(x) {
@@ -21426,6 +23423,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   };
   d3_transitionPrototype.delay = function(value) {
     var id = this.id;
+    if (arguments.length < 1) return this.node().__transition__[id].delay;
     return d3_selection_each(this, typeof value === "function" ? function(node, i, j) {
       node.__transition__[id].delay = +value.call(node, node.__data__, i, j);
     } : (value = +value, function(node) {
@@ -21434,6 +23432,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   };
   d3_transitionPrototype.duration = function(value) {
     var id = this.id;
+    if (arguments.length < 1) return this.node().__transition__[id].duration;
     return d3_selection_each(this, typeof value === "function" ? function(node, i, j) {
       node.__transition__[id].duration = Math.max(1, value.call(node, node.__data__, i, j));
     } : (value = Math.max(1, value), function(node) {
@@ -21532,7 +23531,7 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
       g.each(function() {
         var g = d3.select(this);
         var scale0 = this.__chart__ || scale, scale1 = this.__chart__ = scale.copy();
-        var ticks = tickValues == null ? scale1.ticks ? scale1.ticks.apply(scale1, tickArguments_) : scale1.domain() : tickValues, tickFormat = tickFormat_ == null ? scale1.tickFormat ? scale1.tickFormat.apply(scale1, tickArguments_) : d3_identity : tickFormat_, tick = g.selectAll(".tick").data(ticks, scale1), tickEnter = tick.enter().insert("g", ".domain").attr("class", "tick").style("opacity", ε), tickExit = d3.transition(tick.exit()).style("opacity", ε).remove(), tickUpdate = d3.transition(tick).style("opacity", 1), tickTransform;
+        var ticks = tickValues == null ? scale1.ticks ? scale1.ticks.apply(scale1, tickArguments_) : scale1.domain() : tickValues, tickFormat = tickFormat_ == null ? scale1.tickFormat ? scale1.tickFormat.apply(scale1, tickArguments_) : d3_identity : tickFormat_, tick = g.selectAll(".tick").data(ticks, scale1), tickEnter = tick.enter().insert("g", ".domain").attr("class", "tick").style("opacity", ε), tickExit = d3.transition(tick.exit()).style("opacity", ε).remove(), tickUpdate = d3.transition(tick.order()).style("opacity", 1), tickTransform;
         var range = d3_scaleRange(scale1), path = g.selectAll(".domain").data([ 0 ]), pathUpdate = (path.enter().append("path").attr("class", "domain"), 
         d3.transition(path));
         tickEnter.append("line");
@@ -21959,491 +23958,8 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
     sw: "nesw-resize"
   };
   var d3_svg_brushResizes = [ [ "n", "e", "s", "w", "nw", "ne", "se", "sw" ], [ "e", "w" ], [ "n", "s" ], [] ];
-  var d3_time = d3.time = {}, d3_date = Date, d3_time_daySymbols = [ "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" ];
-  function d3_date_utc() {
-    this._ = new Date(arguments.length > 1 ? Date.UTC.apply(this, arguments) : arguments[0]);
-  }
-  d3_date_utc.prototype = {
-    getDate: function() {
-      return this._.getUTCDate();
-    },
-    getDay: function() {
-      return this._.getUTCDay();
-    },
-    getFullYear: function() {
-      return this._.getUTCFullYear();
-    },
-    getHours: function() {
-      return this._.getUTCHours();
-    },
-    getMilliseconds: function() {
-      return this._.getUTCMilliseconds();
-    },
-    getMinutes: function() {
-      return this._.getUTCMinutes();
-    },
-    getMonth: function() {
-      return this._.getUTCMonth();
-    },
-    getSeconds: function() {
-      return this._.getUTCSeconds();
-    },
-    getTime: function() {
-      return this._.getTime();
-    },
-    getTimezoneOffset: function() {
-      return 0;
-    },
-    valueOf: function() {
-      return this._.valueOf();
-    },
-    setDate: function() {
-      d3_time_prototype.setUTCDate.apply(this._, arguments);
-    },
-    setDay: function() {
-      d3_time_prototype.setUTCDay.apply(this._, arguments);
-    },
-    setFullYear: function() {
-      d3_time_prototype.setUTCFullYear.apply(this._, arguments);
-    },
-    setHours: function() {
-      d3_time_prototype.setUTCHours.apply(this._, arguments);
-    },
-    setMilliseconds: function() {
-      d3_time_prototype.setUTCMilliseconds.apply(this._, arguments);
-    },
-    setMinutes: function() {
-      d3_time_prototype.setUTCMinutes.apply(this._, arguments);
-    },
-    setMonth: function() {
-      d3_time_prototype.setUTCMonth.apply(this._, arguments);
-    },
-    setSeconds: function() {
-      d3_time_prototype.setUTCSeconds.apply(this._, arguments);
-    },
-    setTime: function() {
-      d3_time_prototype.setTime.apply(this._, arguments);
-    }
-  };
-  var d3_time_prototype = Date.prototype;
-  var d3_time_formatDateTime = "%a %b %e %X %Y", d3_time_formatDate = "%m/%d/%Y", d3_time_formatTime = "%H:%M:%S";
-  var d3_time_days = [ "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" ], d3_time_dayAbbreviations = [ "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" ], d3_time_months = [ "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" ], d3_time_monthAbbreviations = [ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" ];
-  function d3_time_interval(local, step, number) {
-    function round(date) {
-      var d0 = local(date), d1 = offset(d0, 1);
-      return date - d0 < d1 - date ? d0 : d1;
-    }
-    function ceil(date) {
-      step(date = local(new d3_date(date - 1)), 1);
-      return date;
-    }
-    function offset(date, k) {
-      step(date = new d3_date(+date), k);
-      return date;
-    }
-    function range(t0, t1, dt) {
-      var time = ceil(t0), times = [];
-      if (dt > 1) {
-        while (time < t1) {
-          if (!(number(time) % dt)) times.push(new Date(+time));
-          step(time, 1);
-        }
-      } else {
-        while (time < t1) times.push(new Date(+time)), step(time, 1);
-      }
-      return times;
-    }
-    function range_utc(t0, t1, dt) {
-      try {
-        d3_date = d3_date_utc;
-        var utc = new d3_date_utc();
-        utc._ = t0;
-        return range(utc, t1, dt);
-      } finally {
-        d3_date = Date;
-      }
-    }
-    local.floor = local;
-    local.round = round;
-    local.ceil = ceil;
-    local.offset = offset;
-    local.range = range;
-    var utc = local.utc = d3_time_interval_utc(local);
-    utc.floor = utc;
-    utc.round = d3_time_interval_utc(round);
-    utc.ceil = d3_time_interval_utc(ceil);
-    utc.offset = d3_time_interval_utc(offset);
-    utc.range = range_utc;
-    return local;
-  }
-  function d3_time_interval_utc(method) {
-    return function(date, k) {
-      try {
-        d3_date = d3_date_utc;
-        var utc = new d3_date_utc();
-        utc._ = date;
-        return method(utc, k)._;
-      } finally {
-        d3_date = Date;
-      }
-    };
-  }
-  d3_time.year = d3_time_interval(function(date) {
-    date = d3_time.day(date);
-    date.setMonth(0, 1);
-    return date;
-  }, function(date, offset) {
-    date.setFullYear(date.getFullYear() + offset);
-  }, function(date) {
-    return date.getFullYear();
-  });
-  d3_time.years = d3_time.year.range;
-  d3_time.years.utc = d3_time.year.utc.range;
-  d3_time.day = d3_time_interval(function(date) {
-    var day = new d3_date(2e3, 0);
-    day.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
-    return day;
-  }, function(date, offset) {
-    date.setDate(date.getDate() + offset);
-  }, function(date) {
-    return date.getDate() - 1;
-  });
-  d3_time.days = d3_time.day.range;
-  d3_time.days.utc = d3_time.day.utc.range;
-  d3_time.dayOfYear = function(date) {
-    var year = d3_time.year(date);
-    return Math.floor((date - year - (date.getTimezoneOffset() - year.getTimezoneOffset()) * 6e4) / 864e5);
-  };
-  d3_time_daySymbols.forEach(function(day, i) {
-    day = day.toLowerCase();
-    i = 7 - i;
-    var interval = d3_time[day] = d3_time_interval(function(date) {
-      (date = d3_time.day(date)).setDate(date.getDate() - (date.getDay() + i) % 7);
-      return date;
-    }, function(date, offset) {
-      date.setDate(date.getDate() + Math.floor(offset) * 7);
-    }, function(date) {
-      var day = d3_time.year(date).getDay();
-      return Math.floor((d3_time.dayOfYear(date) + (day + i) % 7) / 7) - (day !== i);
-    });
-    d3_time[day + "s"] = interval.range;
-    d3_time[day + "s"].utc = interval.utc.range;
-    d3_time[day + "OfYear"] = function(date) {
-      var day = d3_time.year(date).getDay();
-      return Math.floor((d3_time.dayOfYear(date) + (day + i) % 7) / 7);
-    };
-  });
-  d3_time.week = d3_time.sunday;
-  d3_time.weeks = d3_time.sunday.range;
-  d3_time.weeks.utc = d3_time.sunday.utc.range;
-  d3_time.weekOfYear = d3_time.sundayOfYear;
-  d3_time.format = d3_time_format;
-  function d3_time_format(template) {
-    var n = template.length;
-    function format(date) {
-      var string = [], i = -1, j = 0, c, p, f;
-      while (++i < n) {
-        if (template.charCodeAt(i) === 37) {
-          string.push(template.substring(j, i));
-          if ((p = d3_time_formatPads[c = template.charAt(++i)]) != null) c = template.charAt(++i);
-          if (f = d3_time_formats[c]) c = f(date, p == null ? c === "e" ? " " : "0" : p);
-          string.push(c);
-          j = i + 1;
-        }
-      }
-      string.push(template.substring(j, i));
-      return string.join("");
-    }
-    format.parse = function(string) {
-      var d = {
-        y: 1900,
-        m: 0,
-        d: 1,
-        H: 0,
-        M: 0,
-        S: 0,
-        L: 0,
-        Z: null
-      }, i = d3_time_parse(d, template, string, 0);
-      if (i != string.length) return null;
-      if ("p" in d) d.H = d.H % 12 + d.p * 12;
-      var localZ = d.Z != null && d3_date !== d3_date_utc, date = new (localZ ? d3_date_utc : d3_date)();
-      if ("j" in d) date.setFullYear(d.y, 0, d.j); else if ("w" in d && ("W" in d || "U" in d)) {
-        date.setFullYear(d.y, 0, 1);
-        date.setFullYear(d.y, 0, "W" in d ? (d.w + 6) % 7 + d.W * 7 - (date.getDay() + 5) % 7 : d.w + d.U * 7 - (date.getDay() + 6) % 7);
-      } else date.setFullYear(d.y, d.m, d.d);
-      date.setHours(d.H + Math.floor(d.Z / 100), d.M + d.Z % 100, d.S, d.L);
-      return localZ ? date._ : date;
-    };
-    format.toString = function() {
-      return template;
-    };
-    return format;
-  }
-  function d3_time_parse(date, template, string, j) {
-    var c, p, t, i = 0, n = template.length, m = string.length;
-    while (i < n) {
-      if (j >= m) return -1;
-      c = template.charCodeAt(i++);
-      if (c === 37) {
-        t = template.charAt(i++);
-        p = d3_time_parsers[t in d3_time_formatPads ? template.charAt(i++) : t];
-        if (!p || (j = p(date, string, j)) < 0) return -1;
-      } else if (c != string.charCodeAt(j++)) {
-        return -1;
-      }
-    }
-    return j;
-  }
-  function d3_time_formatRe(names) {
-    return new RegExp("^(?:" + names.map(d3.requote).join("|") + ")", "i");
-  }
-  function d3_time_formatLookup(names) {
-    var map = new d3_Map(), i = -1, n = names.length;
-    while (++i < n) map.set(names[i].toLowerCase(), i);
-    return map;
-  }
-  function d3_time_formatPad(value, fill, width) {
-    var sign = value < 0 ? "-" : "", string = (sign ? -value : value) + "", length = string.length;
-    return sign + (length < width ? new Array(width - length + 1).join(fill) + string : string);
-  }
-  var d3_time_dayRe = d3_time_formatRe(d3_time_days), d3_time_dayLookup = d3_time_formatLookup(d3_time_days), d3_time_dayAbbrevRe = d3_time_formatRe(d3_time_dayAbbreviations), d3_time_dayAbbrevLookup = d3_time_formatLookup(d3_time_dayAbbreviations), d3_time_monthRe = d3_time_formatRe(d3_time_months), d3_time_monthLookup = d3_time_formatLookup(d3_time_months), d3_time_monthAbbrevRe = d3_time_formatRe(d3_time_monthAbbreviations), d3_time_monthAbbrevLookup = d3_time_formatLookup(d3_time_monthAbbreviations), d3_time_percentRe = /^%/;
-  var d3_time_formatPads = {
-    "-": "",
-    _: " ",
-    "0": "0"
-  };
-  var d3_time_formats = {
-    a: function(d) {
-      return d3_time_dayAbbreviations[d.getDay()];
-    },
-    A: function(d) {
-      return d3_time_days[d.getDay()];
-    },
-    b: function(d) {
-      return d3_time_monthAbbreviations[d.getMonth()];
-    },
-    B: function(d) {
-      return d3_time_months[d.getMonth()];
-    },
-    c: d3_time_format(d3_time_formatDateTime),
-    d: function(d, p) {
-      return d3_time_formatPad(d.getDate(), p, 2);
-    },
-    e: function(d, p) {
-      return d3_time_formatPad(d.getDate(), p, 2);
-    },
-    H: function(d, p) {
-      return d3_time_formatPad(d.getHours(), p, 2);
-    },
-    I: function(d, p) {
-      return d3_time_formatPad(d.getHours() % 12 || 12, p, 2);
-    },
-    j: function(d, p) {
-      return d3_time_formatPad(1 + d3_time.dayOfYear(d), p, 3);
-    },
-    L: function(d, p) {
-      return d3_time_formatPad(d.getMilliseconds(), p, 3);
-    },
-    m: function(d, p) {
-      return d3_time_formatPad(d.getMonth() + 1, p, 2);
-    },
-    M: function(d, p) {
-      return d3_time_formatPad(d.getMinutes(), p, 2);
-    },
-    p: function(d) {
-      return d.getHours() >= 12 ? "PM" : "AM";
-    },
-    S: function(d, p) {
-      return d3_time_formatPad(d.getSeconds(), p, 2);
-    },
-    U: function(d, p) {
-      return d3_time_formatPad(d3_time.sundayOfYear(d), p, 2);
-    },
-    w: function(d) {
-      return d.getDay();
-    },
-    W: function(d, p) {
-      return d3_time_formatPad(d3_time.mondayOfYear(d), p, 2);
-    },
-    x: d3_time_format(d3_time_formatDate),
-    X: d3_time_format(d3_time_formatTime),
-    y: function(d, p) {
-      return d3_time_formatPad(d.getFullYear() % 100, p, 2);
-    },
-    Y: function(d, p) {
-      return d3_time_formatPad(d.getFullYear() % 1e4, p, 4);
-    },
-    Z: d3_time_zone,
-    "%": function() {
-      return "%";
-    }
-  };
-  var d3_time_parsers = {
-    a: d3_time_parseWeekdayAbbrev,
-    A: d3_time_parseWeekday,
-    b: d3_time_parseMonthAbbrev,
-    B: d3_time_parseMonth,
-    c: d3_time_parseLocaleFull,
-    d: d3_time_parseDay,
-    e: d3_time_parseDay,
-    H: d3_time_parseHour24,
-    I: d3_time_parseHour24,
-    j: d3_time_parseDayOfYear,
-    L: d3_time_parseMilliseconds,
-    m: d3_time_parseMonthNumber,
-    M: d3_time_parseMinutes,
-    p: d3_time_parseAmPm,
-    S: d3_time_parseSeconds,
-    U: d3_time_parseWeekNumberSunday,
-    w: d3_time_parseWeekdayNumber,
-    W: d3_time_parseWeekNumberMonday,
-    x: d3_time_parseLocaleDate,
-    X: d3_time_parseLocaleTime,
-    y: d3_time_parseYear,
-    Y: d3_time_parseFullYear,
-    Z: d3_time_parseZone,
-    "%": d3_time_parseLiteralPercent
-  };
-  function d3_time_parseWeekdayAbbrev(date, string, i) {
-    d3_time_dayAbbrevRe.lastIndex = 0;
-    var n = d3_time_dayAbbrevRe.exec(string.substring(i));
-    return n ? (date.w = d3_time_dayAbbrevLookup.get(n[0].toLowerCase()), i + n[0].length) : -1;
-  }
-  function d3_time_parseWeekday(date, string, i) {
-    d3_time_dayRe.lastIndex = 0;
-    var n = d3_time_dayRe.exec(string.substring(i));
-    return n ? (date.w = d3_time_dayLookup.get(n[0].toLowerCase()), i + n[0].length) : -1;
-  }
-  function d3_time_parseWeekdayNumber(date, string, i) {
-    d3_time_numberRe.lastIndex = 0;
-    var n = d3_time_numberRe.exec(string.substring(i, i + 1));
-    return n ? (date.w = +n[0], i + n[0].length) : -1;
-  }
-  function d3_time_parseWeekNumberSunday(date, string, i) {
-    d3_time_numberRe.lastIndex = 0;
-    var n = d3_time_numberRe.exec(string.substring(i));
-    return n ? (date.U = +n[0], i + n[0].length) : -1;
-  }
-  function d3_time_parseWeekNumberMonday(date, string, i) {
-    d3_time_numberRe.lastIndex = 0;
-    var n = d3_time_numberRe.exec(string.substring(i));
-    return n ? (date.W = +n[0], i + n[0].length) : -1;
-  }
-  function d3_time_parseMonthAbbrev(date, string, i) {
-    d3_time_monthAbbrevRe.lastIndex = 0;
-    var n = d3_time_monthAbbrevRe.exec(string.substring(i));
-    return n ? (date.m = d3_time_monthAbbrevLookup.get(n[0].toLowerCase()), i + n[0].length) : -1;
-  }
-  function d3_time_parseMonth(date, string, i) {
-    d3_time_monthRe.lastIndex = 0;
-    var n = d3_time_monthRe.exec(string.substring(i));
-    return n ? (date.m = d3_time_monthLookup.get(n[0].toLowerCase()), i + n[0].length) : -1;
-  }
-  function d3_time_parseLocaleFull(date, string, i) {
-    return d3_time_parse(date, d3_time_formats.c.toString(), string, i);
-  }
-  function d3_time_parseLocaleDate(date, string, i) {
-    return d3_time_parse(date, d3_time_formats.x.toString(), string, i);
-  }
-  function d3_time_parseLocaleTime(date, string, i) {
-    return d3_time_parse(date, d3_time_formats.X.toString(), string, i);
-  }
-  function d3_time_parseFullYear(date, string, i) {
-    d3_time_numberRe.lastIndex = 0;
-    var n = d3_time_numberRe.exec(string.substring(i, i + 4));
-    return n ? (date.y = +n[0], i + n[0].length) : -1;
-  }
-  function d3_time_parseYear(date, string, i) {
-    d3_time_numberRe.lastIndex = 0;
-    var n = d3_time_numberRe.exec(string.substring(i, i + 2));
-    return n ? (date.y = d3_time_expandYear(+n[0]), i + n[0].length) : -1;
-  }
-  function d3_time_parseZone(date, string, i) {
-    return /^[+-]\d{4}$/.test(string = string.substring(i, i + 5)) ? (date.Z = +string, 
-    i + 5) : -1;
-  }
-  function d3_time_expandYear(d) {
-    return d + (d > 68 ? 1900 : 2e3);
-  }
-  function d3_time_parseMonthNumber(date, string, i) {
-    d3_time_numberRe.lastIndex = 0;
-    var n = d3_time_numberRe.exec(string.substring(i, i + 2));
-    return n ? (date.m = n[0] - 1, i + n[0].length) : -1;
-  }
-  function d3_time_parseDay(date, string, i) {
-    d3_time_numberRe.lastIndex = 0;
-    var n = d3_time_numberRe.exec(string.substring(i, i + 2));
-    return n ? (date.d = +n[0], i + n[0].length) : -1;
-  }
-  function d3_time_parseDayOfYear(date, string, i) {
-    d3_time_numberRe.lastIndex = 0;
-    var n = d3_time_numberRe.exec(string.substring(i, i + 3));
-    return n ? (date.j = +n[0], i + n[0].length) : -1;
-  }
-  function d3_time_parseHour24(date, string, i) {
-    d3_time_numberRe.lastIndex = 0;
-    var n = d3_time_numberRe.exec(string.substring(i, i + 2));
-    return n ? (date.H = +n[0], i + n[0].length) : -1;
-  }
-  function d3_time_parseMinutes(date, string, i) {
-    d3_time_numberRe.lastIndex = 0;
-    var n = d3_time_numberRe.exec(string.substring(i, i + 2));
-    return n ? (date.M = +n[0], i + n[0].length) : -1;
-  }
-  function d3_time_parseSeconds(date, string, i) {
-    d3_time_numberRe.lastIndex = 0;
-    var n = d3_time_numberRe.exec(string.substring(i, i + 2));
-    return n ? (date.S = +n[0], i + n[0].length) : -1;
-  }
-  function d3_time_parseMilliseconds(date, string, i) {
-    d3_time_numberRe.lastIndex = 0;
-    var n = d3_time_numberRe.exec(string.substring(i, i + 3));
-    return n ? (date.L = +n[0], i + n[0].length) : -1;
-  }
-  var d3_time_numberRe = /^\s*\d+/;
-  function d3_time_parseAmPm(date, string, i) {
-    var n = d3_time_amPmLookup.get(string.substring(i, i += 2).toLowerCase());
-    return n == null ? -1 : (date.p = n, i);
-  }
-  var d3_time_amPmLookup = d3.map({
-    am: 0,
-    pm: 1
-  });
-  function d3_time_zone(d) {
-    var z = d.getTimezoneOffset(), zs = z > 0 ? "-" : "+", zh = ~~(abs(z) / 60), zm = abs(z) % 60;
-    return zs + d3_time_formatPad(zh, "0", 2) + d3_time_formatPad(zm, "0", 2);
-  }
-  function d3_time_parseLiteralPercent(date, string, i) {
-    d3_time_percentRe.lastIndex = 0;
-    var n = d3_time_percentRe.exec(string.substring(i, i + 1));
-    return n ? i + n[0].length : -1;
-  }
-  d3_time_format.utc = d3_time_formatUtc;
-  function d3_time_formatUtc(template) {
-    var local = d3_time_format(template);
-    function format(date) {
-      try {
-        d3_date = d3_date_utc;
-        var utc = new d3_date();
-        utc._ = date;
-        return local(utc);
-      } finally {
-        d3_date = Date;
-      }
-    }
-    format.parse = function(string) {
-      try {
-        d3_date = d3_date_utc;
-        var date = local.parse(string);
-        return date && date._;
-      } finally {
-        d3_date = Date;
-      }
-    };
-    format.toString = local.toString;
-    return format;
-  }
+  var d3_time_format = d3_time.format = d3_locale_enUS.timeFormat;
+  var d3_time_formatUtc = d3_time_format.utc;
   var d3_time_formatIso = d3_time_formatUtc("%Y-%m-%dT%H:%M:%S.%LZ");
   d3_time_format.iso = Date.prototype.toISOString && +new Date("2000-01-01T00:00:00.000Z") ? d3_time_formatIsoNative : d3_time_formatIso;
   function d3_time_formatIsoNative(date) {
@@ -22546,64 +24062,55 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   function d3_time_scaleDate(t) {
     return new Date(t);
   }
-  function d3_time_scaleFormat(formats) {
-    return function(date) {
-      var i = formats.length - 1, f = formats[i];
-      while (!f[1](date)) f = formats[--i];
-      return f[0](date);
-    };
-  }
   var d3_time_scaleSteps = [ 1e3, 5e3, 15e3, 3e4, 6e4, 3e5, 9e5, 18e5, 36e5, 108e5, 216e5, 432e5, 864e5, 1728e5, 6048e5, 2592e6, 7776e6, 31536e6 ];
   var d3_time_scaleLocalMethods = [ [ d3_time.second, 1 ], [ d3_time.second, 5 ], [ d3_time.second, 15 ], [ d3_time.second, 30 ], [ d3_time.minute, 1 ], [ d3_time.minute, 5 ], [ d3_time.minute, 15 ], [ d3_time.minute, 30 ], [ d3_time.hour, 1 ], [ d3_time.hour, 3 ], [ d3_time.hour, 6 ], [ d3_time.hour, 12 ], [ d3_time.day, 1 ], [ d3_time.day, 2 ], [ d3_time.week, 1 ], [ d3_time.month, 1 ], [ d3_time.month, 3 ], [ d3_time.year, 1 ] ];
-  var d3_time_scaleLocalFormats = [ [ d3_time_format("%Y"), d3_true ], [ d3_time_format("%B"), function(d) {
-    return d.getMonth();
-  } ], [ d3_time_format("%b %d"), function(d) {
-    return d.getDate() != 1;
-  } ], [ d3_time_format("%a %d"), function(d) {
-    return d.getDay() && d.getDate() != 1;
-  } ], [ d3_time_format("%I %p"), function(d) {
-    return d.getHours();
-  } ], [ d3_time_format("%I:%M"), function(d) {
-    return d.getMinutes();
-  } ], [ d3_time_format(":%S"), function(d) {
-    return d.getSeconds();
-  } ], [ d3_time_format(".%L"), function(d) {
+  var d3_time_scaleLocalFormat = d3_time_format.multi([ [ ".%L", function(d) {
     return d.getMilliseconds();
-  } ] ];
-  var d3_time_scaleLocalFormat = d3_time_scaleFormat(d3_time_scaleLocalFormats);
-  d3_time_scaleLocalMethods.year = d3_time.year;
-  d3_time.scale = function() {
-    return d3_time_scale(d3.scale.linear(), d3_time_scaleLocalMethods, d3_time_scaleLocalFormat);
-  };
+  } ], [ ":%S", function(d) {
+    return d.getSeconds();
+  } ], [ "%I:%M", function(d) {
+    return d.getMinutes();
+  } ], [ "%I %p", function(d) {
+    return d.getHours();
+  } ], [ "%a %d", function(d) {
+    return d.getDay() && d.getDate() != 1;
+  } ], [ "%b %d", function(d) {
+    return d.getDate() != 1;
+  } ], [ "%B", function(d) {
+    return d.getMonth();
+  } ], [ "%Y", d3_true ] ]);
   var d3_time_scaleMilliseconds = {
     range: function(start, stop, step) {
-      return d3.range(+start, +stop, step).map(d3_time_scaleDate);
+      return d3.range(Math.ceil(start / step) * step, +stop, step).map(d3_time_scaleDate);
     },
     floor: d3_identity,
     ceil: d3_identity
   };
-  var d3_time_scaleUTCMethods = d3_time_scaleLocalMethods.map(function(m) {
+  d3_time_scaleLocalMethods.year = d3_time.year;
+  d3_time.scale = function() {
+    return d3_time_scale(d3.scale.linear(), d3_time_scaleLocalMethods, d3_time_scaleLocalFormat);
+  };
+  var d3_time_scaleUtcMethods = d3_time_scaleLocalMethods.map(function(m) {
     return [ m[0].utc, m[1] ];
   });
-  var d3_time_scaleUTCFormats = [ [ d3_time_formatUtc("%Y"), d3_true ], [ d3_time_formatUtc("%B"), function(d) {
-    return d.getUTCMonth();
-  } ], [ d3_time_formatUtc("%b %d"), function(d) {
-    return d.getUTCDate() != 1;
-  } ], [ d3_time_formatUtc("%a %d"), function(d) {
-    return d.getUTCDay() && d.getUTCDate() != 1;
-  } ], [ d3_time_formatUtc("%I %p"), function(d) {
-    return d.getUTCHours();
-  } ], [ d3_time_formatUtc("%I:%M"), function(d) {
-    return d.getUTCMinutes();
-  } ], [ d3_time_formatUtc(":%S"), function(d) {
-    return d.getUTCSeconds();
-  } ], [ d3_time_formatUtc(".%L"), function(d) {
+  var d3_time_scaleUtcFormat = d3_time_formatUtc.multi([ [ ".%L", function(d) {
     return d.getUTCMilliseconds();
-  } ] ];
-  var d3_time_scaleUTCFormat = d3_time_scaleFormat(d3_time_scaleUTCFormats);
-  d3_time_scaleUTCMethods.year = d3_time.year.utc;
+  } ], [ ":%S", function(d) {
+    return d.getUTCSeconds();
+  } ], [ "%I:%M", function(d) {
+    return d.getUTCMinutes();
+  } ], [ "%I %p", function(d) {
+    return d.getUTCHours();
+  } ], [ "%a %d", function(d) {
+    return d.getUTCDay() && d.getUTCDate() != 1;
+  } ], [ "%b %d", function(d) {
+    return d.getUTCDate() != 1;
+  } ], [ "%B", function(d) {
+    return d.getUTCMonth();
+  } ], [ "%Y", d3_true ] ]);
+  d3_time_scaleUtcMethods.year = d3_time.year.utc;
   d3_time.scale.utc = function() {
-    return d3_time_scale(d3.scale.linear(), d3_time_scaleUTCMethods, d3_time_scaleUTCFormat);
+    return d3_time_scale(d3.scale.linear(), d3_time_scaleUtcMethods, d3_time_scaleUtcFormat);
   };
   d3.text = d3_xhrType(function(request) {
     return request.responseText;
@@ -22625,15 +24132,18 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   d3.xml = d3_xhrType(function(request) {
     return request.responseXML;
   });
-  return d3;
+  if (typeof define === "function" && define.amd) {
+    define(d3);
+  } else if (typeof module === "object" && module.exports) {
+    module.exports = d3;
+  } else {
+    this.d3 = d3;
+  }
 }();
-},{"__browserify_Buffer":21,"__browserify_process":22}],25:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/d3/index-browserify.js",__dirname="/node_modules/d3";require("./d3");
-module.exports = d3;
-(function () { delete this.d3; })(); // unset global
-
-},{"./d3":24,"__browserify_Buffer":21,"__browserify_process":22}],26:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/escodegen/escodegen.js",__dirname="/node_modules/escodegen";/*
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/d3/d3.js","/node_modules/d3")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],26:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/*
   Copyright (C) 2012-2013 Yusuke Suzuki <utatane.tea@gmail.com>
   Copyright (C) 2012-2013 Michael Ficarra <escodegen.copyright@michael.ficarra.me>
   Copyright (C) 2012-2013 Mathias Bynens <mathias@qiwi.be>
@@ -24699,8 +26209,10 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
 }());
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{"./package.json":28,"__browserify_Buffer":21,"__browserify_process":22,"estraverse":27,"source-map":30}],27:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/escodegen/node_modules/estraverse/estraverse.js",__dirname="/node_modules/escodegen/node_modules/estraverse";/*
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/escodegen/escodegen.js","/node_modules/escodegen")
+},{"./package.json":28,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"estraverse":27,"source-map":30}],27:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/*
   Copyright (C) 2012-2013 Yusuke Suzuki <utatane.tea@gmail.com>
   Copyright (C) 2012 Ariya Hidayat <ariya.hidayat@gmail.com>
 
@@ -25385,8 +26897,9 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
 }));
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],28:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/escodegen/package.json",__dirname="/node_modules/escodegen";module.exports={
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/escodegen/node_modules/estraverse/estraverse.js","/node_modules/escodegen/node_modules/estraverse")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],28:[function(require,module,exports){
+module.exports={
   "name": "escodegen",
   "description": "ECMAScript code generator",
   "homepage": "http://github.com/Constellation/escodegen.html",
@@ -25456,8 +26969,9 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   "_resolved": "https://registry.npmjs.org/escodegen/-/escodegen-0.0.26.tgz"
 }
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],29:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/esprima/esprima.js",__dirname="/node_modules/esprima";/*
+},{}],29:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/*
   Copyright (C) 2012 Ariya Hidayat <ariya.hidayat@gmail.com>
   Copyright (C) 2012 Mathias Bynens <mathias@qiwi.be>
   Copyright (C) 2012 Joost-Wim Boekesteijn <joost-wim@boekesteijn.nl>
@@ -29366,8 +30880,10 @@ parseStatement: true, parseSourceElement: true */
 }));
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],30:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/source-map/lib/source-map.js",__dirname="/node_modules/source-map/lib";/*
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/esprima/esprima.js","/node_modules/esprima")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],30:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
  * http://opensource.org/licenses/BSD-3-Clause
@@ -29376,8 +30892,10 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
-},{"./source-map/source-map-consumer":35,"./source-map/source-map-generator":36,"./source-map/source-node":37,"__browserify_Buffer":21,"__browserify_process":22}],31:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/source-map/lib/source-map/array-set.js",__dirname="/node_modules/source-map/lib/source-map";/* -*- Mode: js; js-indent-level: 2; -*- */
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map.js","/node_modules/source-map/lib")
+},{"./source-map/source-map-consumer":35,"./source-map/source-map-generator":36,"./source-map/source-node":37,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],31:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE or:
@@ -29475,8 +30993,10 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":38,"__browserify_Buffer":21,"__browserify_process":22,"amdefine":39}],32:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/source-map/lib/source-map/base64-vlq.js",__dirname="/node_modules/source-map/lib/source-map";/* -*- Mode: js; js-indent-level: 2; -*- */
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/array-set.js","/node_modules/source-map/lib/source-map")
+},{"./util":38,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],32:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE or:
@@ -29621,8 +31141,10 @@ define(function (require, exports, module) {
 
 });
 
-},{"./base64":33,"__browserify_Buffer":21,"__browserify_process":22,"amdefine":39}],33:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/source-map/lib/source-map/base64.js",__dirname="/node_modules/source-map/lib/source-map";/* -*- Mode: js; js-indent-level: 2; -*- */
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/base64-vlq.js","/node_modules/source-map/lib/source-map")
+},{"./base64":33,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],33:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE or:
@@ -29665,8 +31187,10 @@ define(function (require, exports, module) {
 
 });
 
-},{"__browserify_Buffer":21,"__browserify_process":22,"amdefine":39}],34:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/source-map/lib/source-map/binary-search.js",__dirname="/node_modules/source-map/lib/source-map";/* -*- Mode: js; js-indent-level: 2; -*- */
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/base64.js","/node_modules/source-map/lib/source-map")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],34:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE or:
@@ -29748,8 +31272,10 @@ define(function (require, exports, module) {
 
 });
 
-},{"__browserify_Buffer":21,"__browserify_process":22,"amdefine":39}],35:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/source-map/lib/source-map/source-map-consumer.js",__dirname="/node_modules/source-map/lib/source-map";/* -*- Mode: js; js-indent-level: 2; -*- */
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/binary-search.js","/node_modules/source-map/lib/source-map")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],35:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE or:
@@ -30191,8 +31717,10 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":31,"./base64-vlq":32,"./binary-search":34,"./util":38,"__browserify_Buffer":21,"__browserify_process":22,"amdefine":39}],36:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/source-map/lib/source-map/source-map-generator.js",__dirname="/node_modules/source-map/lib/source-map";/* -*- Mode: js; js-indent-level: 2; -*- */
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-map-consumer.js","/node_modules/source-map/lib/source-map")
+},{"./array-set":31,"./base64-vlq":32,"./binary-search":34,"./util":38,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],36:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE or:
@@ -30573,8 +32101,10 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":31,"./base64-vlq":32,"./util":38,"__browserify_Buffer":21,"__browserify_process":22,"amdefine":39}],37:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/source-map/lib/source-map/source-node.js",__dirname="/node_modules/source-map/lib/source-map";/* -*- Mode: js; js-indent-level: 2; -*- */
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-map-generator.js","/node_modules/source-map/lib/source-map")
+},{"./array-set":31,"./base64-vlq":32,"./util":38,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],37:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE or:
@@ -30946,8 +32476,10 @@ define(function (require, exports, module) {
 
 });
 
-},{"./source-map-generator":36,"./util":38,"__browserify_Buffer":21,"__browserify_process":22,"amdefine":39}],38:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/source-map/lib/source-map/util.js",__dirname="/node_modules/source-map/lib/source-map";/* -*- Mode: js; js-indent-level: 2; -*- */
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-node.js","/node_modules/source-map/lib/source-map")
+},{"./source-map-generator":36,"./util":38,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],38:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE or:
@@ -31153,8 +32685,10 @@ define(function (require, exports, module) {
 
 });
 
-},{"__browserify_Buffer":21,"__browserify_process":22,"amdefine":39}],39:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/source-map/node_modules/amdefine/amdefine.js",__dirname="/node_modules/source-map/node_modules/amdefine";/** vim: et:ts=4:sw=4:sts=4
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/util.js","/node_modules/source-map/lib/source-map")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],39:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 0.1.0 Copyright (c) 2011, The Dojo Foundation All Rights Reserved.
  * Available via the MIT or new BSD license.
  * see: http://github.com/jrburke/amdefine for details
@@ -31454,8 +32988,10 @@ function amdefine(module, requireFn) {
 
 module.exports = amdefine;
 
-},{"__browserify_Buffer":21,"__browserify_process":22,"path":19}],40:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/node_modules/underscore/underscore.js",__dirname="/node_modules/underscore";//     Underscore.js 1.6.0
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/node_modules/amdefine/amdefine.js","/node_modules/source-map/node_modules/amdefine")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"path":23}],40:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+//     Underscore.js 1.6.0
 //     http://underscorejs.org
 //     (c) 2009-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
 //     Underscore may be freely distributed under the MIT license.
@@ -32799,8 +34335,10 @@ var process=require("__browserify_process"),global=typeof self !== "undefined" ?
   }
 }).call(this);
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],41:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/precompile.js",__dirname="/";/*
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/underscore/underscore.js","/node_modules/underscore")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],41:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/*
  A very simple (abstract/tracing) interpreter that takes in the AST generated by js_astify.js. Inteprets only a fragment of javascript (eg does not deal with objects, loops, etc.).
  The traces generated are in an even simpler js fragment, that has no non-primitive function call, no loops, etc. It is:
  S    :=   A_i|I|SS
@@ -33490,8 +35028,10 @@ backTrace: backTrace,
 
 
 
-},{"./church_astify.js":1,"./church_builtins":"BiOwI0","./js_astify.js":16,"./probabilistic-js":"jx6Szh","./tokenize.js":53,"__browserify_Buffer":21,"__browserify_process":22,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29}],42:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/STKernel.js",__dirname="/probabilistic-js/probabilistic";var trace = require("./trace")
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/precompile.js","/")
+},{"./church_astify.js":1,"./church_builtins":"sy/OMr","./js_astify.js":16,"./probabilistic-js":"/takZe","./tokenize.js":53,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29}],42:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var trace = require("./trace")
 var util = require("./util")
 
 
@@ -33586,8 +35126,10 @@ STKernel: STKernel
 }
 
 
-},{"./trace":50,"./util":52,"__browserify_Buffer":21,"__browserify_process":22}],43:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/control.js",__dirname="/probabilistic-js/probabilistic";
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/STKernel.js","/probabilistic-js/probabilistic")
+},{"./trace":50,"./util":52,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],43:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+
 // Repeat a computation n times
 function ntimes(times, block)
 {
@@ -33623,8 +35165,10 @@ module.exports =
 	until: until,
 	repeat: repeat
 }
-},{"__browserify_Buffer":21,"__browserify_process":22}],44:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/erp.js",__dirname="/probabilistic-js/probabilistic";var trace = require("./trace")
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/control.js","/probabilistic-js/probabilistic")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],44:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var trace = require("./trace")
 
 
 /*
@@ -34254,8 +35798,12 @@ module.exports =
 	dirichlet: dirichlet
 }
 
-},{"./trace":50,"__browserify_Buffer":21,"__browserify_process":22}],"jx6Szh":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/index.js",__dirname="/probabilistic-js/probabilistic";var trace = require("./trace")
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/erp.js","/probabilistic-js/probabilistic")
+},{"./trace":50,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./probabilistic-js":[function(require,module,exports){
+module.exports=require('/takZe');
+},{}],"/takZe":[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var trace = require("./trace")
 var erp = require("./erp")
 var control = require("./control")
 var inference = require("./inference")
@@ -34297,10 +35845,10 @@ for (var prop in transform)
 //// b/c this makes source transformation easier.
 var util = require("./util")
 module.exports["openModule"] = util.openModule
-},{"./control":43,"./erp":44,"./inference":47,"./marginalize":48,"./memoize":49,"./trace":50,"./transform":51,"./util":52,"__browserify_Buffer":21,"__browserify_process":22}],"./probabilistic-js":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/index.js",__dirname="/probabilistic-js/probabilistic";module.exports=require('jx6Szh');
-},{"__browserify_Buffer":21,"__browserify_process":22}],47:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/inference.js",__dirname="/probabilistic-js/probabilistic";var trace = require("./trace")
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/index.js","/probabilistic-js/probabilistic")
+},{"./control":43,"./erp":44,"./inference":47,"./marginalize":48,"./memoize":49,"./trace":50,"./transform":51,"./util":52,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],47:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var trace = require("./trace")
 var util = require("./util")
 var STKernel = require("./STKernel")
 
@@ -34397,6 +35945,27 @@ function rejectionSample(computation)
 //	return samps
 //}
 
+// HT https://en.wikipedia.org/wiki/Kahan_summation_algorithm
+function kahanSum(nums) {
+  var sum = 0.0;
+  var c = 0.0;  // A running compensation for lost low-order bits.
+  for(var i = 0, ii = nums.length; i < ii; i++) {
+	var y = nums[i] - c; // Subtract off compensation
+	var t = sum + y; // make temp variable for new sum
+	c = (t - sum) - y; // update compensation.
+	sum = t
+  }
+  return sum;
+}
+
+function normalSum(nums) {
+  var res = 0;
+  for(var i = 0, ii = nums.length; i < ii; i++) {
+	res += nums[i] 
+  }
+  return res;
+}
+
 /*
  Enumerate through random choices in the program.
  Assumes:
@@ -34405,28 +35974,33 @@ function rejectionSample(computation)
  Returns a discrete distribution (the marginal on return values).
  */
 function enumerateDist(computation) {
-    var dist = {}
-    function addElt(val, logprob) {
-        var stringrep = JSON.stringify(val)
-        if (!dist[stringrep]) {
-            dist[stringrep]={}
-            dist[stringrep].val = val
-            dist[stringrep].prob = 0
-        }
-        dist[stringrep].prob += Math.exp(logprob)
-    }
-    
-    //    initialize at start of domain for each ERP:
+	var dist = {}
+	function addElt(val, logprob) {
+		var stringrep = JSON.stringify(val)
+		if (!dist[stringrep]) {
+			dist[stringrep]={}
+			dist[stringrep].val = val
+			dist[stringrep].prob = []
+		}
+		dist[stringrep].prob.push( Math.exp(logprob) )
+	}
+	
+	//    initialize at start of domain for each ERP:
 	var currTrace = trace.newTrace(computation, false)
-    currTrace.enumerate=true
-    currTrace.traceUpdate()
-    currTrace.enumerate=false
-    //iterate through ERP vals:
-    while(currTrace) {
-        if (currTrace.conditionsSatisfied) {addElt(currTrace.returnValue, currTrace.logprob)}
-        currTrace = currTrace.nextEnumState()
-    }
-    return dist
+  currTrace.enumerate=true
+  currTrace.traceUpdate()
+  currTrace.enumerate=false
+  //iterate through ERP vals:
+  while(currTrace) {
+	if (currTrace.conditionsSatisfied) {addElt(currTrace.returnValue, currTrace.logprob)}
+	currTrace = currTrace.nextEnumState()
+  }
+
+  for(var item in dist) {
+	dist[item].prob = kahanSum(dist[item].prob);
+  }
+
+  return dist
 }
 
 
@@ -34437,7 +36011,7 @@ single variable at a time
 */
 function RandomWalkKernel(pred)
 {
-    this.pred = pred
+	this.pred = pred
 	this.proposalsMade = 0
 	this.proposalsAccepted = 0
 }
@@ -34445,9 +36019,9 @@ function RandomWalkKernel(pred)
 RandomWalkKernel.prototype.next = function RandomWalk_next(currTrace)
 {
 	this.proposalsMade += 1
-    
-    var currNames = currTrace.freeVarNames(this.pred)
-    
+	
+	var currNames = currTrace.freeVarNames(this.pred)
+	
 	/*
 	If we have no free random variables, then just run the computation
 	and generate another sample (this may not actually be deterministic,
@@ -34464,7 +36038,7 @@ RandomWalkKernel.prototype.next = function RandomWalk_next(currTrace)
 	*/
 	else
 	{
-        var name = util.randomChoice(currNames)
+		var name = util.randomChoice(currNames)
 		var retval = currTrace.proposeChange(name)
 		var nextTrace = retval[0]
 		var fwdPropLP = retval[1] - Math.log(currNames.length)
@@ -34476,7 +36050,7 @@ RandomWalkKernel.prototype.next = function RandomWalk_next(currTrace)
 			return nextTrace
 		}
 	}
-    return currTrace //if we haven't accepted, return currTrace
+	return currTrace //if we haven't accepted, return currTrace
 }
 
 RandomWalkKernel.prototype.stats = function RandomWalk_stats()
@@ -34569,9 +36143,9 @@ function LARJKernel(diffusionKernel, annealSteps, jumpFreq)
 	this.diffusionProposalsAccepted = 0
 	this.annealingProposalsMade = 0
 	this.annealingProposalsAccepted = 0
-    
-    this.isStructural = function pred(rec){return rec.structural}
-    this.isNotStructural = function pred(rec){return !rec.structural}
+	
+	this.isStructural = function pred(rec){return rec.structural}
+	this.isNotStructural = function pred(rec){return !rec.structural}
 
 }
 
@@ -34626,8 +36200,8 @@ LARJKernel.prototype.jumpStep = function LARJKernel_jumpStep(currTrace)
 	// doing more than zero annealing steps
 	var annealingLpRatio = 0
 	if ((oldStructTrace.freeVarNames(this.isNotStructural).length
-         + newStructTrace.freeVarNames(this.isNotStructural).length) !== 0
-        && this.annealSteps > 0)
+		 + newStructTrace.freeVarNames(this.isNotStructural).length) !== 0
+		&& this.annealSteps > 0)
 	{
 		var lerpTrace = new LARJInterpolationTrace(oldStructTrace, newStructTrace)
 		var prevAccepted = this.diffusionKernel.proposalsAccepted
@@ -34679,6 +36253,18 @@ LARJKernel.prototype.stats = function LARJKernel_stats()
 		" (" + overallProposalsAccepted + "/" + overallProposalsMade + ")")
 }
 
+function mcmc_thunk(computation, kernel, lag, verbose, init) {
+	lag = (lag === undefined ? 1 : lag)
+	init = (init == undefined ? "rejection" : init)
+	kernel = (kernel == undefined ? new RandomWalkKernel() : kernel)
+	var currentTrace = trace.newTrace(computation, init)
+	return function() {
+		for (var i = 0; i < lag; i++) {
+			currentTrace = kernel.next(currentTrace);
+		}
+		return currentTrace.returnValue;
+	}
+}
 
 /*
 Do MCMC for 'numsamps' iterations using a given transition kernel
@@ -34686,7 +36272,7 @@ Do MCMC for 'numsamps' iterations using a given transition kernel
 function mcmc(computation, kernel, numsamps, lag, verbose, init)
 {
 	lag = (lag === undefined ? 1 : lag)
-    init = (init == undefined ? "rejection" : init)
+	init = (init == undefined ? "rejection" : init)
 	var currentTrace = trace.newTrace(computation, init)
 	var samps = []
 	var iters = numsamps*lag
@@ -34705,8 +36291,8 @@ function mcmc(computation, kernel, numsamps, lag, verbose, init)
  Mixture kernel
  */
 function mixKernel(k1,k2) { //FIXME: variable number, variable weights
-    this.k1=k1
-    this.k2=k2
+	this.k1=k1
+	this.k2=k2
 }
 
 mixKernel.prototype.next = function(trace){return Math.random()>0.5?this.k1.next(trace):this.k2.next(trace)}
@@ -34743,9 +36329,9 @@ function LARJMH(computation, numsamps, annealSteps, jumpFreq, lag, verbose)
 function traceST(computation, numsamps, lag, verbose, init)
 {
 	lag = (lag === undefined ? 1 : lag)
-    //make MH proposals to structural or non-enumerable ERPs:
-    var rwkernel = new RandomWalkKernel(function(rec){return rec.structural || (typeof rec.erp.nextVal != 'function')})
-    var kernel = new mixKernel(new STKernel.STKernel(), rwkernel)
+	//make MH proposals to structural or non-enumerable ERPs:
+	var rwkernel = new RandomWalkKernel(function(rec){return rec.structural || (typeof rec.erp.nextVal != 'function')})
+	var kernel = new mixKernel(new STKernel.STKernel(), rwkernel)
 	return mcmc(computation, kernel, numsamps, lag, verbose, init)
 }
 
@@ -34758,26 +36344,41 @@ function traceST(computation, numsamps, lag, verbose, init)
 */
 
 function conditional(computation, options) {
-    switch (options.algorithm) {
-        case "traceMH":
-            
-            break
-            
-        case "traceST":
-            
-            break
-            
-        case "LARJMH":
-            
-            break
-            
-        default: //rejection
-            return function() {
-                return rejectionSample(computation)
-            }
-            
-    }
-    
+	switch (options.algorithm) {
+		case "traceMH":
+			
+			return mcmc_thunk(computation, new RandomWalkKernel(), options.lag, options.verbose, options.init)
+			
+		case "traceST":
+			var rwkernel = new RandomWalkKernel(function(rec){return rec.structural || (typeof rec.erp.nextVal != 'function')})
+			var kernel = new mixKernel(new STKernel.STKernel(), rwkernel)
+			return mcmc_thunk(computation, kernel, options.lag, options.verbose, options.init)
+			
+		case "LARJMH":
+			
+			return mcmc_thunk(computation,
+				new LARJKernel(new RandomWalkKernel(function(rec){return !rec.structural}), annealSteps, jumpFreq),
+				options.lag, options.verbose)
+			
+		case "enumerate":
+			var items = []
+			var probs = []
+			var enumeration = enumerateDist(computation)
+			for (key in enumeration) {
+				items.push(enumeration[key].val)
+				probs.push(enumeration[key].prob)
+			}
+			return function() {
+				return items[util.discreteChoice(probs)];
+			}
+
+		default: //rejection
+			return function() {
+				return rejectionSample(computation)
+			}
+			
+	}
+	
 }
 
 
@@ -34789,14 +36390,19 @@ module.exports =
 	expectation: expectation,
 	MAP: MAP,
 	rejectionSample: rejectionSample,
-    enumerateDist: enumerateDist,
+	enumerateDist: enumerateDist,
 //    bunchaRejectionSample: bunchaRejectionSample,
+	mcmc_thunk: mcmc_thunk,
 	traceMH: traceMH,
 	LARJMH: LARJMH,
-    traceST: traceST
+	traceST: traceST,
+	conditional: conditional
 }
-},{"./STKernel":42,"./trace":50,"./util":52,"__browserify_Buffer":21,"__browserify_process":22}],48:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/marginalize.js",__dirname="/probabilistic-js/probabilistic";
+
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/inference.js","/probabilistic-js/probabilistic")
+},{"./STKernel":42,"./trace":50,"./util":52,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],48:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+
 //this file provides a utility for marginalizing a function.
 //it caches the marginal for each argument set, thus providing a simple dynamic programming construct.
 //note that because a marginal is created, this acts as a query boundary for any free random variables or constraints within the function.
@@ -34924,8 +36530,10 @@ marginalize: marginalize
 
 
 
-},{"./erp":44,"./inference":47,"./trace":50,"__browserify_Buffer":21,"__browserify_process":22}],49:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/memoize.js",__dirname="/probabilistic-js/probabilistic";var trace = require("./trace")
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/marginalize.js","/probabilistic-js/probabilistic")
+},{"./erp":44,"./inference":47,"./trace":50,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],49:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var trace = require("./trace")
 
 /*
 Wrapper around a function to memoize its results
@@ -34951,8 +36559,10 @@ module.exports =
 	mem: mem
 }
 
-},{"./trace":50,"__browserify_Buffer":21,"__browserify_process":22}],50:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/trace.js",__dirname="/probabilistic-js/probabilistic";var util = require("./util")
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/memoize.js","/probabilistic-js/probabilistic")
+},{"./trace":50,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],50:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var util = require("./util")
 
 /*
 Callsite name management
@@ -34966,7 +36576,7 @@ function currentName(trace){
     var id = idstack[idstack.length-1]
     var loopnum = trace.loopcounters[id] || 0
     trace.loopcounters[id] = loopnum + 1
-	return id + ":" + loopnum
+	return id + "." + loopnum
 }
 
 
@@ -35155,19 +36765,22 @@ RandomExecutionTrace.prototype.traceUpdate = function traceUpdate(structureIsFix
 	// Clean up
 	this.loopcounters = {}
 
-    this.oldlogprob = 0.0
-    if (!structureIsFixed) {
-        // Clear out any random values that are no longer reachable
-        for(var i=0,rec; rec = oldvarlist[i]; i++) {
-            if(!rec.active) {
-                this.oldlogprob += rec.logprob
-                delete this.vars[rec.name]
-            }
-        }
+  this.oldlogprob = 0.0
+  if (!structureIsFixed) {
+    // Clear out any old random values that are no longer reachable
+    for(var i=0,rec; rec = oldvarlist[i]; i++) {
+      // before checking to see if the old random value is active,
+      // make sure that it was not supplanted by a new value
+      // (e.g., change of support)
+      if( this.vars[rec.name] == rec && !rec.active) {
+        this.oldlogprob += rec.logprob
+        delete this.vars[rec.name]
+      }
     }
+  } 
     
-    //reset active record marks for next traceUpdate..
-    for(var i=0, v; v=this.varlist[i]; i++) {v.active = false}
+   //reset active record marks for next traceUpdate..
+   for(var i=0, v; v=this.varlist[i]; i++) {v.active = false}
     
 	// Reset the original singleton trace
 	trace = origtrace
@@ -35298,10 +36911,6 @@ RandomExecutionTrace.prototype.nextEnumState = function nextEnumState() {
         //otherwise get next var:
         var varname = names.pop()
         var v = this.getRecord(varname)
-
-      if (!v) {
-        continue
-      }
         
         //if the domain is enumerable, go to next value:
         if (typeof v.erp.nextVal === 'function') {
@@ -35312,7 +36921,10 @@ RandomExecutionTrace.prototype.nextEnumState = function nextEnumState() {
                 v.val = newval
             }
             v.logprob = v.erp.logprob(v.val, v.params)
-        }
+        } 
+       	// else {
+        // 	throw new Error("Cannot enumerate on a continuous-valed ERP")
+        // }
     }
     this.traceUpdate()
     this.enumerate=false
@@ -35363,8 +36975,10 @@ module.exports =
 	condition: condition
 }
 
-},{"./util":52,"__browserify_Buffer":21,"__browserify_process":22}],51:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/transform.js",__dirname="/probabilistic-js/probabilistic";var esprima = require("esprima")
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/trace.js","/probabilistic-js/probabilistic")
+},{"./util":52,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],51:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var esprima = require("esprima")
 var escodegen = require("escodegen")
 var estraverse = require("escodegen/node_modules/estraverse")
 
@@ -35494,8 +37108,10 @@ module.exports =
 }
 
 "var x = foo(1, bar(), 3)"
-},{"__browserify_Buffer":21,"__browserify_process":22,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29}],52:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/probabilistic-js/probabilistic/util.js",__dirname="/probabilistic-js/probabilistic";
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/transform.js","/probabilistic-js/probabilistic")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29}],52:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+
 function openModule(mod)
 {
 	for (var prop in mod)
@@ -35559,8 +37175,10 @@ module.exports =
     discreteChoice: discreteChoice,
 	keys: keys
 }
-},{"__browserify_Buffer":21,"__browserify_process":22}],53:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/tokenize.js",__dirname="/";var util = require('./util.js');
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/util.js","/probabilistic-js/probabilistic")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],53:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var util = require('./util.js');
 
 var delimiters = ["(", ")", "[", "]", "'", "\"", ";"]
 var whitespace_re = /^\s/
@@ -35612,7 +37230,10 @@ function tokenize(s) {
 					}
 				}
 			}
-			tokens.push({text: s.slice(begin, end), start: site_map[begin], end: site_map[end-1]});
+			var token = s.slice(begin, end);
+			if (token[0] == '"') 
+				token = '"' + token.substring(1, token.length-1).replace(/\\\"/g, '"') + '"'
+			tokens.push({text: token, start: site_map[begin], end: site_map[end-1]});
 			begin = end;
 		}
 	}
@@ -35623,10 +37244,12 @@ module.exports = {
 	tokenize: tokenize
 }
 
-},{"./util.js":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22}],"./type-utils.js":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/type-utils.js",__dirname="/";module.exports=require('WwwT6v');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"WwwT6v":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/type-utils.js",__dirname="/";
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/tokenize.js","/")
+},{"./util.js":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./type-utils.js":[function(require,module,exports){
+module.exports=require('05wbT+');
+},{}],"05wbT+":[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+
 /* global module */
 
 var $x = {};
@@ -35650,10 +37273,12 @@ var arrayToList = $x.arrayToList = function(arr, mutate) {
 
 module.exports = $x;
 
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./util.js":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/util.js",__dirname="/";module.exports=require('h4wp5z');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"h4wp5z":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/util.js",__dirname="/";// ******************************
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/type-utils.js","/")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./util.js":[function(require,module,exports){
+module.exports=require('Y/OqMs');
+},{}],"Y/OqMs":[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+// ******************************
 // * PARSING
 // ******************************
 
@@ -35680,23 +37305,25 @@ function make_church_error(name, start, end, msg) {
 	return {name: "Church" + name, message: start + "-" + end + ": " + msg, start: start, end: end};
 }
 
+// TODO: update this for new list format
 function format_result(obj) {
-	function format_result_in_list_helper(obj) {
-		if (obj[0] == null) {
-			return ")";
-		} else if (obj.length == 1) {
-			return " . " + format_result(obj[0]) + ")";
-		} else {
-			return " " + format_result(obj[0]) + format_result_in_list_helper(obj.slice(1));
-		}
-	}
-
 	if (Array.isArray(obj)) {
-		if (obj.length >= 2) {
-			return "(" + format_result(obj[0]) + format_result_in_list_helper(obj.slice(1));
-		} else {
-			return "()";
-		}
+    // if we're a list
+    if (obj[obj.length-1] == null) {
+      return "(" + obj.slice(0,-1).map(format_result).join(" ") + ")";
+    }
+    // if we're just a pair
+    else {
+      var formatted = obj.map(format_result);
+      var most = formatted.slice(0,-1);
+      var last = formatted[formatted.length - 1]
+
+      return "(" +
+        most.join(" ") +
+        " . " +
+        last +
+        ")";
+    }      
 	} else {
 		if (typeof(obj) == "boolean") {
 			if (obj) {
@@ -35729,10 +37356,13 @@ module.exports = {
 	format_result: format_result,
 	log: log
 }
-},{"__browserify_Buffer":21,"__browserify_process":22}],"./viz":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/viz.js",__dirname="/";module.exports=require('Y99c6j');
-},{"__browserify_Buffer":21,"__browserify_process":22}],"Y99c6j":[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/viz.js",__dirname="/";/* global $, require */
+
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/util.js","/")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./viz":[function(require,module,exports){
+module.exports=require('mJMf/d');
+},{}],"mJMf/d":[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/* global $, require */
 
 var d3 = require("d3");
 var format_result = require("./util").format_result;
@@ -35743,8 +37373,6 @@ var arrayToList = typeUtils.arrayToList;
 
 var maxBins = 20;
 
-global.sideEffects = [] ;
-
 var erinSort = function(array) {
   var firstElem = array[0];
   if (typeof(firstElem) == "number") {
@@ -35752,7 +37380,7 @@ var erinSort = function(array) {
   }
   if (typeof(firstElem) == "string") {
     return array.sort();
-  }
+  } 
   if (Object.prototype.toString.call(firstElem) === '[object Array]') {
     return array;
   }
@@ -36242,8 +37870,10 @@ function drawAxes(svg, xAxis, yAxis, xAxisPos, yAxisPos, width, type) {
     .call(yAxis);
 }
 
-},{"./type-utils":"WwwT6v","./util":"h4wp5z","__browserify_Buffer":21,"__browserify_process":22,"d3":25,"underscore":40}],60:[function(require,module,exports){
-var process=require("__browserify_process"),global=typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},Buffer=require("__browserify_Buffer").Buffer,__filename="/wctransform.js",__dirname="/";var esprima = require("esprima")
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/viz.js","/")
+},{"./type-utils":"05wbT+","./util":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"d3":25,"underscore":40}],60:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var esprima = require("esprima")
 //var escodegen = require("escodegen")
 var estraverse = require("escodegen/node_modules/estraverse")
 
@@ -36422,5 +38052,5 @@ BlockStatementCollapser: BlockStatementCollapser
 
 "var x = foo(1, bar(), 3)"
 
-},{"__browserify_Buffer":21,"__browserify_process":22,"escodegen/node_modules/estraverse":27,"esprima":29}]},{},[])
-;
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/wctransform.js","/")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen/node_modules/estraverse":27,"esprima":29}]},{},[])

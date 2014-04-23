@@ -92,21 +92,62 @@ ul p {
 
 /* Code boxes */
 
-.code-controls select {
-  display: none
+.code-controls button, .code-settings button, .code-settings select {
+   font-family: Helvetica;
 }
 
-.code-controls button {
-   float: none;
+.code-controls button, .code-settings button {
+   padding: 4px;
 }
 
-.code-controls-clear {
-   clear: both;
-   display: block;
-   margin-bottom: 1em;   
+button.reset {
+   float: right
 }
 
-.results {
+li code {
+   border: 1px solid #aaa;
+   border-radius: 2px;
+   padding: 1px 3px 1px 3px;
+   background-color: #dfdfdf
+}
+
+.code-controls {
+   position: absolute;
+   bottom: 0; 
+   right: 0;
+   opacity: 0;
+   z-index: 1000
+}
+
+.code-settings {
+   z-index: 999;
+   position: absolute;
+   top: 0;
+   right: 0;
+   font-size: 12px;
+   list-style-type: none;
+   margin: 2px
+}
+
+.code-settings li {
+   display: none;
+}
+
+.code-settings .settings-icon {
+   display: inline;
+   opacity: 0.3; 
+}
+
+.code-settings:hover li {
+   opacity: 1.0;
+   display: inline
+}
+
+.CodeMirror:hover .code-controls, .CodeMirror-focused .code-controls {
+   opacity: 1
+}
+
+div.results {
    margin-bottom: 2em;
 }
 

@@ -13,7 +13,7 @@ Looking at the effect of a semantic free variable that can make "some" mean (lex
             (('null) true)
             (('none) (= marbles 0))
             (('all) (= marbles total-marbles))
-            (('some) (and (> marbles 0) (if fv (< marbles total-marbles) true))))
+            (('some) (and (> marbles 0) (if fv (< marbles total-marbles) true)))))
 
     (define (QUD-cell QUD marbles total-marbles)
       (case QUD

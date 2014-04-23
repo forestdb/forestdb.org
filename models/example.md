@@ -1,7 +1,6 @@
 ---
 layout: model
 title: Example
-model-status: code
 ---
 
 This is an example page.
@@ -9,4 +8,4 @@ This is an example page.
     (define (foo)
       (flip))
 
-    (flip)
+    (foo)

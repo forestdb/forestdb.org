@@ -31,10 +31,10 @@
 
     <script type="text/javascript">
     var model_names = [
-      {% for p in site.pages %}{% if p.layout == 'model' %}{% if p.model-status != 'stub' %}'{{ p.title }}',{% endif %}{% endif %}{% endfor %}
+      {% for p in site.pages %}{% if p.layout == 'model' %}{% if p.model-category %}{% if p.model-status != 'stub' %}'{{ p.title }}',{% endif %}{% endif %}{% endif %}{% endfor %}
     ];
     var model_urls = [
-      {% for p in site.pages %}{% if p.layout == 'model' %}{% if p.model-status != 'stub' %}'{{ p.url }}',{% endif %}{% endif %}{% endfor %}
+      {% for p in site.pages %}{% if p.layout == 'model' %}{% if p.model-category %}{% if p.model-status != 'stub' %}'{{ p.url }}',{% endif %}{% endif %}{% endif %}{% endfor %}
     ];
     </script>
   </head>

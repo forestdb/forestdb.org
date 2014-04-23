@@ -1,7 +1,8 @@
 ---
 layout: model
 title: Prosody
-model-status: code
+model-status: code-fail
+model-status-verbose: The model times out
 model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics
 ---

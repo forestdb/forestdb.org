@@ -9,4 +9,4 @@ This is an example page.
     (define (foo)
       (flip))
 
-    (flip)
+    (foo)

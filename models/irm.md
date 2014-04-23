@@ -1,8 +1,7 @@
 ---
 layout: model
 title: Infinite Relational Model
-model-status: code-fail
-model-status-verbose: Unknown error.
+model-status: code
 model-category: Nonparametric Models
 model-tags: clustering, cognitive science, nonparametric statistics
 ---
@@ -31,27 +30,28 @@ paper by Ref:Kemp2006uv:
          (mem (lambda (object) (class-distribution))))
     
        (define classes->parameters
-         (mem (lambda (class1 class2) (first (beta 0.5 0.5)))))
+         (mem (lambda (class1 class2) (beta 0.5 0.5))))
     
-       (define (talks object1 object2)
+       (define (talks object1 object2 conditioning-value)
          (flip (classes->parameters (object->class object1)
-                                    (object->class object2))))
+                                    (object->class object2))
+               conditioning-value))
     
        (list (equal? (object->class 'tom) (object->class 'fred))
              (equal? (object->class 'tom) (object->class 'mary)))
     
-       (and (talks 'tom 'fred)
-            (talks 'tom 'jim)
-            (talks 'jim 'fred)
-            (not (talks 'mary 'fred))
-            (not (talks 'mary 'jim))
-            (not (talks 'sue 'fred))
-            (not (talks 'sue 'tom))
-            (not (talks 'ann 'jim))
-            (not (talks 'ann 'tom))
-            (talks 'mary 'sue)
-            (talks 'mary 'ann)
-            (talks 'ann 'sue)
+       (and (talks 'tom 'fred true)
+            (talks 'tom 'jim true)
+            (talks 'jim 'fred true)
+            (not (talks 'mary 'fred false))
+            (not (talks 'mary 'jim false))
+            (not (talks 'sue 'fred false))
+            (not (talks 'sue 'tom false))
+            (not (talks 'ann 'jim false))
+            (not (talks 'ann 'tom false))
+            (talks 'mary 'sue true)
+            (talks 'mary 'ann true)
+            (talks 'ann 'sue true)
             )))
     
     (hist (map first samples) "tom and fred in same group?")

@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Rat Growth (benchmark)
+title: Rat Growth
 model-status: code
 model-category: Undirected Constraints
 model-tags: machine learning, shred, benchmark
@@ -71,10 +71,7 @@ model-tags: machine learning, shred, benchmark
         #t))
     samples
 
-
-
 References 
 
 - Adapted from the BUGS manual.
 - Cite:shred2014
-- Source: [shred](https://github.com/LFY/shred/tree/master/benchmarks/rats.ss)

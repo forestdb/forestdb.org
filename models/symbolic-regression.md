@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Symbolic Regression (benchmark)
+title: Symbolic Regression
 model-status: code
 model-category: Miscellaneous
 model-tags: shred, benchmark

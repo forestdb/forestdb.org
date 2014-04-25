@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Model Selection (benchmark)
+title: Model Selection
 model-status: code
 model-category: Miscellaneous
 model-tags: shred, benchmark

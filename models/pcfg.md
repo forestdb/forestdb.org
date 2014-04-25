@@ -2,7 +2,7 @@
 layout: model
 title: Probabilistic Context-Free Grammar
 model-status: code
-model-category: Miscellaneous
+model-category: PPAML Challenge Problems
 model-tags: language
 ---
 

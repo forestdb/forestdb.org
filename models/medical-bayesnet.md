@@ -1,8 +1,8 @@
 ---
 layout: model
-title: Bayesnet for Medical Diagnosis
+title: Medical Diagnosis
 model-status: code
-model-category: Miscellaneous
+model-category: PPAML Challenge Problems
 model-tags: bayesnet, medicine
 ---
 

@@ -1,8 +1,8 @@
 ---
 layout: model
-title: Bayesian Linear Regression (benchmark)
+title: Bayesian Linear Regression
 model-status: code
-model-category: Machine Learning
+model-category: PPAML Challenge Problems
 model-tags: shred, benchmark, machine learning
 ---
 

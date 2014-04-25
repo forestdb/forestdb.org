@@ -1,8 +1,8 @@
 ---
 layout: model
-title: Hidden Markov Model
+title: Discrete-Time Hidden Markov Model
 model-status: code
-model-category: Machine Learning
+model-category: PPAML Challenge Problems
 model-tags: temporal models
 ---
 

@@ -3,11 +3,11 @@ layout: default
 title: Forest - A Repository for Generative Models
 isindex: true
 all-model-statuses: [code, link, code-fail, stub]
-all-model-categories: [Concept Learning, Reasoning about Reasoning, Machine Learning, Nonparametric Models, Undirected Constraints, Inverse Dynamics, Miscellaneous]
+all-model-categories: [Concept Learning, Reasoning about Reasoning, Machine Learning, Nonparametric Models, Undirected Constraints, Inverse Dynamics, PPAML Challenge Problems, Miscellaneous]
 ---
 
 <div class="page-header">
-  <h1>Models<br /></h1>
+  <h1>Models</h1>
 </div>
 
 {% for category in page.all-model-categories %}

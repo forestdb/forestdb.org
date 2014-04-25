@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Bayesian Mixture Model
+title: Finite Mixture Model
 model-status: code
 model-category: Machine Learning
 model-tags: shred, benchmark, machine learning

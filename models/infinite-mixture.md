@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Infinite Mixture Model (benchmark)
+title: Infinite Mixture Model
 model-status: code
 model-category: Machine Learning
 model-tags: shred, benchmark, machine learning

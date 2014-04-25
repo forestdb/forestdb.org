@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Citation Matching (benchmark)
+title: Citation Matching
 model-status: code
 model-category: Machine Learning
 model-tags: shred, benchmark

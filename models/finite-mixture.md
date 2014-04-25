@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Bayesian Mixture Model (benchmark)
+title: Bayesian Mixture Model
 model-status: code
 model-category: Machine Learning
 model-tags: shred, benchmark, machine learning

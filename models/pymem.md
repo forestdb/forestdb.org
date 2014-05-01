@@ -1,7 +1,8 @@
 ---
 layout: model
 title: Pitman-Yor Process
-model-status: code
+model-status: code-fail
+model-status-verbose: Doesn't halt with probability 1?
 model-category: Nonparametric Models
 model-tags: dp, nonparametrics
 ---

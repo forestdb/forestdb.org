@@ -3,7 +3,7 @@ Forest
 
 Forest is a collaborative repository for generative models.
 
-To add a new model to Forest, simply create a markdown file in the [models directory](https://github.com/forestdb/forestdb.org/tree/gh-pages/models). You can do this directly on github by following this link: [Add model!](https://github.com/forestdb/forestdb.org/new/gh-pages/models)
+To add a new model to Forest, simply create a markdown file in the [models directory](https://github.com/forestdb/forestdb.org/tree/gh-pages/models). You can do this directly on github by following this link: [add model](https://github.com/forestdb/forestdb.org/new/gh-pages/models).
 
 For examples of the model file format, see:
 - [example.md](https://raw.githubusercontent.com/forestdb/forestdb.org/gh-pages/models/example.md) is a model that *is not* shown on the front page.

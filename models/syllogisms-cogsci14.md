@@ -3,6 +3,8 @@ layout: model
 title: Syllogisms (CogSci14)
 ---
 
+This is the model.
+
 (define all-true (lambda (lst) (apply and lst)))
 (define some-true (lambda (lst) (apply or lst)))
 

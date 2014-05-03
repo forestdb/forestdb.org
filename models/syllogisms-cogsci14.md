@@ -17,7 +17,7 @@ C - B
 In this argument, B is the shared term. The task for the reasoner is to generate a conclusion relating the "end-terms"-- A & C.
 
 The relations between the terms is a quantifier. 
-In classical syllogisms, the quantifiers are those fmrom the "square of opposition": {all, some, none, not-all}.
+In classical syllogisms, the quantifiers are those from the "square of opposition": {all, some, none, not-all}.
 
 In this model, the reasoner imagines situations which are composed of objects with properties. Sentences (premises or conclusion) are then either true or false of a given situation.
 

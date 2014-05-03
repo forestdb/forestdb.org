@@ -1,6 +1,9 @@
 ---
 layout: model
-title: Syllogisms (CogSci14)
+title: Syllogisms
+model-status: code
+model-category: Reasoning about Reasoning
+model-tags: reasoning, pragmatics, QUD
 ---
 
 A model of syllogistic reasoning as communication.

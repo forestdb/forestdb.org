@@ -8,16 +8,9 @@ model-tags: reasoning, pragmatics, QUD
 
 A model of syllogistic reasoning as communication.
 
-Note: The model presented below is for transparency and/or pedagogical purposes. 
-The program itself is computationally expensive. The state space grows exponentially with the number-of-objects parameter.
-However, we are interested not in the distribution of situations per se, but in the distribution of true-sentences that those situations imply.
-As such, we can derive an equivalence-class representation of the situation space, which is projection of the distribution of situations onto the sentences of interest. 
-The equivalence-class of situations does not grow with the number of objects and is much faster to run. However, the number-of-objects and base-rate parameters cannot be changed inside the model.
-The version of that model (with best-fit parameters n_objects = 5, br = 0.25 used in Ref:tessler2014syllogisms) can be found [here](http://forestdb.org/models/syllogisms-equivalence-cogsci14.html).
+The reasoner imagines an experimenter who chooses an argument (i.e. premises) conditioned on the reasoner inferring an intended conclusion.
 
-The reasoner imagines an experimenter who chooses premises conditioned on the reasoner inferring an intended conclusion.
-
-A syllogism is a two-sentence (premise) argument. Each sentence consists of 2 terms, and between the two premises, 1 of the terms is shared.
+A syllogism is a two-sentence (premise) argument. Each sentence consists of 2 terms, and between the two sentences, 1 of the terms is shared.
 E.g.
 
 > B - A
@@ -26,10 +19,19 @@ E.g.
 
 In this argument, B is the shared term. The task for the reasoner is to generate a conclusion relating the "end-terms"-- A & C.
 
-The relations between the terms is a quantifier. 
-In classical syllogisms, the quantifiers are those from the "square of opposition": {all, some, none, not-all}.
+The relations between the terms are quantifiers. 
+In classical syllogisms, the quantifiers are those from Aristotle's "square of opposition": {all, some, none, not-all}.
 
 In this model, the reasoner imagines situations which are composed of objects with properties. Sentences (premises or conclusion) are then either true or false of a given situation.
+
+Note: The model presented below is for transparency and/or pedagogical purposes. 
+The program itself is computationally expensive. The state space grows exponentially with the number-of-objects parameter.
+However, we are interested not in the distribution of objects per se, but in the distribution of true-sentences that those objects imply.
+As such, we can derive an equivalence-class representation of the situation space (objects comprise situations), which is projection of the distribution of situations onto the sentences of interest. 
+The equivalence-class of situations does not grow with the number of objects and is much faster to run. However, the number-of-objects and base-rate parameters cannot be changed inside the model.
+The version of that model (with best-fit parameters n_objects = 5, br = 0.25 used in Ref:tessler2014syllogisms) can be found [here](http://forestdb.org/models/syllogisms-equivalence-cogsci14.html).
+
+
 
     (define all-true (lambda (lst) (apply and lst)))
     (define some-true (lambda (lst) (apply or lst)))

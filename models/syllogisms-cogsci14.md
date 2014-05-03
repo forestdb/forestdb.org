@@ -5,6 +5,16 @@ title: Syllogisms (CogSci14)
 
 A model of syllogistic reasoning as communication.
 
+Note: The model presented below is for transparency and/or pedagogical purposes. 
+The program itself is computationally expensive. The state space grows exponentially with the number-of-objects parameter.
+However, we are interested not in the distribution of situations per se, but in the distribution of true-sentences that those situations imply.
+As such, we can derive an equivalence-class representation of the situation space, which is projection of the distribution of situations onto the sentences of interest. 
+The equivalence-class of situations does not grow with the number of objects and is much faster to run. However, the number-of-objects and base-rate parameters cannot be changed inside the model.
+The version of that model (with best-fit parameters n_objects = 5, br = 0.25 used in Tessler & Goodman CogSci 2014 proceedings) can be found here:
+
+http://forestdb.org/models/syllogisms-equivalence-cogsci14.html
+
+
 The reasoner imagines an experimenter who chooses premises conditioned on the reasoner inferring an intended conclusion.
 
 A syllogism is a two-sentence (premise) argument. Each sentence consists of 2 terms, and between the two premises, 1 of the terms is shared.

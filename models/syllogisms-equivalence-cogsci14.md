@@ -5,7 +5,9 @@ title: Syllogisms [equivalence] (CogSci14)
 
 A model of syllogistic reasoning as communication.
 
-Note: The model presented below is for exploration and running purposes. A less opaque version can be found at: http://forestdb.org/models/syllogisms-cogsci14.html
+Note: The model presented below is for exploration and running purposes. A less opaque version can be found at: 
+
+http://forestdb.org/models/syllogisms-cogsci14.html
 
 We can derive an equivalence-class representation of the state space, offline, which is projection of the distribution of situations onto the sentences of interest. 
 The equivalence-class of situations does not grow with the number of objects and is much faster to run. However, the number-of-objects and base-rate parameters cannot be changed inside the model.
@@ -223,7 +225,9 @@ This version of the model uses best-fit parameters n_objects = 5, br = 0.25 used
     ; Example of figure 2 syllogism
     ;(reasoner (list 'all.A-B 'all.C-B) 2 0)
     
-    
+References:
+
+- Cite:tessler2014syllogisms
     
     
     

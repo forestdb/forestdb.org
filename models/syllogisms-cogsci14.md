@@ -10,10 +10,7 @@ The program itself is computationally expensive. The state space grows exponenti
 However, we are interested not in the distribution of situations per se, but in the distribution of true-sentences that those situations imply.
 As such, we can derive an equivalence-class representation of the situation space, which is projection of the distribution of situations onto the sentences of interest. 
 The equivalence-class of situations does not grow with the number of objects and is much faster to run. However, the number-of-objects and base-rate parameters cannot be changed inside the model.
-The version of that model (with best-fit parameters n_objects = 5, br = 0.25 used in Tessler & Goodman CogSci 2014 proceedings) can be found here:
-
-http://forestdb.org/models/syllogisms-equivalence-cogsci14.html
-
+The version of that model (with best-fit parameters n_objects = 5, br = 0.25 used in Ref:tessler2014syllogisms) can be found [here](http://forestdb.org/models/syllogisms-equivalence-cogsci14.html).
 
 The reasoner imagines an experimenter who chooses premises conditioned on the reasoner inferring an intended conclusion.
 

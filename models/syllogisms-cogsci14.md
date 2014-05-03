@@ -31,10 +31,6 @@ In classical syllogisms, the quantifiers are those from the "square of oppositio
 
 In this model, the reasoner imagines situations which are composed of objects with properties. Sentences (premises or conclusion) are then either true or false of a given situation.
 
-References:
-
-- Cite:tessler2014syllogisms
-
     (define all-true (lambda (lst) (apply and lst)))
     (define some-true (lambda (lst) (apply or lst)))
     
@@ -142,3 +138,9 @@ References:
     ; the literal reaonser (depth=0) has no preference among valid conclusions
     ; try changing the depth parameter to 1
     ; the pragmatic reasonser (depth=1) infers that "None" is the more likely intended conclusion
+    
+
+References:
+
+- Cite:tessler2014syllogisms
+

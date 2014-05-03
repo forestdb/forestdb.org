@@ -14,6 +14,7 @@ A syllogism is a two-sentence (premise) argument. Each sentence consists of 2 te
 For example,
 
 > B - A
+>
 > C - B
 
 In this argument, B is the shared term. The task for the reasoner is to generate a conclusion relating the "end-terms"-- A & C.
@@ -24,7 +25,9 @@ In classical syllogisms, the quantifiers are those from Aristotle's "square of o
 For example,
 
 > No B are A
+>
 > All C are B
+>
 > {All, Some, No, Not-all} C are A
 
 In this model, the reasoner imagines situations which are composed of objects with properties. Sentences (premises or conclusion) are then either true or false of a given situation.

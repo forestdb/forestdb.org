@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Blame attribution
+title: Blame Attribution
 model-status: code
 model-category: Miscellaneous
 model-tags: counterfactuals, cognitive science

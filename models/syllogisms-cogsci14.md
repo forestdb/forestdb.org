@@ -11,6 +11,7 @@ A syllogism is a two-sentence (premise) argument. Each sentence consists of 2 te
 E.g.
 
 B - A
+
 C - B
 
 In this argument, B is the shared term. The task for the reasoner is to generate a conclusion relating the "end-terms"-- A & C.

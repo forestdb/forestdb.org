@@ -72,7 +72,7 @@ In this model, the reasoner imagines situations which are composed of objects wi
     
     ; parameter 1: the reasoner's prior beliefs about the rarity of properties
     (define br 0.25)
-    ; paramter 2: number of objects in the situation the reasoner imagines
+    ; parameter 2: number of objects in the situation the reasoner imagines
     (define objects (list 'o1 'o2 'o3))
     
     (define experimenter
@@ -88,7 +88,8 @@ In this model, the reasoner imagines situations which are composed of objects wi
           (list premise-one premise-two)
           
           ; the experimenter wants the reasoner to draw a particular conclusion, gives the premises 
-          (equal? conclusion (apply multinomial (reasoner premise-one premise-two depth)))))))
+          ; parameter 3: "optimality" -- the degree to which the experimenter's argument is optimal for the conclusion
+         (equal? conclusion (apply multinomial (raise-to-power (reasoner premise-one premise-two depth) 4.75)))))))
     
     (define reasoner 
       (mem

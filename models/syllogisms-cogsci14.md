@@ -30,7 +30,7 @@ For example,
 >
 > {All, Some, No, Not-all} C are A
 
-In this model, the reasoner imagines situations which are composed of objects with properties. Sentences (premises or conclusion) are then either true or false of a given situation.
+In this model, the reasoner imagines these sentences apply to concrete situations which are composed of objects with properties. Sentences (premises or conclusion) are then either true or false of a given situation.
 
 Note: The model presented below is for transparency and/or pedagogical purposes. 
 The program itself is computationally expensive. The state space grows exponentially with the number-of-objects parameter.

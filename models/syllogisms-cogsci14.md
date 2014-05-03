@@ -17,9 +17,9 @@ The reasoner imagines an experimenter who chooses premises conditioned on the re
 A syllogism is a two-sentence (premise) argument. Each sentence consists of 2 terms, and between the two premises, 1 of the terms is shared.
 E.g.
 
-B - A
-
-C - B
+> B - A
+> 
+> C - B
 
 In this argument, B is the shared term. The task for the reasoner is to generate a conclusion relating the "end-terms"-- A & C.
 

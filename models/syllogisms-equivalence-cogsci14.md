@@ -5,13 +5,11 @@ title: Syllogisms [equivalence] (CogSci14)
 
 A model of syllogistic reasoning as communication.
 
-Note: The model presented below is for exploration and running purposes. A less opaque version can be found at: 
-
-http://forestdb.org/models/syllogisms-cogsci14.html
+Note: The model presented below is for exploration and running purposes. A less opaque version can be found [here](http://forestdb.org/models/syllogisms-cogsci14.html).
 
 We can derive an equivalence-class representation of the state space, offline, which is projection of the distribution of situations onto the sentences of interest. 
 The equivalence-class of situations does not grow with the number of objects and is much faster to run. However, the number-of-objects and base-rate parameters cannot be changed inside the model.
-This version of the model uses best-fit parameters n_objects = 5, br = 0.25 used in Tessler & Goodman CogSci 2014 proceedings.
+This version of the model uses best-fit parameters n_objects = 5, br = 0.25 used in Ref:tessler2014syllogisms.
 
     ; the following two functions (situation-prior) & (sentence-eval) form the equivalence class representation
     ; each situation ('fN) has a "unique" combination of objects and properties
@@ -228,6 +226,3 @@ This version of the model uses best-fit parameters n_objects = 5, br = 0.25 used
 References:
 
 - Cite:tessler2014syllogisms
-    
-    
-    

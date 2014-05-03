@@ -120,17 +120,11 @@ In this model, the reasoner imagines situations which are composed of objects wi
            )))))
     
     ; All A are B
-    ; Some B are C [paper, Fig 2 [3]]
-    (reasoner 'all 'some 0)
-    ; try changing the depth parameter to 1
-    ; the reasoner then considers the space of possible arguments, 
-    ; and concludes that "some" is the more likely intended conclusion
+    ; No B are C [cogsci paper, Fig 2 [1]]
     
-    ; All A are B
-    ; No B are C [paper, Fig 2 [1]]
-    
-    ;(reasoner 'all 'none 0)
+    (reasoner 'all 'none 0)
     
     ; this is a valid syllogism with 2 valid conclusions
     ; the literal reaonser (depth=0) has no preference among valid conclusions
+    ; try changing the depth parameter to 1
     ; the pragmatic reasonser (depth=1) infers that "None" is the more likely intended conclusion

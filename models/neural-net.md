@@ -16,8 +16,8 @@ This models is a neural network that learns the XOR function. The model is based
     (define (I i l j) (list-ref (list-ref inputs i) j))
     (define (O i)     (list-ref outputs i))
     
-    ;; Define number of layers
-    (define num-layers 3)
+    ;; Define number of layers (l-max + 1)
+    (define l-max 3)
     
     
     (define samples
@@ -25,8 +25,8 @@ This models is a neural network that learns the XOR function. The model is based
     
        1000 1
     
-       ;; Define number of nodes in each layer
-       (define num-nodes
+       ;; Define number of nodes in each layer (n-max + 1)
+       (define n-max
          (mem
           (lambda (l)
             (- (cond ((= l 0) 2)
@@ -61,14 +61,14 @@ This models is a neural network that learns the XOR function. The model is based
           (lambda (i l n)
             (activate
              (if (= l 1)
-                 (sum-inputs 'I i (- l 1) n (num-nodes 0))
-                 (sum-inputs 'N i (- l 1) n (num-nodes (- l 1))))))))
+                 (sum-inputs 'I i (- l 1) n (n-max 0))
+                 (sum-inputs 'N i (- l 1) n (n-max (- l 1))))))))
     
        ;; Compute output value based on layer 2 nodes
        (define p-O
          (mem
           (lambda (i)
-            (if (>= (N i num-layers (num-nodes num-layers)) 0) 1 0))))
+            (if (>= (N i l-max (n-max l-max)) 0) 1 0))))
     
        ;; Predict response to the four input values
        (map p-O (list 0 1 2 3))

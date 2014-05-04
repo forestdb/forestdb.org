@@ -71,10 +71,7 @@ This models is a neural network that learns the XOR function. The model is based
             (if (>= (N i num-layers (num-nodes num-layers)) 0) 1 0))))
     
        ;; Predict response to the four input values
-       (list (list (I 0 0 0) (I 0 0 1) (p-O 0))
-             (list (I 1 0 0) (I 1 0 1) (p-O 1))
-             (list (I 2 0 0) (I 2 0 1) (p-O 2))
-             (list (I 3 0 0) (I 3 0 1) (p-O 3)))
+       (map p-O (list 0 1 2 3))
     
        ;; Train the network using our training data
        (and (= (gaussian (p-O 0) 0.1 (O 0)) (O 0))
@@ -87,7 +84,7 @@ This models is a neural network that learns the XOR function. The model is based
     (hist (map second samples) "Input -1, 1")
     (hist (map third samples) "Input 1, -1")
     (hist (map fourth samples) "Input 1, 1")
-    
+
 References:
 
 - [Bayesian neural net in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/examples/neural_net/)

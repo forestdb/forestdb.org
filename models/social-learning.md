@@ -1,13 +1,12 @@
 ---
 layout: model
-title: Learn from Social and Direct evidence
+title: Learning from Social and Direct Evidence
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: social reasoning, ToM
 ---
 
 A model of learning from social and direct evidence:
-
 
 The learner is tasked with learning the weight of a coin. She observes some number *n-l* of flips. A second person, "Zach," sees *n-z* flips and then bets on the outcome of the next flip. The learner doesn't see the outcomes of Zach's *n-z* flips, but she does see how he bets.
 
@@ -65,7 +64,7 @@ The learner is tasked with learning the weight of a coin. She observes some numb
     (define ss-obs 2)
     
     
-    ;; Zach model
+    ;; Zach's model
     
     (define (zachs-choice z-obs ss-weight reliable)
       (rejection-query
@@ -80,8 +79,6 @@ The learner is tasked with learning the weight of a coin. She observes some numb
     
        (and (observe z-weight zach-nsamples z-obs)
             (equal? act result))))
-    
-    
     
     
     ;; Learner's model

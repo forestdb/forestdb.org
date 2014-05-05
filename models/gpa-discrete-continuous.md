@@ -35,7 +35,7 @@ This is an example of a mixed discrete-continuous model.
     
        university_location
     
-       (= (gaussian student_gpa 0.01 observed-gpa) 
+       (= (gaussian student_gpa 0.01) 
           observed-gpa)))
     
     (hist samples)

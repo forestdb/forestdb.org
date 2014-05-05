@@ -22,7 +22,7 @@ This models is a neural network that learns the XOR function. The model is based
     (define samples
       (mh-query 
        1000
-       1
+       10
        ;; Define number of nodes in each layer (n-max + 1)
        (define n-max
          (mem

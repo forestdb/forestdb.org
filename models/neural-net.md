@@ -19,12 +19,10 @@ This models is a neural network that learns the XOR function. The model is based
     ;; Define number of layers (l-max + 1)
     (define l-max 3)
     
-    
     (define samples
       (mh-query 
-    
-       1000 1
-    
+       1000
+       1
        ;; Define number of nodes in each layer (n-max + 1)
        (define n-max
          (mem
@@ -47,7 +45,7 @@ This models is a neural network that learns the XOR function. The model is based
        ;; Evaluate a single weighted input
        ;; f = function to evaluate to get input value, i = input training pattern id
        (define (get-input f i l n j)
-         (* ((eval f) i l j) (w l n j)))
+         (* (f i l j) (w l n j)))
     
        ;; Sum all weighted inputs to a node
        (define (sum-inputs f i l n j)
@@ -61,8 +59,8 @@ This models is a neural network that learns the XOR function. The model is based
           (lambda (i l n)
             (activate
              (if (= l 1)
-                 (sum-inputs 'I i (- l 1) n (n-max 0))
-                 (sum-inputs 'N i (- l 1) n (n-max (- l 1))))))))
+                 (sum-inputs I i (- l 1) n (n-max 0))
+                 (sum-inputs N i (- l 1) n (n-max (- l 1))))))))
     
        ;; Compute output value based on layer 2 nodes
        (define p-O
@@ -78,7 +76,6 @@ This models is a neural network that learns the XOR function. The model is based
             (= (gaussian (p-O 1) 0.1 (O 1)) (O 1))
             (= (gaussian (p-O 2) 0.1 (O 2)) (O 2))
             (= (gaussian (p-O 3) 0.1 (O 3)) (O 3)))))
-    
     
     (hist (map first samples) "Input -1, -1")
     (hist (map second samples) "Input -1, 1")

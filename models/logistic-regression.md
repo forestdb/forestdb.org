@@ -37,4 +37,4 @@ Logistic regression predicts a discrete class probability based on a continuous 
     
 References:
 
-- [Logistic Regression in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/examples/logistic_regression/index.html)
+- [Logistic Regression in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/examples/logistic_regression/)

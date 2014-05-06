@@ -16,25 +16,27 @@ The Kalman filter (or Kalman smoother) is a Hidden Markov Model with Gaussian tr
       (mh-query
        10000 1
        ;; Measurement noise variance 
-       (define R 0.01)					
+       (define m-noise 0.01)					
        ;; State transition model which is applied to the previous state		
        (define A 1) 								
        ;; Observation model which maps the true state space into the observed space
        (define H 1)
        ;; Process noise variance 											
-       (define Q 0.001)
+       (define p-noise 0.00001)
        ;; Transition function
        (define f 
          (mem 
           (lambda (t) 
             (if (<= t 1) 
                 (gaussian 0 1) 
-                (gaussian (* A (f (- t 1))) Q)))))
+                (gaussian (* A (f (- t 1))) p-noise)))))
     
+       ;; Query expression
        (f 6)
     
+       ;; Condition
        (all
-        (map (lambda (x y) (= (gaussian (* H (f x)) R y) y))
+        (map (lambda (x y) (= (gaussian (* H (f x)) m-noise y) y))
              xs
              ys))))
     

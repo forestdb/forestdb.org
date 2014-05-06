@@ -2,7 +2,7 @@
 layout: model
 title: Kalman Filter
 model-status: code-fail
-model-status-verbose: The MCMC chain doesn't mix.
+model-status-verbose: The MCMC chain doesn't mix - is the variance of Gaussian proposals to small?
 model-category: Miscellaneous
 model-tags: gaussian
 ---

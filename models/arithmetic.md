@@ -33,7 +33,7 @@ This program induces a deterministic arithmetic function from input-output examp
     
     (sample)
 
-To induce stochastic functions, we condition on the evidence -- our input-output examples -- having high marginal likelihood under the induced function:
+To induce stochastic functions, it can be useful to condition on the evidence -- our input-output examples -- having high marginal likelihood under the induced function:
 
     (define (random-arithmetic-fn)
       (if (flip 0.3)
@@ -75,6 +75,7 @@ To induce stochastic functions, we condition on the evidence -- our input-output
     
     (hist (repeat 100 sample))
 
+This is semantically equivalent to conditioning on input-output examples directly, but can improve convergence rates when MCMC is used in the outer query.
 
 References:
 

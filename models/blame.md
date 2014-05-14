@@ -199,6 +199,59 @@ model-tags: counterfactuals, cognitive science
     (define scenarios (joint-dist->scenarios joint-dist))
     (show-responsibility-measures scenarios scenario-consistent?)
 
+The above will take some changes to be correct. A first stab looks like this:
+
+    (define run-world 
+      (mem 
+       (lambda (world interventions observations noise)
+         
+         (define (counterfactual-wrap f)
+           ;; distinguish random from deterministic functions
+           (lambda args
+             (let* ([name (first args)]
+                    [func-args (rest args)]
+                    [intervention-pair (assoc name interventions)])
+               (if (eq? intervention-pair #f)
+                   (apply f func-args)
+                   (let* ([intervention-func (rest intervention-pair)]
+                          [world-value (rest (assoc name world))])
+                     (intervention-func world-value))))))
+         
+         (define flip0 (counterfactual-wrap flip))
+         (define and0 (counterfactual-wrap and))
+         (define or0 (counterfactual-wrap or))  
+         
+         (define (noisy-obs name target-value)
+           (let ([world-pair (assoc name observations)])
+             (if (eq? world-pair #f)
+                 #t
+                 (flip (if (equal? target-value (rest world-pair))
+                           1.0 ;; could change to (- 1 noise)
+                           noise)))))
+        
+         (enumeration-query
+          
+          (define A (flip0 'A .1))
+          (define B (flip0 'B .9))   
+          (define E (and0 'E A B))
+          
+          (list (pair 'A A)
+                (pair 'B B)
+                (pair 'E E))
+          
+          (and (noisy-obs 'A A)
+               (noisy-obs 'B B)
+               (noisy-obs 'E E))))))
+    
+    (define observations
+      '((A . #f)
+        (B . #f)
+        (E . #f)))
+    
+    (define interventions
+      (list (pair 'A (lambda (a) (not a)))))
+    
+    (define noise .05)
     
 References:
 

@@ -12,23 +12,6 @@ model-tags: shred, benchmark, machine learning
           (pair (first xs1) (pair (first xs2) '()))
           (zip (rest xs1) (rest xs2)))))
     
-    (define (pick-a-stick sticks J)
-      (if (flip (sticks J))
-          J
-          (pick-a-stick sticks (+ J 1))))
-    
-    (define (make-sticks alpha)
-      (let ((sticks (mem (lambda (x) (beta 1.0 alpha)))))
-        (lambda () (pick-a-stick sticks 1))))
-    
-    (define (DPmem alpha base-dist)
-      (let ((augmented-proc
-              (mem (lambda (args stick-index) (apply base-dist args))))
-            (DP (mem (lambda (args) (make-sticks alpha)))))
-        (lambda argsin
-          (let ((stick-index ((DP argsin))))
-            (augmented-proc argsin stick-index)))))
-    
     (define (randint l h) 
       (+ l (sample-integer (+ 1 (- h l)))))
     

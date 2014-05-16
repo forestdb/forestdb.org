@@ -8,6 +8,11 @@ model-tags: logic, library
 
 The functions `noisy-and` and `noisy-or` are commonly used to model stochastic dependencies between random variables.
 
+    (define (noisy-equal? noise x y)
+      (flip (if (equal? x y)
+                1.0
+                noise)))
+          
     (define (noisify v noise)
       (flip (if v (- 1 noise) noise)))
     
@@ -27,7 +32,7 @@ The functions `noisy-and` and `noisy-or` are commonly used to model stochastic d
            (any (noisify-all values noise)))))
     
     (define (show thunk title)
-      (barplot (enumeration-query (thunk) #t) title))
+      (barplot (enumeration-query (define _ 1) (thunk) #t) title))
     
     (show (lambda () (noisy-and .1 #t #f))
           "(noisy-and .1 #t #f)")
@@ -40,3 +45,9 @@ The functions `noisy-and` and `noisy-or` are commonly used to model stochastic d
     
     (show (lambda () (noisy-or .3 #t #f))
           "(noisy-or .3 #t #f)")
+    
+    (show (lambda () (noisy-equal? .3 #t #t))
+          "(noisy-equal? .3 #t #t)")
+    
+    (show (lambda () (noisy-equal? .3 #t #f))
+          "(noisy-equal? .3 #t #f)")

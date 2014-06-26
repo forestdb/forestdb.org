@@ -44,4 +44,5 @@ Assuming there is a behavior with a certain frequency over time, and given some 
 
 References:
 
+- [Switchpoint detection in PyMC](http://nbviewer.ipython.org/github/CamDavidsonPilon/Probabilistic-Programming-and-Bayesian-Methods-for-Hackers/blob/master/Chapter1_Introduction/Chapter1_Introduction.ipynb)
 - Model by [Tomer Ullman](http://www.mit.edu/~tomeru/)

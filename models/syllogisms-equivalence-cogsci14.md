@@ -198,7 +198,7 @@ This version of the model uses best-fit parameters n_objects = 5, br = 0.25 used
     ; [1]
     ; No B are A
     ; All C are B
-    (reasoner (list 'all.B-A 'no.C-B) 1 0)
+    (reasoner (list 'no.B-A 'all.C-B) 1 0)
     ; this is a valid (figure 4) syllogism with 2 valid conclusions
     ; the literal reaonser (depth=0) has no preference among valid conclusions
     ; the pragmatic reasonser (depth=1) infers that "None" is the more likely intended conclusion

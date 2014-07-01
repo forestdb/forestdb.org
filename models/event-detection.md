@@ -13,12 +13,12 @@ Assuming there is a behavior with a certain frequency over time, and given some 
     ;; Poisson distribution
     
     (define (poisson-helper rate k p)
-       (let* ((L (exp (- 0 rate)))
-              (u (uniform 0 1))
-              (newp (* p u)))
-         (if (< newp L)
-             (- k 1)
-             (poisson-helper rate (+ 1 k) newp))))
+      (let* ((L (exp (- 0 rate)))
+             (u (uniform 0 1))
+             (newp (* p u)))
+        (if (< newp L)
+            (- k 1)
+            (poisson-helper rate (+ 1 k) newp))))
     
     (define (poisson rate) (poisson-helper rate 1 1))
     
@@ -31,12 +31,14 @@ Assuming there is a behavior with a certain frequency over time, and given some 
     (define rate2 (+ rate1 (if (flip) 
                                (uniform 5 20)
                                (uniform -20 -5))))
+    
     (define (num-texts month)
-      (if something-happened?
-          (if (< month month-when-something-happened)
-              (poisson rate1)
-              (poisson rate2))
-          (poisson rate1)))
+      (poisson
+       (if something-happened?
+           (if (< month month-when-something-happened)
+               rate1
+               rate2)
+           rate1)))
     
     (scatter (zip (iota 24) (map num-texts months)))
     

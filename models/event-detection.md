@@ -44,6 +44,39 @@ Assuming there is a behavior with a certain frequency over time, and given some 
     
     (display something-happened? month-when-something-happened rate1 rate2)
 
+Conditioning using single-site MCMC doesn't work very well in this model. Here is a starting point for a simplified version of the model:
+
+    (define data '(5 5 5 5 20 20 20 20))
+    
+    (define months (iota (length data)))
+    
+    (define samples
+      (mh-query 
+       1000 100
+       (define something-happened? #t)
+       (define month-when-something-happened (random-integer (length months)))
+       (define rate1 5)
+       (define rate2 20)
+       (define (num-texts month target-value)
+         (poisson
+          (if (< month month-when-something-happened)
+              rate1
+              rate2)
+          target-value))
+    
+       ;; condition
+       (map (lambda (datum month) (num-texts month datum))
+            data
+            months)
+    
+       ;; query
+       month-when-something-happened
+    
+       #t
+       ))
+    
+    (hist samples)
+
 References:
 
 - [Switchpoint detection in PyMC](http://nbviewer.ipython.org/github/CamDavidsonPilon/Probabilistic-Programming-and-Bayesian-Methods-for-Hackers/blob/master/Chapter1_Introduction/Chapter1_Introduction.ipynb)

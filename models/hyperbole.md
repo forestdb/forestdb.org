@@ -44,7 +44,7 @@ The speaker chooses an utterance conditioned on the listener inferring informati
 ;;   (uniform-draw (list 's 'v 'sv 'as 'asv)))
 
 (define (qud-prior)
-  (multinomial (list 's 'v 'sv 'as 'asv) '(0.17 0.17 0.17 0.17 0.32)))
+  (multinomial (list 's 'v 'sv 'as 'asv) '(0.17 0.32 0.17 0.17 0.17)))
 
 (define (qud-fn qud)
   (second

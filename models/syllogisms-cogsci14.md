@@ -95,10 +95,37 @@ The version of that model (with best-fit parameters n_objects = 5, br = 0.25 use
     ; parameter 2: number of objects in the situation the reasoner imagines
     (define objects (list 'o1 'o2 'o3))
     
+    (define argument-strength 
+      (mem
+      ; argument-strength is a function of the argument's premises
+       (lambda (premise-one premise-two)
+         (enumeration-query
+          ; properties map objects to truth-values i.e. whether or not the object has the property
+          ; together with the list of objects, these represent situations over which reasoning occurs
+          (define A (mem (lambda (x) (flip br))))
+          (define B (mem (lambda (x) (flip br))))
+          (define C (mem (lambda (x) (flip br))))
+          ; the reasoner is also uncertain about what conclusion is true
+          (define conclusion (conclusion-prior))
+          
+          ; what do we want to know? what is the conclusion.
+          conclusion
+          
+          ; condition on the syllogism applying to the situation
+          ; notice the form of the syllogism present in this part of the query
+          (and
+            ; the premise quantifiers apply to: A-B & B-C
+                ((meaning premise-one) A B)
+                ((meaning premise-two) B C)
+            ; the conclusion quantifier is true of terms: A & C
+                ((meaning conclusion) A C)
+           )))))
+    
+    
     (define experimenter
       (mem
-      ; the experimenter takes in the conclusion as an argument (i.e. she has a conclusion in mind)
-       (lambda (conclusion depth)
+      ; the experimenter takes in the conclusion as an argument (i.e. he has a conclusion in mind)
+       (lambda (conclusion)
          (enumeration-query
           ; the experimenter draws premises from the premise-prior (uniform) distribution
           (define premise-one (premise-prior))
@@ -109,18 +136,17 @@ The version of that model (with best-fit parameters n_objects = 5, br = 0.25 use
           
           ; the experimenter wants the reasoner to draw a particular conclusion, gives the premises 
           ; parameter 3: "optimality" -- the degree to which the experimenter's argument is optimal for the conclusion
-         (equal? conclusion (apply multinomial (raise-to-power (reasoner premise-one premise-two depth) 4.75)))))))
+         (equal? conclusion (apply multinomial (raise-to-power (argument-strength premise-one premise-two) 4.75)))))))
     
-    (define reasoner 
+    (define pragmatic-reasoner 
       (mem
       ; the reasoner takes in two premises as arguments
-       (lambda (premise-one premise-two depth)
+       (lambda (premise-one premise-two)
          (enumeration-query
-          ; the reasoner is uncertain about what the situation is
+          ; the pragmatic reasoner has the exact same generative model as the argument strength model
           (define A (mem (lambda (x) (flip br))))
           (define B (mem (lambda (x) (flip br))))
           (define C (mem (lambda (x) (flip br))))
-          ; the reasoner is also uncertain about what conclusion is true
           (define conclusion (conclusion-prior))
           
           ; the reasoner produces a conclusion
@@ -129,26 +155,24 @@ The version of that model (with best-fit parameters n_objects = 5, br = 0.25 use
           (and
           ; the conclusion quantifier is true of terms: A & C
            ((meaning conclusion) A C)
-           (if (= depth 0)
-               (and 
-                ; the premise quantifiers apply to: A-B & B-C
-                ((meaning premise-one) A B)
-                ((meaning premise-two) B C))
-               ; if depth = 1, the reasoner assumes the experimenter produces premises 
-               ; conditioned on the reasoner drawing a particular conclusion
-               (equal? (list premise-one premise-two) (apply multinomial (experimenter conclusion (- depth 1)))))
-           )))))
+          ; the premises now serve a different role; the premises are imagined to come from an experimenter
+          ; who has a particular conclusion in mind
+            (equal? (list premise-one premise-two) (apply multinomial (experimenter conclusion))))
+           ))))
+    
     
     ; All A are B
     ; No B are C [cogsci paper, Fig 2 [1]]
     
-    (reasoner 'all 'none 0)
-    
+    ;(pragmatic-reasoner 'all 'none 0)
+    (argument-strength 'all 'none 0)
+        
     ; this is a valid syllogism with 2 valid conclusions
-    ; the literal reaonser (depth=0) has no preference among valid conclusions
-    ; try changing the depth parameter to 1
-    ; the pragmatic reasonser (depth=1) infers that "None" is the more likely intended conclusion
-    
+    ; using the argument-strength alone produces no preference among valid conclusions
+    ; the pragmatic reasonser draws the conclusion not only true of the situation
+    ; but also which was intended to be drawn, inferring that "None" is the more likely intended conclusion
+
+
 
 References:
 

@@ -164,8 +164,8 @@ The version of that model (with best-fit parameters n_objects = 5, br = 0.25 use
     ; All A are B
     ; No B are C [cogsci paper, Fig 2 [1]]
     
-    ;(pragmatic-reasoner 'all 'none 0)
-    (argument-strength 'all 'none 0)
+    ;(pragmatic-reasoner 'all 'none)
+    (argument-strength 'all 'none)
         
     ; this is a valid syllogism with 2 valid conclusions
     ; using the argument-strength alone produces no preference among valid conclusions

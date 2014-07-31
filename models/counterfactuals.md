@@ -28,6 +28,101 @@ title: Counterfactuals
        (make-world A B E)
     
        (conditioner A B E)))
+
+Conditioning on counterfactual statements:
+
+    (define (begin a b)
+      b)
+    
+    (define (shadow name)
+      (string->symbol (string-append "shadow-" name)))
+    
+    (define (rename expr from-name to-name)
+      (cond [(list? expr) (map (lambda (x) (rename x from-name to-name)) expr)]
+            [(eq? expr from-name) to-name]
+            [else expr]))
+    
+    (define (shadow-rename expr name)
+      (rename expr name (shadow name)))
+    
+    (define (shadow-rename-all expr names)
+      (if (null? names)
+          expr
+          (shadow-rename-all (shadow-rename expr (first names))
+                             (rest names))))
+    
+    (define (make-shadow-defines defines names)
+      (map (lambda (def) 
+             (let ([name (second def)])
+               (list 'define 
+                     (shadow name) 
+                     (list 'if '(flip eps)
+                           (shadow-rename-all (third def) names)
+                           name
+                           ))))
+           defines))
+    
+    (define (make-counterfactual-query defines query-expr antecedent consequent)
+      (let* ([names (map second defines)]
+             [shadow-defines (make-shadow-defines defines names)]
+             [new-query
+              (append (list 'enumeration-query
+                            '(define eps .01))
+                      defines
+                      (list
+                       (list 'define 'cf-statement
+                             (list 'apply 'multinomial
+                                   (append '(enumeration-query)
+                                           shadow-defines
+                                           (list (list 'not (shadow consequent)))
+                                           (list (list 'condition (list 'not (shadow antecedent)))))))
+                       query-expr
+                       (list 'condition (list 'and antecedent consequent))
+                       '(condition cf-statement)))])
+        (begin
+         (console-log new-query)
+         new-query)))
+    
+    
+    ;; Comparing counterfactual to conditioning on antecedent and consequent:
+    
+    (define (test-counterfactual model query-expr antecedent consequent)
+      (barplot
+       (eval
+        (append '(enumeration-query)
+                model
+                (list query-expr
+                      (list 'and antecedent consequent))))
+       "Without counterfactual statement")
+    
+      (barplot
+       (eval
+        (make-counterfactual-query model 
+                                   query-expr 
+                                   antecedent
+                                   consequent
+                                   ))
+       "With counterfactual statement"))
+    
+    
+    ;; Example
+    
+    (define my-model
+      '((define a (flip .2))
+        (define c (flip .2))
+        (define b (flip (if (or a c) 0.9 0.1)))))
+    
+    (define my-query-expr
+      '(list a b c))
+    
+    (define my-antecedent 'a)
+    
+    (define my-consequent 'b)
+    
+    (test-counterfactual my-model
+                         my-query-expr
+                         my-antecedent
+                         my-consequent)
     
     
     ;; Helper function

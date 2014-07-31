@@ -116,8 +116,7 @@ Conditioning on counterfactual statements:
                                            (list (list 'not (shadow consequent)))
                                            (list (list 'condition (list 'not (shadow antecedent)))))))
                        query-expr
-                       (list 'condition (list 'and antecedent consequent))
-                       '(condition cf-statement)))])
+                       (list 'condition (list 'and antecedent consequent cf-statement))))])
         (begin
          (console-log new-query)
          new-query)))

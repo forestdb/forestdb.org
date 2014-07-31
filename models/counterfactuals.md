@@ -29,6 +29,45 @@ title: Counterfactuals
     
        (conditioner A B E)))
 
+    ;; Helper function
+    
+    (define (make-world A B E)
+      (list (pair 'A A)
+            (pair 'B B)
+            (pair 'E E)))
+    
+    
+    ;; Prior on worlds
+    
+    (define (empty-condition A B E) 
+      #t)
+    
+    (barplot (run-world '() empty-condition 1.0)
+             "Prior on worlds")
+    
+    
+    ;; Conditioning on the actual world
+    
+    (define (observation-condition A B E)
+      (and (not A) (not B) (not E))) ;; Could use noisy conditioning here
+    
+    (barplot (run-world '() observation-condition 1.0)
+             "Conditioned on actual world (A=0 B=0 E=0)")
+    
+    
+    ;; Counterfactuals
+    
+    (define actual-world (make-world #f #f #f))
+    
+    (define (intervention-condition A B E)
+      E)
+    
+    (define epsilon .05)
+    
+    (barplot (run-world actual-world intervention-condition epsilon)
+             "Counterfactual worlds for intervention E=1")
+
+
 Conditioning on counterfactual statements:
 
     (define (begin a b)
@@ -125,40 +164,3 @@ Conditioning on counterfactual statements:
                          my-consequent)
     
     
-    ;; Helper function
-    
-    (define (make-world A B E)
-      (list (pair 'A A)
-            (pair 'B B)
-            (pair 'E E)))
-    
-    
-    ;; Prior on worlds
-    
-    (define (empty-condition A B E) 
-      #t)
-    
-    (barplot (run-world '() empty-condition 1.0)
-             "Prior on worlds")
-    
-    
-    ;; Conditioning on the actual world
-    
-    (define (observation-condition A B E)
-      (and (not A) (not B) (not E))) ;; Could use noisy conditioning here
-    
-    (barplot (run-world '() observation-condition 1.0)
-             "Conditioned on actual world (A=0 B=0 E=0)")
-    
-    
-    ;; Counterfactuals
-    
-    (define actual-world (make-world #f #f #f))
-    
-    (define (intervention-condition A B E)
-      E)
-    
-    (define epsilon .05)
-    
-    (barplot (run-world actual-world intervention-condition epsilon)
-             "Counterfactual worlds for intervention E=1")

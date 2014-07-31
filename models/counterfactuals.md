@@ -80,7 +80,7 @@ Conditioning on counterfactual statements:
                 model
                 (list query-expr
                       (list 'and antecedent consequent))))
-       "Without counterfactual statement")
+       "Without counterfactual condition")
     
       (barplot
        (eval
@@ -89,7 +89,7 @@ Conditioning on counterfactual statements:
                                    antecedent
                                    consequent
                                    ))
-       "With counterfactual statement"))
+       "With counterfactual condition"))
     
     
     ;; -------------------------------------------------------------
@@ -142,7 +142,6 @@ Conditioning on counterfactual statements:
                          my-query-expr-1
                          my-antecedent-1
                          my-consequent-1)
-
 
 Previous version:
 

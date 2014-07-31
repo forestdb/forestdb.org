@@ -92,24 +92,57 @@ Conditioning on counterfactual statements:
        "With counterfactual statement"))
     
     
-    ;; Example
+    ;; -------------------------------------------------------------
+    ;; Example 1
     
-    (define my-model
+    (define my-model-1
       '((define a (flip .2))
         (define c (flip .2))
         (define b (flip (if (or a c) 0.9 0.1)))))
     
-    (define my-query-expr
+    (define my-query-expr-1
       '(list a b c))
     
-    (define my-antecedent 'a)
+    (define my-antecedent-1 'a)
     
-    (define my-consequent 'b)
+    (define my-consequent-1 'b)
     
-    (test-counterfactual my-model
-                         my-query-expr
-                         my-antecedent
-                         my-consequent)
+    
+    ;; -------------------------------------------------------------
+    ;; Example 2
+    
+    (define my-model-2
+      '(
+    
+        (define (strength) (uniform-draw '(0 5 10)))
+        (define (lazy) (flip))
+        (define (pulling str laz) (if laz (/ str 2) str))
+        (define alice-strength (strength))
+        (define alice-lazy (lazy))
+        (define alice-pulling (pulling alice-strength alice-lazy))
+        (define bob-strength (strength))
+        (define bob-lazy (lazy))
+        (define bob-pulling (pulling bob-strength bob-lazy))
+        (define alice-win (>= alice-pulling bob-pulling))
+        (define alice-stronger-than-bob (> alice-strength bob-strength))
+        
+        ))
+    
+    (define my-query-expr-2
+      'bob-lazy)
+    
+    (define my-antecedent-2 'alice-stronger-than-bob)
+    
+    (define my-consequent-2 'alice-win)
+    
+    
+    ;; Run example
+    
+    (test-counterfactual my-model-1
+                         my-query-expr-1
+                         my-antecedent-1
+                         my-consequent-1)
+
 
 Previous version:
 

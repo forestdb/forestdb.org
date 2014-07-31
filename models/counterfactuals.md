@@ -8,6 +8,9 @@ Conditioning on counterfactual statements:
     (define (begin a b)
       b)
     
+    (define (is-function-definition? def)
+      (list? (second def)))
+    
     (define (shadow name)
       (string->symbol (string-append "shadow-" name)))
     
@@ -25,19 +28,28 @@ Conditioning on counterfactual statements:
           (shadow-rename-all (shadow-rename expr (first names))
                              (rest names))))
     
+    (define (get-names defines)
+      (map (lambda (def)
+             (if (is-function-definition? def)
+                 (first (second def))
+                 (second def)))
+           defines)) 
+    
     (define (make-shadow-defines defines names)
-      (map (lambda (def) 
-             (let ([name (second def)])
-               (list 'define 
-                     (shadow name) 
-                     (list 'if '(flip eps)
-                           (shadow-rename-all (third def) names)
-                           name
-                           ))))
+      (map (lambda (def)
+             (if (is-function-definition? def)
+                 (shadow-rename-all def names)
+                 (let ([name (second def)])
+                   (list 'define 
+                         (shadow name) 
+                         (list 'if '(flip eps)
+                               (shadow-rename-all (third def) names)
+                               name
+                               )))))
            defines))
     
     (define (make-counterfactual-query defines query-expr antecedent consequent)
-      (let* ([names (map second defines)]
+      (let* ([names (get-names defines)]
              [shadow-defines (make-shadow-defines defines names)]
              [new-query
               (append (list 'enumeration-query

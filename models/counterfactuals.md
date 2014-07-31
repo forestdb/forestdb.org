@@ -109,14 +109,16 @@ Conditioning on counterfactual statements:
                             '(define eps .01))
                       defines
                       (list
-                       (list 'define 'cf-statement
-                             (list 'apply 'multinomial
-                                   (append '(enumeration-query)
-                                           shadow-defines
-                                           (list (list 'not (shadow consequent)))
-                                           (list (list 'condition (list 'not (shadow antecedent)))))))
+                       (list 
+                        'define 'cf-statement
+                        (list 'apply 'multinomial
+                              (append 
+                               '(enumeration-query)
+                               shadow-defines
+                               (list (list 'not (shadow consequent)))
+                               (list (list 'condition (list 'not (shadow antecedent)))))))
                        query-expr
-                       (list 'condition (list 'and antecedent consequent cf-statement))))])
+                       (list 'condition (list 'and antecedent consequent 'cf-statement))))])
         (begin
          (console-log new-query)
          new-query)))
@@ -161,5 +163,3 @@ Conditioning on counterfactual statements:
                          my-query-expr
                          my-antecedent
                          my-consequent)
-    
-    

@@ -13,6 +13,7 @@ We model an informative speaker trying to comunicate the world state (all top-le
 The meaning of "A because B" is both the presuppositions -- "A" and "B" -- and the counterfactual "if B had not happened then A would not have happened". The counterfactual is implemented by creating "shadow" world where each top-level (i.e. defined) variable in the model has its actual-world value with `eps` probability and a fresh value otherwise. In this shadow world we evaluate a codnitional query to see if "shadow-A" changes when "shadow-B" is conditioned to be false.
 
 To construct the shadow-world query we use a bunch of helpers for splicing, wrapping deifnitions, and renaming variables. Here it is, with an example:
+
 ~~~~
 ;;;
 ;;first we have a bunch of helper code to do meta-transforms..

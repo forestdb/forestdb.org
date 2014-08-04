@@ -8,15 +8,16 @@ var brackets_map = {"(": ")", "[": "]"};
 
 var query_fns = ["rejection-query", "mh-query", "enumeration-query", "conditional"];
 var query_fns_to_num_params = {
-	"rejection-query": 0,
-	"enumeration-query": 0,
-	"conditional": 1,
-	"mh-query": 2
+    "rejection-query": 0,
+    "enumeration-query": 0,
+    "conditional": 1,
+    "mh-query": 2
 }
+var query_decls = ["define", "condition", "factor", "condition-repeat-equals"];
 var condition_fns = ["condition", "factor", "condition-repeat-equals"];
 
 function make_generic_node(head, children) {
-	return {"head": head, "children": children};
+    return {"head": head, "children": children};
 }
 
 function deep_copy(obj) { return JSON.parse(JSON.stringify(obj)); }
@@ -25,507 +26,583 @@ function isquote(ast){return ast.children && ast.children[0].text && ast.childre
 
 // TODO: add all kinds of error-checking.
 function church_astify(tokens) {
-	// astify changes the opening bracket tokens so the end site is the matching closing bracket
-	function astify(tokens) {
+    // astify changes the opening bracket tokens so the end site is the matching closing bracket
+    function astify(tokens) {
 
-		function helper(opening_bracket) {
-			// Tree nodes have keys [children, start, end]
-			var result = {children: [], start: opening_bracket ? opening_bracket.start : "1:1"};
-			while (tokens.length > 0) {
-				if (tokens[0].text == "(" || tokens[0].text == "[") {
-					var bracket = tokens[0];
-					storage.push(tokens.shift());
-					result.children.push(helper(bracket));
-				} else if (tokens[0].text == ")" || tokens[0].text == "]") {
-					if (!opening_bracket || tokens[0].text != brackets_map[opening_bracket.text]) {
-						throw util.make_church_error("SyntaxError", tokens[0].start, tokens[0].end, "Unexpected close parens");
-					} else {
-						result["end"] = tokens[0].start;
-						opening_bracket.end = tokens[0].start;
-						storage.push(tokens.shift());
-						return result;
-					}
-				} else {
-					var token = tokens.shift();
-					storage.push(token);
-					result.children.push(token);
-				}
-			}
-			if (!opening_bracket) {
-				return result;
-			} else {
-				throw util.make_church_error("SyntaxError", opening_bracket.start, opening_bracket.end, "Unclosed parens");
-			}
-		}
-		var storage = [];
-		var ast = helper();
-		for (var i = 0; i < storage.length; i++) {
-			tokens.push(storage[i]);
-		}
-		return ast;
-	}
-
-	function traverse(ast, fn, stopfn) {
-		if (!util.is_leaf(ast) && ast.children.length > 0 && (!stopfn || !stopfn(ast))) {
-			ast = fn(ast);
-			for (var i = 0; i < ast.children.length; i++) {
-				ast.children[i] = traverse(ast.children[i], fn, stopfn);
-			}
-		}
-		return ast;
-	}
-
-	function is_special_form(text) {
-		return ["define", "lambda", "case", "cond", "if", "let"].indexOf(text) != -1;
-	}
-
-	function assert_not_special_form(node) {
-		if (is_special_form(node.text)) {
-			throw util.make_church_error("SyntaxError", node.start, node.end, "Special form " + node.text + " cannot be used as an atom");
-		}
-	}
-
-	function validate_leaves(ast) {
-		for (var i = 1; i < ast.children.length; i++) {
-			assert_not_special_form(ast.children[i]);
-		}
-		return ast;
-	}
-
-	// NOTE: Many of the desugar functions don't add range information.
-	// For now, it seems unlikely they'll be needed.
-
-	function dsgr_define(ast) {
-		if (ast.children[0].text=="define") {
-			if (ast.children.length < 3) {
-				throw util.make_church_error("SyntaxError", ast.start, ast.end, "Invalid define");
-			}
-			// Function define sugar
-			if (!util.is_leaf(ast.children[1])) {
-				var lambda_args;
-				// Variadic sugar
-				if (ast.children[1].children.length == 3 && ast.children[1].children[1].text == ".") {
-					lambda_args = ast.children[1].children[2];
-				} else {
-					lambda_args = {children: ast.children[1].children.slice(1)};
-				}
-				var lambda = {
-					children: [
-						{text: "lambda"},
-						lambda_args
-					].concat(ast.children.slice(2))
-				};
-				return {
-					children: [ast.children[0], ast.children[1].children[0], lambda],
-					start: ast.start,
-					end: ast.end
-				};
-			}
-		}
-		return ast;
-	}
-
-	function dsgr_lambda(ast) {
-		if (ast.children[0].text=="lambda") {
-			if (ast.children.length < 3) {
-				throw util.make_church_error("SyntaxError", ast.start, ast.end, "lambda has no body");
-			}
-		}
-		return ast;
-	}
-
-	function dsgr_let(ast) {
-		var let_varieties = ["let", "let*"];
-
-		if (let_varieties.indexOf(ast.children[0].text)!=-1) {
-			if (ast.children.length < 3) {
-				throw util.make_church_error("SyntaxError", ast.start, ast.end, ast.children[0].text + " has no body");
-			}
-			var bindings = ast.children[1];
-			var valid_bindings = true;
-			if (util.is_leaf(bindings)) {
-				valid_bindings = false;
-			} else {
-				for (var i = 0; i < bindings.children.length; i++) {
-					if (util.is_leaf(bindings.children[i]) || bindings.children[i].children.length != 2) {
-						valid_bindings = false;
-						break;
-					}
-				}
-			}
-			if (!valid_bindings) {
-				throw util.make_church_error_range("SyntaxError", bindings.start, bindings.end, ast.children[0].text + " has invalid bindings");
-			}
-
-			switch (ast.children[0].text) {
-				case "let":
-					return {
-						children: [
-							{
-								children: [
-									{text: "lambda"},
-									{children: bindings.children.map(function(x) {return x.children[0]})},
-									ast.children[2]
-								]
-							}
-						].concat(bindings.children.map(function(x) {return x.children[1]}))
-					};
-				case "let*":
-					var new_ast = {
-						children: [
-							{
-								children: [
-									{text: "lambda"},
-									{children: []},
-									ast.children[2]
-								]
-							}
-						]
-					}
-					for (var i = bindings.children.length-1; i >= 0; i--) {
-						// console.log(JSON.stringify(bindings.children[i].children[0],undefined,2))
-						new_ast = {
-							children: [
-								{
-									children: [
-										{text: "lambda"},
-										{children: [bindings.children[i].children[0]]},
-										new_ast
-									]
-								},
-								bindings.children[i].children[1]
-							]
-						}
-					}
-					return new_ast;
-			}
-
-
+	function helper(opening_bracket) {
+	    // Tree nodes have keys [children, start, end]
+	    var result = {children: [], start: opening_bracket ? opening_bracket.start : "1:1"};
+	    while (tokens.length > 0) {
+		if (tokens[0].text == "(" || tokens[0].text == "[") {
+		    var bracket = tokens[0];
+		    storage.push(tokens.shift());
+		    result.children.push(helper(bracket));
+		} else if (tokens[0].text == ")" || tokens[0].text == "]") {
+		    if (!opening_bracket || tokens[0].text != brackets_map[opening_bracket.text]) {
+			throw util.make_church_error("SyntaxError", tokens[0].start, tokens[0].end, "Unexpected close parens");
+		    } else {
+			result["end"] = tokens[0].start;
+			opening_bracket.end = tokens[0].start;
+			storage.push(tokens.shift());
+			return result;
+		    }
 		} else {
-			return ast;
+		    var token = tokens.shift();
+		    storage.push(token);
+		    result.children.push(token);
 		}
+	    }
+	    if (!opening_bracket) {
+		return result;
+	    } else {
+		throw util.make_church_error("SyntaxError", opening_bracket.start, opening_bracket.end, "Unclosed parens");
+	    }
 	}
-
-	function dsgr_quote(ast) {
-		var last = ast.children[ast.children.length-1];
-		if (last.text=="'") {
-			throw util.make_church_error("SyntaxError", last.start, last.end, "Invalid single quote");
-		}
-		for (var i = ast.children.length - 2; i >= 0; i--) {
-			if (ast.children[i].text == "'") {
-				ast.children.splice(i, 2, {
-					children: [{text: "quote", start: ast.children[i].start, end: ast.children[i].end}, ast.children[i+1]],
-					start: ast.children[i].start,
-					end: ast.children[i+1].end
-				});
-			}
-		}
-		return ast;
+	var storage = [];
+	var ast = helper();
+	for (var i = 0; i < storage.length; i++) {
+	    tokens.push(storage[i]);
 	}
+	return ast;
+    }
 
-	function dsgr_case(ast) {
-		function case_helper(key, clauses) {
-			if (clauses.length == 0) {
-				return undefined;
-			}
-			var clause = clauses[0];
-			if (util.is_leaf(clause) || clause.children.length != 2 ||
-				(util.is_leaf(clause.children[0]) && clause.children[0].text!="else")) {
-				throw util.make_church_error("SyntaxError", clause.start, clause.end, "Bad clause for case");
-			}
+    function traverse(ast, fn, stopfn) {
+	if (!util.is_leaf(ast) && ast.children.length > 0 && (!stopfn || !stopfn(ast))) {
+	    ast = fn(ast);
+	    for (var i = 0; i < ast.children.length; i++) {
+		ast.children[i] = traverse(ast.children[i], fn, stopfn);
+	    }
+	}
+	return ast;
+    }
 
-			if (clause.children[0].text=="else") {
-				if (clauses.length > 1) {
-					throw util.make_church_error("SyntaxError", clause.start, clause.end, "Bad placement of else clause in case");
-				} else {
-					return clause.children[1];
-				}
-			} else {
-				for (var i = 0; i < clause.children[0]; i++) {
-					var datum = clause.children[0].children[i];
-					if (util.is_leaf(datum)) {
-						throw util.make_church_error("SyntaxError", datum.start, datum.end, " for case");
-					}
-				}
+    function is_special_form(text) {
+	return ["define", "lambda", "case", "cond", "if", "let"].indexOf(text) != -1;
+    }
 
-				var next = case_helper(key, clauses.slice(1));
-				var new_ast = {
-					children: [
-						{text: "if"},
-						{
-							children: [
-								{text: "member"},
-								key,
-                {children: [{text: "list"}].concat(clause.children[0].children)}
-								// {children: [{text: "list"}].concat(clause.children[0])}
-							]
-						},
-						clause.children[1]
-					]
-				};
-				if (next) {
-					new_ast.children.push(next);
-				}
-				return new_ast;
-			}
-		}
+    function assert_not_special_form(node) {
+	if (is_special_form(node.text)) {
+	    throw util.make_church_error("SyntaxError", node.start, node.end, "Special form " + node.text + " cannot be used as an atom");
+	}
+    }
 
-		if (ast.children[0].text=="case") {
-			if (ast.children.length < 3) {
-				throw util.make_church_error("SyntaxError", ast.start, ast.end, "case is missing clauses");
-			}
-			return case_helper(ast.children[1], ast.children.slice(2));
+    function validate_leaves(ast) {
+	for (var i = 1; i < ast.children.length; i++) {
+	    assert_not_special_form(ast.children[i]);
+	}
+	return ast;
+    }
+
+    // NOTE: Many of the desugar functions don't add range information.
+    // For now, it seems unlikely they'll be needed.
+
+    function dsgr_define(ast) {
+	if (ast.children[0].text=="define") {
+	    if (ast.children.length < 3) {
+		throw util.make_church_error("SyntaxError", ast.start, ast.end, "Invalid define");
+	    }
+	    // Function define sugar
+	    if (!util.is_leaf(ast.children[1])) {
+		var lambda_args;
+		// Variadic sugar
+		if (ast.children[1].children.length == 3 && ast.children[1].children[1].text == ".") {
+		    lambda_args = ast.children[1].children[2];
 		} else {
-			return ast;
+		    lambda_args = {children: ast.children[1].children.slice(1)};
 		}
+		var lambda = {
+		    children: [
+			{text: "lambda"},
+			lambda_args
+		    ].concat(ast.children.slice(2))
+		};
+		return {
+		    children: [ast.children[0], ast.children[1].children[0], lambda],
+		    start: ast.start,
+		    end: ast.end
+		};
+	    }
 	}
+	return ast;
+    }
 
-	function dsgr_cond(ast) {
-		function cond_helper(clauses) {
-			if (clauses.length == 0) {
-				return undefined;
-			}
-			var clause = clauses[0];
-			if (util.is_leaf(clause) || clause.children.length != 2) {
-				throw util.make_church_error("SyntaxError", clause.start, clause.end, "Bad clause for cond");
-			}
-			if (clause.children[0].text=="else") {
-				if (clauses.length > 1) {
-					throw util.make_church_error("SyntaxError", clause.start, clause.end, "Bad placement of else clause in cond");
-				} else {
-					return clause.children[1];
-				}
-			} else {
-				var next = cond_helper(
-					clauses.slice(1));
-				var new_ast = {
-					children: [
-						{text: "if"},
-						clause.children[0],
-						clause.children[1]
-					]
-				};
-				if (next) {
-					new_ast.children.push(next);
-				}
-				return new_ast;
-			}
-		}
-
-		if (ast.children[0].text=="cond") {
-			if (ast.children.length < 2) {
-				throw util.make_church_error("SyntaxError", ast.start, ast.end, "cond is missing clauses");
-			}
-			return cond_helper(ast.children.slice(1));
-		} else {
-			return ast;
-		}
+    function dsgr_lambda(ast) {
+	if (ast.children[0].text=="lambda") {
+	    if (ast.children.length < 3) {
+		throw util.make_church_error("SyntaxError", ast.start, ast.end, "lambda has no body");
+	    }
 	}
+	return ast;
+    }
 
-  function dsgr_eval(ast) {
-    if (ast.children[0].text == "eval") {
-      return {
+    function dsgr_let(ast) {
+	var let_varieties = ["let", "let*"];
+
+	if (let_varieties.indexOf(ast.children[0].text)!=-1) {
+	    if (ast.children.length < 3) {
+		throw util.make_church_error("SyntaxError", ast.start, ast.end, ast.children[0].text + " has no body");
+	    }
+	    var bindings = ast.children[1];
+	    var valid_bindings = true;
+	    if (util.is_leaf(bindings)) {
+		valid_bindings = false;
+	    } else {
+		for (var i = 0; i < bindings.children.length; i++) {
+		    if (util.is_leaf(bindings.children[i]) || bindings.children[i].children.length != 2) {
+			valid_bindings = false;
+			break;
+		    }
+		}
+	    }
+	    if (!valid_bindings) {
+		throw util.make_church_error_range("SyntaxError", bindings.start, bindings.end, ast.children[0].text + " has invalid bindings");
+	    }
+
+	    switch (ast.children[0].text) {
+	    case "let":
+		return {
+		    children: [
+			{
+			    children: [
+				{text: "lambda"},
+				{children: bindings.children.map(function(x) {return x.children[0]})},
+				ast.children[2]
+			    ]
+			}
+		    ].concat(bindings.children.map(function(x) {return x.children[1]}))
+		};
+	    case "let*":
+		var new_ast = {
+		    children: [
+			{
+			    children: [
+				{text: "lambda"},
+				{children: []},
+				ast.children[2]
+			    ]
+			}
+		    ]
+		}
+		for (var i = bindings.children.length-1; i >= 0; i--) {
+		    // console.log(JSON.stringify(bindings.children[i].children[0],undefined,2))
+		    new_ast = {
+			children: [
+			    {
 				children: [
-					{text: "eval"},
-					{
-            children: [
-              // churchToBareJs: for use in eval only
-              {text: "churchToBareJs"},
-              {
-                children: [
-                  {text: "formatResult"},
-                  ast.children[1]
-                ]
-              }
-            ]
-          } 
-        ]
-      }
-		
-	}
-    return ast;
-  };
+				    {text: "lambda"},
+				    {children: [bindings.children[i].children[0]]},
+				    new_ast
+				]
+			    },
+			    bindings.children[i].children[1]
+			]
+		    }
+		}
+		return new_ast;
+	    }
 
-	function dsgr_query(ast) {
+	} else {
+	    return ast;
+	}
+    }
+
+    function dsgr_quote(ast) {
+        var last = ast.children[ast.children.length-1];
+        if (last.text=="'") {
+            throw util.make_church_error("SyntaxError", last.start, last.end, "Invalid single quote");
+        }
+        for (var i = ast.children.length - 2; i >= 0; i--) {
+            if (ast.children[i].text == "'") {
+                ast.children.splice(i, 2, {
+                                    children: [{text: "quote", start: ast.children[i].start, end: ast.children[i].end}, ast.children[i+1]],
+                                    start: ast.children[i].start,
+                                    end: ast.children[i+1].end
+                                    });
+            }
+        }
+        return ast;
+    }
+    
+    function dsgr_unquote(ast) {
+        for (var i = ast.children.length - 2; i >= 0; i--) {
+            if (ast.children[i].text == ",") {
+                ast.children.splice(i, 2, {
+                                    children: [{text: "unquote", start: ast.children[i].start, end: ast.children[i].end}, ast.children[i+1]],
+                                    start: ast.children[i].start,
+                                    end: ast.children[i+1].end
+                                    });
+            }
+        }
+        return ast;
+    }
+    
+    //turn (... , @ foo ...) into  (, (append ' (...) foo ' (...)))
+    //because this wraps each items have to also turn "... , foo ..." into "... (list foo) ..."
+    //note: do this before desugarring quote and unquote.
+    function dsgr_splunquote(ast) {
+        
+        //todo:start and end
+        var ats = false
+        var children = [{text: "append"}]
+        for(var c = 0; c < ast.children.length; c++){
+            if(ast.children[c].text =="," && ast.children[c+1].text =="@") {
+                ats = true
+                children.push(ast.children[c+2])
+                c=c+2
+            } else if(ast.children[c].text ==","){
+                children.push({children:[{text:"list"}, ast.children[c+1]]})
+                c=c+1
+            } else {
+                children.push({text: "'"})
+                children.push({children: [ast.children[c]]})
+            }
+        }
+        if(ats){
+            return {children: [{text:"unquote"}, {children: children}]}
+        } else {
+            return ast
+        }
+    }
+
+    function dsgr_case(ast) {
+	function case_helper(key, clauses) {
+	    if (clauses.length == 0) {
+		return undefined;
+	    }
+	    var clause = clauses[0];
+	    if (util.is_leaf(clause) || clause.children.length != 2 ||
+		(util.is_leaf(clause.children[0]) && clause.children[0].text!="else")) {
+		throw util.make_church_error("SyntaxError", clause.start, clause.end, "Bad clause for case");
+	    }
+
+	    if (clause.children[0].text=="else") {
+		if (clauses.length > 1) {
+		    throw util.make_church_error("SyntaxError", clause.start, clause.end, "Bad placement of else clause in case");
+		} else {
+		    return clause.children[1];
+		}
+	    } else {
+		for (var i = 0; i < clause.children[0]; i++) {
+		    var datum = clause.children[0].children[i];
+		    if (util.is_leaf(datum)) {
+			throw util.make_church_error("SyntaxError", datum.start, datum.end, " for case");
+		    }
+		}
+
+		var next = case_helper(key, clauses.slice(1));
+		var new_ast = {
+		    children: [
+			{text: "if"},
+			{
+			    children: [
+				{text: "member"},
+				key,
+                                {children: [{text: "list"}].concat(clause.children[0].children)}
+				// {children: [{text: "list"}].concat(clause.children[0])}
+			    ]
+			},
+			clause.children[1]
+		    ]
+		};
+		if (next) {
+		    new_ast.children.push(next);
+		}
+		return new_ast;
+	    }
+	}
+
+	if (ast.children[0].text=="case") {
+	    if (ast.children.length < 3) {
+		throw util.make_church_error("SyntaxError", ast.start, ast.end, "case is missing clauses");
+	    }
+	    return case_helper(ast.children[1], ast.children.slice(2));
+	} else {
+	    return ast;
+	}
+    }
+
+    function dsgr_cond(ast) {
+	function cond_helper(clauses) {
+	    if (clauses.length == 0) {
+		return undefined;
+	    }
+	    var clause = clauses[0];
+	    if (util.is_leaf(clause) || clause.children.length != 2) {
+		throw util.make_church_error("SyntaxError", clause.start, clause.end, "Bad clause for cond");
+	    }
+	    if (clause.children[0].text=="else") {
+		if (clauses.length > 1) {
+		    throw util.make_church_error("SyntaxError", clause.start, clause.end, "Bad placement of else clause in cond");
+		} else {
+		    return clause.children[1];
+		}
+	    } else {
+		var next = cond_helper(
+		    clauses.slice(1));
+		var new_ast = {
+		    children: [
+			{text: "if"},
+			clause.children[0],
+			clause.children[1]
+		    ]
+		};
+		if (next) {
+		    new_ast.children.push(next);
+		}
+		return new_ast;
+	    }
+	}
+
+	if (ast.children[0].text=="cond") {
+	    if (ast.children.length < 2) {
+		throw util.make_church_error("SyntaxError", ast.start, ast.end, "cond is missing clauses");
+	    }
+	    return cond_helper(ast.children.slice(1));
+	} else {
+	    return ast;
+	}
+    }
+
+    function dsgr_eval(ast) {
+        if (ast.children[0].text == "eval") {
+            return {
+		            children: [
+		                {text: "eval"},
+		                {
+                        children: [
+                            // churchToBareJs: for use in eval only
+                            {text: "churchToBareJs"},
+                            {
+                                children: [
+                                    {text: "formatResult"},
+                                    ast.children[1]
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+	      }
+        return ast;
+    };
+
+    function dsgr_load(ast) {
+        if (ast.children[0].text == "load") {
+            if (ast.children[0].text == "load") {
+                return {
+		                children: [
+		                    {text: "eval"},
+		                    {
+                            children: [
+                                // churchToBareJs: for use in eval only
+                                {text: "load_url"},
+                                ast.children[1]
+                            ]
+                        }
+                    ]
+                }
+	          }
+        }
+        return ast; 
+    };
+
+    
+    function dsgr_query(ast) {
 		// Makes the lambda that's passed to the query function
-		function query_helper(statements, condition, args) {
-			if (util.is_leaf(condition) || condition_fns.indexOf(condition.children[0].text) == -1) {
-				condition = {
-					children: [{text: "condition"}, condition],
-					start: condition.start,
-					end: condition.end
-				};
+		function query_helper(statements, args) {
+			// The final output of the query
+			var query_exp;
+			var query_exp_index;
+			for (var i = 0; i < statements.length; i++) {
+				// If query_exp is set, then any statement after that which is not a define, factor, or condition
+				// is implicitly a condition
+				if (util.is_leaf(statements[i]) || query_decls.indexOf(statements[i].children[0].text) == -1) {
+					if (query_exp) {
+						statements[i] = {
+						    children: [{text: "condition"}, statements[i]],
+						    start: condition.start,
+						    end: condition.end
+						};
+					} else {
+						query_exp = statements[i];
+						query_exp_index = i;
+					}
+				}
 			}
-			args = args || {children: []};
+		    args = args || {children: []};
 			return {
 				children: [
 					{text: "lambda"},
 					args
-				].concat(statements.slice(0, -1)).concat(condition).concat(statements[statements.length-1])
-			};
-		}
-		
-		if (query_fns.indexOf(ast.children[0].text) != -1) {
-			var num_params = query_fns_to_num_params[ast.children[0].text];
-			if (ast.children.length < num_params + 4) {
-				throw util.make_church_error("SyntaxError", ast.start, ast.end, ast.children[0].text + " has the wrong number of arguments");
+				].concat(statements.slice(0, query_exp_index))
+					.concat(statements.slice(query_exp_index+1))
+					.concat(query_exp)
 			}
-			return {
+		}
+
+		if (query_fns.indexOf(ast.children[0].text) != -1) {
+		    var num_params = query_fns_to_num_params[ast.children[0].text];
+		    if (ast.children.length < num_params + 3) {
+				throw util.make_church_error("SyntaxError", ast.start, ast.end, ast.children[0].text + " has the wrong number of arguments");
+		    }
+		    return {
 				children: [
-					ast.children[0],
-					query_helper(ast.children.slice(num_params+1, -1), ast.children[ast.children.length-1])
+				    ast.children[0],
+				    query_helper(ast.children.slice(num_params+1))
 				].concat(ast.children.slice(1, num_params+1)),
 				start: ast.start,
 				end: ast.end
-			};
+		    };
 		}
 
 		return ast;
+    }
+
+    function validate_if(ast) {
+	if (ast.children[0].text=="if") {
+	    if (ast.children.length < 3 || ast.children.length > 4) {
+		throw util.make_church_error("SyntaxError", ast.start, ast.end, "if has the wrong number of arguments");
+	    }
 	}
-
-	function validate_if(ast) {
-		if (ast.children[0].text=="if") {
-			if (ast.children.length < 3 || ast.children.length > 4) {
-				throw util.make_church_error("SyntaxError", ast.start, ast.end, "if has the wrong number of arguments");
-			}
-		}
-		return ast;
-	}
- 
-	function transform_equals_condition(ast) {
-		function is_equals_conditionable(ast) {
-			if (util.is_leaf(ast)) return false;
-			var fn = church_builtins.__annotations__[rename_map[ast.children[0].text]];
-			return fn && fn.erp && ast.children[fn.numArgs[fn.numArgs.length-1]] == undefined;
-		}
-
-		function transform_erp(erp, conditioned_value) {
-			erp.children.push(conditioned_value);
-		}
-
-		function try_transform(left, right) {
-			if (left == undefined) return false;
-			if (is_equals_conditionable(left)) {
-				transform_erp(left, right);
-				statements.splice(i, 1, left);
-				return true;
-			} else if (util.is_leaf(left) && define_table[left.text] && is_equals_conditionable(define_table[left.text].def)) {
-				var left_entry = define_table[left.text];
-				if (!util.is_identifier(right.text) || (
-						define_table[right.text] && left_entry.index > define_table[right.text].index)) {
-					transform_erp(left_entry.def, right);
-					statements.splice(i, 1);
-					return true;
-				}
-			}
-			return false;
-		}
-
-		var transformed;
-		if (query_fns.indexOf(ast.children[0].text) != -1) {			
-			var define_table = {};
-			// Assumes preprocessing through dsgr_query
-			var statements = ast.children[1].children.slice(2);
-			var i = 0;
-			// Iterate through each lambda statement
-			for (var i = 0; i < statements.length; i++) {
-				if (!util.is_leaf(statements[i])) {
-					// If statement is a define and an ERP without an existing condition, put it in a table
-					if (statements[i].children[0].text == "define") {
-						define_table[statements[i].children[1].text] = {
-							index: i,
-							def: statements[i].children[2]
-						};
-					// If statement is a condition, check if it's an equality and attempt to transform
-					} else if (statements[i].children[0].text == "condition") {
-						var condition = statements[i].children[1];
-						if (!util.is_leaf(condition) && ["=", "equal?"].indexOf(condition.children[0].text) != -1 && condition.children.length == 3) {
-							var left = condition.children[1];
-							var right = condition.children[2];
-							if (!try_transform(left, right)) try_transform(right, left);
-						}
-					}
-					
-				}
-			}
-
-		}
-		return ast;
-	}
-
-	function transform_repeat_equals_condition(ast) {
-		function try_transform(left, right) {
-			if (!util.is_leaf(left) && left.children[0].text == "repeat") {
-				ast.children[1].children[i+2] = {
-					children: [
-						{"text": "multi-equals-condition"},
-						left.children[2],
-						left.children[1],
-						right],
-					start: ast.children[1].children[i+2].children[0].start,
-					end: ast.children[1].children[i+2].children[0].end
-				};
-				return true;
-			}
-			return false;
-		}
-
-		if (query_fns.indexOf(ast.children[0].text) != -1) {
-			var statements = ast.children[1].children.slice(2);
-			for (var i = 0; i < statements.length; i++) {
-				if (!util.is_leaf(statements[i]) && statements[i].children[0].text == "condition") {
-					var condition = statements[i].children[1];
-					if (!util.is_leaf(condition) && condition.children[0].text == "equal?" && condition.children.length == 3) {
-						var left = condition.children[1];
-						var right = condition.children[2];
-						if (!try_transform(left, right)) try_transform(right, left);
-					}
-				}
-			}
-		}
-		return ast;
-	}
-
-	// Break out conditions with ands into multiple condition statements
-	function transform_and_condition(ast) {
-		if (["rejection-query", "enumeration-query", "mh-query"].indexOf(ast.children[0].text) != -1) {
-			var lambda = ast.children[1];
-			var stmts = lambda.children.splice(2);
-			for (var i = 0; i < stmts.length; i++) {
-				if (!util.is_leaf(stmts[i]) && stmts[i].children[0].text == "condition") {
-					var condition_stmt = stmts[i];
-					var condition = condition_stmt.children[1];
-					if (!util.is_leaf(condition) && condition.children[0].text == "and") {
-						for (var j=1;j<condition.children.length;j++) {
-							lambda.children.push({children: [condition_stmt.children[0], condition.children[j]]});
-						}
-					} else {
-						lambda.children.push(stmts[i]);
-					}
-				} else {
-					lambda.children.push(stmts[i]);
-				}
-			}
-		}
-		return ast;
-	}
-
-	// Order is important, particularly desugaring quotes before anything else.
-	var desugar_fns = [
-		validate_leaves, dsgr_define, dsgr_lambda, dsgr_let, dsgr_case, dsgr_cond, dsgr_eval, dsgr_query, validate_if,
-		transform_and_condition, transform_equals_condition];
-
-	var ast = astify(tokens);
-	// Special top-level check
-	for (var i = 0; i < ast.children.length; i++) {
-		assert_not_special_form(ast.children[i]);
-	}
-    ast = traverse(ast, dsgr_quote);
-	for (var i = 0; i < desugar_fns.length; i++) {
-		ast = traverse(ast, desugar_fns[i], isquote);
-	}
-
 	return ast;
+    }
+
+    function transform_equals_condition(ast) {
+	function is_equals_conditionable(ast) {
+	    if (util.is_leaf(ast)) return false;
+	    var fn = church_builtins.__annotations__[rename_map[ast.children[0].text]];
+	    return fn && fn.erp && ast.children[fn.numArgs[fn.numArgs.length-1]] == undefined;
+	}
+
+	function transform_erp(erp, conditioned_value) {
+	    erp.children.push(conditioned_value);
+	}
+
+	function try_transform(left, right) {
+	    if (left == undefined) return false;
+	    if (is_equals_conditionable(left)) {
+		transform_erp(left, right);
+		statements.splice(i, 1, left);
+		return true;
+	    } else if (util.is_leaf(left) && define_table[left.text] && is_equals_conditionable(define_table[left.text].def)) {
+		var left_entry = define_table[left.text];
+		if (!util.is_identifier(right.text) || (
+		    define_table[right.text] && left_entry.index > define_table[right.text].index)) {
+		    transform_erp(left_entry.def, right);
+		    statements.splice(i, 1);
+		    return true;
+		}
+	    }
+	    return false;
+	}
+
+	var transformed;
+	if (query_fns.indexOf(ast.children[0].text) != -1) {
+	    var define_table = {};
+	    // Assumes preprocessing through dsgr_query
+	    var statements = ast.children[1].children.slice(2);
+	    var i = 0;
+	    // Iterate through each lambda statement
+	    for (var i = 0; i < statements.length; i++) {
+		if (!util.is_leaf(statements[i])) {
+		    // If statement is a define and an ERP without an existing condition, put it in a table
+		    if (statements[i].children[0].text == "define") {
+			define_table[statements[i].children[1].text] = {
+			    index: i,
+			    def: statements[i].children[2]
+			};
+			// If statement is a condition, check if it's an equality and attempt to transform
+		    } else if (statements[i].children[0].text == "condition") {
+			var condition = statements[i].children[1];
+			if (!util.is_leaf(condition) && ["=", "equal?"].indexOf(condition.children[0].text) != -1 && condition.children.length == 3) {
+			    var left = condition.children[1];
+			    var right = condition.children[2];
+			    if (!try_transform(left, right)) try_transform(right, left);
+			}
+		    }
+
+		}
+	    }
+
+	}
+	return ast;
+    }
+
+    function transform_repeat_equals_condition(ast) {
+	function try_transform(left, right) {
+	    if (!util.is_leaf(left) && left.children[0].text == "repeat") {
+		ast.children[1].children[i+2] = {
+		    children: [
+			{"text": "multi-equals-condition"},
+			left.children[2],
+			left.children[1],
+			right],
+		    start: ast.children[1].children[i+2].children[0].start,
+		    end: ast.children[1].children[i+2].children[0].end
+		};
+		return true;
+	    }
+	    return false;
+	}
+
+	if (query_fns.indexOf(ast.children[0].text) != -1) {
+	    var statements = ast.children[1].children.slice(2);
+	    for (var i = 0; i < statements.length; i++) {
+		if (!util.is_leaf(statements[i]) && statements[i].children[0].text == "condition") {
+		    var condition = statements[i].children[1];
+		    if (!util.is_leaf(condition) && condition.children[0].text == "equal?" && condition.children.length == 3) {
+			var left = condition.children[1];
+			var right = condition.children[2];
+			if (!try_transform(left, right)) try_transform(right, left);
+		    }
+		}
+	    }
+	}
+	return ast;
+    }
+
+    // Break out conditions with ands into multiple condition statements
+    function transform_and_condition(ast) {
+	if (["rejection-query", "enumeration-query", "mh-query"].indexOf(ast.children[0].text) != -1) {
+	    var lambda = ast.children[1];
+	    var stmts = lambda.children.splice(2);
+	    for (var i = 0; i < stmts.length; i++) {
+		if (!util.is_leaf(stmts[i]) && stmts[i].children[0].text == "condition") {
+		    var condition_stmt = stmts[i];
+		    var condition = condition_stmt.children[1];
+		    if (!util.is_leaf(condition) && condition.children[0].text == "and") {
+			for (var j=1;j<condition.children.length;j++) {
+			    lambda.children.push({children: [condition_stmt.children[0], condition.children[j]]});
+			}
+		    } else {
+			lambda.children.push(stmts[i]);
+		    }
+		} else {
+		    lambda.children.push(stmts[i]);
+		}
+	    }
+	}
+	return ast;
+    }
+
+    // Order is important, particularly desugaring quotes before anything else.
+    var desugar_fns = [
+	validate_leaves, dsgr_define, dsgr_lambda, dsgr_let, dsgr_case, dsgr_cond, dsgr_eval, dsgr_load, dsgr_query, validate_if,
+	transform_and_condition, transform_equals_condition];
+
+    var ast = astify(tokens);
+    // Special top-level check
+    for (var i = 0; i < ast.children.length; i++) {
+	assert_not_special_form(ast.children[i]);
+    }
+    ast = traverse(ast, dsgr_splunquote);
+    ast = traverse(ast, dsgr_quote);
+    ast = traverse(ast, dsgr_unquote);
+    for (var i = 0; i < desugar_fns.length; i++) {
+	ast = traverse(ast, desugar_fns[i], isquote);
+    }
+
+    return ast;
 }
 
 function church_shallow_preconditions(ast) {
@@ -534,24 +611,28 @@ function church_shallow_preconditions(ast) {
 
 // Print a Church AST for debugging
 function church_ast_to_string(ast) {
-	if (util.is_leaf(ast)) {
-		return ast.text;
-	} else {
-		return "(" + ast.children.map(function(x) {return church_ast_to_string(x)}).join(" ") + ")"
-	}
+    if (util.is_leaf(ast)) {
+	return ast.text;
+    } else {
+	return "(" + ast.children.map(function(x) {return church_ast_to_string(x)}).join(" ") + ")"
+    }
 }
 
 module.exports =
-{
+    {
 	church_ast_to_string: church_ast_to_string,
-    church_astify: church_astify,
-    church_shallow_preconditions: church_shallow_preconditions
-}
+        church_astify: church_astify,
+        church_shallow_preconditions: church_shallow_preconditions
+    }
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/church_astify.js","/")
-},{"./church_builtins.js":"sy/OMr","./js_astify.js":16,"./util.js":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"sy/OMr":[function(require,module,exports){
+},{"./church_builtins.js":"sy/OMr","./js_astify.js":16,"./util.js":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./church_builtins":[function(require,module,exports){
+module.exports=require('sy/OMr');
+},{}],"sy/OMr":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* global global, require, module, exports */
+
+var seedrandom = require('seedrandom');
 
 // Contains the built-in Church functions written in Javascript.
 // TODO: document annotations format
@@ -569,90 +650,87 @@ module.exports =
 // maybe basic types stuff should live in a module
 // separate from builtins and separate from asserts
 var typeCheckers = {
-  'integer': function(x) {
-    return typeof x == 'number' && Math.floor(x) == x;
-  },
-  nat: function(x) {
-    return typeof x == 'number' && Math.floor(x) == x && x >= 0;
-  },
-  'positive real': function(x) {
-    return typeof x == 'number' && x > 0;
-  },
-  real: function(x) {
-    return typeof x == 'number';
-  },
-  function: function(x) {
-    return typeof x == 'function';
-  },
-  pair: function(x) {
-    return Array.isArray(x) && x.length >= 2;
-  },
-  list: function(x) {
-    return Array.isArray(x) && x[x.length - 1] == null;
-  },
-  'boolean': function(x) {
-    return typeof x == 'boolean';
-  },
-  'string': function(x) {
-    return typeof x == 'string';
-  }
+    'integer': function(x) {
+        return typeof x == 'number' && Math.floor(x) == x;
+    },
+    nat: function(x) {
+        return typeof x == 'number' && Math.floor(x) == x && x >= 0;
+    },
+    'positive real': function(x) {
+        return typeof x == 'number' && x > 0;
+    },
+    real: function(x) {
+        return typeof x == 'number';
+    },
+    function: function(x) {
+        return typeof x == 'function';
+    },
+    pair: function(x) {
+        return Array.isArray(x) && x.length >= 2;
+    },
+    list: function(x) {
+        return Array.isArray(x) && x[x.length - 1] == null;
+    },
+    'boolean': function(x) {
+        return typeof x == 'boolean';
+    },
+    'string': function(x) {
+        return typeof x == 'string';
+    }
 };
 
 // handle simple parameterized types like
 // List real, Pair real
 // TODO: test this
 function parseTypeString(s) {
-  if (/list|pair/.test(s)) {
-    var baseType = /list/.test(s) ? 'list' : 'pair';
+    if (/list|pair/.test(s)) {
+        var baseType = /list/.test(s) ? 'list' : 'pair';
 
-    var uStart = s.indexOf("<");
-    var uEnd = s.lastIndexOf(">");
+        var uStart = s.indexOf("<");
+        var uEnd = s.lastIndexOf(">");
 
-    var baseChecker = typeCheckers[baseType];
+        var baseChecker = typeCheckers[baseType];
 
-    if (uStart == -1 || uEnd == -1) {
-      return baseChecker;
-    }
-
-    var u = s.slice(uStart + 1, uEnd);
-    var uChecker = parseTypeString(u);
-
-    if (baseType == 'pair') {
-      return function(x) {
-        if (!baseChecker(x)) {
-          return false;
+        if (uStart == -1 || uEnd == -1) {
+            return baseChecker;
         }
 
-        return uChecker(x[0]) && uChecker(_rest(x));
-      };
+        var u = s.slice(uStart + 1, uEnd);
+        var uChecker = parseTypeString(u);
 
-    }
+        if (baseType == 'pair') {
+            return function(x) {
+                if (!baseChecker(x)) {
+                    return false;
+                }
 
-    // otherwise, return checker for list<...>
-    return function(x) {
-      if (!baseChecker(x)) {
-        return false;
-      }
-      var x_array = listToArray(x);
-      for(var i = 0, ii = x_array.length; i < ii; i++) {
-        if (!uChecker(x_array[i])) {
-          return false;
+                return uChecker(x[0]) && uChecker(_rest(x));
+            };
+        }
+
+        // otherwise, return checker for list<...>
+        return function(x) {
+            if (!baseChecker(x)) {
+                return false;
+            }
+            var x_array = listToArray(x);
+            for(var i = 0, ii = x_array.length; i < ii; i++) {
+                if (!uChecker(x_array[i])) {
+                    return false;
+                };
+            }
+            return true;
         };
-      }
-      return true;
-    };
-
-
-  } else {
-    return typeCheckers[s];
-  }
+    } else {
+        return typeCheckers[s];
+    }
 }
 
 // TODO: underscore is too heavy weight
 // replace with mustache. or maybe something even dumber
 var _ = require('underscore');
 _.templateSettings = {
-  interpolate: /\{\{(.+?)\}\}/g
+    interpolate: /\{\{(.+?)\}\}/g
 };
 
 var util = require('./util.js');
@@ -665,7 +743,7 @@ var arrayToList = typeUtils.arrayToList;
 // determine whether we're running inside a browser
 var inBrowser = false;
 if (typeof document !== 'undefined') {
-  inBrowser = true;
+    inBrowser = true;
 }
 
 // var seed = require('seed-random');
@@ -675,12 +753,35 @@ if (typeof document !== 'undefined') {
 
 module.exports.__annotations__ = {};
 
+// add a Church builtin
+// note: this transforms the alias property into
+// an array containg zero or more aliases
 var addBuiltin = function(dict) {
-  var fWrapped = wrapAsserts(dict);
+    var fWrapped = wrapAsserts(dict);
 
-  module.exports[dict.name] = fWrapped;
-  module.exports.__annotations__[dict.name] = dict;
-  return fWrapped;
+    // if alias is just a single string, embed it in an array
+    if (typeof dict.alias == "string") {
+        dict.alias = [dict.alias];
+    } 
+    
+    if (!dict.alias) {
+        dict.alias = [];
+    } 
+    
+    // add the automated alias
+    var autoAlias = dict.name
+        .replace(/wrapped_(.+)/, function(m, p1) { return p1 })
+        .replace(/is_(.+)/, function(m, p1) { return p1 + "?"})
+        .replace('_to_', '->')
+        .replace(/_/g, '-');
+
+    if (dict.name !== autoAlias) {
+        dict.alias.push(autoAlias);
+    }
+
+    module.exports[dict.name] = fWrapped;
+    module.exports.__annotations__[dict.name] = dict;
+    return fWrapped;
 };
 var $b = addBuiltin;
 
@@ -692,1569 +793,1822 @@ function sizeof(obj) { return Object.keys(obj).length; }
 // but users shouldn't need to directly call this function
 // so don't add it to annotations
 var args_to_array = module.exports.args_to_list = function(args) {
-  return Array.prototype.slice.call(args, 0 );
+    return Array.prototype.slice.call(args, 0 );
 };
 
 // needs to live in global scope
 // but users shouldn't need to directly call this function
 // so don't add it to annotations
 var args_to_list = module.exports.args_to_list = function (args) {
-  return arrayToList(args_to_array(args));
+    return arrayToList(args_to_array(args));
 };
 
+function atLeastOne (args) {
+    if (args.length < 1) {throw new Error('Needs at least one argument');};
+}
+
 var plus = $b({
-  name: 'plus',
-  alias: '+',
-  desc: "Add numbers",
-  params: [{name: '[x ...]', type: 'real', desc: 'Numbers to add'}],
-  fn: function () {
-    var sum = 0;
-	  for (var i = 0, ii = arguments.length; i < ii; i++) {
-		  sum = sum + arguments[i];
-	  }
-	  return sum;
-  }
+    name: 'plus',
+    alias: '+',
+    desc: "Add numbers",
+    params: [{name: '[x ...]', type: 'real', desc: 'Numbers to add'}],
+    fn: function () {
+        atLeastOne(arguments);
+        var sum = 0;
+	for (var i = 0, ii = arguments.length; i < ii; i++) {
+	    sum = sum + arguments[i];
+	}
+	return sum;
+    }
 });
 
 var minus = $b({
-  name: 'minus',
-  alias: '-',
-  desc: "Subtract numbers",
-  params: [{name: '[x ...]', type: 'real', desc: 'Numbers to subtract'}],
-  fn: function() {
-    var numArgs = arguments.length;
-    if (numArgs == 0) {
-      return 0;
-    } else if (numArgs == 1) {
-      return -arguments[0];
-    } else {
-      var r = arguments[0];
-      for (var i = 1; i < numArgs; i++) {
-        r -= arguments[i];
-      }
-      return r;
+    name: 'minus',
+    alias: '-',
+    desc: "Subtract numbers",
+    params: [{name: '[x ...]', type: 'real', desc: 'Numbers to subtract'}],
+    fn: function() {
+        atLeastOne(arguments);
+        var numArgs = arguments.length;
+        if (numArgs == 1) {
+            return -arguments[0];
+        } else {
+            var r = arguments[0];
+            for (var i = 1; i < numArgs; i++) {
+                r -= arguments[i];
+            }
+            return r;
+        }
     }
-  }
 });
 
 var mult = $b({
-  name: 'mult',
-  alias: '*',
-  desc: "Multiply numbers",
-  params: [{name: '[x ...]', type: 'real', desc: 'Numbers to multiply'}],
-  fn: function() {
-    var numArgs = arguments.length;
-    var prod = 1;
-    for (var i = 0; i < numArgs; i++) {
-		  prod = prod * arguments[i];
-	  }
-    return prod;
-  }
+    name: 'mult',
+    alias: '*',
+    desc: "Multiply numbers",
+    params: [{name: '[x ...]', type: 'real', desc: 'Numbers to multiply'}],
+    fn: function() {
+        atLeastOne(arguments);
+        var numArgs = arguments.length;
+        var prod = 1;
+        for (var i = 0; i < numArgs; i++) {
+	    prod = prod * arguments[i];
+	}
+        return prod;
+    }
 });
 
 var div = $b({
-  name: 'div',
-  alias: '/',
-  desc: "Divide numbers. Returns x / (y1 * y2 * ... )",
-  params: [{name: '[x]', type: 'real', desc: 'Numerator'},
-           {name: '[y ...]', type: 'real', desc: 'Denominator values'}
-          ],
-  fn: function() {
-    var numerator = arguments[0];
-
-    var numArgs = arguments.length;
-    if (numArgs == 0) {
-      return 1;
+    name: 'div',
+    alias: '/',
+    desc: "Divide numbers. Returns x / (y1 * y2 * ... )",
+    params: [{name: '[x]', type: 'real', desc: 'Numerator'},
+             {name: '[y ...]', type: 'real', desc: 'Denominator values'}
+            ],
+    fn: function() {
+        atLeastOne(arguments);
+        var numerator = arguments[0];
+        var numArgs = arguments.length;
+        if (numArgs == 1) {
+            return 1 / arguments[0];
+        } else {
+            var denominator = 1;
+            for (var i = 1; i < numArgs; i++) {
+	        denominator *= arguments[i];
+	    }
+            return numerator / denominator;
+        }
     }
-
-    if (numArgs == 1) {
-      return arguments[0];
-    }
-    var denominator = 1;
-
-    for (var i = 1; i < numArgs; i++) {
-		  denominator *= arguments[i];
-	  }
-    return numerator / denominator;
-  }
 });
 
 var mod = $b({
-  name: 'mod',
-  alias: 'modulo',
-  desc: "Modulo. Returns x mod y",
-  params: [{name: 'x', type: 'real'},
-           {name: 'x', type: 'real'}],
-  fn: function(x,y) {
-    return x % y;
-  }
+    name: 'mod',
+    alias: 'modulo',
+    desc: "Modulo. Returns x mod y",
+    params: [{name: 'x', type: 'real'},
+             {name: 'y', type: 'real'}],
+    fn: function(x,y) {
+        return x % y;
+    }
 });
 
 var round = $b({
-  name: 'round',
-  desc: 'Round a number',
-  params: [{name: 'x', type: 'real'}],
-  fn: function(x) {
-    return Math.round(x);
-  }
+    name: 'round',
+    desc: 'Round a number',
+    params: [{name: 'x', type: 'real'}],
+    fn: function(x) {
+        return Math.round(x);
+    }
+});
+
+var floor = $b({
+    name: 'floor',
+    desc: 'Floor of a number',
+    params: [{name: 'x', type: 'real'}],
+    fn: function(x) {
+        return Math.floor(x);
+    }
+});
+
+var ceil = $b({
+    name: 'ceil',
+    alias: 'ceiling',
+    desc: 'Ceiling of a number',
+    params: [{name: 'x', type: 'real'}],
+    fn: function(x) {
+        return Math.ceil(x);
+    }
 });
 
 var abs = $b({
-  name: 'abs',
-  desc: 'Absolute value',
-  params: [{name: 'x', type: 'real'}],
-  fn: function(x) {
-    return Math.abs(x);
-  }
+    name: 'abs',
+    desc: 'Absolute value',
+    params: [{name: 'x', type: 'real'}],
+    fn: function(x) {
+        return Math.abs(x);
+    }
 });
 
 var log = $b({
-  name: 'log',
-  desc: 'Natural logarithm',
-  params: [{name: 'x', type: 'real'}],
-  fn: function(x) {
-    return Math.log(x);
-  }
+    name: 'log',
+    desc: 'Natural logarithm',
+    params: [{name: 'x', type: 'real'}],
+    fn: function(x) {
+        return Math.log(x);
+    }
 });
 
 var exp = $b({
-  name: 'exp',
-  desc: 'Exponential',
-  params: [{name: 'x', type: 'real'}],
-  fn: function(x) {
-    return Math.exp(x);
-  }
+    name: 'exp',
+    desc: 'Exponential',
+    params: [{name: 'x', type: 'real'}],
+    fn: function(x) {
+        return Math.exp(x);
+    }
 });
 
 var expt = $b({
-  name: 'expt',
-  alias: ['pow','expt'],
-  desc: 'Compute x raised to the power y',
-  params: [{name: 'x', type: 'real'},
-           {name: 'y', type: 'real'}
-          ],
-  fn: function(x, y) {
-    return Math.pow(x, y);
-  }
+    name: 'expt',
+    alias: ['pow','expt'],
+    desc: 'Compute x raised to the power y',
+    params: [{name: 'x', type: 'real'},
+             {name: 'y', type: 'real'}
+            ],
+    fn: function(x, y) {
+        return Math.pow(x, y);
+    }
 });
 
 var sqrt = $b({
-  name: 'sqrt',
-  desc: 'Square root',
-  params: [{name: 'x', type: 'real'}],
-  fn: function(x) {
-    return Math.sqrt(x);
-  }
+    name: 'sqrt',
+    desc: 'Square root',
+    params: [{name: 'x', type: 'real'}],
+    fn: function(x) {
+        return Math.sqrt(x);
+    }
 });
 
 var sum = $b({
-  name: 'sum',
-  desc: 'Sum a list of numbers',
-  params: [{name: 'lst', type: 'list<real>', desc: 'List of numbers to sum'}],
-  fn: function(lst) {
-    var arr = listToArray(lst);
-    var r = 0;
-    for(var i = 0, ii = arr.length; i < ii; i++) {
-      r += arr[i];
+    name: 'sum',
+    desc: 'Sum a list of numbers',
+    params: [{name: 'lst', type: 'list<real>', desc: 'List of numbers to sum'}],
+    fn: function(lst) {
+        return _.foldl(listToArray(lst), function(a,b){return a+b;}, 0);
     }
-
-	  return r;
-  }
 });
 
 var prod = $b({
-  name: 'prod',
-  desc: 'Multiply a list of numbers',
-  params: [{name: 'lst', type: 'list<real>', desc: 'List of numbers to multiply'}],
-  fn: function(lst) {
-    var arr = listToArray(lst);
-    var r = 1;
-    for(var i = 0, ii = arr.length; i < ii; i++) {
-      r *= arr[i];
+    name: 'prod',
+    desc: 'Multiply a list of numbers',
+    params: [{name: 'lst', type: 'list<real>', desc: 'List of numbers to multiply'}],
+    fn: function(lst) {
+        return _.foldl(listToArray(lst), function(a,b){return a*b;}, 1);
     }
-
-	  return r;
-  }
 });
 
 // check whether y \in (x - tol, x + tol)
 var soft_equal = $b({
-  name: 'soft_equal',
-  desc: 'Check whether y is in the interval [x - tol, x + tol]',
-  params: [{name: 'y', type: 'real'},
-           {name: 'x', type: 'real'},
-           {name: 'tol', type: 'real'}
-          ],
-  fn: function(y, x, tol) {
-    // FIXME: assert upper > lower
-    return (y > x - tol && y < x + tol);
-  }
+    name: 'soft_equal',
+    alias: ['soft='],
+    desc: 'Check whether y is in the interval [x - tol, x + tol]',
+    params: [{name: 'y', type: 'real'},
+             {name: 'x', type: 'real'},
+             {name: 'tol', type: 'real'}
+            ],
+    fn: function(y, x, tol) {
+        // FIXME: assert upper > lower
+        return (y > x - tol && y < x + tol);
+    }
 });
 
 var and = $b({
-  name: 'and',
-  desc: 'Logical conjunction',
-  params: [{name: '[b ...]', type: 'boolean', desc: 'Boolean values'}],
-  fn: function() {
-	  var numArgs = arguments.length;
-	  for (var i = 0; i < numArgs; i++) {
-		  if (!arguments[i]) {
-        return false;
-      }
-	  }
-	  return true;
-  }
+    name: 'and',
+    desc: 'Logical conjunction',
+    params: [{name: '[b ...]', type: 'boolean', desc: 'Boolean values'}],
+    fn: function() {
+        return _.every(arguments)
+    }
 });
 
 var or = $b({
-  name: 'or',
-  desc: 'Logical disjunction',
-  params: [{name: '[b ...]', type: 'boolean', desc: 'Boolean values'}],
-  fn: function() {
-	  var numArgs = arguments.length;
-	  for (var i = 0; i < numArgs; i++) {
-		  if (arguments[i]) {
-        return true;
-      }
-	  }
-	  return false;
-  }
+    name: 'or',
+    desc: 'Logical disjunction',
+    params: [{name: '[b ...]', type: 'boolean', desc: 'Boolean values'}],
+    fn: function() {
+        return _.some(arguments)
+    }
 });
 
 var not = $b({
-  name: 'not',
-  desc: 'Logical negation',
-  params: [{name: 'b', type: 'boolean', desc: 'Boolean value'}],
-  fn: function(b) {
-    return !b;
-  }
+    name: 'not',
+    desc: 'Logical negation',
+    params: [{name: 'b', type: 'boolean', desc: 'Boolean value'}],
+    fn: function(b) {
+        return !b;
+    }
 });
 
 var all = $b({
-  name: 'all',
-  desc: 'Test whether all of the values in a list are true',
-  params: [{name: 'lst', type: 'list<boolean>', desc: 'List of boolean values'}],
-  fn: function(lst) {
-    return and.apply(null, listToArray(lst));
-  }
+    name: 'all',
+    desc: 'Test whether all of the values in a list are true',
+    params: [{name: 'lst', type: 'list<boolean>', desc: 'List of boolean values'}],
+    fn: function(lst) {
+        return and.apply(null, listToArray(lst));
+    }
 });
 
 var none = $b({
-  name: 'none',
-  desc: 'Test whether none of the values in a list are true',
-  params: [{name: 'lst', type: 'list<boolean>', desc: 'List of boolean values'}],
-  fn: function(lst) {
-    return !or.apply(null, listToArray(lst));
-  }
+    name: 'none',
+    desc: 'Test whether none of the values in a list are true',
+    params: [{name: 'lst', type: 'list<boolean>', desc: 'List of boolean values'}],
+    fn: function(lst) {
+        return !or.apply(null, listToArray(lst));
+    }
 });
 
 var some = $b({
-  name: 'some',
-  alias: 'any',
-  desc: 'Test whether some of the values in a list are true',
-  params: [{name: 'lst', type: 'list<boolean>', desc: 'List of boolean values'}],
-  fn: function(lst) {
-    return or.apply(null, listToArray(lst));
-  }
+    name: 'some',
+    alias: 'any',
+    desc: 'Test whether some of the values in a list are true',
+    params: [{name: 'lst', type: 'list<boolean>', desc: 'List of boolean values'}],
+    fn: function(lst) {
+        return or.apply(null, listToArray(lst));
+    }
 });
 
+// there is a case to be made that this needs to be pairwise not first vs rest
+// maybe make alternate versions that are pairwise
 var greater = $b({
-  name: 'greater',
-  alias: '>',
-  desc: 'Test whether x is greater than all y\'s',
-  params: [{name: 'x', type: 'real'},
-           {name: '[y ...]', type: 'real'}
-          ],
-  fn: function() {
-    var numArgs = arguments.length;
-    var x = arguments[0];
-    for (var i = 1; i < numArgs ; i++) {
-      if (!(x > arguments[i])) {
-        return false;
-      }
+    name: 'greater',
+    alias: '>',
+    desc: 'Test whether x is greater than all y\'s',
+    params: [{name: 'x', type: 'real'},
+             {name: '[y ...]', type: 'real'}
+            ],
+    fn: function() {
+        var numArgs = arguments.length;
+        var x = arguments[0];
+        for (var i = 1; i < numArgs ; i++) {
+            if (!(x > arguments[i])) {
+                return false;
+            }
+        }
+        return true;
     }
-    return true;
-  }
 });
 
 var less = $b({
-  name: 'less',
-  alias: '<',
-  desc: 'Test whether x is less than all y\'s',
-  params: [{name: 'x', type: 'real'},
-           {name: '[y ...]', type: 'real'}
-          ],
-  fn: function() {
-    var numArgs = arguments.length;
-    var x = arguments[0];
-    for (var i = 1; i < numArgs ; i++) {
-      if (!(x < arguments[i])) {
-        return false;
-      }
+    name: 'less',
+    alias: '<',
+    desc: 'Test whether x is less than all y\'s',
+    params: [{name: 'x', type: 'real'},
+             {name: '[y ...]', type: 'real'}
+            ],
+    fn: function() {
+        var numArgs = arguments.length;
+        var x = arguments[0];
+        for (var i = 1; i < numArgs ; i++) {
+            if (!(x < arguments[i])) {
+                return false;
+            }
+        }
+        return true;
     }
-    return true;
-  }
 });
 
 var geq = $b({
-  name: 'geq',
-  alias: '>=',
-  desc: 'Test whether x is greater than or equal to all y\'s',
-  params: [{name: 'x', type: 'real'},
-           {name: '[y ...]', type: 'real'}
-          ],
-  fn: function() {
-    var numArgs = arguments.length;
-    var x = arguments[0];
-    for (var i = 1; i < numArgs ; i++) {
-      if (x < arguments[i]) {
-        return false;
-      }
+    name: 'geq',
+    alias: '>=',
+    desc: 'Test whether x is greater than or equal to all y\'s',
+    params: [{name: 'x', type: 'real'},
+             {name: '[y ...]', type: 'real'}
+            ],
+    fn: function() {
+        var numArgs = arguments.length;
+        var x = arguments[0];
+        for (var i = 1; i < numArgs ; i++) {
+            if (x < arguments[i]) {
+                return false;
+            }
+        }
+        return true;
     }
-    return true;
-  }
 });
 
 var leq = $b({
-  name: 'leq',
-  alias: '<=',
-  desc: 'Test whether x is less than or equal to all y\'s',
-  params: [{name: 'x', type: 'real'},
-           {name: '[y ...]', type: 'real'}
-          ],
-  fn: function() {
-    var numArgs = arguments.length;
-    var x = arguments[0];
-    for (var i = 1; i < numArgs ; i++) {
-      if (x > arguments[i]) {
-        return false;
-      }
+    name: 'leq',
+    alias: '<=',
+    desc: 'Test whether x is less than or equal to all y\'s',
+    params: [{name: 'x', type: 'real'},
+             {name: '[y ...]', type: 'real'}
+            ],
+    fn: function() {
+        var numArgs = arguments.length;
+        var x = arguments[0];
+        for (var i = 1; i < numArgs ; i++) {
+            if (x > arguments[i]) {
+                return false;
+            }
+        }
+        return true;
     }
-    return true;
-  }
+});
+
+var pw_greater = $b({
+    name: 'pw_greater',
+    alias: '.>.',
+    desc: 'Test whether greater applies transitively',
+    params: [{name: 'x', type: 'real'},
+             {name: '[y ...]', type: 'real'}
+            ],
+    fn: function() {
+        var numArgs = arguments.length;
+        for (var i = 0, j = 1; j < numArgs ; i++, j++) {
+            if (!(arguments[i] > arguments[j])) {
+                return false;
+            }
+        }
+        return true;
+    }
+});
+
+var pw_less = $b({
+    name: 'pw_less',
+    alias: '.<.',
+    desc: 'Test whether less than applies transitively',
+    params: [{name: 'x', type: 'real'},
+             {name: '[y ...]', type: 'real'}
+            ],
+    fn: function() {
+        var numArgs = arguments.length;
+        for (var i = 0, j = 1; j < numArgs ; i++, j++) {
+            if (!(arguments[i] < arguments[j])) {
+                return false;
+            }
+        }
+        return true;
+    }
+});
+
+var pw_geq = $b({
+    name: 'pw_geq',
+    alias: '.>=.',
+    desc: 'Test whether greater than or equal to applies transitively',
+    params: [{name: 'x', type: 'real'},
+             {name: '[y ...]', type: 'real'}
+            ],
+    fn: function() {
+        var numArgs = arguments.length;
+        for (var i = 0, j = 1; j < numArgs ; i++, j++) {
+            if (!(arguments[i] >= arguments[j])) {
+                return false;
+            }
+        }
+        return true;
+    }
+});
+
+var pw_leq = $b({
+    name: 'pw_leq',
+    alias: '.<=.',
+    desc: 'Test whether less than or equal to applies transitively',
+    params: [{name: 'x', type: 'real'},
+             {name: '[y ...]', type: 'real'}
+            ],
+    fn: function() {
+        var numArgs = arguments.length;
+        for (var i = 0, j = 1; j < numArgs ; i++, j++) {
+            if (!(arguments[i] <= arguments[j])) {
+                return false;
+            }
+        }
+        return true;
+    }
 });
 
 var eq = $b({
-  name: 'eq',
-  alias: '=',
-  desc: 'Test whether all arguments are equal',
-  params: [{name: '[x ...]', type: 'real'}],
-  fn: function() {
-    var numArgs = arguments.length;
-    var x = arguments[0];
-    for (var i = 1; i < numArgs ; i++) {
-      if (x != arguments[i]) {
-        return false;
-      }
+    name: 'eq',
+    alias: '=',
+    canonical: '=',
+    desc: 'Test whether all (numeric) arguments are equal', 
+    params: [{name: '[x ...]', type: 'real'}],
+    fn: function() {
+        var numArgs = arguments.length;
+        var x = arguments[0];
+        for (var i = 1; i < numArgs ; i++) {
+            if (x != arguments[i]) {
+                return false;
+            }
+        }
+        return true;
     }
-    return true;
-  }
 });
 
 var is_null = $b({
-  name: 'is_null',
-  desc: 'Test whether x is null',
-  params: [{name: 'x'}],
-  fn: function(x) {
-    return Array.isArray(x) && x.length == 1 && x[0] == null;
-  }
+    name: 'is_null',
+    desc: 'Test whether x is null',
+    params: [{name: 'x'}],
+    fn: function(x) {
+        return Array.isArray(x) && x.length == 1 && x[0] == null;
+    }
 });
 
 // use uppercase to indicate that it's a constructor
 var List = $b({
-  name: 'list',
-  desc: 'List constructor',
-  params: [{name: '[...]'}],
-  fn: function() {
-    var args = args_to_array(arguments);
-    return arrayToList(args, true);
-  }
+    name: 'list',
+    desc: 'List constructor',
+    params: [{name: '[...]'}],
+    fn: function() {
+        var args = args_to_array(arguments);
+        return arrayToList(args, true);
+    }
 });
 
 var is_list = $b({
-  name: 'is_list',
-  desc: 'Test whether x is a list',
-  params: [{name: 'x'}],
-  fn: function(x) {
-    return Array.isArray(x) && x[x.length-1] == null;
-  }
+    name: 'is_list',
+    desc: 'Test whether x is a list',
+    params: [{name: 'x'}],
+    fn: function(x) {
+        return Array.isArray(x) && x[x.length-1] == null;
+    }
 });
 
 var Pair = $b({
-  name: 'pair',
-  alias: 'cons',
-  desc: 'Pair constructor',
-  params: [{name: 'head'},
-           {name: 'tail'}
-          ],
-  fn: function(head, tail) {
-    return [head].concat(tail);
-  }
+    name: 'pair',
+    alias: 'cons',
+    desc: 'Pair constructor',
+    params: [{name: 'head'},
+             {name: 'tail'}
+            ],
+    fn: function(head, tail) {
+        return [head].concat(tail);
+    }
 });
 
 var is_pair = $b({
-  name: 'is_pair',
-  desc: 'Test whether x is a pair',
-  params: [{name: 'x'}],
-  fn: function(x) {
-    return Array.isArray(x) && x.length >= 2;
-  }
+    name: 'is_pair',
+    desc: 'Test whether x is a pair',
+    params: [{name: 'x'}],
+    fn: function(x) {
+        return Array.isArray(x) && x.length >= 2;
+    }
 });
 
 var first = $b({
-  name: 'first',
-  alias: 'car',
-  desc: 'Get the first item of a list (or pair)',
-  params: [{name: 'lst', type: 'pair'}],
-  fn: function(lst) {
-    var arr = listToArray(lst);
-    if (arr.length < 1) {
-      throw new Error('Tried to get the first element of an empty list');
+    name: 'first',
+    alias: 'car',
+    desc: 'Get the first item of a list (or pair)',
+    params: [{name: 'lst', type: 'pair'}],
+    fn: function(lst) {
+        var arr = listToArray(lst);
+        if (arr.length < 1) {
+            throw new Error('Tried to get the first element of an empty list');
+        }
+        return lst[0];
     }
-    return lst[0];
-  }
 });
 
 var second = $b({
-  name: 'second',
-  desc: 'Get the second item of a list',
-  params: [{name: 'lst', type: 'list'}],
-  fn: function(lst) {
-    var arr = listToArray(lst);
-    if (arr.length < 2) {
-      throw new Error('Tried to get the 2nd element of a list with only ' + arr.length + ' item');
+    name: 'second',
+    desc: 'Get the second item of a list',
+    params: [{name: 'lst', type: 'list'}],
+    fn: function(lst) {
+        var arr = listToArray(lst);
+        if (arr.length < 2) {
+            throw new Error('Tried to get the 2nd element of a list with only ' + arr.length + ' item');
+        }
+        return lst[1];
     }
-    return lst[1];
-  }
 });
 
 var third = $b({
-  name: 'third',
-  desc: 'Get the third item of a list',
-  params: [{name: 'lst', type: 'list'}],
-  fn: function(lst) {
-    var arr = listToArray(lst);
-    if (arr.length < 3) {
-      throw new Error('Tried to get the 3rd element of list with only ' + arr.length + ' elements');
+    name: 'third',
+    desc: 'Get the third item of a list',
+    params: [{name: 'lst', type: 'list'}],
+    fn: function(lst) {
+        var arr = listToArray(lst);
+        if (arr.length < 3) {
+            throw new Error('Tried to get the 3rd element of list with only ' + arr.length + ' elements');
+        }
+        return lst[2];
     }
-    return lst[2];
-  }
 });
 
 var fourth = $b({
-  name: 'fourth',
-  desc: 'Get the fourth item of a list',
-  params: [{name: 'lst', type: 'list'}],
-  fn: function(lst) {
-    var arr = listToArray(lst);
-    if (arr.length < 4) {
-      throw new Error('Tried to get the 4th element of list with only ' + arr.length + ' elements');
+    name: 'fourth',
+    desc: 'Get the fourth item of a list',
+    params: [{name: 'lst', type: 'list'}],
+    fn: function(lst) {
+        var arr = listToArray(lst);
+        if (arr.length < 4) {
+            throw new Error('Tried to get the 4th element of list with only ' + arr.length + ' elements');
+        }
+        return lst[3];
     }
-    return lst[3];
-  }
 });
 
 var fifth = $b({
-  name: 'fifth',
-  desc: 'Get the fifth item of a list',
-  params: [{name: 'lst', type: 'list'}],
-  fn: function(lst) {
-    var arr = listToArray(lst);
-    if (arr.length < 5) {
-      throw new Error('Tried to get the 5th element of list with only ' + arr.length + ' elements');
+    name: 'fifth',
+    desc: 'Get the fifth item of a list',
+    params: [{name: 'lst', type: 'list'}],
+    fn: function(lst) {
+        var arr = listToArray(lst);
+        if (arr.length < 5) {
+            throw new Error('Tried to get the 5th element of list with only ' + arr.length + ' elements');
+        }
+        return lst[4];
     }
-    return lst[4];
-  }
 });
 
 var sixth = $b({
-  name: 'sixth',
-  desc: 'Get the sixth item of a list',
-  params: [{name: 'lst', type: 'list'}],
-  fn: function(lst) {
-    var arr = listToArray(lst);
-    if (arr.length < 6) {
-      throw new Error('Tried to get the 6th element of list with only ' + arr.length + ' elements');
+    name: 'sixth',
+    desc: 'Get the sixth item of a list',
+    params: [{name: 'lst', type: 'list'}],
+    fn: function(lst) {
+        var arr = listToArray(lst);
+        if (arr.length < 6) {
+            throw new Error('Tried to get the 6th element of list with only ' + arr.length + ' elements');
+        }
+        return lst[5];
     }
-    return lst[5];
-  }
 });
 
 var seventh = $b({
-  name: 'seventh',
-  desc: 'Get the seventh item of a list',
-  params: [{name: 'lst', type: 'list'}],
-  fn: function(lst) {
-    var arr = listToArray(lst);
-    if (arr.length < 7) {
-      throw new Error('Tried to get the 7th element of list with only ' + arr.length + ' elements');
+    name: 'seventh',
+    desc: 'Get the seventh item of a list',
+    params: [{name: 'lst', type: 'list'}],
+    fn: function(lst) {
+        var arr = listToArray(lst);
+        if (arr.length < 7) {
+            throw new Error('Tried to get the 7th element of list with only ' + arr.length + ' elements');
+        }
+        return lst[6];
     }
-    return lst[6];
-  }
 });
 
 // pulled out into its own function because we use it elsewhere
 var _rest = function(x) {
-  if (x.length == 2 && x[1] != null) {
-		return x[1];
-	} else {
-		return x.slice(1);
-	}
+    if (x.length == 2 && x[1] != null) {
+	return x[1];
+    } else {
+	return x.slice(1);
+    }
 };
 
 var rest = $b({
-  name: 'rest',
-  alias: 'cdr',
-  desc: 'Get everything after the first item in a pair or list',
-  params: [{name: 'x', type: 'pair'}],
-  fn: _rest
+    name: 'rest',
+    alias: 'cdr',
+    desc: 'Get everything after the first item in a pair or list',
+    params: [{name: 'x', type: 'pair'}],
+    fn: _rest
+});
+
+var but_last = $b({
+    name: 'but_last',
+    alias: 'initial',
+    desc: 'Get everything except the last item in a list',
+    params: [{name: 'lst', type: 'list'}],
+    fn: function (lst) {
+        return arrayToList(_.initial(listToArray(lst)));
+    }
+});
+
+var last = $b({
+    name: 'last',
+    desc: 'Get the last item in a list',
+    params: [{name: 'lst', type: 'list'}],
+    fn: function (lst) {
+        return _.last(listToArray(lst));
+    }
 });
 
 var list_ref = $b({
-  name: 'list_ref',
-  desc: 'Get the nth item of a list (0-indexed)',
-  params: [{name: 'lst', type: 'list'},
-           {name: 'n', type: 'nat'}],
-  fn: function(lst, n) {
-    var array = listToArray(lst);
-	  if (n >= array.length) {
+    name: 'list_ref',
+    desc: 'Get the nth item of a list (0-indexed)',
+    params: [{name: 'lst', type: 'list'},
+             {name: 'n', type: 'nat'}],
+    fn: function(lst, n) {
+        var array = listToArray(lst);
+	if (n >= array.length) {
 	    throw new Error("Tried to the " + (n+1) + "th item in a list that only contains " + array.length + ' items');
-	  } else {
-		  return array[n];
-	  }
-  }
+	} else {
+	    return array[n];
+	}
+    }
 });
 
 var list_elt = $b({
-  name: 'list_elt',
-  desc: 'Get the nth item of a list (1-indexed)',
-  params: [{name: 'lst', type: 'list'},
-           {name: 'n', type: 'nat'}],
-  fn: function(lst, n) {
-    if (n < 1) {
-      throw new Error('The n argument to list-elt should be an integer >= 1');
+    name: 'list_elt',
+    desc: 'Get the nth item of a list (1-indexed)',
+    params: [{name: 'lst', type: 'list'},
+             {name: 'n', type: 'nat'}],
+    fn: function(lst, n) {
+        if (n < 1) {
+            throw new Error('The n argument to list-elt should be an integer >= 1');
+        }
+        return list_ref(lst, n-1);
     }
-    return list_ref(lst, n-1);
-  }
 });
 
 var take = $b({
-  name: 'take',
-  desc: 'Get the first n items in a list. If there are fewer than n items in the list, returns just the list.',
-  params: [{name: 'lst', type: 'list'},
-           {name: 'n', type: 'nat'}
-          ],
-  fn: function(lst,n) {
-    return arrayToList(listToArray(lst).slice(0,n));
-  }
+    name: 'take',
+    desc: 'Get the first n items in a list. If there are fewer than n items in the list, returns just the list.',
+    params: [{name: 'lst', type: 'list'},
+             {name: 'n', type: 'nat'}],
+    fn: function(lst,n) {
+        return arrayToList(listToArray(lst).slice(0,n));
+    }
 });
 
 var drop = $b({
-  name: 'drop',
-  desc: 'Drop the first n items from a list. If there are fewer than n items in the list, return the empty list.',
-  params: [{name: 'lst', type: 'list'},
-           {name: 'n', type: 'nat'}],
-  fn: function(lst,n) {
-    return arrayToList(listToArray(lst).slice(n));
-  }
+    name: 'drop',
+    desc: 'Drop the first n items from a list. If there are fewer than n items in the list, return the empty list.',
+    params: [{name: 'lst', type: 'list'},
+             {name: 'n', type: 'nat'}],
+    fn: function(lst,n) {
+        return arrayToList(listToArray(lst).slice(n));
+    }
 });
 
 var sort = $b({
-  name: 'sort',
-  desc: 'Sort a list according to a comparator function cmp(a,b) that returns a number greater than 0 if a > b, 0 if a == b, and a number less than 0 if a < b',
-  params: [{name: "lst", type: "list"},
-           {name: "[cmp]", type: "function", default: ">"}],
-  fn: function(lst, cmp) {
-    var arr = listToArray(lst);
-    var sortedArr;
-    if (cmp === undefined ) {
-      sortedArr = arr.sort();
-    } else {
-      sortedArr = arr.sort( cmp );
+    name: 'sort',
+    desc: 'Sort a list according to a comparator function cmp(a,b) that returns a number greater than 0 if a > b, 0 if a == b, and a number less than 0 if a < b',
+    params: [{name: "lst", type: "list"},
+             {name: "[cmp]", type: "function", default: ">"}],
+    fn: function(lst, cmp) {
+        var arr = listToArray(lst);
+        var sortedArr;
+        if (cmp === undefined ) {
+            sortedArr = arr.sort();
+        } else {
+            sortedArr = arr.sort( cmp );
+        }
+        return arrayToList( sortedArr, true );
     }
-    return arrayToList( sortedArr, true );
-
-  }
 });
 
 var unique = $b({
-  name: 'unique',
-  desc: 'Get the unique items in a list',
-  params: [{name: "lst", type: "list"},
-           {name: "[eq]", type: "function", desc: "Optional equality comparison function", default: "equal?"}
-          ],
-  fn: function(lst, eq) {
-    eq = eq || is_equal;
+    name: 'unique',
+    desc: 'Get the unique items in a list',
+    params: [{name: "lst", type: "list"},
+             {name: "[eq]", type: "function", desc: "Optional equality comparison function", default: "equal?"}
+            ],
+    fn: function(lst, eq) {
+        eq = eq || is_equal;
 
-    var arr = listToArray(lst);
-    var uniques = [];
-    for(var i = 0, ii = arr.length ; i < ii; i++) {
-      var v = arr[i];
-      var alreadySeen = false;
-      for(var j = 0, jj = uniques.length; j < jj; j++) {
-        if (eq(v, uniques[j])) {
-          alreadySeen = true;
-          break;
+        var arr = listToArray(lst);
+        var uniques = [];
+        for(var i = 0, ii = arr.length ; i < ii; i++) {
+            var v = arr[i];
+            var alreadySeen = false;
+            for(var j = 0, jj = uniques.length; j < jj; j++) {
+                if (eq(v, uniques[j])) {
+                    alreadySeen = true;
+                    break;
+                }
+            }
+            if (!alreadySeen) {
+                uniques.push(v);
+            }
         }
-      }
-      if (!alreadySeen) {
-        uniques.push(v);
-      }
+
+        return arrayToList(uniques, true);
     }
+});
 
-    return arrayToList(uniques, true);
-
-  }
+var nub = $b({
+    name: 'nub',
+    desc: 'Remove duplicates with equality as ===',
+    params: [{name: "lst", type: "list"}],
+    fn: function(lst) {
+        return arrayToList(_.uniq(listToArray(lst)));
+    }
 });
 
 var list_index = $b({
-  name: 'list_index',
-  desc: '',
-  params: [{name: "lst", type: "list"},
-           {name: "x"}],
-  fn: function(lst, x) {
-    var arr = listToArray(lst);
-    return arr.indexOf(x);
-
-  }
+    name: 'list_index',
+    alias: 'position',
+    desc: '',
+    params: [{name: "lst", type: "list"},
+             {name: "x"}],
+    fn: function(lst, x) {
+        var arr = listToArray(lst);
+        return arr.indexOf(x);
+    }
 });
 
 var map_at = $b({
-  name: 'map_at',
-  desc: '',
-  params: [{name: "lst", type: "list"},
-           {name: "i", type: "nat"},
-           {name: "f", type: "function"}],
-  fn: function(lst, i, f) {
-    var arr = listToArray(lst);
-    arr[i] = f(arr[i]);
-    return arrayToList(arr, true);
-
-  }
+    name: 'map_at',
+    alias: 'f-at',
+    desc: '',
+    params: [{name: "lst", type: "list"},
+             {name: "i", type: "nat"},
+             {name: "f", type: "function"}],
+    fn: function(lst, i, f) {
+        var arr = listToArray(lst);
+        arr[i] = f(arr[i]);
+        return arrayToList(arr, true);
+    }
 });
 
 var max = $b({
-  name: 'max',
-  desc: 'Maximum of arguments',
-  params: [{name: "[x ...]", type: "real", desc: ""}],
-  fn: function(x) {
-	  var args = args_to_array(arguments);
-	  return Math.max.apply(Math, args);
-
-  }
+    name: 'max',
+    desc: 'Maximum of arguments',
+    params: [{name: "[x ...]", type: "real", desc: ""}],
+    fn: function(x) {
+	var args = args_to_array(arguments);
+	return Math.max.apply(Math, args);
+    }
 });
 
 var min = $b({
-  name: 'min',
-  desc: 'Minimum of arguments',
-  params: [{name: "[x ...]", type: "real", desc: ""}],
-  fn: function() {
-	  var args = args_to_array(arguments);
-	  return Math.min.apply(Math, args);
-
-  }
+    name: 'min',
+    desc: 'Minimum of arguments',
+    params: [{name: "[x ...]", type: "real", desc: ""}],
+    fn: function() {
+	var args = args_to_array(arguments);
+	return Math.min.apply(Math, args);
+    }
 });
 
 var mean = $b({
-  name: 'mean',
-  desc: 'Mean of a list',
-  params: [{name: "lst", type: "list<real>", desc: ""}],
-  fn: function(lst) {
-	  var vals = listToArray(lst),
-        sum = 0,
-        n = vals.length;
-
-	  for (var i=0; i < n; i++) {
-      sum += vals[i];
+    name: 'mean',
+    desc: 'Mean of a list',
+    params: [{name: "lst", type: "list<real>", desc: ""}],
+    fn: function(lst) {
+        return plus.apply(null, listToArray(lst)) / (lst.length-1);
     }
-	  return sum / n;
-
-  }
 });
 
 var append = $b({
-  name: 'append',
-  desc: 'Merge an arbitrary number of lists',
-  params: [
-    {name: '[lst ...]', type: 'list'}
-  ],
-  fn: function() {
-
-    // not ideal because we're crossing the list abstraction barrier
-    var r = [];
-    for(var i = 0, ii = arguments.length; i < ii; i++) {
-      r = r.concat(listToArray(arguments[i]));
+    name: 'append',
+    desc: 'Merge an arbitrary number of lists',
+    params: [
+        {name: '[lst ...]', type: 'list'}
+    ],
+    fn: function() {
+        // not ideal because we're crossing the list abstraction barrier
+        var r = [];
+        for(var i = 0, ii = arguments.length; i < ii; i++) {
+            r = r.concat(listToArray(arguments[i]));
+        }
+        return arrayToList(r, true);
     }
-    return arrayToList(r, true);
-  }
 });
 
 var flatten = $b({
-  name: 'flatten',
-  desc: '',
-  params: [{name: "lst", type: "list", desc: ""}],
-  fn: function(lst) {
-	  var flattened = [];
-	  var arr = listToArray(lst);
-	  for (var i=0, ii = arr.length; i < ii; i++) {
-		  var elem = arr[i];
-		  if (is_list(elem)) {
-			  flattened = flattened.concat((listToArray(flatten(elem))));
-		  } else {
-			  flattened.push(elem);
-		  }
-	  }
-	  return arrayToList(flattened);
+    name: 'flatten',
+    desc: '',
+    params: [{name: "lst", type: "list", desc: ""}],
+    fn: function(lst) {
+        return arrayToList(_.flatten(listToArray(lst,true)));
+    }
+});
 
-  }
+var zip = $b({
+    name: 'zip',
+    desc: 'Zip together lists using longest list as base -- is invertable',
+    params: [{name: "[lst ...]", type: "list", desc: ""}],
+    fn: function() {
+        var args = args_to_array(arguments).map(listToArray);
+        var cleanA2L = function(a) {
+            return arrayToList(a.map(function(v){return v == undefined ? null : v}));
+        }
+        return arrayToList(_.zip.apply(this,args).map(cleanA2L));
+    }
+});
+
+var zipT = $b({
+    name: 'zipT',
+    desc: 'Zip together lists using shortest list as base -- not invertable as it truncates',
+    params: [{name: "[lst ...]", type: "list", desc: ""}],
+    fn: function() {
+        var args = args_to_array(arguments).map(listToArray);
+        var mlen = Math.min.apply(this, args.map(function(e){return e.length;}));
+        args = args.map(function(a){return a.slice(0,mlen);});
+        return arrayToList(_.zip.apply(this,args).map(arrayToList));
+    }
+});
+
+var transpose = $b({
+    name: 'transpose',
+    desc: 'Transpose list of lists',
+    params: [{name: "mat", type: "list", desc: ""}],
+    fn: function(mat) {
+        return arrayToList(_.zip.apply(this,listToArray(mat)).map(arrayToList).slice(0,-1))
+    }
+});
+
+var identity = $b({
+    name: 'identity',
+    alias: 'id',
+    desc: 'The Identity function',
+    params: [{name: 'v'}],
+    fn: _.identity
 });
 
 var fold = $b({
-  name: 'fold',
-  desc: 'Accumulate the result of applying a function to a list',
-  mathy: "f(lst_0, f(lst_1, f(..., f(lst_n, init)))))",
-  params: [
-    {name: 'f', type: 'function', desc: 'Function to apply'},
-    {name: 'init', desc: 'Seed value for function'},
-    {name: '[lst ...]', type: 'list', desc: 'List to apply the fold over'}
-  ],
-  fn: function(fn, initialValue /*, ... */ ) {
-	  var args = args_to_array(arguments);
+    name: 'fold',
+    desc: 'Accumulate the result of applying a function to a list',
+    mathy: "f(lst_0, f(lst_1, f(..., f(lst_n, init)))))",
+    params: [
+        {name: 'f', type: 'function', desc: 'Function to apply'},
+        {name: 'init', desc: 'Seed value for function'},
+        {name: '[lst ...]', type: 'list', desc: 'List to apply the fold over'}
+    ],
+    fn: function(fn, initialValue /*, ... */ ) {
+        var args = args_to_array(arguments);
+        var arrs = args.slice(2).map(listToArray);
+        var max_length = Math.min.apply(this, arrs.map(function(el) {return el.length;}));
+        var cumulativeValue = initialValue;
+        for (i=0; i<max_length; i++) {
+            var fn_args = arrs.map(function(el) {return el[i];});
+            fn_args.push(cumulativeValue);
+            cumulativeValue = fn.apply(this, fn_args);
+        }
+        return cumulativeValue;
+    }
+});
 
-	  var lists = args.slice(2);
-	  var arrs = [];
-	  for (var i=0; i<lists.length; i++) {
-		  arrs.push(listToArray(lists[i]));
-	  }
-	  var max_length = Math.min.apply(this, arrs.map(function(el) {return el.length;}));
-	  var cumulativeValue = initialValue;
-	  for (i=0; i<max_length; i++) {
-		  var fn_args = arrs.map(function(el) {return el[i];});
-		  fn_args.push(cumulativeValue);
-		  cumulativeValue = fn.apply(this, fn_args);
-	  }
-	  return cumulativeValue;
+// NOTE: foldl and foldr only work on single lists
+var foldl = $b({
+    name: 'foldl',
+    desc: 'Accumulate the result of applying a function to a list left to right',
+    // mathy: "f(lst_0, f(lst_1, f(..., f(lst_n, init)))))",
+    params: [
+        {name: 'f', type: 'function', desc: 'Function to apply'},
+        {name: 'init', desc: 'Seed value for function'},
+        {name: 'lst', type: 'list', desc: 'List to apply the fold over'}
+    ],
+    fn: function(func, initialValue, lst) {
+        return _.foldl(listToArray(lst), function(a,v){return func(a,v)}, initialValue);
+    }
+});
 
-  }
+var foldr = $b({
+    name: 'foldr',
+    desc: 'Accumulate the result of applying a function to a list right to left',
+    // mathy: "f(lst_0, f(lst_1, f(..., f(lst_n, init)))))",
+    params: [
+        {name: 'f', type: 'function', desc: 'Function to apply'},
+        {name: 'init', desc: 'Seed value for function'},
+        {name: 'lst', type: 'list', desc: 'List to apply the fold over'}
+    ],
+    fn: function(func, initialValue, lst ) {
+        return _.foldr(listToArray(lst), function(a,v){return func(a,v)}, initialValue);
+    }
 });
 
 var repeat = $b({
-  name: 'repeat',
-  desc: "Repeat a function n times",
-  params: [
-    {name: 'n', type: 'nat', desc: 'Number of times to repeat'},
-    {name: 'f', type: 'function', desc: 'Function to repeat'}
-  ],
-  fn: function(n, fn) {
-	  var lst = [];
-	  for(var i=0;i<n;i++) {
-		  lst.push(fn());
-	  }
-	  lst.push(null);
-	  return lst;
-
-  }
+    name: 'repeat',
+    desc: "Repeat a function n times",
+    params: [
+        {name: 'n', type: 'nat', desc: 'Number of times to repeat'},
+        {name: 'f', type: 'function', desc: 'Function to repeat'}
+    ],
+    fn: function(n, fn) {
+	var lst = [];
+	for(var i=0;i<n;i++) {
+	    lst.push(fn());
+	}
+	lst.push(null);
+	return lst;
+    }
 });
 
 var for_each = $b({
-  name: 'for_each',
-  desc: 'Apply a function to every member of a list, but don\'t return anything',
-  params: [
-    {name: 'fn', type: 'function'},
-    {name: 'lst', type: 'list'}],
-  fn: function(fn,lst) {
-    var arr = listToArray(lst);
-    arr.forEach(function(x, i, lst) { fn(x) });
-    return;
-
-  }
+    name: 'for_each',
+    desc: 'Apply a function to every member of a list, but don\'t return anything',
+    params: [
+        {name: 'fn', type: 'function'},
+        {name: 'lst', type: 'list'}],
+    fn: function(fn,lst) {
+        var arr = listToArray(lst);
+        arr.forEach(function(x, i, lst) { fn(x) });
+        return;
+    }
 });
 
 var map = $b({
-  name: 'map',
-  desc: 'Apply a function to every element of a list',
-  params:
-  [
-    {name: 'fn', type: 'function', desc: ''},
-    {name: '[lst ...]', type: 'list'}
-  ],
-  fn: function() {
-    var args = args_to_array(arguments),
-        fn = args[0];
+    name: 'map',
+    desc: 'Apply a function to every element of a list',
+    params:
+    [
+        {name: 'fn', type: 'function', desc: ''},
+        {name: '[lst ...]', type: 'list'}
+    ],
+    fn: function() {
+        var args = args_to_array(arguments),
+            fn = args[0];
 
-    var lists = args.slice(1),
-        arr = [],
-        numLists = lists.length;
+        var lists = args.slice(1),
+            arr = [],
+            numLists = lists.length;
 
-    var arrays = lists.map(function(L) { return listToArray(L) });
+        var arrays = lists.map(function(L) { return listToArray(L) });
 
-    // ^ have to write it verbosely because otherwise, map will pass in extra arguments
-    // namely the current index and the entire array. the index element will
-    // get used as the recursive flag to the listToArray function
-    // this causes nested maps to have the wrong behavior
+        // ^ have to write it verbosely because otherwise, map will pass in extra arguments
+        // namely the current index and the entire array. the index element will
+        // get used as the recursive flag to the listToArray function
+        // this causes nested maps to have the wrong behavior
 
-    var n = Math.min.apply(null, arrays.map(function(a) { return a.length}));
+        var n = Math.min.apply(null, arrays.map(function(a) { return a.length}));
 
-    for(var i=0;i<n;i++) {
-		  arr[i] = fn.apply(null, arrays.map(function(L) { return L[i]}));
-	  }
-
-	  return arrayToList(arr, true);
-
-  }
+        for(var i=0;i<n;i++) {
+	    arr[i] = fn.apply(null, arrays.map(function(L) { return L[i]}));
+	}
+	return arrayToList(arr, true);
+    }
 });
 
 var filter = $b({
-  name: 'filter',
-  desc: 'Select subset of elements of a list that satisfy a predicate pred',
-  params: [{name: "pred", type: "function", desc: ""},
-           {name: "lst", type: "list", desc: ""}],
-  fn: function(pred, lst) {
-    var arr = listToArray(lst).filter(pred);
-    arr.push(null);
-    return arr;
-  }
+    name: 'filter',
+    desc: 'Select subset of elements of a list that satisfy a predicate pred',
+    params: [{name: "pred", type: "function", desc: ""},
+             {name: "lst", type: "list", desc: ""}],
+    fn: function(pred, lst) {
+        return arrayToList(listToArray(lst).filter(pred));
+    }
+});
+
+var partition = $b({
+    name: 'partition',
+    desc: 'Partition elements of a list into those that satisfy a predicate and those that don\'t',
+    params: [{name: "pred", type: "function", desc: ""},
+             {name: "lst", type: "list", desc: ""}],
+    fn: function(pred, lst) {
+        var p = _.partition(listToArray(lst),pred)
+        return arrayToList(p.map(arrayToList));
+    }
 });
 
 var reverse = $b({
-  name: 'reverse',
-  desc: 'Reverse a list',
-  params: [{name: "lst", type: "list", desc: ""}],
-  fn: function(lst) {
-	  var arr = listToArray(lst).reverse();
-	  arr.push(null);
-	  return arr;
-
-  }
+    name: 'reverse',
+    desc: 'Reverse a list',
+    params: [{name: "lst", type: "list", desc: ""}],
+    fn: function(lst) {
+	return arrayToList(listToArray(lst).reverse());
+    }
 });
 
 var length = $b({
-  name: 'length',
-  desc: 'Get the length of a list',
-  params: [{name: "lst", type: "list", desc: ""}],
-  fn: function(lst) {
-    return listToArray(lst).length;
+    name: 'length',
+    desc: 'Get the length of a list',
+    params: [{name: "lst", type: "list", desc: ""}],
+    fn: function(lst) {
+        return listToArray(lst).length;
+    }
+});
 
-  }
+// set operations
+var union = $b({
+    name: 'union',
+    desc: 'union of sets',
+    params:
+    [{name: '[lst ...]', type: 'list'}],
+    fn: function () {
+        var args = args_to_array(arguments).map(listToArray);
+        return arrayToList(_.union.apply(this,args));
+    }
+});
+
+var intersection = $b({
+    name: 'intersection',
+    desc: 'intersection of sets',
+    params:
+    [{name: '[lst ...]', type: 'list'}],
+    fn: function () {
+        var args = args_to_array(arguments).map(listToArray);
+        return arrayToList(_.intersection.apply(this,args));
+    }
+});
+
+var difference = $b({
+    name: 'difference',
+    desc: 'difference of sets',
+    params:
+    [{name: 'lst', type: 'list'},
+     {name: '[lst ...]', type: 'list'}],
+    fn: function () {
+        var args = args_to_array(arguments).map(listToArray);
+        if (args.length <= 1) { return args[0] }
+        return arrayToList(_.difference.apply(this,args));
+    }
+});
+
+// https://gist.github.com/sjoerdvisscher/3078744
+function _fHelper(f, args) {
+    return function(a) {
+        var args1 = args.concat([a]);
+        if (args1.length == f.length)
+            return f.apply(this, args1);
+        else
+            return _fHelper(f, args1);
+    };
+}
+
+var uncurry = $b({
+    name: 'uncurry',
+    alias: 'uc',
+    desc: 'uncurry function: f::a,b -> (f::a)::b',
+    params: [{name: "f", type: "function", desc: ""}],
+    fn: function(f) {
+        if (typeof f != "function" || f.length < 2)
+            return f;
+        return _fHelper(f, []);
+    }
+});
+
+var curry = $b({
+    name: 'curry',
+    alias: 'c',
+    desc: 'curry function: (f::a)::b -> f::a,b',
+    params: [{name: "f", type: "function", desc: ""}],
+    fn: function(f) {
+        if (typeof f != "function" || f.length == 0)
+            return f;
+        return function() {
+            var r = f;
+            for (var i = 0; i < arguments.length; i++)
+                r = r(arguments[i]);
+            return r;
+        };
+    }
+});
+
+var compose = $b({
+    name: 'compose',
+    alias: 'o',
+    desc: 'compose functions: ((o f g) a) == (f (g a))',
+    params: [{name: "[f ...]", type: "function", desc: ""}],
+    fn: function() {
+        // TODO: check if arguments are all functions
+        return _.compose.apply(null,arguments);
+    }
 });
 
 // predefine the length, decently quick and
 // not so complicated as recursive merge
 // http://jsperf.com/best-init-array/3
 var make_list = $b({
-  name: 'make_list',
-  desc: 'Make a list of length n where all elements are x',
-  params: [{name: "n", type: "nat", desc: ""},
-           {name: "x"}],
-  fn: function(n, x) {
+    name: 'make_list',
+    desc: 'Make a list of length n where all elements are x',
+    params: [{name: "n", type: "nat", desc: ""},
+             {name: "x"}],
+    fn: function(n, x) {
 	if (n == 0) return the_empty_list;
 	var results = new Array(n);
 
 	for (var i = 0; i < n; i += 1) {
-		results[i] = x;
+	    results[i] = x;
 	}
 	return arrayToList(results, true);
-
-  }
+    }
 });
 
 var is_eq = $b({
-  name: 'is_eq',
-  desc: 'TODO',
-  params: [{name: "x", type: "", desc: ""}, {name: "y", type: "", desc: ""}],
-  fn: function(x, y) {
-	return x === y;
-  }
+    name: 'is_eq',
+    desc: "Type-strict and reference-based equality check (e.g., (eq? '(1 2) '(1 2)) returns #f)",
+    params: [{name: "x", type: "", desc: ""}, {name: "y", type: "", desc: ""}],
+    fn: function(x, y) {
+	      return x === y;
+    }
 });
 
 var is_equal = $b({
-  name: 'is_equal',
-  desc: 'TODO',
-  params: [{name: "x", type: "", desc: ""}, {name: "y", type: "", desc: ""}],
-  fn: function(x, y) {
-    if (typeof(x) == typeof(y)) {
-		  if (Array.isArray(x)) {
-			  if (x.length == y.length) {
-          for(var i = 0, ii = x.length; i < ii; i++) {
-            if (!is_equal(x[i], y[i])) {
-              return false;
-            }
-          };
-          return true;
-
-			  } else {
-				  return false;
-			  }
-		  } else {
-			  return x == y;
-		  }
-	  } else {
-		  return false;
-	  }
-  }
+    name: 'is_equal',
+    desc: "Less strict and value-based equality check (e.g., (equal? '(1 2) '(1 2)) returns #f)",
+    params: [{name: "x", type: "", desc: ""}, {name: "y", type: "", desc: ""}],
+    fn: function(x, y) {
+        if (typeof(x) == typeof(y)) {
+	    if (Array.isArray(x)) {
+		if (x.length == y.length) {
+                    for(var i = 0, ii = x.length; i < ii; i++) {
+                        if (!is_equal(x[i], y[i])) {
+                            return false;
+                        }
+                    };
+                    return true;
+		} else {
+		    return false;
+		}
+	    } else {
+		return x == y;
+	    }
+	} else {
+	    return false;
+	}
+    }
 });
 
 var member = $b({
-  name: 'member',
-  desc: 'Test whether x is in a list according to some optional comparator function cmp)',
-  params: [
-    {name: "x"},
-    {name: "list", type: "list"},
-    {name: "[cmp]", type: "function"}
-  ],
-  fn: function(x, lst, cmp) {
-    cmp = cmp || is_equal;
-
-    var array = listToArray(lst);
-
-	  for (var i = 0, ii = array.length; i < ii; i++) {
-		  if (cmp(x, array[i])) {
-			  return lst;
-		  }
-	  }
-	  return false;
-  }
+    name: 'member',
+    desc: 'Test whether x is in a list according to some optional comparator function cmp)',
+    params: [
+        {name: "x"},
+        {name: "list", type: "list"},
+        {name: "[cmp]", type: "function"}
+    ],
+    fn: function(x, lst, cmp) {
+        cmp = cmp || is_equal;
+        var array = listToArray(lst);
+	      for (var i = 0, ii = array.length; i < ii; i++) {
+	          if (cmp(x, array[i])) {
+		            return lst;
+	          }
+	      }
+	      return false;
+    }
 });
 
 var apply = $b({
-  name: 'apply',
-  desc: 'TODO',
-  params: [{name: "fn", type: "function", desc: ""},
-           {name: "lst", type: "list", desc: ""}],
-  fn: function(fn, lst) {
-	  return fn.apply(null, listToArray(lst));
-  }
+    name: 'apply',
+    desc: 'If lst is (x1 x2 x3 ...), returns the function call (fn x1 x2 x3 ...)',
+    params: [{name: "fn", type: "function", desc: ""},
+             {name: "lst", type: "list", desc: ""}],
+    fn: function(fn, lst) {
+	return fn.apply(null, listToArray(lst));
+    }
 });
 
 var assoc = $b({
-  name: 'assoc',
-  desc: 'Lookup a value in an association list',
-  params: [{name: "x", type: "", desc: ""},
-           {name: "alist", type: "list<pair>", desc: ""}],
-  fn: function(x, alist) {
-	  alist = listToArray(alist);
-	  for (var i=0; i<alist.length; i++) {
-		  if (is_equal(alist[i][0], x)) {
-			  return alist[i];
-		  }
-	  }
-	  return false;
-  }
+    name: 'assoc',
+    desc: 'Lookup a value in an association list',
+    params: [{name: "x", type: "", desc: ""},
+             {name: "alist", type: "list<pair>", desc: ""}],
+    fn: function(x, alist) {
+	alist = listToArray(alist);
+	for (var i=0; i<alist.length; i++) {
+	    if (is_equal(alist[i][0], x)) {
+		return alist[i];
+	    }
+	}
+	return false;
+    }
 });
 
 var regexp_split = $b({
-  name: 'regexp_split',
-  desc: 'Split a string into a list of substrings based on a separator',
-  alias: ['regexp-split','string-split'],
-  params: [{name: "s", type: "string", desc: ""},
-           {name: "sep", type: "string", desc: ""}],
-  fn: function(str, sep) {
-	  return arrayToList(str.split(sep));
-  }
+    name: 'regexp_split',
+    desc: 'Split a string into a list of substrings based on a separator',
+    alias: 'string-split',
+    params: [{name: "s", type: "string", desc: ""},
+             {name: "sep", type: "string", desc: ""}],
+    fn: function(str, sep) {
+    	return arrayToList(str.split(sep));
+    }
 });
 
+var string_append = $b({
+    name: 'string-append',
+    desc: 'Concatenates the given strings',
+    alias: 'string-append',
+    params: [{name: '[x ...]', type: 'string', desc: 'Strings to concatenate'}],
+    fn: function() {
+        var result = "";
+        for (var i = 0; i < arguments.length; i++) {
+            result += arguments[i];
+        }
+        return result;
+    }
+});
 
 var boolean_to_number = $b({
-  name: 'boolean_to_number',
-  desc: 'Convert a boolean to a number',
-  params: [{name: "b", type: "boolean", desc: ""}],
-  fn: function(b) {
-    return b ? 1 : 0;
-  }
+    name: 'boolean_to_number',
+    desc: 'Convert a boolean to a number',
+    params: [{name: "b", type: "boolean", desc: ""}],
+    fn: function(b) {
+        return b ? 1 : 0;
+    }
 });
 
 var number_to_boolean = $b({
-  name: 'number_to_boolean',
-  desc: 'Convert a number to a boolean',
-  params: [{name: "x", type: "real", desc: ""}],
-  fn: function(x) {
-    return x == 0 ? false : true;
-  }
+    name: 'number_to_boolean',
+    desc: 'Convert a number to a boolean',
+    params: [{name: "x", type: "real", desc: ""}],
+    fn: function(x) {
+        return x == 0 ? false : true;
+    }
 });
 
 var bang_bang = $b({
-  name: '!!',
-  desc: 'Coerce an object to a boolean',
-  params: [{name: 'x'}],
-  fn: function(x) {
-    return !!x;
-  }
+    name: 'bang_bang',
+    desc: 'Coerce an object to a boolean',
+    params: [{name: 'x'}],
+    fn: function(x) {
+        return !!x;
+    }
 })
 
 var string_to_number = $b({
-  name: 'string_to_number',
-  desc: 'Convert a string to a number',
-  params: [{name: "s", type: "string", desc: ""}],
-  fn: function(s) {
-    var x = parseFloat(s);
-    if (isNaN(x)) {
-      return false;
+    name: 'string_to_number',
+    desc: 'Convert a string to a number',
+    params: [{name: "s", type: "string", desc: ""}],
+    fn: function(s) {
+        var x = parseFloat(s);
+        if (isNaN(x)) {
+            return false;
+        }
+        return x;
     }
-    return x;
-  }
 });
 
 var string_to_symbol = $b({
-  name: 'string_to_symbol',
-  desc: 'Convert a string to a symbol',
-  params: [{name: "s", type: "string", desc: ""}],
-  fn: function(s) {
-    return s;
-  }
+    name: 'string_to_symbol',
+    desc: 'Convert a string to a symbol',
+    params: [{name: "s", type: "string", desc: ""}],
+    fn: function(s) {
+        return s;
+    }
 });
+
+var stringify = $b({
+    name: "stringify",
+    desc: 'Convert an object to a string',
+    params: [{name: "x", type: "", desc: ""}],
+    fn: function(x) {
+	      return x.toString();
+    } 
+})
 
 var number_to_string = $b({
-  name: 'number_to_string',
-  desc: 'Convert a number to a string',
-  params: [{name: "x", type: "real", desc: ""}],
-  fn: function(num) {
-	  return num.toString();
-  }
+    name: 'number_to_string',
+    desc: 'Convert a number to a string',
+    params: [{name: "x", type: "real", desc: ""}],
+    fn: function(num) {
+	      return num.toString();
+    }
 });
 
+var string_slice = $b({
+    name: 'string_slice',
+    desc: 'Extract a substring from a string',
+    params: [{name: "string", type: "string", desc: ""},
+             {name: "start", type: "nat", desc: ""},
+             {name: "[end]", type: "nat", desc: ""}
+            ],
+    fn: function(string, start, end) {
+        return string.slice(start, end)
+    }
+});
+
+var string_length = $b({
+    name: 'string_length',
+    desc: 'Get the length of string',
+    params: [{name: "string", type: "string", desc: ""}],
+    fn: function(string) {
+        return string.length;
+    }
+});
+
+
 var sample_discrete = $b({
-  name: 'sample_discrete',
-  desc: 'Takes a list of weights and samples an index between 0 and (number of weights - 1) with probability proportional to the weights.',
-  numArgs: [1,3],
-  params: [{name: "weights", type: "list<real>", desc: ""}],
-  fn: function(weights, isStructural, conditionedValue) {
-    return multinomialDraw( listToArray(iota(weights.length)),
-                            listToArray(weights),
-                            isStructural, conditionedValue);
-  }
+    name: 'sample_discrete',
+    desc: 'Takes a list of weights and samples an index between 0 and (number of weights - 1) with probability proportional to the weights.',
+    numArgs: [1,3],
+    params: [{name: "weights", type: "list<real>", desc: ""}],
+    fn: function(weights, isStructural, conditionedValue) {
+        return multinomialDraw( listToArray(iota(weights.length)),
+                                listToArray(weights),
+                                isStructural, conditionedValue);
+    }
 })
 
 var multi_equals_condition = $b({
-  name: 'multi_equals_condition',
-  desc: '',
-  numArgs: [3],
-  params: [{name: "fn", type: "function", desc: ""},
-           {name: "n", type: "nat", desc: ""},
-           {name: "value", type: "list", desc: ""}],
-  fn: function (fn, n, values) {
-    if (values.length != n+1) condition(false);
-          var marg = enumerateDist(fn);
+    name: 'multi_equals_condition',
+    desc: '',
+    numArgs: [3],
+    params: [{name: "fn", type: "function", desc: ""},
+             {name: "n", type: "nat", desc: ""},
+             {name: "value", type: "list", desc: ""}],
+    fn: function (fn, n, values) {
+        if (values.length != n+1) condition(false);
+        var marg = enumerateDist(fn);
 
-    try {
-      var marg = enumerateDist(fn);
-    } catch (e) {
-      throw new Error("Function in a repeated condition must be enumerable to be computed");
+        try {
+            var marg = enumerateDist(fn);
+        } catch (e) {
+            throw new Error("Function in a repeated condition must be enumerable to be computed");
+        }
+        for (var i=0;i<n;i++) {
+            var key = typeof(values[i]) == "string" ? '"'+values[i]+'"' : String(values[i]);
+            var entry = marg[key];
+            if (entry) {
+                factor(Math.log(entry.prob));
+            } else {
+                condition(false);
+                break;
+            }
+        }
     }
-    for (var i=0;i<n;i++) {
-      var key = typeof(values[i]) == "string" ? '"'+values[i]+'"' : String(values[i]);
-      var entry = marg[key];
-      if (entry) {
-        factor(Math.log(entry.prob));
-      } else {
-        condition(false);
-        break;
-      }
-    }
-  }
 });
 
 var wrapped_uniform_draw = $b({
-  name: 'wrapped_uniform_draw',
-  desc: 'Uniformly sample an element from a list',
-  numArgs: [1,2],
-  params: [{name: "items", type: "list", desc: ""}],
-  erp: true,
-  fn: function(items, isStructural, conditionedValue) {
-    return uniformDraw(listToArray(items), isStructural, conditionedValue);
-  }
+    name: 'wrapped_uniform_draw',
+    desc: 'Uniformly sample an element from a list',
+    numArgs: [1,2],
+    params: [{name: "items", type: "list", desc: ""},
+             {name: "[conditionedValue]", type: "", desc: "", noexport: true}],
+    erp: true,
+    fn: function(items, conditionedValue) {
+        return uniformDraw(listToArray(items), conditionedValue);
+    }
 });
 
 var wrapped_multinomial = $b({
-  name: 'wrapped_multinomial',
-  desc: 'Sample an element from lst with the probability specified in probs',
-  numArgs: [2,3],
-  params: [{name: "lst", type: "list", desc: ""},
-           {name: "probs", type: "list<real>", desc: ""}],
-  erp: true,
-  fn: function(lst, probs, conditionedValue) {
-	  if (lst.length != probs.length) {
-		  throw new Error("For multinomial, lists of items and probabilities must be of equal length");
-	  }
-	  return multinomialDraw(listToArray(lst), listToArray(probs), undefined, conditionedValue);
-
-  }
+    name: 'wrapped_multinomial',
+    desc: 'Sample an element from lst with the probability specified in probs',
+    numArgs: [2,3],
+    params: [{name: "lst", type: "list", desc: ""},
+             {name: "probs", type: "list<real>", desc: ""}],
+    erp: true,
+    fn: function(lst, probs, conditionedValue) {
+	if (lst.length != probs.length) {
+	    throw new Error("For multinomial, lists of items and probabilities must be of equal length");
+	}
+	return multinomialDraw(listToArray(lst), listToArray(probs), undefined, conditionedValue);
+    }
 });
 
 // TODO: make sure p is less than 1
 var wrapped_flip = $b({
-  name: 'wrapped_flip',
-  desc: 'Flip a weighted coin. Returns true or false',
-  numArgs: [0,1,2],
-  params: [{name: "[p]", type: "real", desc: "", default: "0.5"},
-           {name: "[conditionedValue]", type: "", desc: "", noexport: true}
-          ],
-  erp: true,
-  fn: function(p, conditionedValue) {
-	  return flip(p, undefined, conditionedValue) == 1;
-
-  }
+    name: 'wrapped_flip',
+    desc: 'Flip a weighted coin. Returns true or false',
+    numArgs: [0,1,2],
+    params: [{name: "[p]", type: "real", desc: "", default: "0.5"},
+             {name: "[conditionedValue]", type: "", desc: "", noexport: true}
+            ],
+    erp: true,
+    fn: function(p, conditionedValue) {
+	return flip(p, undefined, conditionedValue) == 1;
+    }
 });
 
 var wrapped_uniform = $b({
-  name: 'wrapped_uniform',
-  desc: 'Sample a random real uniformly from the interval [a,b]',
-  numArgs: [2,3],
-  params: [{name: "a", type: "real", desc: ""},
-           {name: "b", type: "real", desc: ""},
-           {name: "[conditionedValue]", type: "", desc: "", noexport: true}
-           ],
-  erp: true,
-  fn: function(a, b, conditionedValue) {
-	  return uniform(a, b, undefined, conditionedValue);
-
-  }
+    name: 'wrapped_uniform',
+    desc: 'Sample a random real uniformly from the interval [a,b]',
+    numArgs: [2,3],
+    params: [{name: "a", type: "real", desc: ""},
+             {name: "b", type: "real", desc: ""},
+             {name: "[conditionedValue]", type: "", desc: "", noexport: true}
+            ],
+    erp: true,
+    fn: function(a, b, conditionedValue) {
+	return uniform(a, b, undefined, conditionedValue);
+    }
 });
 
 var wrapped_random_integer = $b({
-  name: 'wrapped_random_integer',
-  desc: '',
-  alias: ['random-integer','sample-integer'],
-  numArgs: [1,2],
-  params: [{name: "n", type: "nat", desc: ""},
-           {name: "[conditionedValue]", type: "", desc: "", noexport: true}
-  ],
-  erp: true,
-  fn: function(n, conditionedValue) {
-    var probs = [], p = 1/n;
-	  for (var i = 0; i < n; i++){
-      probs[i] = p;
-    };
-    return multinomial(probs, undefined, conditionedValue);
-  }
+    name: 'wrapped_random_integer',
+    desc: '',
+    alias: 'sample-integer',
+    numArgs: [1,2],
+    params: [{name: "n", type: "nat", desc: ""},
+             {name: "[conditionedValue]", type: "", desc: "", noexport: true}
+            ],
+    erp: true,
+    fn: function(n, conditionedValue) {
+        var probs = [], p = 1/n;
+	for (var i = 0; i < n; i++){
+            probs[i] = p;
+        };
+        return multinomial(probs, undefined, conditionedValue);
+    }
 });
 
 var wrapped_gaussian = $b({
-  name: 'wrapped_gaussian',
-  desc: 'Sample from the Gaussian distribution N(mu, sigma)',
-  numArgs: [0,1,2,3],
-  params: [{name: "[mu]", type: "real", desc: "", default: 0},
-           {name: "[sigma]", type: "real", desc: "", default: 1},
-           {name: "[isStructural]", type: "", desc: "", noexport: true},
-           {name: "[conditionedValue]", type: "", desc: "", noexport: true}
-          ],
-  erp: true,
-  fn: function(mu, sigma, conditionedValue) {
-    mu = mu || 0;
-    sigma = sigma || 1;
-	  return gaussian(mu, sigma, undefined, conditionedValue);
-  }
+    name: 'wrapped_gaussian',
+    desc: 'Sample from the Gaussian distribution N(mu, sigma)',
+    numArgs: [0,1,2,3],
+    params: [{name: "[mu]", type: "real", desc: "", default: 0},
+             {name: "[sigma]", type: "real", desc: "", default: 1},
+             {name: "[isStructural]", type: "", desc: "", noexport: true},
+             {name: "[conditionedValue]", type: "", desc: "", noexport: true}
+            ],
+    erp: true,
+    fn: function(mu, sigma, conditionedValue) {
+        mu = mu || 0;
+        sigma = sigma || 1;
+	return gaussian(mu, sigma, undefined, conditionedValue);
+    }
 });
 
 var wrapped_gamma = $b({
-  name: 'wrapped_gamma',
-  desc: 'Sample from the gamma distribution G(a,b)',
-  numArgs: [2,3],
-  params: [{name: "a", type: "real", desc: ""},
-           {name: "b", type: "real", desc: ""},
-           {name: "[conditionedValue]", type: "", desc: "", noexport: true}],
-  erp: true,
-  fn: function(a, b, conditionedValue) {
-	  return gamma(a, b, undefined, conditionedValue);
-  }
+    name: 'wrapped_gamma',
+    desc: 'Sample from the gamma distribution G(a,b)',
+    numArgs: [2,3],
+    params: [{name: "a", type: "real", desc: ""},
+             {name: "b", type: "real", desc: ""},
+             {name: "[conditionedValue]", type: "", desc: "", noexport: true}],
+    erp: true,
+    fn: function(a, b, conditionedValue) {
+	return gamma(a, b, undefined, conditionedValue);
+    }
 });
 
 var wrapped_beta = $b({
-  name: 'wrapped_beta',
-  desc: 'Sample from the beta distribution B(a,b). Returns only the first element.',
-  numArgs: [2,3],
-  params: [{name: "a", type: "positive real", desc: ""},
-           {name: "b", type: "positive real", desc: ""},
-           {name: "[conditionedValue]", type: "", desc: "", noexport: true}],
-  erp: true,
-  fn: function(a, b, conditionedValue) {
-    if (a <= 0) {
-      throw new Error('The a argument to beta must be greater than 0');
+    name: 'wrapped_beta',
+    desc: 'Sample from the beta distribution B(a,b). Returns only the first element.',
+    numArgs: [2,3],
+    params: [{name: "a", type: "positive real", desc: ""},
+             {name: "b", type: "positive real", desc: ""},
+             {name: "[conditionedValue]", type: "", desc: "", noexport: true}],
+    erp: true,
+    fn: function(a, b, conditionedValue) {
+        if (a <= 0) {
+            throw new Error('The a argument to beta must be greater than 0');
+        }
+        if (b <= 0) {
+            throw new Error('The b argument to beta must be greater than 0');
+        }
+	return beta(a, b, undefined, conditionedValue);
     }
-    if (b <= 0) {
-      throw new Error('The b argument to beta must be greater than 0');
-    }
-	  return beta(a, b, undefined, conditionedValue);
-
-  }
 });
 
 var wrapped_dirichlet = $b({
-  name: 'wrapped_dirichlet',
-  desc: 'Sample from the Dirichlet distribution Dir(alpha).',
-  numArgs: [1,2],
-  params: [{name: "alpha", type: "list<positive real>", desc: ""},
-           {name: "[conditionedValue]", type: "", desc: "", noexport: true}],
-  erp: true,
-  fn: function(alpha, conditionedValue) {
-	  alpha = listToArray(alpha);
-	  return arrayToList(dirichlet(alpha, undefined, conditionedValue));
-
-  }
+    name: 'wrapped_dirichlet',
+    desc: 'Sample from the Dirichlet distribution Dir(alpha).',
+    numArgs: [1,2],
+    params: [{name: "alpha", type: "list<positive real>", desc: ""},
+             {name: "[conditionedValue]", type: "", desc: "", noexport: true}],
+    erp: true,
+    fn: function(alpha, conditionedValue) {
+	alpha = listToArray(alpha);
+	return arrayToList(dirichlet(alpha, undefined, conditionedValue));
+    }
 });
 
 var DPmem = $b({
-  name: 'DPmem',
-  desc: 'Stochastic memoization using the Dirichlet Process',
-  params: [{name: 'alpha', type: 'real', desc: 'Concentration parameter of the DP'},
-           {name: 'f', type: 'function', desc: 'Function to stochastically memoize'}
-          ],
-  fn: function(alpha, f) {
-    var restaurants = {};
-    return function() {
-      var args = args_to_array(arguments);
-      var restaurantId = JSON.stringify(args);
+    name: 'DPmem',
+    desc: 'Stochastic memoization using the Dirichlet Process',
+    params: [{name: 'alpha', type: 'real', desc: 'Concentration parameter of the DP'},
+             {name: 'f', type: 'function', desc: 'Function to stochastically memoize'}
+            ],
+    fn: function(alpha, f) {
+        var restaurants = {};
+        return function() {
+            var args = args_to_array(arguments);
+            var restaurantId = JSON.stringify(args);
 
-      var tables = restaurants[restaurantId];
-      var numTables;
+            var tables = restaurants[restaurantId];
+            var numTables;
 
-      if (tables === undefined) {
-        numTables = 0;
-        tables = restaurants[restaurantId] = [];
-      } else {
-        numTables = tables.length;
-      }
+            if (tables === undefined) {
+                numTables = 0;
+                tables = restaurants[restaurantId] = [];
+            } else {
+                numTables = tables.length;
+            }
 
-      var value;
+            var value;
 
-      // no tables yet or we sample a new one
-      if (numTables == 0 || wrapped_flip(alpha / (numTables + alpha))) {
-        value = f.apply(null, arguments);
-        // store both the count and the un-serialized value
-        // (so we don't have to run JSON.parse if we later reuse it)
-        //tables[JSON.stringify(value)] = {count: 1, value: value};
-        tables.push({value: value, count: 1});
-      }
-      //  reuse existing table
-      else {
+            // no tables yet or we sample a new one
+            if (numTables == 0 || wrapped_flip(alpha / (numTables + alpha))) {
+                value = f.apply(null, arguments);
+                // store both the count and the un-serialized value
+                // (so we don't have to run JSON.parse if we later reuse it)
+                //tables[JSON.stringify(value)] = {count: 1, value: value};
+                tables.push({value: value, count: 1});
+            }
+            //  reuse existing table
+            else {
 
-        // construct a multinomial over current tables
-        var indices = [];
-        for(var i = 0; i < numTables; i++ ) {
-          indices.push(i);
+                // construct a multinomial over current tables
+                var indices = [];
+                for(var i = 0; i < numTables; i++ ) {
+                    indices.push(i);
+                }
+
+                var counts = tables.map(function(table) { return table.count });
+
+                var sampledIndex = wrapped_multinomial(arrayToList(indices, true),
+                                                       arrayToList(counts, true));
+
+                value = tables[sampledIndex].value;
+                tables[sampledIndex].count++;
+            }
+            return value;
         }
-
-        var counts = tables.map(function(table) { return table.count });
-
-        var sampledIndex = wrapped_multinomial(arrayToList(indices, true),
-                                               arrayToList(counts, true));
-
-
-        value = tables[sampledIndex].value;
-        tables[sampledIndex].count++;
-      }
-      return value;
-
     }
-  }
 })
 
 var wrapped_conditional = $b({
-  name: 'wrapped_conditional',
-  desc: '',
-  params: [{name: 'comp', type: 'function', desc: ''},
-           {name: 'params', type: 'list',
-           desc: 'List where the first element is the sampling strategy, ' +
-           'one of ("enumeration", "rejection, "mh"), if "mh", second element is the lag'
-           }],
-  fn: function(comp, params) {
-    var options = {};
-    if (params[0] == "enumeration") {
-      options.algorithm = "enumerate";
-    } else if (params[0] == "mh") {
-      options.algorithm = "traceMH";
-      options.lag = params[1];
+    name: 'wrapped_conditional',
+    desc: '',
+    params: [{name: 'comp', type: 'function', desc: ''},
+             {name: 'params', type: 'list',
+              desc: 'List where the first element is the sampling strategy, ' +
+              'one of ("enumeration", "rejection, "mh"), if "mh", second element is the lag'
+             }],
+    fn: function(comp, params) {
+        var options = {};
+        if (params[0] == "enumeration") {
+            options.algorithm = "enumerate";
+        } else if (params[0] == "mh") {
+            options.algorithm = "traceMH";
+            options.lag = params[1];
+        }
+        return conditional(comp, options);
     }
-    return conditional(comp, options);
-  }
 });
 
 // TODO: try to provide better error handling if
 // numsamps / lag is not provided. might have to fix this
 // inside js_astify
 var wrapped_mh_query = $b({
-  name: 'wrapped_mh_query',
-  desc: '',
-  params: [{name: 'comp'},
-           {name: 'samples', type: 'nat'},
-           {name: 'lag', type: 'nat'}
-          ],
-  fn: function(comp, samples, lag) {
-	  var inn = traceMH(comp, samples, lag, false, "lessdumb").map(function(x) {return x.sample});
-	  var res = arrayToList(inn);
-	  return res;
-
-  }
+    name: 'wrapped_mh_query',
+    desc: '',
+    params: [{name: 'comp'},
+             {name: 'samples', type: 'nat'},
+             {name: 'lag', type: 'nat'}],
+    fn: function(comp, samples, lag) {
+	var inn = traceMH(comp, samples, lag, false, "lessdumb").map(function(x) {return x.sample});
+	var res = arrayToList(inn);
+	return res;
+    }
 });
 
 var wrapped_rejection_query = $b({
-  name: 'wrapped_rejection_query',
-  desc: '',
-  params: [{name: 'comp'}],
-  fn: function(comp) {
-    return rejectionSample(comp);
-  }
+    name: 'wrapped_rejection_query',
+    desc: '',
+    params: [{name: 'comp'}],
+    fn: function(comp) {
+        return rejectionSample(comp);
+    }
 });
 
 var wrapped_enumeration_query = $b({
-  name: 'wrapped_enumeration_query',
-  desc: '',
-  params: [{name: 'comp'}],
-  fn: function(comp) {
-	  var d = enumerateDist(comp);
-	  var p=[],v=[];
-	  var norm = 0;
-	  for (var x in d) {
-		  p.push(d[x].prob);
-		  v.push(d[x].val);
-		  norm += d[x].prob;
-	  }
-	  var res = List(arrayToList(v, true),
-                   arrayToList(p.map(function(x){return x/norm}), true));
-	  return res;
-
-  }
+    name: 'wrapped_enumeration_query',
+    desc: 'Do enumeration query on a model',
+    params: [{name: 'comp'}],
+    fn: function(comp) {
+	var d = enumerateDist(comp);
+	var p=[],v=[];
+	var norm = 0;
+	for (var x in d) {
+	    p.push(d[x].prob);
+	    v.push(d[x].val);
+	    norm += d[x].prob;
+	}
+	var res = List(arrayToList(v, true),
+                       arrayToList(p.map(function(x){return x/norm}), true));
+	return res;
+    }
 });
 
 var read_file = $b({
-  name: 'read_file',
-  desc: '',
-  params: [{name: "fileName", type: "string", desc: ""}],
-  fn: function(fileName) {
-	  return fs.readFileSync(fileName, "utf8");
-
-  }
+    name: 'read_file',
+    desc: '',
+    params: [{name: "fileName", type: "string", desc: ""}],
+    fn: function(fileName) {
+	return fs.readFileSync(fileName, "utf8");
+    }
 });
 
 // CSV stuff follows RFC4180 (http://tools.ietf.org/html/rfc4180)
 // - in double quote-enclosed fields, double quotes are escaped with another double quote
 var read_csv = $b({
-  name: 'read_csv',
-  desc: '',
-  params: [{name: "fileName", type: "string", desc: ""},
-           {name: "[sep]", type: "string", desc: ""}],
-  fn: function(fileName, sep) {
-	  sep = sep || ",";
-    if (sep.indexOf('"') != -1) throw new Error("CSV separator cannot contain a double quote");
-    var text = fs.readFileSync(fileName, "utf8");
-    var data = [];
-    var row = [];
-    var begin = 0;
-    var i = 0;
-    var j = 0;
-    var cell;
-    while (i<text.length) {
-      if (text[i] == '"') {
-        for (j=i+1; !(text[j] == '"' && text[j+1] != '"'); j++) {
-          if (j >= text.length) throw new Error("Malformed CSV file");
+    name: 'read_csv',
+    desc: '',
+    params: [{name: "fileName", type: "string", desc: ""},
+             {name: "[sep]", type: "string", desc: ""}],
+    fn: function(fileName, sep) {
+	sep = sep || ",";
+        if (sep.indexOf('"') != -1) throw new Error("CSV separator cannot contain a double quote");
+        var text = fs.readFileSync(fileName, "utf8");
+        var data = [];
+        var row = [];
+        var begin = 0;
+        var i = 0;
+        var j = 0;
+        var cell;
+        while (i<text.length) {
+            if (text[i] == '"') {
+                for (j=i+1; !(text[j] == '"' && text[j+1] != '"'); j++) {
+                    if (j >= text.length) throw new Error("Malformed CSV file");
+                }
+                j++;
+                cell = text.slice(i+1, j-1).replace(/""/g, '"');
+            } else {
+                for (; j < text.length && text.slice(j, j + sep.length) != sep && text[j] != "\n"; j++) {
+                    if (text[j] == '"') throw new Error("Malformed CSV file");
+                }
+                cell = text.slice(i, j);
+            }
+            row.push(cell);
+            if (j >= text.length || text[j] == "\n") {
+                data.push(arrayToList(row, true));
+                row = [];
+                j++;
+            } else if (text.slice(j, j + sep.length) == sep) {
+                j += sep.length;
+            } else {
+                // Only reached if cell was quoted but not properly closed
+                throw new Error("Malformed CSV file");
+            }
+            i = j;
         }
-        j++;
-        cell = text.slice(i+1, j-1).replace(/""/g, '"');
-      } else {
-        for (; j < text.length && text.slice(j, j + sep.length) != sep && text[j] != "\n"; j++) {
-          if (text[j] == '"') throw new Error("Malformed CSV file");
-        }
-        cell = text.slice(i, j);
-      }
-      row.push(cell);
-      if (j >= text.length || text[j] == "\n") {
-        data.push(arrayToList(row, true));
-        row = [];
-        j++;
-      } else if (text.slice(j, j + sep.length) == sep) {
-        j += sep.length;
-      } else {
-        // Only reached if cell was quoted but not properly closed
-        throw new Error("Malformed CSV file");
-      }
-      i = j;
+	return arrayToList(data, true);
     }
-	  return arrayToList(data, true);
-  }
 });
 
 var write_csv = $b({
-  name: 'write_csv',
-  desc: '',
-  params: [{name: "data", type: "list<list>", desc: ""},
-           {name: "fileName", type: "string", desc: ""},
-           {name: "[sep]", type: "string", desc: ""}],
-  fn: function(data, fileName, sep) {
-    sep = sep || ",";
-    var stream = fs.createWriteStream(fileName);
-    for (var i=0;i<data.length-1;i++) {
-      var cells = [];
-      for (var j=0;j<data[i].length-1;j++) {
-        var cell = data[i][j];
-        var modified = cell.toString().replace(/"/g, '""');
-        cells.push(cell == modified ? cell : '"' + modified + '"');
-      }
-      stream.write(cells.join(sep) + "\n");
+    name: 'write_csv',
+    desc: '',
+    params: [{name: "data", type: "list<list>", desc: ""},
+             {name: "fileName", type: "string", desc: ""},
+             {name: "[sep]", type: "string", desc: ""}],
+    fn: function(data, fileName, sep) {
+        sep = sep || ",";
+        var stream = fs.createWriteStream(fileName);
+        for (var i=0;i<data.length-1;i++) {
+            var cells = [];
+            for (var j=0;j<data[i].length-1;j++) {
+                var cell = data[i][j];
+                var modified = cell.toString().replace(/"/g, '""');
+                cells.push(cell == modified ? cell : '"' + modified + '"');
+            }
+            stream.write(cells.join(sep) + "\n");
+        }
     }
-  }
 });
 
 var console_log = $b({
-  name: 'console_log',
-  desc: 'Print arguments to Javascript console',
-  params: [{name: "[s ...]", type: "", desc: ""}],
-  fn: function() {
-    var args = args_to_array(arguments);
-    var strs = args.map(util.format_result);
-    for (var i=0;i<strs.length;i++) {
-      console.log(strs[i]);
-    };
-  }
+    name: 'console_log',
+    desc: 'Print arguments to Javascript console',
+    params: [{name: "[s ...]", type: "", desc: ""}],
+    fn: function() {
+        var args = args_to_array(arguments);
+        var strs = args.map(util.format_result);
+        for (var i=0;i<strs.length;i++) {
+            console.log(strs[i]);
+        };
+    }
 });
 
 var display = $b({
-  name: 'display',
-  alias: 'pn',
-  desc: '',
-  params: [{name: "[s ...]", type: "", desc: ""}],
-  fn: function() {
-    var args = args_to_array(arguments);
-    var strs = args.map(util.format_result);
-    if (inBrowser) {
-      sideEffects.push({
-        type: 'string',
-        data: strs.join(" ")
-      });
-    } else {
-      console.log(strs.join(" "));
+    name: 'display',
+    alias: 'pn',
+    desc: '',
+    params: [{name: "[s ...]", type: "", desc: ""}],
+    fn: function() {
+        var args = args_to_array(arguments);
+        var strs = args.map(util.format_result);
+        if (inBrowser) {
+            for (var i = 0; i < strs.length; i++) {
+                var el = document.createElement("div");
+                el.innerHTML = strs[i];
+                $results.append(el);
+            }
+        } else {
+            console.log(strs.join("\n"));
+        }
     }
-
-  }
 });
 
 var bootstrap = $b({
-  name: 'bootstrap',
-  desc: '',
-  params: [{name: "fn", type: "function", desc: ""},
-           {name: "fileName", type: "string", desc: ""},
-           {name: "n", type: "nat", desc: ""}],
-  fn: function(fn, fileName, n) {
-	  var data = read_csv(fileName);
-	  var results = [null];
-	  for (var i=0;i<n;i++) {
-		  var sampled_data = [null];
-		  for (var j=0;j<data.length-1;j++) {
-			  sampled_data.unshift(data[Math.floor(Math.random()*(data.length-1))]);
-		  }
-		  results.unshift(fn(sampled_data));
-	  }
-	  return results;
-
-  }
+    name: 'bootstrap',
+    desc: '',
+    params: [{name: "fn", type: "function", desc: ""},
+             {name: "fileName", type: "string", desc: ""},
+             {name: "n", type: "nat", desc: ""}],
+    fn: function(fn, fileName, n) {
+	var data = read_csv(fileName);
+	var results = [null];
+	for (var i=0;i<n;i++) {
+	    var sampled_data = [null];
+	    for (var j=0;j<data.length-1;j++) {
+		sampled_data.unshift(data[Math.floor(Math.random()*(data.length-1))]);
+	    }
+	    results.unshift(fn(sampled_data));
+	}
+	return results;
+    }
 });
 
 var string_append = $b({
-  name: 'string_append',
-  desc: 'Append an arbitrary number of strings',
-  params: [
-    {name: '[s ...]', type: 'string'}
-  ],
-  fn: function() {
-    var args = args_to_array(arguments);
-    return args.join("");
-
-  }
+    name: 'string_append',
+    desc: 'Append an arbitrary number of strings',
+    params: [
+        {name: '[s ...]', type: 'string'}
+    ],
+    fn: function() {
+        var args = args_to_array(arguments);
+        return args.join("");
+    }
 });
 
 // TODO: document the fact that there is no symbol type
 var symbol_to_string = $b({
-  name: 'symbol_to_string',
-  desc: '',
-  params: [{name: "sym", type: "string", desc: ""}],
-  fn: function(sym) {
-    return sym;
-  }
+    name: 'symbol_to_string',
+    desc: '',
+    params: [{name: "sym", type: "string", desc: ""}],
+    fn: function(sym) {
+        return sym;
+    }
 });
 
 var iota = $b({
-  name: 'iota',
-  desc: 'Create list based on arithmetic progressions',
-  params: [
-    {name: 'count', type: 'nat', desc: 'Number of items'},
-    {name: '[start]', type: 'real', desc: 'First item in list', default: 0},
-    {name: '[step]', type: 'real', desc: 'Difference between successive items in the list', default: 1}
-  ],
-  fn: function(count, start, step) {
-    if (start === undefined) { start = 0; }
-    if (step === undefined) { step = 1; }
+    name: 'iota',
+    desc: 'Create list based on arithmetic progressions',
+    params: [{name: 'count', type: 'nat', desc: 'Number of items'},
+             {name: '[start]', type: 'real', desc: 'First item in list', default: 0},
+             {name: '[step]', type: 'real',
+              desc: 'Difference between successive items in the list', default: 1}],
+    fn: function(count, start, step) {
+        if (start === undefined) { start = 0; }
+        if (step === undefined) { step = 1; }
 
-    var r = [];
-    for(var k = start, i = 0;
-        i < count;
-        i++, k += step) {
-      r.push(k);
+        var r = [];
+        for(var k = start, i = 0;
+            i < count;
+            i++, k += step) {
+            r.push(k);
+        }
+        return arrayToList(r);
     }
-    return arrayToList(r);
-
-  }
 });
 
 var range = $b({
-  name: 'range',
-  desc: 'Create list based on a range',
-  params: [
-    {name: 'start', type: 'integer'},
-    {name: 'end', type: 'integer'}
-  ],
-  fn: function(start, end) {
-    return iota(end - start + 1, start, 1);
-  }
+    name: 'range',
+    desc: 'Create list based on a range',
+    params: [
+        {name: 'start', type: 'integer'},
+        {name: 'end', type: 'integer'}
+    ],
+    fn: function(start, end) {
+        return iota(end - start + 1, start, 1);
+    }
 });
 
-
 var update_list = $b({
-  name: 'update_list',
-  desc: '',
-  params: [{name: "lst", type: "list", desc: ""},
-           {name: "n", type: "nat", desc: ""},
-           {name: "value", type: "", desc: ""}],
-  fn: function(lst, n, value) {
+    name: 'update_list',
+    desc: '',
+    params: [{name: "lst", type: "list", desc: ""},
+             {name: "n", type: "nat", desc: ""},
+             {name: "value", type: "", desc: ""}],
+    fn: function(lst, n, value) {
 
-    var array = listToArray(lst);
-    if (array.length < n) {
+        var array = listToArray(lst);
+        if (array.length < n) {
 	    throw new Error("list index too big: asked for item #" + (n+1) + " but list only contains " + n + " items");
-	  }
+	}
 
-    array[n] = value;
+        array[n] = value;
 
-    return arrayToList(array);
-  }
+        return arrayToList(array);
+    }
 });
 
 var get_time = $b({
-  name: 'get_time',
-  desc: '',
-  params: [],
-  fn: function() {
-    return Date.now();
-  }
+    name: 'get_time',
+    desc: '',
+    params: [],
+    fn: function() {
+        return Date.now();
+    }
 });
 
 var make_gensym = $b({
-  name: 'make_gensym',
-  desc: "Returns a gensym, which is a function that returns a new string value every time you call it (i.e., you're guaranteed to never get the same return value twice). You can specify an optional prefix for these values (default is 'g')",
-  params: [{name: '[prefix]', default: 'n/a', type: 'string'}],
-  fn: function(prefix) {
-    prefix = prefix || "g";
-    var closure = (function() {
-      var counter = 0;
-      return function() {
-        return prefix + (counter++);
-      };
-    })();
-    return closure;
-  }
+    name: 'make_gensym',
+    desc: "Returns a gensym, which is a function that returns a new string value every time you call it (i.e., you're guaranteed to never get the same return value twice). You can specify an optional prefix for these values (default is 'g')",
+    params: [{name: '[prefix]', default: 'n/a', type: 'string'}],
+    fn: function(prefix) {
+        prefix = prefix || "g";
+        var closure = (function() {
+            var counter = 0;
+            return function() {
+                return prefix + (counter++);
+            };
+        })();
+        return closure;
+    }
 });
 
 var gensym = $b({
-  name: 'gensym',
-  desc: 'A default gensym (prefix is #g)',
-  params: [],
-  fn: make_gensym('#g')
+    name: 'gensym',
+    desc: 'A default gensym (prefix is #g)',
+    params: [],
+    fn: make_gensym('#g')
 });
 
 // var dict = $x.dict = function() {
@@ -2288,15 +2642,34 @@ var gensym = $b({
 //   }
 // };
 
-
 var sample = $b({
-  name: 'sample',
-  desc: 'apply a thunk',
-  params: [{name: 'thunk', type: 'function'}],
-  fn: function(thunk) {
-    return thunk();
-  }
+    name: 'sample',
+    desc: 'apply a thunk',
+    params: [{name: 'thunk', type: 'function'}],
+    fn: function(thunk) {
+        return thunk();
+    }
 })
+
+var set_seed = $b({
+    name: 'set_seed',
+    desc: 'Seed a seed for the PRNG',
+    params: [{name: 'seed', type: 'string'}],
+    fn: function(seed) {
+        Math.random = seedrandom(seed);
+    }
+})
+
+// var ch_import = $b({
+//     name: 'ch_import',
+//     alias: ['ch-import','import-as'],
+//     desc: 'import a js library into webchurch with a prefix',
+//     params: [{name: 'lib'}, {name: 'prefix'}],
+//     fn: function(lib, prefix) {
+//         var __m = require('' + lib);
+//         openModule(__m,prefix)
+//     }
+// })
 
 // var c = parseTypeString('pair<pair<real>>');
 // console.log(c(Pair(Pair(0.1, 'a'),
@@ -2307,105 +2680,149 @@ var sample = $b({
 
 // probability distribution is list<pair<_,positive real>>
 
+
+var load_url = $b({
+    name: 'load_url',
+    desc: 'Load a remote url',
+    params: [{name: 'path', type: 'string'}],
+    fn: function(path) {
+        var isChurch = true;
+        
+        var extension = path.split("/").pop().split(".").pop();
+
+        if (extension == 'js') {
+            isChurch = false;
+        }
+        
+        if (inBrowser) {
+            // by default, assume we're working with Church
+            
+            var jqxhr = $.ajax({
+                url: path + '?' + (new Date()).getTime(),
+                async: false,
+                error: function(response, textStatus, errorThrown) {
+                    throw new Error('Could not load library ' + path);
+                },
+                dataType: 'text' // needed so that js libraries aren't executed immediately by jquery
+            });
+
+            var code = jqxhr.responseText;
+        } else {
+            code = fs.readFileSync(path, 'utf8');
+        }
+        
+        if (isChurch) {
+            var churchToJs = require('./evaluate.js').churchToJs;
+            code = churchToJs(code,
+                              {
+                                  includePreamble: false,
+                                  returnCodeOnly: true,
+                                  wrap: false
+                              }); 
+        }
+        return code; 
+    }
+});
+
+
+
 // TODO: add a flag somewhere for turning on/off wrapping
 function wrapAsserts(annotation) {
 
-  var fnName = annotation.name;
-  var fn = annotation.fn;
-  var paramProps = annotation.params || [];
+    var fnName = annotation.name;
+    var fn = annotation.fn;
+    var paramProps = annotation.params || [];
 
-  var validArgumentLengths = annotation.numArgs;
+    var validArgumentLengths = annotation.numArgs;
 
-  var numParams = paramProps.length;
+    var numParams = paramProps.length;
 
-  // compute number of mandatory arguments
-  var numMandatoryParams = paramProps.filter(function(prop) {
-    return !prop.name.match(/\[/);
-  }).length;
+    // compute number of mandatory arguments
+    var numMandatoryParams = paramProps.filter(function(prop) {
+        return !prop.name.match(/\[/);
+    }).length;
 
-  var wrapped = function() {
-    // var userArgs = Array.prototype.slice.call(arguments, 0);
-    var userArgs = arguments;
+    var wrapped = function() {
+        // var userArgs = Array.prototype.slice.call(arguments, 0);
+        var userArgs = arguments;
 
-    var userNumArgs = userArgs.length;
-    // console.log( 'inside wrapped ' + functionName);
+        var userNumArgs = userArgs.length;
+        // console.log( 'inside wrapped ' + fnName);
 
-    if (userNumArgs < numMandatoryParams) {
-      var err = _.template('<<functionName>> takes {{numArgs}} argument{{plural}}, but {{userNumArgs}} were given',
-                           {userNumArgs: userNumArgs == 0 ? 'none' : 'only ' + userNumArgs,
-                            numArgs: ((numParams == numMandatoryParams) ? '' : '(at least) ') + numMandatoryParams,
-                            plural: numMandatoryParams == 1 ? '' : 's'
-                           }
-                          );
-      throw new Error(err);
-    }
-
-    // make sure that the number of arguments that the
-    // user supplied is a valid number of arguments
-    // to this function
-    if (validArgumentLengths) {
-      if (validArgumentLengths.indexOf(userNumArgs) == -1) {
-        throw new Error('Invalid number of arguments to <<functionName>>');
-      }
-    }
-
-    // for each supplied argument, check type
-    for(var i = 0, a, props, variadic = false, specType, argName; i < userNumArgs; i++) {
-
-      a = userArgs[i];
-      if (!variadic) {
-        props = paramProps[i];
-        specType = props.type;
-      }
-      argName = props.name;
-      if (argName.match(/\.\.\./)) {
-        variadic = true;
-      }
-
-      if (specType) {
-        // run the appropriate type checker on the argument
-        var checker = parseTypeString(specType); // typeCheckers[specType];
-
-        if (checker === undefined) {
-          var errorString = _.template(
-            'Bug in Church builtins - annotation for (<<functionName>> ...) tries to declare the type of the "{{argName}}" argument as "{{specType}}", which is not a recognized type',
-            { specType: specType,
-              argName: argName
-            }
-          );
-          throw new Error(errorString);
+        if (userNumArgs < numMandatoryParams) {
+            var err = _.template('<<functionName>> takes {{numArgs}} argument{{plural}}, but {{userNumArgs}} were given',
+                                 {userNumArgs: userNumArgs == 0 ? 'none' : 'only ' + userNumArgs,
+                                  numArgs: ((numParams == numMandatoryParams) ? '' : '(at least) ') + numMandatoryParams,
+                                  plural: numMandatoryParams == 1 ? '' : 's'
+                                 }
+                                );
+            throw new Error(err);
         }
 
-        var typeChecks = checker(a);
-
-        if (!typeChecks) {
-          var errorString = _.template(
-            // <<functionName>> will get filled in inside evaluate.js
-            '{{argName}} to (<<functionName>> ...) should be a {{specType}}, not a {{userType}}',
-            {
-              userType: typeof a,
-              specType: specType,
-              argName: variadic ? 'Argument' : 'The ' + argName + ' argument'
+        // make sure that the number of arguments that the
+        // user supplied is a valid number of arguments
+        // to this function
+        if (validArgumentLengths) {
+            if (validArgumentLengths.indexOf(userNumArgs) == -1) {
+                throw new Error('Invalid number of arguments to <<functionName>>');
             }
-          );
-
-          throw new Error(errorString);
         }
-      }
-    }
-    return fn.apply(null, userArgs);
-  };
-  wrapped.num_args = annotation.numArgs;
 
-  return wrapped;
-  // return fn;
 
+        // for each supplied argument, check type
+        for(var i = 0, a, props, variadic = false, specType, argName; i < userNumArgs; i++) {
+
+            a = userArgs[i];
+            if (!variadic) {
+                props = paramProps[i];
+                specType = props.type;
+            }
+            argName = props.name;
+            if (argName.match(/\.\.\./)) {
+                variadic = true;
+            }
+
+            if (specType) {
+                // run the appropriate type checker on the argument
+                var checker = parseTypeString(specType); // typeCheckers[specType];
+
+                if (checker === undefined) {
+                    var errorString = _.template(
+                        'Bug in Church builtins - annotation for (<<functionName>> ...) tries to declare the type of the "{{argName}}" argument as "{{specType}}", which is not a recognized type',
+                        { specType: specType,
+                          argName: argName
+                        }
+                    );
+                    throw new Error(errorString);
+                }
+
+                var typeChecks = checker(a);
+
+                if (!typeChecks) {
+                    var errorString = _.template(
+                        // <<functionName>> will get filled in inside evaluate.js
+                        '{{argName}} to (<<functionName>> ...) should be a {{specType}}, not a {{userType}}',
+                        {
+                            userType: typeof a,
+                            specType: specType,
+                            argName: variadic ? 'Argument' : 'The ' + argName + ' argument'
+                        }
+                    );
+
+                    throw new Error(errorString);
+                }
+            }
+        }
+        return fn.apply(null, userArgs);
+    };
+    wrapped.num_args = annotation.numArgs;
+
+    return wrapped;
+    // return fn;
 }
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/church_builtins.js","/")
-},{"./type-utils.js":"05wbT+","./util.js":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"fs":18,"underscore":40}],"./church_builtins":[function(require,module,exports){
-module.exports=require('sy/OMr');
-},{}],"./cm-brackets":[function(require,module,exports){
+},{"./evaluate.js":"Ih4X1P","./type-utils.js":"05wbT+","./util.js":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"fs":18,"seedrandom":31,"underscore":42}],"./cm-brackets":[function(require,module,exports){
 module.exports=require('G8398M');
 },{}],"G8398M":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
@@ -2418,258 +2835,256 @@ var CodeMirror = require('codemirror');
 // -----------------------------------
 
 (function() {
-  var DEFAULT_BRACKETS = "()[]{}\"\"";
-  var DEFAULT_EXPLODE_ON_ENTER = "[]{}";
-  var SPACE_CHAR_REGEX = /\s/;
+    var DEFAULT_BRACKETS = "()[]{}\"\"";
+    var DEFAULT_EXPLODE_ON_ENTER = "[]{}";
+    var SPACE_CHAR_REGEX = /\s/;
 
-  var Pos = CodeMirror.Pos;
+    var Pos = CodeMirror.Pos;
 
-  CodeMirror.defineOption("autoCloseBrackets", false, function(cm, val, old) {
-    if (old != CodeMirror.Init && old)
-      cm.removeKeyMap("autoCloseBrackets");
-    if (!val) return;
-    var pairs = DEFAULT_BRACKETS, explode = DEFAULT_EXPLODE_ON_ENTER;
-    if (typeof val == "string") pairs = val;
-    else if (typeof val == "object") {
-      if (val.pairs != null) pairs = val.pairs;
-      if (val.explode != null) explode = val.explode;
+    CodeMirror.defineOption("autoCloseBrackets", false, function(cm, val, old) {
+        if (old != CodeMirror.Init && old)
+            cm.removeKeyMap("autoCloseBrackets");
+        if (!val) return;
+        var pairs = DEFAULT_BRACKETS, explode = DEFAULT_EXPLODE_ON_ENTER;
+        if (typeof val == "string") pairs = val;
+        else if (typeof val == "object") {
+            if (val.pairs != null) pairs = val.pairs;
+            if (val.explode != null) explode = val.explode;
+        }
+        var map = buildKeymap(pairs);
+        if (explode) map.Enter = buildExplodeHandler(explode);
+        cm.addKeyMap(map);
+    });
+
+    function charsAround(cm, pos) {
+        var str = cm.getRange(Pos(pos.line, pos.ch - 1),
+                              Pos(pos.line, pos.ch + 1));
+        return str.length == 2 ? str : null;
     }
-    var map = buildKeymap(pairs);
-    if (explode) map.Enter = buildExplodeHandler(explode);
-    cm.addKeyMap(map);
-  });
 
-  function charsAround(cm, pos) {
-    var str = cm.getRange(Pos(pos.line, pos.ch - 1),
-                          Pos(pos.line, pos.ch + 1));
-    return str.length == 2 ? str : null;
-  }
+    function buildKeymap(pairs) {
+        var map = {
+            name : "autoCloseBrackets",
+            Backspace: function(cm) {
+                if (cm.getOption("disableInput")) return CodeMirror.Pass;
+                var ranges = cm.listSelections();
+                for (var i = 0; i < ranges.length; i++) {
+                    if (!ranges[i].empty()) return CodeMirror.Pass;
+                    var around = charsAround(cm, ranges[i].head);
+                    if (!around || pairs.indexOf(around) % 2 != 0) return CodeMirror.Pass;
+                }
+                for (var i = ranges.length - 1; i >= 0; i--) {
+                    var cur = ranges[i].head;
+                    cm.replaceRange("", Pos(cur.line, cur.ch - 1), Pos(cur.line, cur.ch + 1));
+                }
+            }
+        };
+        var closingBrackets = "";
+        for (var i = 0; i < pairs.length; i += 2) (function(left, right) {
+            if (left != right) closingBrackets += right;
+            map["'" + left + "'"] = function(cm) {
+                if (cm.getOption("disableInput")) return CodeMirror.Pass;
+                var ranges = cm.listSelections(), type, next;
+                for (var i = 0; i < ranges.length; i++) {
+                    var range = ranges[i], cur = range.head, curType;
+                    if (left == "'" && cm.getTokenTypeAt(cur) == "comment")
+                        return CodeMirror.Pass;
+                    var next = cm.getRange(cur, Pos(cur.line, cur.ch + 1));
+                    if (!range.empty())
+                        curType = "surround";
+                    else if (left == right && next == right) {
+                        if (cm.getRange(cur, Pos(cur.line, cur.ch + 3)) == left + left + left)
+                            curType = "skipThree";
+                        else
+                            curType = "skip";
+                    } else if (left == right && cur.ch > 1 &&
+                               cm.getRange(Pos(cur.line, cur.ch - 2), cur) == left + left &&
+                               (cur.ch <= 2 || cm.getRange(Pos(cur.line, cur.ch - 3), Pos(cur.line, cur.ch - 2)) != left))
+                        curType = "addFour";
+                    else if (left == right && CodeMirror.isWordChar(next))
+                        return CodeMirror.Pass;
+                    else if (cm.getLine(cur.line).length == cur.ch || closingBrackets.indexOf(next) >= 0 || SPACE_CHAR_REGEX.test(next))
+                        curType = "both";
+                    else
+                        return CodeMirror.Pass;
+                    if (!type) type = curType;
+                    else if (type != curType) return CodeMirror.Pass;
+                }
 
-  function buildKeymap(pairs) {
-    var map = {
-      name : "autoCloseBrackets",
-      Backspace: function(cm) {
-        if (cm.getOption("disableInput")) return CodeMirror.Pass;
-        var ranges = cm.listSelections();
-        for (var i = 0; i < ranges.length; i++) {
-          if (!ranges[i].empty()) return CodeMirror.Pass;
-          var around = charsAround(cm, ranges[i].head);
-          if (!around || pairs.indexOf(around) % 2 != 0) return CodeMirror.Pass;
-        }
-        for (var i = ranges.length - 1; i >= 0; i--) {
-          var cur = ranges[i].head;
-          cm.replaceRange("", Pos(cur.line, cur.ch - 1), Pos(cur.line, cur.ch + 1));
-        }
-      }
-    };
-    var closingBrackets = "";
-    for (var i = 0; i < pairs.length; i += 2) (function(left, right) {
-      if (left != right) closingBrackets += right;
-      map["'" + left + "'"] = function(cm) {
-        if (cm.getOption("disableInput")) return CodeMirror.Pass;
-        var ranges = cm.listSelections(), type, next;
-        for (var i = 0; i < ranges.length; i++) {
-          var range = ranges[i], cur = range.head, curType;
-          if (left == "'" && cm.getTokenTypeAt(cur) == "comment")
-            return CodeMirror.Pass;
-          var next = cm.getRange(cur, Pos(cur.line, cur.ch + 1));
-          if (!range.empty())
-            curType = "surround";
-          else if (left == right && next == right) {
-            if (cm.getRange(cur, Pos(cur.line, cur.ch + 3)) == left + left + left)
-              curType = "skipThree";
-            else
-              curType = "skip";
-          } else if (left == right && cur.ch > 1 &&
-                     cm.getRange(Pos(cur.line, cur.ch - 2), cur) == left + left &&
-                     (cur.ch <= 2 || cm.getRange(Pos(cur.line, cur.ch - 3), Pos(cur.line, cur.ch - 2)) != left))
-            curType = "addFour";
-          else if (left == right && CodeMirror.isWordChar(next))
-            return CodeMirror.Pass;
-          else if (cm.getLine(cur.line).length == cur.ch || closingBrackets.indexOf(next) >= 0 || SPACE_CHAR_REGEX.test(next))
-            curType = "both";
-          else
-            return CodeMirror.Pass;
-          if (!type) type = curType;
-          else if (type != curType) return CodeMirror.Pass;
-        }
+                cm.operation(function() {
+                    if (type == "skip") {
+                        cm.execCommand("goCharRight");
+                    } else if (type == "skipThree") {
+                        for (var i = 0; i < 3; i++)
+                            cm.execCommand("goCharRight");
+                    } else if (type == "surround") {
+                        var sels = cm.getSelections();
+                        for (var i = 0; i < sels.length; i++)
+                            sels[i] = left + sels[i] + right;
+                        cm.replaceSelections(sels, "around");
+                    } else if (type == "both") {
+                        cm.replaceSelection(left + right, null);
+                        cm.execCommand("goCharLeft");
+                    } else if (type == "addFour") {
+                        cm.replaceSelection(left + left + left + left, "before");
+                        cm.execCommand("goCharRight");
+                    }
+                });
+            };
+            if (left != right) map["'" + right + "'"] = function(cm) {
+                var ranges = cm.listSelections();
+                for (var i = 0; i < ranges.length; i++) {
+                    var range = ranges[i];
+                    if (!range.empty() ||
+                        cm.getRange(range.head, Pos(range.head.line, range.head.ch + 1)) != right)
+                        return CodeMirror.Pass;
+                }
+                cm.execCommand("goCharRight");
+            };
+        })(pairs.charAt(i), pairs.charAt(i + 1));
+        return map;
+    }
 
-        cm.operation(function() {
-          if (type == "skip") {
-            cm.execCommand("goCharRight");
-          } else if (type == "skipThree") {
-            for (var i = 0; i < 3; i++)
-              cm.execCommand("goCharRight");
-          } else if (type == "surround") {
-            var sels = cm.getSelections();
-            for (var i = 0; i < sels.length; i++)
-              sels[i] = left + sels[i] + right;
-            cm.replaceSelections(sels, "around");
-          } else if (type == "both") {
-            cm.replaceSelection(left + right, null);
-            cm.execCommand("goCharLeft");
-          } else if (type == "addFour") {
-            cm.replaceSelection(left + left + left + left, "before");
-            cm.execCommand("goCharRight");
-          }
-        });
-      };
-      if (left != right) map["'" + right + "'"] = function(cm) {
-        var ranges = cm.listSelections();
-        for (var i = 0; i < ranges.length; i++) {
-          var range = ranges[i];
-          if (!range.empty() ||
-              cm.getRange(range.head, Pos(range.head.line, range.head.ch + 1)) != right)
-            return CodeMirror.Pass;
-        }
-        cm.execCommand("goCharRight");
-      };
-    })(pairs.charAt(i), pairs.charAt(i + 1));
-    return map;
-  }
-
-  function buildExplodeHandler(pairs) {
-    return function(cm) {
-      if (cm.getOption("disableInput")) return CodeMirror.Pass;
-      var ranges = cm.listSelections();
-      for (var i = 0; i < ranges.length; i++) {
-        if (!ranges[i].empty()) return CodeMirror.Pass;
-        var around = charsAround(cm, ranges[i].head);
-        if (!around || pairs.indexOf(around) % 2 != 0) return CodeMirror.Pass;
-      }
-      cm.operation(function() {
-        cm.replaceSelection("\n\n", null);
-        cm.execCommand("goCharLeft");
-        ranges = cm.listSelections();
-        for (var i = 0; i < ranges.length; i++) {
-          var line = ranges[i].head.line;
-          cm.indentLine(line, null, true);
-          cm.indentLine(line + 1, null, true);
-        }
-      });
-    };
-  }
+    function buildExplodeHandler(pairs) {
+        return function(cm) {
+            if (cm.getOption("disableInput")) return CodeMirror.Pass;
+            var ranges = cm.listSelections();
+            for (var i = 0; i < ranges.length; i++) {
+                if (!ranges[i].empty()) return CodeMirror.Pass;
+                var around = charsAround(cm, ranges[i].head);
+                if (!around || pairs.indexOf(around) % 2 != 0) return CodeMirror.Pass;
+            }
+            cm.operation(function() {
+                cm.replaceSelection("\n\n", null);
+                cm.execCommand("goCharLeft");
+                ranges = cm.listSelections();
+                for (var i = 0; i < ranges.length; i++) {
+                    var line = ranges[i].head.line;
+                    cm.indentLine(line, null, true);
+                    cm.indentLine(line + 1, null, true);
+                }
+            });
+        };
+    }
 })();
 
-// matchbrackets.js 
+// matchbrackets.js
 
 (function() {
 
-  var ie_lt8 = /MSIE \d/.test(navigator.userAgent) &&
-    (document.documentMode == null || document.documentMode < 8);
+    var ie_lt8 = /MSIE \d/.test(navigator.userAgent) &&
+        (document.documentMode == null || document.documentMode < 8);
 
-  var Pos = CodeMirror.Pos;
+    var Pos = CodeMirror.Pos;
 
-  var matching = {"(": ")>", ")": "(<", "[": "]>", "]": "[<", "{": "}>", "}": "{<"};
+    var matching = {"(": ")>", ")": "(<", "[": "]>", "]": "[<", "{": "}>", "}": "{<"};
 
-  function findMatchingBracket(cm, where, strict, config) {
-    var line = cm.getLineHandle(where.line), pos = where.ch - 1;
-    var match = (pos >= 0 && matching[line.text.charAt(pos)]) || matching[line.text.charAt(++pos)];
-    if (!match) return null;
-    var dir = match.charAt(1) == ">" ? 1 : -1;
-    if (strict && (dir > 0) != (pos == where.ch)) return null;
-    var style = cm.getTokenTypeAt(Pos(where.line, pos + 1));
+    function findMatchingBracket(cm, where, strict, config) {
+        var line = cm.getLineHandle(where.line), pos = where.ch - 1;
+        var match = (pos >= 0 && matching[line.text.charAt(pos)]) || matching[line.text.charAt(++pos)];
+        if (!match) return null;
+        var dir = match.charAt(1) == ">" ? 1 : -1;
+        if (strict && (dir > 0) != (pos == where.ch)) return null;
+        var style = cm.getTokenTypeAt(Pos(where.line, pos + 1));
 
-    var found = scanForBracket(cm, Pos(where.line, pos + (dir > 0 ? 1 : 0)), dir, style || null, config);
-    if (found == null) return null;
-    return {from: Pos(where.line, pos), to: found && found.pos,
-            match: found && found.ch == match.charAt(0), forward: dir > 0};
-  }
+        var found = scanForBracket(cm, Pos(where.line, pos + (dir > 0 ? 1 : 0)), dir, style || null, config);
+        if (found == null) return null;
+        return {from: Pos(where.line, pos), to: found && found.pos,
+                match: found && found.ch == match.charAt(0), forward: dir > 0};
+    }
 
-  // bracketRegex is used to specify which type of bracket to scan
-  // should be a regexp, e.g. /[[\]]/
-  //
-  // Note: If "where" is on an open bracket, then this bracket is ignored.
-  //
-  // Returns false when no bracket was found, null when it reached
-  // maxScanLines and gave up
-  function scanForBracket(cm, where, dir, style, config) {
-    var maxScanLen = (config && config.maxScanLineLength) || 10000;
-    var maxScanLines = (config && config.maxScanLines) || 1000;
+    // bracketRegex is used to specify which type of bracket to scan
+    // should be a regexp, e.g. /[[\]]/
+    //
+    // Note: If "where" is on an open bracket, then this bracket is ignored.
+    //
+    // Returns false when no bracket was found, null when it reached
+    // maxScanLines and gave up
+    function scanForBracket(cm, where, dir, style, config) {
+        var maxScanLen = (config && config.maxScanLineLength) || 10000;
+        var maxScanLines = (config && config.maxScanLines) || 1000;
 
-    var stack = [];
-    var re = config && config.bracketRegex ? config.bracketRegex : /[(){}[\]]/;
-    var lineEnd = dir > 0 ? Math.min(where.line + maxScanLines, cm.lastLine() + 1)
-                          : Math.max(cm.firstLine() - 1, where.line - maxScanLines);
-    for (var lineNo = where.line; lineNo != lineEnd; lineNo += dir) {
-      var line = cm.getLine(lineNo);
-      if (!line) continue;
-      var pos = dir > 0 ? 0 : line.length - 1, end = dir > 0 ? line.length : -1;
-      if (line.length > maxScanLen) continue;
-      if (lineNo == where.line) pos = where.ch - (dir < 0 ? 1 : 0);
-      for (; pos != end; pos += dir) {
-        var ch = line.charAt(pos);
-        if (re.test(ch) && (style === undefined || cm.getTokenTypeAt(Pos(lineNo, pos + 1)) == style)) {
-          var match = matching[ch];
-          if ((match.charAt(1) == ">") == (dir > 0)) stack.push(ch);
-          else if (!stack.length) return {pos: Pos(lineNo, pos), ch: ch};
-          else stack.pop();
+        var stack = [];
+        var re = config && config.bracketRegex ? config.bracketRegex : /[(){}[\]]/;
+        var lineEnd = dir > 0 ? Math.min(where.line + maxScanLines, cm.lastLine() + 1)
+            : Math.max(cm.firstLine() - 1, where.line - maxScanLines);
+        for (var lineNo = where.line; lineNo != lineEnd; lineNo += dir) {
+            var line = cm.getLine(lineNo);
+            if (!line) continue;
+            var pos = dir > 0 ? 0 : line.length - 1, end = dir > 0 ? line.length : -1;
+            if (line.length > maxScanLen) continue;
+            if (lineNo == where.line) pos = where.ch - (dir < 0 ? 1 : 0);
+            for (; pos != end; pos += dir) {
+                var ch = line.charAt(pos);
+                if (re.test(ch) && (style === undefined || cm.getTokenTypeAt(Pos(lineNo, pos + 1)) == style)) {
+                    var match = matching[ch];
+                    if ((match.charAt(1) == ">") == (dir > 0)) stack.push(ch);
+                    else if (!stack.length) return {pos: Pos(lineNo, pos), ch: ch};
+                    else stack.pop();
+                }
+            }
         }
-      }
-    }
-    return lineNo - dir == (dir > 0 ? cm.lastLine() : cm.firstLine()) ? false : null;
-  }
-
-  function matchBrackets(cm, autoclear, config) {
-    // Disable brace matching in long lines, since it'll cause hugely slow updates
-    var maxHighlightLen = cm.state.matchBrackets.maxHighlightLineLength || 1000;
-    var marks = [], ranges = cm.listSelections();
-    for (var i = 0; i < ranges.length; i++) {
-      var match = ranges[i].empty() && findMatchingBracket(cm, ranges[i].head, false, config);
-      if (match && cm.getLine(match.from.line).length <= maxHighlightLen) {
-        var style = match.match ? "CodeMirror-matchingbracket" : "CodeMirror-nonmatchingbracket";
-        marks.push(cm.markText(match.from, Pos(match.from.line, match.from.ch + 1), {className: style}));
-        if (match.to && cm.getLine(match.to.line).length <= maxHighlightLen)
-          marks.push(cm.markText(match.to, Pos(match.to.line, match.to.ch + 1), {className: style}));
-      }
+        return lineNo - dir == (dir > 0 ? cm.lastLine() : cm.firstLine()) ? false : null;
     }
 
-    if (marks.length) {
-      // Kludge to work around the IE bug from issue #1193, where text
-      // input stops going to the textare whever this fires.
-      if (ie_lt8 && cm.state.focused) cm.display.input.focus();
+    function matchBrackets(cm, autoclear, config) {
+        // Disable brace matching in long lines, since it'll cause hugely slow updates
+        var maxHighlightLen = cm.state.matchBrackets.maxHighlightLineLength || 1000;
+        var marks = [], ranges = cm.listSelections();
+        for (var i = 0; i < ranges.length; i++) {
+            var match = ranges[i].empty() && findMatchingBracket(cm, ranges[i].head, false, config);
+            if (match && cm.getLine(match.from.line).length <= maxHighlightLen) {
+                var style = match.match ? "CodeMirror-matchingbracket" : "CodeMirror-nonmatchingbracket";
+                marks.push(cm.markText(match.from, Pos(match.from.line, match.from.ch + 1), {className: style}));
+                if (match.to && cm.getLine(match.to.line).length <= maxHighlightLen)
+                    marks.push(cm.markText(match.to, Pos(match.to.line, match.to.ch + 1), {className: style}));
+            }
+        }
 
-      var clear = function() {
+        if (marks.length) {
+            // Kludge to work around the IE bug from issue #1193, where text
+            // input stops going to the textare whever this fires.
+            if (ie_lt8 && cm.state.focused) cm.display.input.focus();
+
+            var clear = function() {
+                cm.operation(function() {
+                    for (var i = 0; i < marks.length; i++) marks[i].clear();
+                });
+            };
+            if (autoclear) setTimeout(clear, 800);
+            else return clear;
+        }
+    }
+
+    var currentlyHighlighted = null;
+    function doMatchBrackets(cm) {
         cm.operation(function() {
-          for (var i = 0; i < marks.length; i++) marks[i].clear();
+            if (currentlyHighlighted) {currentlyHighlighted(); currentlyHighlighted = null;}
+            currentlyHighlighted = matchBrackets(cm, false, cm.state.matchBrackets);
         });
-      };
-      if (autoclear) setTimeout(clear, 800);
-      else return clear;
     }
-  }
 
-  var currentlyHighlighted = null;
-  function doMatchBrackets(cm) {
-    cm.operation(function() {
-      if (currentlyHighlighted) {currentlyHighlighted(); currentlyHighlighted = null;}
-      currentlyHighlighted = matchBrackets(cm, false, cm.state.matchBrackets);
+    CodeMirror.defineOption("matchBrackets", false, function(cm, val, old) {
+        if (old && old != CodeMirror.Init)
+            cm.off("cursorActivity", doMatchBrackets);
+        if (val) {
+            cm.state.matchBrackets = typeof val == "object" ? val : {};
+            cm.on("cursorActivity", doMatchBrackets);
+        }
     });
-  }
 
-  CodeMirror.defineOption("matchBrackets", false, function(cm, val, old) {
-    if (old && old != CodeMirror.Init)
-      cm.off("cursorActivity", doMatchBrackets);
-    if (val) {
-      cm.state.matchBrackets = typeof val == "object" ? val : {};
-      cm.on("cursorActivity", doMatchBrackets);
-    }
-  });
-
-  CodeMirror.defineExtension("matchBrackets", function() {matchBrackets(this, true);});
-  CodeMirror.defineExtension("findMatchingBracket", function(pos, strict, config){
-    return findMatchingBracket(this, pos, strict, config);
-  });
-  CodeMirror.defineExtension("scanForBracket", function(pos, dir, style, config){
-    return scanForBracket(this, pos, dir, style, config);
-  }); 
+    CodeMirror.defineExtension("matchBrackets", function() {matchBrackets(this, true);});
+    CodeMirror.defineExtension("findMatchingBracket", function(pos, strict, config){
+        return findMatchingBracket(this, pos, strict, config);
+    });
+    CodeMirror.defineExtension("scanForBracket", function(pos, dir, style, config){
+        return scanForBracket(this, pos, dir, style, config);
+    });
 
 })()
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-brackets.js","/")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./cm-church":[function(require,module,exports){
-module.exports=require('lO4o+E');
-},{}],"lO4o+E":[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"lO4o+E":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /**
  * Author: Koh Zi Han, based on implementation by Koh Zi Chun
@@ -2688,7 +3103,7 @@ CodeMirror.defineMode("scheme", function () {
         return obj;
     }
 
-    var keywords = makeKeywords("λ case-lambda call/cc class define-class exit-handler field import inherit init-field interface let*-values let-values let/ec mixin opt-lambda override protect provide public rename require require-for-syntax syntax syntax-case syntax-error unit/sig unless when with-syntax and begin call-with-current-continuation call-with-input-file call-with-output-file case cond define define-syntax delay do dynamic-wind else for-each if lambda let let* let-syntax letrec letrec-syntax map or syntax-rules abs acos angle append apply asin assoc assq assv atan boolean? caar cadr call-with-input-file call-with-output-file call-with-values car cdddar cddddr cdr ceiling char->integer char-alphabetic? char-ci<=? char-ci<? char-ci=? char-ci>=? char-ci>? char-downcase char-lower-case? char-numeric? char-ready? char-upcase char-upper-case? char-whitespace? char<=? char<? char=? char>=? char>? char? close-input-port close-output-port complex? cons cos current-input-port current-output-port denominator display eof-object? eq? equal? eqv? eval even? exact->inexact exact? exp expt #f floor force gcd imag-part inexact->exact inexact? input-port? integer->char integer? interaction-environment lcm length list list->string list->vector list-ref list-tail list? load log magnitude make-polar make-rectangular make-string make-vector max member memq memv min modulo negative? newline not null-environment null? number->string number? numerator odd? open-input-file open-output-file output-port? pair? peek-char port? positive? procedure? quasiquote quote quotient rational? rationalize read read-char real-part real? remainder reverse round scheme-report-environment set! set-car! set-cdr! sin sqrt string string->list string->number string->symbol string-append string-ci<=? string-ci<? string-ci=? string-ci>=? string-ci>? string-copy string-fill! string-length string-ref string-set! string<=? string<? string=? string>=? string>? string? substring symbol->string symbol? #t tan transcript-off transcript-on truncate values vector vector->list vector-fill! vector-length vector-ref vector-set! with-input-from-file with-output-to-file write write-char zero? rejection-query mh-query condition fold flatten pair first second third fourth fifth sixth seventh rest flip hist repeat gaussian density multiviz uniform-draw mem sum runPhysics animatePhysics uniform worldWidth worldHeight scatter lineplot dirichlet multinomial beta mean");
+    var keywords = makeKeywords("λ case-lambda call/cc class define-class exit-handler field import inherit init-field interface let*-values let-values let/ec mixin opt-lambda override protect provide public rename require require-for-syntax syntax syntax-case syntax-error unit/sig unless when with-syntax and begin call-with-current-continuation call-with-input-file call-with-output-file case cond define define-syntax delay do dynamic-wind else for-each if lambda let let* let-syntax letrec letrec-syntax map or syntax-rules abs acos angle append apply asin assoc assq assv atan boolean? caar cadr call-with-values car cdddar cddddr cdr ceiling char->integer char-alphabetic? char-ci<=? char-ci<? char-ci=? char-ci>=? char-ci>? char-downcase char-lower-case? char-numeric? char-ready? char-upcase char-upper-case? char-whitespace? char<=? char<? char=? char>=? char>? char? close-input-port close-output-port complex? cons cos current-input-port current-output-port denominator display eof-object? eq? equal? eqv? eval even? exact->inexact exact? exp expt #f floor force gcd imag-part inexact->exact inexact? input-port? integer->char integer? interaction-environment lcm length list list->string list->vector list-ref list-tail list? load log magnitude make-polar make-rectangular make-string make-vector max member memq memv min modulo negative? newline not null-environment null? number->string number? numerator odd? open-input-file open-output-file output-port? pair? peek-char port? positive? procedure? quasiquote quote quotient rational? rationalize read read-char real-part real? remainder reverse round scheme-report-environment set! set-car! set-cdr! sin sqrt string string->list string->number string->symbol string-append string-ci<=? string-ci<? string-ci=? string-ci>=? string-ci>? string-copy string-fill! string-length string-ref string-set! string<=? string<? string=? string>=? string>? string? substring symbol->string symbol? #t tan transcript-off transcript-on truncate values vector vector->list vector-fill! vector-length vector-ref vector-set! with-input-from-file with-output-to-file write write-char zero? barplot enumeration-query rejection-query mh-query condition fold flatten pair first second third fourth fifth sixth seventh rest flip hist repeat gaussian density multiviz uniform-draw mem sum runPhysics animatePhysics uniform worldWidth worldHeight scatter lineplot dirichlet multinomial beta mean");
     var indentKeys = makeKeywords("define let letrec let* lambda");
 
     function stateStack(indent, type, prev) { // represents a state stack object
@@ -2752,146 +3167,146 @@ CodeMirror.defineMode("scheme", function () {
             var returnType = null;
 
             switch(state.mode){
-                case "string": // multi-line string parsing mode
-                    var next, escaped = false;
-                    while ((next = stream.next()) != null) {
-                        if (next == "\"" && !escaped) {
+            case "string": // multi-line string parsing mode
+                var next, escaped = false;
+                while ((next = stream.next()) != null) {
+                    if (next == "\"" && !escaped) {
 
-                            state.mode = false;
-                            break;
-                        }
-                        escaped = !escaped && next == "\\";
-                    }
-                    returnType = STRING; // continue on in scheme-string mode
-                    break;
-                case "comment": // comment parsing mode
-                    var next, maybeEnd = false;
-                    while ((next = stream.next()) != null) {
-                        if (next == "#" && maybeEnd) {
-
-                            state.mode = false;
-                            break;
-                        }
-                        maybeEnd = (next == "|");
-                    }
-                    returnType = COMMENT;
-                    break;
-                case "s-expr-comment": // s-expr commenting mode
-                    state.mode = false;
-                    if(stream.peek() == "(" || stream.peek() == "["){
-                        // actually start scheme s-expr commenting mode
-                        state.sExprComment = 0;
-                    }else{
-                        // if not we just comment the entire of the next token
-                        stream.eatWhile(/[^/s]/); // eat non spaces
-                        returnType = COMMENT;
+                        state.mode = false;
                         break;
                     }
-                default: // default parsing mode
-                    var ch = stream.next();
+                    escaped = !escaped && next == "\\";
+                }
+                returnType = STRING; // continue on in scheme-string mode
+                break;
+            case "comment": // comment parsing mode
+                var next, maybeEnd = false;
+                while ((next = stream.next()) != null) {
+                    if (next == "#" && maybeEnd) {
 
-                    if (ch == "\"") {
-                        state.mode = "string";
-                        returnType = STRING;
-
-                    } else if (ch == "'") {
-                        returnType = ATOM;
-                    } else if (ch == '#') {
-                        if (stream.eat("|")) {                    // Multi-line comment
-                            state.mode = "comment"; // toggle to comment mode
-                            returnType = COMMENT;
-                        } else if (stream.eat(/[tf]/i)) {            // #t/#f (atom)
-                            returnType = ATOM;
-                        } else if (stream.eat(';')) {                // S-Expr comment
-                            state.mode = "s-expr-comment";
-                            returnType = COMMENT;
-                        } else {
-                            var numTest = null, hasExactness = false, hasRadix = true;
-                            if (stream.eat(/[ei]/i)) {
-                                hasExactness = true;
-                            } else {
-                                stream.backUp(1);       // must be radix specifier
-                            }
-                            if (stream.match(/^#b/i)) {
-                                numTest = isBinaryNumber;
-                            } else if (stream.match(/^#o/i)) {
-                                numTest = isOctalNumber;
-                            } else if (stream.match(/^#x/i)) {
-                                numTest = isHexNumber;
-                            } else if (stream.match(/^#d/i)) {
-                                numTest = isDecimalNumber;
-                            } else if (stream.match(/^[-+0-9.]/, false)) {
-                                hasRadix = false;
-                                numTest = isDecimalNumber;
-                            // re-consume the intial # if all matches failed
-                            } else if (!hasExactness) {
-                                stream.eat('#');
-                            }
-                            if (numTest != null) {
-                                if (hasRadix && !hasExactness) {
-                                    // consume optional exactness after radix
-                                    stream.match(/^#[ei]/i);
-                                }
-                                if (numTest(stream))
-                                    returnType = NUMBER;
-                            }
-                        }
-                    } else if (/^[-+0-9.]/.test(ch) && isDecimalNumber(stream, true)) { // match non-prefixed number, must be decimal
-                        returnType = NUMBER;
-                    } else if (ch == ";") { // comment
-                        stream.skipToEnd(); // rest of the line is a comment
-                        returnType = COMMENT;
-                    } else if (ch == "(" || ch == "[") {
-                      var keyWord = ''; var indentTemp = stream.column(), letter;
-                        /**
-                        Either
-                        (indent-word ..
-                        (non-indent-word ..
-                        (;something else, bracket, etc.
-                        */
-
-                        while ((letter = stream.eat(/[^\s\(\[\;\)\]]/)) != null) {
-                            keyWord += letter;
-                        }
-
-                        if (keyWord.length > 0 && indentKeys.propertyIsEnumerable(keyWord)) { // indent-word
-
-                            pushStack(state, indentTemp + INDENT_WORD_SKIP, ch);
-                        } else { // non-indent word
-                            // we continue eating the spaces
-                            stream.eatSpace();
-                            if (stream.eol() || stream.peek() == ";") {
-                                // nothing significant after
-                                // we restart indentation 1 space after
-                                pushStack(state, indentTemp + 1, ch);
-                            } else {
-                                pushStack(state, indentTemp + stream.current().length, ch); // else we match
-                            }
-                        }
-                        stream.backUp(stream.current().length - 1); // undo all the eating
-
-                        if(typeof state.sExprComment == "number") state.sExprComment++;
-
-                        returnType = BRACKET;
-                    } else if (ch == ")" || ch == "]") {
-                        returnType = BRACKET;
-                        if (state.indentStack != null && state.indentStack.type == (ch == ")" ? "(" : "[")) {
-                            popStack(state);
-
-                            if(typeof state.sExprComment == "number"){
-                                if(--state.sExprComment == 0){
-                                    returnType = COMMENT; // final closing bracket
-                                    state.sExprComment = false; // turn off s-expr commenting mode
-                                }
-                            }
-                        }
-                    } else {
-                        stream.eatWhile(/[\w\$_\-!$%&*+\.\/:<=>?@\^~]/);
-
-                        if (keywords && keywords.propertyIsEnumerable(stream.current())) {
-                            returnType = BUILTIN;
-                        } else returnType = "variable";
+                        state.mode = false;
+                        break;
                     }
+                    maybeEnd = (next == "|");
+                }
+                returnType = COMMENT;
+                break;
+            case "s-expr-comment": // s-expr commenting mode
+                state.mode = false;
+                if(stream.peek() == "(" || stream.peek() == "["){
+                    // actually start scheme s-expr commenting mode
+                    state.sExprComment = 0;
+                }else{
+                    // if not we just comment the entire of the next token
+                    stream.eatWhile(/[^/s]/); // eat non spaces
+                    returnType = COMMENT;
+                    break;
+                }
+            default: // default parsing mode
+                var ch = stream.next();
+
+                if (ch == "\"") {
+                    state.mode = "string";
+                    returnType = STRING;
+
+                } else if (ch == "'") {
+                    returnType = ATOM;
+                } else if (ch == '#') {
+                    if (stream.eat("|")) {                    // Multi-line comment
+                        state.mode = "comment"; // toggle to comment mode
+                        returnType = COMMENT;
+                    } else if (stream.eat(/[tf]/i)) {            // #t/#f (atom)
+                        returnType = ATOM;
+                    } else if (stream.eat(';')) {                // S-Expr comment
+                        state.mode = "s-expr-comment";
+                        returnType = COMMENT;
+                    } else {
+                        var numTest = null, hasExactness = false, hasRadix = true;
+                        if (stream.eat(/[ei]/i)) {
+                            hasExactness = true;
+                        } else {
+                            stream.backUp(1);       // must be radix specifier
+                        }
+                        if (stream.match(/^#b/i)) {
+                            numTest = isBinaryNumber;
+                        } else if (stream.match(/^#o/i)) {
+                            numTest = isOctalNumber;
+                        } else if (stream.match(/^#x/i)) {
+                            numTest = isHexNumber;
+                        } else if (stream.match(/^#d/i)) {
+                            numTest = isDecimalNumber;
+                        } else if (stream.match(/^[-+0-9.]/, false)) {
+                            hasRadix = false;
+                            numTest = isDecimalNumber;
+                            // re-consume the intial # if all matches failed
+                        } else if (!hasExactness) {
+                            stream.eat('#');
+                        }
+                        if (numTest != null) {
+                            if (hasRadix && !hasExactness) {
+                                // consume optional exactness after radix
+                                stream.match(/^#[ei]/i);
+                            }
+                            if (numTest(stream))
+                                returnType = NUMBER;
+                        }
+                    }
+                } else if (/^[-+0-9.]/.test(ch) && isDecimalNumber(stream, true)) { // match non-prefixed number, must be decimal
+                    returnType = NUMBER;
+                } else if (ch == ";") { // comment
+                    stream.skipToEnd(); // rest of the line is a comment
+                    returnType = COMMENT;
+                } else if (ch == "(" || ch == "[") {
+                    var keyWord = ''; var indentTemp = stream.column(), letter;
+                    /**
+                       Either
+                       (indent-word ..
+                       (non-indent-word ..
+                       (;something else, bracket, etc.
+                    */
+
+                    while ((letter = stream.eat(/[^\s\(\[\;\)\]]/)) != null) {
+                        keyWord += letter;
+                    }
+
+                    if (keyWord.length > 0 && indentKeys.propertyIsEnumerable(keyWord)) { // indent-word
+
+                        pushStack(state, indentTemp + INDENT_WORD_SKIP, ch);
+                    } else { // non-indent word
+                        // we continue eating the spaces
+                        stream.eatSpace();
+                        if (stream.eol() || stream.peek() == ";") {
+                            // nothing significant after
+                            // we restart indentation 1 space after
+                            pushStack(state, indentTemp + 1, ch);
+                        } else {
+                            pushStack(state, indentTemp + stream.current().length, ch); // else we match
+                        }
+                    }
+                    stream.backUp(stream.current().length - 1); // undo all the eating
+
+                    if(typeof state.sExprComment == "number") state.sExprComment++;
+
+                    returnType = BRACKET;
+                } else if (ch == ")" || ch == "]") {
+                    returnType = BRACKET;
+                    if (state.indentStack != null && state.indentStack.type == (ch == ")" ? "(" : "[")) {
+                        popStack(state);
+
+                        if(typeof state.sExprComment == "number"){
+                            if(--state.sExprComment == 0){
+                                returnType = COMMENT; // final closing bracket
+                                state.sExprComment = false; // turn off s-expr commenting mode
+                            }
+                        }
+                    }
+                } else {
+                    stream.eatWhile(/[\w\$_\-!$%&*+\.\/:<=>?@\^~]/);
+
+                    if (keywords && keywords.propertyIsEnumerable(stream.current())) {
+                        returnType = BUILTIN;
+                    } else returnType = "variable";
+                }
             }
             return (typeof state.sExprComment == "number") ? COMMENT : returnType;
         },
@@ -2908,160 +3323,162 @@ CodeMirror.defineMode("scheme", function () {
 CodeMirror.defineMIME("text/x-scheme", "scheme");
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-church.js","/")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./cm-comments":[function(require,module,exports){
-module.exports=require('L+quEX');
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./cm-church":[function(require,module,exports){
+module.exports=require('lO4o+E');
 },{}],"L+quEX":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var CodeMirror = require('codemirror');
 
 (function() {
-  "use strict";
-  
-  var noOptions = {};
-  var nonWS = /[^\s\u00a0]/;
-  var Pos = CodeMirror.Pos;
-  
-  function firstNonWS(str) {
-    var found = str.search(nonWS);
-    return found == -1 ? 0 : found;
-  }
-  
-  CodeMirror.commands.toggleComment = function(cm) {
-    var from = cm.getCursor("start"), to = cm.getCursor("end");
-    cm.uncomment(from, to) || cm.lineComment(from, to);
-  };
-  
-  CodeMirror.defineExtension("lineComment", function(from, to, options) {
-    if (!options) options = noOptions;
-    var self = this, mode = self.getModeAt(from);
-    var commentString = options.lineComment || mode.lineComment;
-    if (!commentString) {
-      if (options.blockCommentStart || mode.blockCommentStart) {
-        options.fullLines = true;
-        self.blockComment(from, to, options);
-      }
-      return;
+    "use strict";
+
+    var noOptions = {};
+    var nonWS = /[^\s\u00a0]/;
+    var Pos = CodeMirror.Pos;
+
+    function firstNonWS(str) {
+        var found = str.search(nonWS);
+        return found == -1 ? 0 : found;
     }
-    var firstLine = self.getLine(from.line);
-    if (firstLine == null) return;
-    var end = Math.min(to.ch != 0 || to.line == from.line ? to.line + 1 : to.line, self.lastLine() + 1);
-    var pad = options.padding == null ? " " : options.padding;
-    var blankLines = options.commentBlankLines || from.line == to.line;
-    
-    self.operation(function() {
-      if (options.indent) {
-        var baseString = firstLine.slice(0, firstNonWS(firstLine));
-        for (var i = from.line; i < end; ++i) {
-          var line = self.getLine(i), cut = baseString.length;
-          if (!blankLines && !nonWS.test(line)) continue;
-          if (line.slice(0, cut) != baseString) cut = firstNonWS(line);
-          self.replaceRange(baseString + commentString + pad, Pos(i, 0), Pos(i, cut));
+
+    CodeMirror.commands.toggleComment = function(cm) {
+        var from = cm.getCursor("start"), to = cm.getCursor("end");
+        cm.uncomment(from, to) || cm.lineComment(from, to);
+    };
+
+    CodeMirror.defineExtension("lineComment", function(from, to, options) {
+        if (!options) options = noOptions;
+        var self = this, mode = self.getModeAt(from);
+        var commentString = options.lineComment || mode.lineComment;
+        if (!commentString) {
+            if (options.blockCommentStart || mode.blockCommentStart) {
+                options.fullLines = true;
+                self.blockComment(from, to, options);
+            }
+            return;
         }
-      } else {
-        for (var i = from.line; i < end; ++i) {
-          if (blankLines || nonWS.test(self.getLine(i)))
-            self.replaceRange(commentString + pad, Pos(i, 0));
-        }
-      }
+        var firstLine = self.getLine(from.line);
+        if (firstLine == null) return;
+        var end = Math.min(to.ch != 0 || to.line == from.line ? to.line + 1 : to.line, self.lastLine() + 1);
+        var pad = options.padding == null ? " " : options.padding;
+        var blankLines = options.commentBlankLines || from.line == to.line;
+
+        self.operation(function() {
+            if (options.indent) {
+                var baseString = firstLine.slice(0, firstNonWS(firstLine));
+                for (var i = from.line; i < end; ++i) {
+                    var line = self.getLine(i), cut = baseString.length;
+                    if (!blankLines && !nonWS.test(line)) continue;
+                    if (line.slice(0, cut) != baseString) cut = firstNonWS(line);
+                    self.replaceRange(baseString + commentString + pad, Pos(i, 0), Pos(i, cut));
+                }
+            } else {
+                for (var i = from.line; i < end; ++i) {
+                    if (blankLines || nonWS.test(self.getLine(i)))
+                        self.replaceRange(commentString + pad, Pos(i, 0));
+                }
+            }
+        });
     });
-  });
-  
-  CodeMirror.defineExtension("blockComment", function(from, to, options) {
-    if (!options) options = noOptions;
-    var self = this, mode = self.getModeAt(from);
-    var startString = options.blockCommentStart || mode.blockCommentStart;
-    var endString = options.blockCommentEnd || mode.blockCommentEnd;
-    if (!startString || !endString) {
-      if ((options.lineComment || mode.lineComment) && options.fullLines != false)
-        self.lineComment(from, to, options);
-      return;
-    }
-    
-    var end = Math.min(to.line, self.lastLine());
-    if (end != from.line && to.ch == 0 && nonWS.test(self.getLine(end))) --end;
-    
-    var pad = options.padding == null ? " " : options.padding;
-    if (from.line > end) return;
-    
-    self.operation(function() {
-      if (options.fullLines != false) {
-        var lastLineHasText = nonWS.test(self.getLine(end));
-        self.replaceRange(pad + endString, Pos(end));
-        self.replaceRange(startString + pad, Pos(from.line, 0));
+
+    CodeMirror.defineExtension("blockComment", function(from, to, options) {
+        if (!options) options = noOptions;
+        var self = this, mode = self.getModeAt(from);
+        var startString = options.blockCommentStart || mode.blockCommentStart;
+        var endString = options.blockCommentEnd || mode.blockCommentEnd;
+        if (!startString || !endString) {
+            if ((options.lineComment || mode.lineComment) && options.fullLines != false)
+                self.lineComment(from, to, options);
+            return;
+        }
+
+        var end = Math.min(to.line, self.lastLine());
+        if (end != from.line && to.ch == 0 && nonWS.test(self.getLine(end))) --end;
+
+        var pad = options.padding == null ? " " : options.padding;
+        if (from.line > end) return;
+
+        self.operation(function() {
+            if (options.fullLines != false) {
+                var lastLineHasText = nonWS.test(self.getLine(end));
+                self.replaceRange(pad + endString, Pos(end));
+                self.replaceRange(startString + pad, Pos(from.line, 0));
+                var lead = options.blockCommentLead || mode.blockCommentLead;
+                if (lead != null) for (var i = from.line + 1; i <= end; ++i)
+                    if (i != end || lastLineHasText)
+                        self.replaceRange(lead + pad, Pos(i, 0));
+            } else {
+                self.replaceRange(endString, to);
+                self.replaceRange(startString, from);
+            }
+        });
+    });
+
+    CodeMirror.defineExtension("uncomment", function(from, to, options) {
+        if (!options) options = noOptions;
+        var self = this, mode = self.getModeAt(from);
+        var end = Math.min(to.line, self.lastLine()), start = Math.min(from.line, end);
+
+        // Try finding line comments
+        var lineString = options.lineComment || mode.lineComment, lines = [];
+        var pad = options.padding == null ? " " : options.padding, didSomething;
+        lineComment: {
+            if (!lineString) break lineComment;
+            for (var i = start; i <= end; ++i) {
+                var line = self.getLine(i);
+                var found = line.indexOf(lineString);
+                if (found == -1 && (i != end || i == start) && nonWS.test(line)) break lineComment;
+                if (i != start && found > -1 && nonWS.test(line.slice(0, found))) break lineComment;
+                lines.push(line);
+            }
+            self.operation(function() {
+                for (var i = start; i <= end; ++i) {
+                    var line = lines[i - start];
+                    var pos = line.indexOf(lineString), endPos = pos + lineString.length;
+                    if (pos < 0) continue;
+                    if (line.slice(endPos, endPos + pad.length) == pad) endPos += pad.length;
+                    didSomething = true;
+                    self.replaceRange("", Pos(i, pos), Pos(i, endPos));
+                }
+            });
+            if (didSomething) return true;
+        }
+
+        // Try block comments
+        var startString = options.blockCommentStart || mode.blockCommentStart;
+        var endString = options.blockCommentEnd || mode.blockCommentEnd;
+        if (!startString || !endString) return false;
         var lead = options.blockCommentLead || mode.blockCommentLead;
-        if (lead != null) for (var i = from.line + 1; i <= end; ++i)
-        if (i != end || lastLineHasText)
-          self.replaceRange(lead + pad, Pos(i, 0));
-      } else {
-        self.replaceRange(endString, to);
-        self.replaceRange(startString, from);
-      }
-    });
-  });
-  
-  CodeMirror.defineExtension("uncomment", function(from, to, options) {
-    if (!options) options = noOptions;
-    var self = this, mode = self.getModeAt(from);
-    var end = Math.min(to.line, self.lastLine()), start = Math.min(from.line, end);
-    
-    // Try finding line comments
-    var lineString = options.lineComment || mode.lineComment, lines = [];
-    var pad = options.padding == null ? " " : options.padding, didSomething;
-    lineComment: {
-      if (!lineString) break lineComment;
-      for (var i = start; i <= end; ++i) {
-        var line = self.getLine(i);
-        var found = line.indexOf(lineString);
-        if (found == -1 && (i != end || i == start) && nonWS.test(line)) break lineComment;
-        if (i != start && found > -1 && nonWS.test(line.slice(0, found))) break lineComment;
-        lines.push(line);
-      }
-      self.operation(function() {
-        for (var i = start; i <= end; ++i) {
-          var line = lines[i - start];
-          var pos = line.indexOf(lineString), endPos = pos + lineString.length;
-          if (pos < 0) continue;
-          if (line.slice(endPos, endPos + pad.length) == pad) endPos += pad.length;
-          didSomething = true;
-          self.replaceRange("", Pos(i, pos), Pos(i, endPos));
+        var startLine = self.getLine(start), endLine = end == start ? startLine : self.getLine(end);
+        var open = startLine.indexOf(startString), close = endLine.lastIndexOf(endString);
+        if (close == -1 && start != end) {
+            endLine = self.getLine(--end);
+            close = endLine.lastIndexOf(endString);
         }
-      });
-      if (didSomething) return true;
-    }
-    
-    // Try block comments
-    var startString = options.blockCommentStart || mode.blockCommentStart;
-    var endString = options.blockCommentEnd || mode.blockCommentEnd;
-    if (!startString || !endString) return false;
-    var lead = options.blockCommentLead || mode.blockCommentLead;
-    var startLine = self.getLine(start), endLine = end == start ? startLine : self.getLine(end);
-    var open = startLine.indexOf(startString), close = endLine.lastIndexOf(endString);
-    if (close == -1 && start != end) {
-      endLine = self.getLine(--end);
-      close = endLine.lastIndexOf(endString);
-    }
-    if (open == -1 || close == -1) return false;
-    
-    self.operation(function() {
-      self.replaceRange("", Pos(end, close - (pad && endLine.slice(close - pad.length, close) == pad ? pad.length : 0)),
-                        Pos(end, close + endString.length));
-      var openEnd = open + startString.length;
-      if (pad && startLine.slice(openEnd, openEnd + pad.length) == pad) openEnd += pad.length;
-      self.replaceRange("", Pos(start, open), Pos(start, openEnd));
-      if (lead) for (var i = start + 1; i <= end; ++i) {
-        var line = self.getLine(i), found = line.indexOf(lead);
-        if (found == -1 || nonWS.test(line.slice(0, found))) continue;
-        var foundEnd = found + lead.length;
-        if (pad && line.slice(foundEnd, foundEnd + pad.length) == pad) foundEnd += pad.length;
-        self.replaceRange("", Pos(i, found), Pos(i, foundEnd));
-      }
+        if (open == -1 || close == -1) return false;
+
+        self.operation(function() {
+            self.replaceRange("", Pos(end, close - (pad && endLine.slice(close - pad.length, close) == pad ? pad.length : 0)),
+                              Pos(end, close + endString.length));
+            var openEnd = open + startString.length;
+            if (pad && startLine.slice(openEnd, openEnd + pad.length) == pad) openEnd += pad.length;
+            self.replaceRange("", Pos(start, open), Pos(start, openEnd));
+            if (lead) for (var i = start + 1; i <= end; ++i) {
+                var line = self.getLine(i), found = line.indexOf(lead);
+                if (found == -1 || nonWS.test(line.slice(0, found))) continue;
+                var foundEnd = found + lead.length;
+                if (pad && line.slice(foundEnd, foundEnd + pad.length) == pad) foundEnd += pad.length;
+                self.replaceRange("", Pos(i, found), Pos(i, foundEnd));
+            }
+        });
+        return true;
     });
-    return true;
-  });
 })();
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-comments.js","/")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./cm-folding":[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./cm-comments":[function(require,module,exports){
+module.exports=require('L+quEX');
+},{}],"./cm-folding":[function(require,module,exports){
 module.exports=require('s18hqF');
 },{}],"s18hqF":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
@@ -3070,160 +3487,159 @@ var CodeMirror = require('codemirror');
 /* global CodeMirror */
 
 (function() {
- "use strict";
- 
- function doFold(cm, pos, options) {
- var finder = options && (options.call ? options : options.rangeFinder);
- if (!finder) finder = cm.getHelper(pos, "fold");
- if (!finder) return;
- if (typeof pos == "number") pos = CodeMirror.Pos(pos, 0);
- var minSize = options && options.minFoldSize || 0;
- 
- function getRange(allowFolded) {
- var range = finder(cm, pos);
- if (!range || range.to.line - range.from.line < minSize) return null;
- var marks = cm.findMarksAt(range.from);
- for (var i = 0; i < marks.length; ++i) {
- if (marks[i].__isFold) {
- if (!allowFolded) return null;
- range.cleared = true;
- marks[i].clear();
- }
- }
- return range;
- }
- 
- var range = getRange(true);
- if (options && options.scanUp) while (!range && pos.line > cm.firstLine()) {
- pos = CodeMirror.Pos(pos.line - 1, 0);
- range = getRange(false);
- }
- if (!range || range.cleared) return;
- 
- var myWidget = makeWidget(options);
- CodeMirror.on(myWidget, "mousedown", function() { myRange.clear(); });
- var myRange = cm.markText(range.from, range.to, {
-                           replacedWith: myWidget,
-                           clearOnEnter: true,
-                           __isFold: true
-                           });
- myRange.on("clear", function(from, to) {
+    "use strict";
+
+    function doFold(cm, pos, options) {
+        var finder = options && (options.call ? options : options.rangeFinder);
+        if (!finder) finder = cm.getHelper(pos, "fold");
+        if (!finder) return;
+        if (typeof pos == "number") pos = CodeMirror.Pos(pos, 0);
+        var minSize = options && options.minFoldSize || 0;
+
+        function getRange(allowFolded) {
+            var range = finder(cm, pos);
+            if (!range || range.to.line - range.from.line < minSize) return null;
+            var marks = cm.findMarksAt(range.from);
+            for (var i = 0; i < marks.length; ++i) {
+                if (marks[i].__isFold) {
+                    if (!allowFolded) return null;
+                    range.cleared = true;
+                    marks[i].clear();
+                }
+            }
+            return range;
+        }
+
+        var range = getRange(true);
+        if (options && options.scanUp) while (!range && pos.line > cm.firstLine()) {
+            pos = CodeMirror.Pos(pos.line - 1, 0);
+            range = getRange(false);
+        }
+        if (!range || range.cleared) return;
+
+        var myWidget = makeWidget(options);
+        CodeMirror.on(myWidget, "mousedown", function() { myRange.clear(); });
+        var myRange = cm.markText(range.from, range.to, {
+            replacedWith: myWidget,
+            clearOnEnter: true,
+            __isFold: true
+        });
+        myRange.on("clear", function(from, to) {
             CodeMirror.signal(cm, "unfold", cm, from, to);
-            });
- CodeMirror.signal(cm, "fold", cm, range.from, range.to);
- }
- 
- function makeWidget(options) {
- var widget = (options && options.widget) || "\u2194";
- if (typeof widget == "string") {
- var text = document.createTextNode(widget);
- widget = document.createElement("span");
- widget.appendChild(text);
- widget.className = "CodeMirror-foldmarker";
- }
- return widget;
- }
- 
- // Clumsy backwards-compatible interface
- CodeMirror.newFoldFunction = function(rangeFinder, widget) {
- return function(cm, pos) { doFold(cm, pos, {rangeFinder: rangeFinder, widget: widget}); };
- };
- 
- // New-style interface
- CodeMirror.defineExtension("foldCode", function(pos, options) { doFold(this, pos, options); });
- 
- CodeMirror.registerHelper("fold", "combine", function() {
-                           var funcs = Array.prototype.slice.call(arguments, 0);
-                           return function(cm, start) {
-                           for (var i = 0; i < funcs.length; ++i) {
-                           var found = funcs[i](cm, start);
-                           if (found) return found;
-                           }
-                           };
-                           });
- })();
- 
- var myRangeFinder = function(cm, start) {
-    
+        });
+        CodeMirror.signal(cm, "fold", cm, range.from, range.to);
+    }
+
+    function makeWidget(options) {
+        var widget = (options && options.widget) || "\u2194";
+        if (typeof widget == "string") {
+            var text = document.createTextNode(widget);
+            widget = document.createElement("span");
+            widget.appendChild(text);
+            widget.className = "CodeMirror-foldmarker";
+        }
+        return widget;
+    }
+
+    // Clumsy backwards-compatible interface
+    CodeMirror.newFoldFunction = function(rangeFinder, widget) {
+        return function(cm, pos) { doFold(cm, pos, {rangeFinder: rangeFinder, widget: widget}); };
+    };
+
+    // New-style interface
+    CodeMirror.defineExtension("foldCode", function(pos, options) { doFold(this, pos, options); });
+
+    CodeMirror.registerHelper("fold", "combine", function() {
+        var funcs = Array.prototype.slice.call(arguments, 0);
+        return function(cm, start) {
+            for (var i = 0; i < funcs.length; ++i) {
+                var found = funcs[i](cm, start);
+                if (found) return found;
+            }
+        };
+    });
+})();
+
+var myRangeFinder = function(cm, start) {
+
     var line = start.line, lineText = cm.getLine(line);
-    
+
     //if the line has a comment fold, then do that:
     if (lineText.indexOf(";;;fold:") != -1) return tripleCommentRangeFinder(cm, start)
-    
-    
+
     var startCh, tokenType;
-    
-//    function findOpening(openCh) {
-//        for (var at = start.ch, pass = 0;;) {
-//            var found = at <= 0 ? -1 : lineText.lastIndexOf(openCh, at - 1);
-//            if (found == -1) {
-//                if (pass == 1) break;
-//                pass = 1;
-//                at = lineText.length;
-//                continue;
-//            }
-//            if (pass == 1 && found < start.ch) break;
-//            tokenType = cm.getTokenTypeAt(CodeMirror.Pos(line, found + 1));
-//            if (!/^(comment|string)/.test(tokenType)) return found + 1;
-//            at = found - 1;
-//        }
-//    }
-    
+
+    //    function findOpening(openCh) {
+    //        for (var at = start.ch, pass = 0;;) {
+    //            var found = at <= 0 ? -1 : lineText.lastIndexOf(openCh, at - 1);
+    //            if (found == -1) {
+    //                if (pass == 1) break;
+    //                pass = 1;
+    //                at = lineText.length;
+    //                continue;
+    //            }
+    //            if (pass == 1 && found < start.ch) break;
+    //            tokenType = cm.getTokenTypeAt(CodeMirror.Pos(line, found + 1));
+    //            if (!/^(comment|string)/.test(tokenType)) return found + 1;
+    //            at = found - 1;
+    //        }
+    //    }
+
     var startToken = "(", endToken = ")";
     var startCh = lineText.lastIndexOf("(", start.ch);
     if (startCh == -1) return;
     startCh++;
     tokenType = cm.getTokenTypeAt(CodeMirror.Pos(line, startCh));
-    
-    
+
     var count = 1, lastLine = cm.lastLine(), end, endCh;
-    
-outer: for (var i = line; i <= lastLine; ++i) {
-    var text = cm.getLine(i), pos = i == line ? startCh : 0;
-    for (;;) {
-        var nextOpen = text.indexOf(startToken, pos), nextClose = text.indexOf(endToken, pos);
-        if (nextOpen < 0) nextOpen = text.length;
-        if (nextClose < 0) nextClose = text.length;
-        pos = Math.min(nextOpen, nextClose);
-        if (pos == text.length) break;
-        if (cm.getTokenTypeAt(CodeMirror.Pos(i, pos + 1)) == tokenType) {
-            if (pos == nextOpen) ++count;
-            else if (!--count) { end = i; endCh = pos; break outer; }
+
+    outer: for (var i = line; i <= lastLine; ++i) {
+        var text = cm.getLine(i), pos = i == line ? startCh : 0;
+        for (;;) {
+            var nextOpen = text.indexOf(startToken, pos), nextClose = text.indexOf(endToken, pos);
+            if (nextOpen < 0) nextOpen = text.length;
+            if (nextClose < 0) nextClose = text.length;
+            pos = Math.min(nextOpen, nextClose);
+            if (pos == text.length) break;
+            if (cm.getTokenTypeAt(CodeMirror.Pos(i, pos + 1)) == tokenType) {
+                if (pos == nextOpen) ++count;
+                else if (!--count) { end = i; endCh = pos; break outer; }
+            }
+            ++pos;
         }
-        ++pos;
     }
-}
     if (end == null || line == end && endCh == startCh) return;
     return {from: CodeMirror.Pos(line, startCh),
-        to: CodeMirror.Pos(end, endCh)};
+            to: CodeMirror.Pos(end, endCh)};
 }
 
 //if we want to fold what's between ";;;fold:" and ";;;".
 //assume that start is already the line with ";;;fold:"
 //so find the next ";;;" and return the range from start line + 1 to match.
 var tripleCommentRangeFinder = function(cm, start) {
-  var lastLine = cm.lastLine();
-  var pos;
-  for (var i = start.line+1; i<=lastLine; i++) {
-    var text = cm.getLine(i)
-    pos = text.indexOf(";;;")
-    if (pos==0) {
-      var endCh = cm.getLine(i).length
-      return {from: CodeMirror.Pos(start.line+1, 0), to: CodeMirror.Pos(i, endCh)}; }
-  }
-  return;
+    var lastLine = cm.lastLine();
+    var pos;
+    for (var i = start.line+1; i<=lastLine; i++) {
+        var text = cm.getLine(i)
+        pos = text.indexOf(";;;")
+        if (pos==0) {
+            var endCh = cm.getLine(i).length
+            return {from: CodeMirror.Pos(start.line+1, 0), to: CodeMirror.Pos(i, endCh)}; }
+    }
+    return;
 }
 
-
 module.exports = {
-  tripleCommentRangeFinder: tripleCommentRangeFinder,
-  myRangeFinder: myRangeFinder
+    tripleCommentRangeFinder: tripleCommentRangeFinder,
+    myRangeFinder: myRangeFinder
 }
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-folding.js","/")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"fqJoPW":[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./editor":[function(require,module,exports){
+module.exports=require('fqJoPW');
+},{}],"fqJoPW":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
-/* global require, CodeMirror, $ */
+/* global require, CodeMirror, $, setTimeout */
 
 var evaluate = require('./evaluate').evaluate,
     format_result = require('./evaluate').format_result;
@@ -3249,252 +3665,282 @@ CodeMirror.keyMap.default["Ctrl-."] = function(cm){cm.foldCode(cm.getCursor(), f
 
 var _ = require('underscore');
 _.templateSettings = {
-  interpolate: /\{\{(.+?)\}\}/g
+    interpolate: /\{\{(.+?)\}\}/g
 };
 
 var runners = {};
 runners['webchurch'] = makewebchurchrunner();
 runners['webchurch-opt'] = makewebchurchrunner({precompile: true});
 
+runners['cosh'] = function(ed) {
+    alert('cosh engine down right now :(')
+    ed.trigger('run.finish')
+}
+runners['bher'] = function(ed) {
+    alert('bher engine down right now :(')
+    ed.trigger('run.finish')
+}
+runners['mit-church'] = function(ed) {
+    alert('mit-church engine down right now :(')
+    ed.trigger('run.finish')
+}
+
 function wrap(tag, content) {
-  return _.template("<{{tag}}>{{content}}</{{tag}}>",
-                    {tag: tag,
-                     content: content
-                    });
+    return _.template("<{{tag}}>{{content}}</{{tag}}>",
+                      {tag: tag,
+                       content: content
+                      });
 }
 
 function makewebchurchrunner(engineOptions){
-  if (engineOptions === undefined) {
-    engineOptions = {}
-  }
-  return function(editorModel) {
-    var cm = editorModel.get('codeMirror');
-    var code = editorModel.get('code');
-    
-    var $results = cm.$results;
-
-    $results.show();
-    if (cm.errormark != undefined) {
-      cm.errormark.clear();
+    if (engineOptions === undefined) {
+        engineOptions = {}
     }
+    return function(ed) {
+        var cm = ed.get('cm');
+        var code = ed.get('code');
 
-    editorModel.trigger('run:start');
-    try {      
-      var runResult = evaluate(code, engineOptions);
-      
-      var underlyingData;
+        // make new $results div, which will replace
+        // the old one stored in ed.display.$results
+        // NB: it is correct (though hacky) that $results is global
+        // (we modify this for vega-consistency in viz.js)
+        $results = $("<div class='results'>");
 
-      // render all side effects
-      sideEffects.forEach(function(e) {
-        if (e.type == "string") {
-          $results.append( $("<pre>"+e.data+"</pre>") );
+        if (cm.errormark != undefined) {
+            cm.errormark.clear();
         }
-        if (e.type == "svg") {
-          $results.append( $("<div></div>").append(e.data));
+
+        ed.trigger('run.start');
+        try {
+            var runResult = evaluate(code, engineOptions);
+            var underlyingData;
+
+            // render all side effects
+            sideEffects.forEach(function(e) {
+                if (e.type == "string") {
+                    $results.append( $("<pre>"+e.data+"</pre>") );
+                }
+                if (e.type == "svg") {
+                    $results.append( $("<div></div>").append(e.data));
+                }
+                if (e.type == "table") {
+                    var tableString = wrap("table", e.data.map(function(row) {
+                        var cols = row.map(function(x) { return wrap('td', x); }).join("");
+                        return wrap("tr", cols);
+                    }).join("\n"));
+                    $results.append( $(tableString) );
+                }
+                if (e.type == "function") {
+                    e.data($results);
+                }
+            });
+            
+            underlyingData = runResult;
+            runResult = format_result(runResult);
+            if (!(runResult == "undefined")) {
+                $results.append($("<pre>"+runResult+'</pre>'));
+            } 
+        } catch (e) {
+            ed.set('error',
+                   e
+                  );
+            
+            var error = e.message;
+            $results
+                .append( $("<p></p>")
+                         .addClass('error')
+                         .text(error) );
+            if (e.stackarray != undefined) {
+                var churchStack = $("<pre></pre>");
+                churchStack.text(e.stackarray
+                                 .map(function(x) { return _.template("{{text}}: {{start}}-{{end}}", x) })
+                                 .join("\n"))
+                $results.append( '<div><u>Church stack array:</u></div>', churchStack);
+                var start=e.start.split(":"), end=e.end.split(":");
+                cm.errormark = cm.markText({line: Number(start[0])-1, ch: Number(start[1])-1},
+                                           {line: Number(end[0])-1, ch: Number(end[1])},
+                                           {className: "CodeMirrorError", clearOnEnter: true});
+            }
+            if (typeof e.jsStack !== "undefined") {
+                var jsStack = $("<pre></pre>");
+                jsStack.text(e.jsStack.join('\n'));
+                $results.append('<div><u>JS stack:</u></div>', jsStack );
+            }
+        } finally {
+            ed.display.$results.replaceWith($results);
+            ed.display.$results = $results;
+
+            ed.trigger('run.finish');
         }
-        if (e.type == "table") {
-
-          var tableString = wrap("table", e.data.map(function(row) {
-            var cols = row.map(function(x) { return wrap('td', x); }).join("");
-            return wrap("tr", cols); 
-          }).join("\n"));
-
-          $results.append( $(tableString) );
-          
-        }
-        
-      });
-      
-      underlyingData = runResult;
-      runResult = format_result(runResult);
-      if (!(runResult == "undefined")) {
-        $results.append($("<pre>"+runResult+'</pre>'));
-      }
-
-      editorModel.trigger('run:finish');
-      
-    } catch (e) {
-
-      editorModel.trigger('run:finish');
-      
-      var error = e.message;
-      $results
-        .append( $("<p></p>")
-                 .addClass('error')
-                 .text(error) );
-      
-      if (e.stackarray != undefined) {
-        var churchStack = $("<pre></pre>");
-        churchStack.text(e.stackarray
-                         .map(function(x) { return _.template("{{text}}: {{start}}-{{end}}", x) })
-                         .join("\n"))
-        
-        $results.append( '<div><u>Church stack array:</u></div>', churchStack); 
-        
-        var start=e.start.split(":"), end=e.end.split(":");
-        cm.errormark = cm.markText({line: Number(start[0])-1, ch: Number(start[1])-1},
-                                   {line: Number(end[0])-1, ch: Number(end[1])},
-                                   {className: "CodeMirrorError", clearOnEnter: true});
-
-      }
-      
-      var jsStack = $("<pre></pre>");
-      jsStack.text(e.jsStack.join('\n'));
-
-      $results.append('<div><u>JS stack:</u></div>', jsStack );
-
-
-    } 
-  };
+    };
 };
 
 var EditorModel = Backbone.Model.extend({
-  initialize: function(options) {
-    this.set('initialOptions', options);
-  },
-  defaults: {
-    code: "",
-    engine: "webchurch"
-  },
-  run: function() {
-    var engine = runners[this.get('engine')];
-    this.set('result', engine( this ));
-  }
+    initialize: function(options) {
+
+        var ed = this;
+        
+        ed.set('initialOptions', options);
+
+        var cm = CodeMirror(
+            function(el) {
+                // defer this - we might not want to display immediately...
+                // (e.g., when we want to first fetch network results)
+            },
+            {
+                value: options.code,
+                lineNumbers: false,
+                matchBrackets: true,
+                continueComments: "Enter",
+                viewportMargin: Infinity,
+                autoCloseBrackets: true,
+                mode: 'scheme'
+            });
+
+        ed.set('cm', cm);
+
+        // when text in codemirror changes, update editormodel
+        cm.on('change', function(cmInstance) {
+            ed.codeChangedFromUser = true; 
+            ed.set({code: cmInstance.getValue() });
+        });
+
+        // when code changes programmatically, update text
+        ed.on('change:code', function(instance, newCode, options) {
+            if (options.programmatic) {
+                cm.setValue(newCode); 
+            }
+        })
+        
+        //fold ";;;fold:" parts:
+        var lastLine = cm.lastLine();
+        for(var i=0;i<=lastLine;i++) {
+            var txt = cm.getLine(i),
+                pos = txt.indexOf(";;;fold:");
+            if (pos==0) {cm.foldCode(CodeMirror.Pos(i,pos),folding.tripleCommentRangeFinder);}
+        }
+        
+        // results div
+        var $results = $("<div class='results'>");
+        $results.hide();
+
+        // engine selector
+
+        var engines = _(runners).keys(),
+            engineSelectorString = "<select>\n" + _(engines).map(
+                function(engine) {
+                    var tmpl = _.template('<option value="{{ engine }}" {{ selectedString }}> {{ engine }} </option>'),
+                        str = tmpl({
+                            engine: engine,
+                            selectedString: engine == ed.get('engine') ? "selected" : ""
+                        });
+
+                    return str; 
+                } 
+            ).join("\n") + "\n</select>",
+            $engineSelector = $(engineSelectorString);
+
+        // when user modifies engine selector, update model
+        $engineSelector.change(function(e) {
+            ed.set('engine', $(this).val() );
+        });
+
+        // for programmatic changes to engine, update engine selector widget
+        ed.on('change:engine', function(instance, newEngine, options) {
+            if (options.programmatic) {
+                // strange: i can't reference $engineSelector here
+                // but i could reference $
+                ed.display.$engineSelector.val(newEngine);
+            }
+        })
+
+        // reset button
+        var $resetButton = $("<button class='reset'>").html("Reset");
+        $resetButton.click(function() {
+            ed.set(ed.get('initialOptions'),
+                   {programmatic: true}); 
+            ed.trigger('reset');
+            ed.display.$results.hide().html('');
+        });
+
+        // run button
+        var $runButton = $("<button class='run'>").html("Run");
+        $runButton.click(function() {
+            ed.display.$results.find('*').css('opacity','0.7');
+            $runButton.attr('disabled','disabled');
+
+            // NB: can't write just this.run
+            // because then "this" becomes window 
+            // and i don't wanna bother with function binding
+            setTimeout(function() { ed.run() }, 30);
+
+            ed.on('run.finish', function() {
+                $runButton.removeAttr('disabled');
+            })
+        }); 
+
+        var $codeControls = $("<div class='code-controls'>");
+        // HT http://somerandomdude.com/work/open-iconic/#
+
+        $codeControls.append(
+            // $resetButton[0],
+            // $engineSelector[0],
+            $runButton
+        );
+
+        var $cogMenu = $("<ul class='code-settings'></ul>");
+        $cogMenu.append(
+            "<li class='settings-icon'>&#x2630;</li>",
+            $("<li></li>").append($engineSelector[0]),
+            $("<li></li>").append($resetButton[0])
+        );
+
+        $(cm.display.wrapper).prepend($cogMenu);
+
+        // create wrapper element for editor
+        var wrapper = document.createElement('div');
+
+        $(cm.display.wrapper).attr("id", "ex-" + options.exerciseName);
+        
+        // add code controls and results divs after codemirror 
+        $(cm.display.wrapper).prepend($codeControls);
+
+        $(wrapper)
+            .append(cm.display.wrapper)
+            .append($results); 
+
+        ed.display = {
+            wrapper: wrapper,
+            $runButton: $runButton,
+            $resetButton: $resetButton,
+            $engineSelector: $engineSelector,
+            $results: $results
+        }
+        
+    },
+    defaults: {
+        code: "",
+        engine: "webchurch"
+        // ,exerciseName: "" // necessary?
+    },
+    run: function() {
+        var engine = runners[this.get('engine')];
+        this.set('result', engine( this ));
+    },
+    replaceDomEl: function(domEl) {
+        $(domEl).replaceWith(this.display.wrapper);
+        // if we place the item ourselves, we have to call refresh() on the
+        // codemirror instance HT http://stackoverflow.com/q/10575833/351392 
+        this.get('cm').refresh();
+    }
 });
 
-// return a backbone model
-var inject = function(domEl, options) {
-  options = _(options).defaults({
-    code: $(domEl).text(),
-    engine: "webchurch",
-    exerciseName: "" 
-  });
-
-  var editorModel = new EditorModel(options);
-  
-  // editor
-  var cm = CodeMirror(
-    // TODO: defer this - we might not want to display immediately...
-    function(el) {
-      $(domEl).replaceWith(el);
-    },
-    {
-      value: options.code,
-      lineNumbers: false,
-      matchBrackets: true,
-      continueComments: "Enter",
-      viewportMargin: Infinity,
-      autoCloseBrackets: true,
-      mode: 'scheme'
-    });
-
-  editorModel.set('codeMirror', cm);
-
-  // when text in codemirror changes, update editormodel
-  cm.on('change', function(cmInstance) {
-    editorModel.set('code', cmInstance.getValue()) 
-  });
-  
-  //fold ";;;fold:" parts:
-  var lastLine = cm.lastLine();
-  for(var i=0;i<=lastLine;i++) {
-    var txt = cm.getLine(i),
-        pos = txt.indexOf(";;;fold:");
-    if (pos==0) {cm.foldCode(CodeMirror.Pos(i,pos),folding.tripleCommentRangeFinder);}
-  }
-  
-  // results div
-  var $results = $("<div class='results'>");
-  $results.hide();
-
-  // engine selector
-
-  var engines = ["webchurch", "webchurch-opt"],
-      engineSelectorString = "<select>\n" + _(engines).map(
-        function(engine) {
-          var tmpl = _.template('<option value="{{ engine }}" {{ selectedString }}> {{ engine }} </option>'),
-              str = tmpl({
-                engine: engine,
-                selectedString: engine == cm.engine ? "selected" : ""
-              });
-
-          return str; 
-        } 
-      ).join("\n") + "\n</select>",
-      $engineSelector = $(engineSelectorString);
-
-  // when engine selector changes, update model
-  $engineSelector.change(function(e) {
-    editorModel.set('engine', $(this).val() );
-  });
-
-  // reset button
-  var $resetButton = $("<button class='reset'>").html("Reset");
-  $resetButton.click(function() {
-    cm.setValue( editorModel.get('initialOptions').code );
-    cm.$engineSelector.val( editorModel.get('initialOptions').engine ); 
-    $results.hide.html(''); 
-  });
-
-  // run button
-  var $runButton = $("<button class='run'>").html("Run");
-  $runButton.click(function() {
-    $results.html('');
-    $runButton.attr('disabled','disabled');
-
-    setTimeout(function() {
-      editorModel.run();
-    }, 15); 
-
-    editorModel.on('run:finish', function() {
-      $runButton.removeAttr('disabled');
-    }) 
-  });
-
-  var $codeControls = $("<div class='code-controls'>");
-  // HT http://somerandomdude.com/work/open-iconic/#
-
-  $codeControls.append(
-    // $resetButton[0],
-    // $engineSelector[0],
-    $runButton
-  );
-
-  var $cogMenu = $("<ul class='code-settings'></ul>");
-  $cogMenu.append(
-    "<li class='settings-icon'>&#x2630;</li>",
-    $("<li></li>").append($engineSelector[0]),
-    $("<li></li>").append($resetButton[0])
-  );
-
-  $(cm.display.wrapper).prepend(
-    $cogMenu 
-  );
-
-  // add code controls and results divs after codemirror
-  $(cm.display.wrapper).prepend($codeControls);
-
-  $(cm.display.wrapper).after($results);
-  
-  $(cm.display.wrapper).attr("id", "ex-" + options.exerciseName);
-  
-  cm.$runButton = $runButton;
-  cm.$engineSelector = $engineSelector;
-  cm.$resetButton = $resetButton;
-  cm.$results = $results;
-
-  return editorModel
-  
-};
-
 module.exports = {
-  injector: inject
+    EditorModel: EditorModel
 };
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/editor.js","/")
-},{"./cm-brackets":"G8398M","./cm-church":"lO4o+E","./cm-comments":"L+quEX","./cm-folding":"s18hqF","./evaluate":"Ih4X1P","./viz":"mJMf/d","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"backbone":17,"buffer":19,"codemirror":24,"d3":25,"underscore":40}],"./editor":[function(require,module,exports){
-module.exports=require('fqJoPW');
-},{}],"Ih4X1P":[function(require,module,exports){
+},{"./cm-brackets":"G8398M","./cm-church":"lO4o+E","./cm-comments":"L+quEX","./cm-folding":"s18hqF","./evaluate":"Ih4X1P","./viz":"mJMf/d","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"backbone":17,"buffer":19,"codemirror":24,"d3":"Ub4Hh8","underscore":42}],"Ih4X1P":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* global require */
 
@@ -3513,304 +3959,305 @@ var util = require('./util.js');
 
 var _ = require('underscore');
 
-
 // Note: escodegen zero-indexes columns, while JS evaluators and the Church
 // tokenizer uses 1-indexed columns.
 
 function get_js_to_church_site_map(src_map) {
-	var site_map = {};
-	var smc = new source_map.SourceMapConsumer(JSON.parse(JSON.stringify(src_map)));
-	smc.eachMapping(function(m) {
-                    // Some of the mappings map to undefined locations for some reason, ignore those
-                    if (m.originalLine) {
-                    site_map[m.generatedLine] = site_map[m.generatedLine] || {};
-                    site_map[m.generatedLine][m.generatedColumn] = m.originalLine + ":" + m.originalColumn;
-                    }
-                    });
-	return site_map;
+    var site_map = {};
+    var smc = new source_map.SourceMapConsumer(JSON.parse(JSON.stringify(src_map)));
+    smc.eachMapping(function(m) {
+        // Some of the mappings map to undefined locations for some reason, ignore those
+        if (m.originalLine) {
+            site_map[m.generatedLine] = site_map[m.generatedLine] || {};
+            site_map[m.generatedLine][m.generatedColumn] = m.originalLine + ":" + m.originalColumn;
+        }
+    });
+    return site_map;
 }
 
 function get_church_sites_to_tokens_map(tokens) {
-	var map = {}
-	for (var i = 0; i < tokens.length; i++) {
-		map[tokens[i].start] = tokens[i];
-	}
-	return map;
+    var map = {}
+    for (var i = 0; i < tokens.length; i++) {
+	map[tokens[i].start] = tokens[i];
+    }
+    return map;
 }
 
 function get_sites_from_stack(split_stack) {
-	var sites = [];
-	for (var i = 0; i < split_stack.length; i++) {
-		// This makes the fairly safe assumption that the first run of consecutive
-		// stack frames containing "<anonymous>" belong to the generated code
-		if (split_stack[i].match("<anonymous>")) {
-			var site = split_stack[i].match(/(\d+:\d+)[^:]*$/)[1].split(":");
-			sites.push([site[0], parseInt(site[1]-1)]); //See above note on indexing.
-		} else if (sites.length > 0) {
-			break;
-		}
+    var sites = [];
+    for (var i = 0; i < split_stack.length; i++) {
+	// This makes the fairly safe assumption that the first run of consecutive
+	// stack frames containing "<anonymous>" belong to the generated code
+	if (split_stack[i].match("<anonymous>")) {
+	    var site = split_stack[i].match(/(\d+:\d+)[^:]*$/)[1].split(":");
+	    sites.push([site[0], parseInt(site[1]-1)]); //See above note on indexing.
+	} else if (sites.length > 0) {
+	    break;
 	}
-	return sites;
+    }
+    return sites;
 }
 
 function churchToBareJs(churchCode) {
-  return churchToJs(churchCode, {
-    includePreamble: false,
-    returnCodeOnly: true
-  })
+    return churchToJs(churchCode, {
+        includePreamble: false,
+        returnCodeOnly: true
+    })
 }
 
 // options are:
 // compact: whether the generated js has human-readable whitespace
 // precompile: whether to use noah's precompiling optimizer
 // includePreamble: whether js_astify should include the preamble or not
-// returnCodeOnly: if true, return just the generated js string. otherwise, return tokens, code, and source map 
+// returnCodeOnly: if true, return just the generated js string. otherwise, return tokens, code, and source map
 var churchToJs = function(churchCode, options) {
-  if (options === undefined) { options = {} }
-  options = _(options).defaults({
-    compact: false,
-    precompile: false,
-    includePreamble: true,
-    returnCodeOnly: true
-  })
-  
-  var tokens = tokenize(churchCode);
+    if (options === undefined) { options = {} }
+    options = _(options).defaults({
+        compact: false,
+        precompile: false,
+        includePreamble: true,
+        returnCodeOnly: true,
+        wrap: true
+    })
 
-  var js_ast;
-  
-  if(options.precompile) {
-    console.log("pre-compiling...");
-    var js_precompiled = precompile(churchCode);
-    js_ast = esprima.parse(js_precompiled);
-  } else {
-    var church_ast = church_astify(tokens);
-    js_ast = js_astify(church_ast);
-  }
+    var tokens = tokenize(churchCode);
 
-  //new wc transform
-  js_ast = wctransform.probTransformAST(js_ast, options.includePreamble);
+    var js_ast;
 
-  // transform code so that we can run code inside a global eval
-  // we want to turn this:
-  // 
-  //     line_1
-  //     line_2
-  //     ...
-  //     line_n
-  //
-  // into this:
-  //
-  //     (function() {
-  //     var sideEffects = [];
-  //     line_1
-  //     line_2
-  //     ...
-  //     return line_n
-  //     })()
-  //  
-  
-  var body = js_ast.body;
-
-  // add sideEffects initialization
-  // body.unshift(esprima.parse('var sideEffects = []'));
-  
-  // convert the last statement into a return statement
-  if (body.length > 0) {
-    var lastStatement = body[body.length-1]
-    if (/Statement/.test(lastStatement.type)) {      
-
-      lastStatement.type = 'ReturnStatement';
-      lastStatement.argument = lastStatement.expression;
-      delete lastStatement.expression; 
+    if(options.precompile) {
+        console.log("pre-compiling...");
+        var js_precompiled = precompile(churchCode);
+        js_ast = esprima.parse(js_precompiled);
+    } else {
+        var church_ast = church_astify(tokens);
+        js_ast = js_astify(church_ast);
     }
-  } 
 
-  // wrap the whole thing in an immediately executed function
-  body = [
-    {type: 'ExpressionStatement',
-     expression: {
-       type: 'CallExpression',
-       callee: { type: 'FunctionExpression',
-                 id: null,
-                 params: [],
-                 defaults: [],
-                 body:
-                 { type: 'BlockStatement',
-                   body: body
-                 }
-               },
-       arguments: []
+    //new wc transform
+    js_ast = wctransform.probTransformAST(js_ast, options.includePreamble);
 
-     }
+    // transform code so that we can run code inside a global eval
+    // we want to turn this:
+    //
+    //     line_1
+    //     line_2
+    //     ...
+    //     line_n
+    //
+    // into this:
+    //
+    //     (function() {
+    //     var sideEffects = [];
+    //     line_1
+    //     line_2
+    //     ...
+    //     return line_n
+    //     })()
+    //
+
+    var body = js_ast.body;
+
+    // add sideEffects initialization
+    // body.unshift(esprima.parse('var sideEffects = []'));
+
+    // convert the last statement into a return statement
+    if (body.length > 0) {
+        var lastStatement = body[body.length-1]
+        if (/Statement/.test(lastStatement.type)) {
+
+            lastStatement.type = 'ReturnStatement';
+            lastStatement.argument = lastStatement.expression;
+            delete lastStatement.expression;
+        }
     }
-  ]
 
-  js_ast.body = body;
+    if (options.wrap) {
+        // wrap the whole thing in an immediately executed function
+        body = [
+            {type: 'ExpressionStatement',
+             expression: {
+                 type: 'CallExpression',
+                 callee: { type: 'FunctionExpression',
+                           id: null,
+                           params: [],
+                           defaults: [],
+                           body:
+                           { type: 'BlockStatement',
+                             body: body
+                           }
+                         },
+                 arguments: []
 
-  var code_and_source_map = escodegen.generate(js_ast,
-                                              {"sourceMap": "whatever",
-                                               "sourceMapWithCode": true,
-                                               "format": {"compact" : options.compact}});
+             }
+            }
+        ];
+    }
 
-  if (options.returnCodeOnly) {
-    return code_and_source_map.code;
-  } else {
-    return {
-      tokens: tokens,
-      code_and_source_map: code_and_source_map
-    };
-  }
+    js_ast.body = body;
+
+    var code_and_source_map = escodegen.generate(js_ast,
+                                                 {"sourceMap": "whatever",
+                                                  "sourceMapWithCode": true,
+                                                  "format": {"compact" : options.compact}});
+
+    if (options.returnCodeOnly) {
+        return code_and_source_map.code;
+    } else {
+        return {
+            tokens: tokens,
+            code_and_source_map: code_and_source_map
+        };
+    }
 }
 
 function evaluate(church_codestring, options) {
-  function really_evaluate() {
-    var result = eval(jsCode);
-    var t2 = new Date().getTime();
-    if (options.timed) console.log("Time to execute: " + (t2-t1) + "ms");
-    return result;
-  }
+    function really_evaluate() {
+        var result = eval(jsCode);
+        var t2 = new Date().getTime();
+        if (options.timed) console.log("Time to execute: " + (t2-t1) + "ms");
+        return result;
+    }
 
-  var t0 = new Date().getTime();
-  options = options || {};
-  
-  // ask churchToJs for all the data, not just the js string
-  options.returnCodeOnly = false;
+    var t0 = new Date().getTime();
+    options = options || {};
 
-  if (options.desugar) return church_ast_to_string(church_astify(tokenize(church_codestring)));
-    
-  var compileResult = churchToJs(church_codestring, options);
-  var tokens = compileResult.tokens;
-  var code_and_source_map = compileResult.code_and_source_map;
-  var jsCode = code_and_source_map.code;
-  var sourceMap = code_and_source_map.map;
+    // ask churchToJs for all the data, not just the js string
+    options.returnCodeOnly = false;
 
-  // initialize sideEffects
-  // this global variable is modified in viz.js
-  // and accessed in editor.js (makewebchurchrunner) 
-  sideEffects = [];
- 
-  if (options.compile) return jsCode;
+    if (options.desugar) return church_ast_to_string(church_astify(tokenize(church_codestring)));
 
-  var result; 
+    var compileResult = churchToJs(church_codestring, options);
+    var tokens = compileResult.tokens;
+    var code_and_source_map = compileResult.code_and_source_map;
+    var jsCode = code_and_source_map.code;
+    var sourceMap = code_and_source_map.map;
 
-  var t1 = new Date().getTime();
-  if (options.timed) console.log("Time to compile: " + (t1-t0) + "ms");
-  var argstring = options.argstring;
-  if (options.disable_church_errors) return really_evaluate();
+    // initialize sideEffects
+    // this global variable is modified in viz.js
+    // and accessed in editor.js (makewebchurchrunner)
+    sideEffects = [];
 
-	try {
-    // var d1 = new Date()
-    
-    // use local eval for speed but avoid introducing global variables
-    // that stick around after model execution because the transformed code
-    // is wrapped inside a function 
-    result = really_evaluate();
-    // var d2 = new Date()
-    // console.log("transformed source run time: ", (d2.getTime() - d1.getTime()) / 1000)    
-	} catch (err) {
-    
-		var js_to_church_site_map = get_js_to_church_site_map(sourceMap);
-    var churchLines = church_codestring.split("\n");
-		var church_sites_to_tokens_map = get_church_sites_to_tokens_map(tokens);
-		var stack = err.stack.split("\n");
-		var msg = stack[0].split(":");
+    if (options.compile) return jsCode;
 
-    console.log(err.stack);
-    
-		var js_sites = get_sites_from_stack(stack.slice(1));
-		var church_sites = [];
-		for (var i = 0; i < js_sites.length; i++) {
-			var js_site = js_sites[i];
-			var church_site = js_to_church_site_map[js_site[0]] && js_to_church_site_map[js_site[0]][js_site[1]];
-      
-			if(church_site){church_sites.push(church_site);};
-		}
+    var result;
 
-    
-    //        console.log("js source ",sourceMap)
-    //        console.log("error stack ", msg)
-    //        console.log("js_sites ",js_sites)
-    //        console.log("source map ", code_and_source_map.map)
-    //        console.log("js to church site map ", js_to_church_site_map)
-    //        console.log("church sites ot tokens ", church_sites_to_tokens_map)
-    //        console.log("church_sites ", church_sites)
-    
-    // 		church_sites = church_sites.filter(function (x) {return x});
-    
- 		if (church_sites.length == 0) {
- 			throw err;
- 		} else {
-      
-			var token = church_sites_to_tokens_map[church_sites[0]];
-      
-      // error sometimes matches on starting paren rather than the function name
-      // so seek to next token, which willbe the function name
-      var fntoken;
-      if (token.text == "(") {
-        var tokStart = token.start,
-            tokEnd = token.end,
-            tokeNum;
-        
-        for(var j = 0, jj = tokens.length; j < jj; j++) {
-          if (tokens[j].start == tokStart && tokens[j].end == tokEnd) {
-            tokeNum = j;
-          }
-        }
-        fntoken = tokens[tokeNum + 1];
-      }
+    var t1 = new Date().getTime();
+    if (options.timed) console.log("Time to compile: " + (t1-t0) + "ms");
+    var argstring = options.argstring;
+    if (options.disable_church_errors) return really_evaluate();
 
-      var displayedMessage; 
-      
-      if (msg[0] == "ReferenceError") {
-        token = fntoken?fntoken:token;
-        displayedMessage = token.text + " is not defined";
-        
-      } else if (msg[0] == "TypeError") {
-        token = fntoken?fntoken:token;
-        displayedMessage = token.text + " is not a function";
-      } else {
-        displayedMessage = err.message.replace('<<functionName>>', fntoken ? fntoken.text : token.text) 
-      }
-            
-			var e = util.make_church_error(msg[0], token.start, token.end, displayedMessage);
-			e.stack = church_sites.map(function(x) {
-        var tok = church_sites_to_tokens_map[x];
-        return tok.start + "-" + tok.end;
-      }).join(",");
-      e.stackarray = church_sites.map(function(x) {return church_sites_to_tokens_map[x]})
+    try {
+        // var d1 = new Date()
 
-      e.jsStack = stack;
-      
- 			throw e;
- 		}
+        // use local eval for speed but avoid introducing global variables
+        // that stick around after model execution because the transformed code
+        // is wrapped inside a function
+        result = really_evaluate();
+        // var d2 = new Date()
+        // console.log("transformed source run time: ", (d2.getTime() - d1.getTime()) / 1000)
+    } catch (err) {
+
+	var js_to_church_site_map = get_js_to_church_site_map(sourceMap);
+        var churchLines = church_codestring.split("\n");
+	var church_sites_to_tokens_map = get_church_sites_to_tokens_map(tokens);
+	var stack = err.stack ? err.stack.split("\n") : [":"];
+	var msg = stack[0].split(":");
+
+        console.log(err.stack);
+
+	var js_sites = get_sites_from_stack(stack.slice(1));
+	var church_sites = [];
+	for (var i = 0; i < js_sites.length; i++) {
+	    var js_site = js_sites[i];
+	    var church_site = js_to_church_site_map[js_site[0]] && js_to_church_site_map[js_site[0]][js_site[1]];
+
+	    if(church_site){church_sites.push(church_site);};
 	}
-  
-	return result;
+
+
+        //        console.log("js source ",sourceMap)
+        //        console.log("error stack ", msg)
+        //        console.log("js_sites ",js_sites)
+        //        console.log("source map ", code_and_source_map.map)
+        //        console.log("js to church site map ", js_to_church_site_map)
+        //        console.log("church sites ot tokens ", church_sites_to_tokens_map)
+        //        console.log("church_sites ", church_sites)
+
+        // 		church_sites = church_sites.filter(function (x) {return x});
+
+ 	if (church_sites.length == 0) {
+ 	    throw err;
+ 	} else {
+
+	    var token = church_sites_to_tokens_map[church_sites[0]];
+
+            // error sometimes matches on starting paren rather than the function name
+            // so seek to next token, which willbe the function name
+            var fntoken;
+            if (token.text == "(") {
+                var tokStart = token.start,
+                    tokEnd = token.end,
+                    tokeNum;
+
+                for(var j = 0, jj = tokens.length; j < jj; j++) {
+                    if (tokens[j].start == tokStart && tokens[j].end == tokEnd) {
+                        tokeNum = j;
+                    }
+                }
+                fntoken = tokens[tokeNum + 1];
+            }
+
+            var displayedMessage;
+
+            if (msg[0] == "ReferenceError") {
+                token = fntoken?fntoken:token;
+                displayedMessage = token.text + " is not defined";
+
+            } else if (msg[0] == "TypeError") {
+                token = fntoken?fntoken:token;
+                displayedMessage = token.text + " is not a function";
+            } else {
+                displayedMessage = err.message.replace('<<functionName>>', fntoken ? fntoken.text : token.text)
+            }
+
+	    var e = util.make_church_error(msg[0], token.start, token.end, displayedMessage);
+	    e.stack = church_sites.map(function(x) {
+                var tok = church_sites_to_tokens_map[x];
+                return tok.start + "-" + tok.end;
+            }).join(",");
+            e.stackarray = church_sites.map(function(x) {return church_sites_to_tokens_map[x]})
+
+            e.jsStack = stack;
+
+ 	    throw e;
+ 	}
+    }
+
+    return result;
 }
 
 module.exports = {
-  evaluate: evaluate,
-  format_result: util.format_result,
-  churchToJs: churchToJs,
-  churchToBareJs: churchToBareJs
+    evaluate: evaluate,
+    format_result: util.format_result,
+    churchToJs: churchToJs,
+    churchToBareJs: churchToBareJs
 };
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/evaluate.js","/")
-},{"./church_astify.js":1,"./js_astify.js":16,"./precompile.js":41,"./tokenize.js":53,"./util.js":"Y/OqMs","./wctransform":60,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29,"source-map":30,"underscore":40}],"./evaluate":[function(require,module,exports){
+},{"./church_astify.js":1,"./js_astify.js":16,"./precompile.js":43,"./tokenize.js":55,"./util.js":"Y/OqMs","./wctransform":62,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":27,"escodegen/node_modules/estraverse":28,"esprima":30,"source-map":32,"underscore":42}],"./evaluate":[function(require,module,exports){
 module.exports=require('Ih4X1P');
 },{}],16:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* global require */
 
 /*
- This takes an AST for desugarred Church and turns it into a js AST.
- 
- The langauge this accepts is: 
-    expression_list = expression | expression expression_list
-    expression = lambda | application | define | if | quote | identifier | literal
-    TODO: fill grammar.
-*/
+  This takes an AST for desugarred Church and turns it into a js AST.
 
+  The langauge this accepts is:
+  expression_list = expression | expression expression_list
+  expression = lambda | application | define | if | quote | identifier | literal
+  TODO: fill grammar.
+*/
 
 //var escodegen = require("escodegen");
 var estraverse = require("escodegen/node_modules/estraverse");
@@ -3819,118 +4266,123 @@ var builtins = require('./church_builtins.js');
 var builtinAnnotations = builtins.__annotations__;
 
 /*
- construct rename_map using builtinAnnotations
- using anything declared in the 'alias' key.
- if nothing is declared there, default to applying
- these substitutions to construct the alias:
- 
+  construct rename_map using builtinAnnotations
+  using anything declared in the 'alias' key.
+  if nothing is declared there, default to applying
+  these substitutions to construct the alias:
+
   wrapped_foo => foo
   is_foo      => foo?
   foo_to_bar  => foo->bar
   _ => -
 
- */
+*/
 
 var rename_map = {
-  baseval: 'evaluate'
+    baseval: 'evaluate'
 };
 
 renameIdentifiers = {
-	leave: function(node) {
-		if(node.type == 'Identifier') {
-			if(node.name in rename_map) {
-				node.name = rename_map[node.name]
-			} else {
-				node.name = format_identifier(node.name)
-			}
-		}
-		return node
+    leave: function(node) {
+	if(node.type == 'Identifier') {
+	    if(node.name in rename_map) {
+		node.name = rename_map[node.name]
+	    } else {
+		node.name = format_identifier(node.name)
+	    }
 	}
+	return node
+    }
 }
 
 Object.keys(builtinAnnotations).forEach(function(name) {
-  var annotation = builtinAnnotations[name];
-  var alias;
+    var annotation = builtinAnnotations[name];
+    // var alias;
 
-  // if the annotation contains an explicit alias
-  // or array of aliases, set those
-  if (annotation.alias) {
-    alias = annotation.alias;
-    if (typeof alias == 'string') {
-      rename_map[alias] = name;
-    }
-    if (Array.isArray(alias)) {
-      alias.forEach(function(a) {
-        rename_map[a] = name;
-      });
-    }
+    // if the annotation contains an explicit alias
+    // or array of aliases, set those
+
+    annotation.alias.forEach(function(a) {
+        rename_map[a] = name
+    }); 
     
-  } else {
-    alias = name
-      .replace(/wrapped_(.+)/, function(m, p1) { return p1 })
-      .replace(/is_(.+)/, function(m, p1) { return p1 + "?"})
-      .replace('_to_', '->')
-      .replace(/_/g, '-');
-    
-    rename_map[alias] = name;
-  }
+    // if (annotation.alias) {
+    //     alias = annotation.alias;
+    //     if (typeof alias == 'string') {
+    //         rename_map[alias] = name;
+    //     }
+    //     if (Array.isArray(alias)) {
+    //         alias.forEach(function(a) {
+    //             rename_map[a] = name;
+    //         });
+    //     }
+
+    // } else {
+    //     alias = name
+    //         .replace(/wrapped_(.+)/, function(m, p1) { return p1 })
+    //         .replace(/is_(.+)/, function(m, p1) { return p1 + "?"})
+    //         .replace('_to_', '->')
+    //         .replace(/_/g, '-');
+
+    //     rename_map[alias] = name;
+    // }
 });
 
 var program_node = {
-	"type": "Program",
-	"body": []
+    "type": "Program",
+    "body": []
 }
 var declaration_node = {
-	"type": "VariableDeclaration",
-	"declarations": [
-		{
-			"type": "VariableDeclarator",
-			"id": {
-				"type": "Identifier",
-				"name": null
-			},
-			"init": null
-		}
-	],
-	"kind": "var"
+    "type": "VariableDeclaration",
+    "declarations": [
+	{
+	    "type": "VariableDeclarator",
+	    "id": {
+		"type": "Identifier",
+		"name": null
+	    },
+	    "init": null
+	}
+    ],
+    "kind": "var"
 }
 var assignment_node = {
-	"type": "ExpressionStatement",
-	"expression": {
-		"type": "AssignmentExpression",
-		"operator": "=",
-		"left": {
-			"type": "Identifier",
-			"name": null
-		},
-		"right": null
-	}
+    "type": "ExpressionStatement",
+    "expression": {
+	"type": "AssignmentExpression",
+	"operator": "=",
+	"left": {
+	    "type": "Identifier",
+	    "name": null
+	},
+	"right": null
+    }
 }
 var function_expression_node = {
-	"type": "FunctionExpression",
-	"id": null,
-	"params": [],
-	"defaults": [],
-	"body": {
-		"type": "BlockStatement",
-		"body": []
-	},
-	"rest": null,
-	"generator": false,
-	"expression": false
+    "type": "FunctionExpression",
+    "id": null,
+    "params": [],
+    "defaults": [],
+    "body": {
+	"type": "BlockStatement",
+	"body": []
+    },
+    "rest": null,
+    "generator": false,
+    "expression": false
 }
 var expression_statement_node = {
-	"type": "ExpressionStatement",
-	"expression": null
+    "type": "ExpressionStatement",
+    "expression": null
 }
 var array_node = {
-	"type": "ArrayExpression",
-	"elements": []
+    "type": "ArrayExpression",
+    "elements": []
 }
 var expression_node = {
-	"type": null,
-	"name": null,
-	"value": null
+    "type": null,
+    "name": null,
+    "value": null
 }
 //var member_expression_node = {
 //	"type": "MemberExpression",
@@ -3946,13 +4398,13 @@ var expression_node = {
 //}
 
 var return_statement_node = {
-	"type": "ReturnStatement",
-	"argument": null
+    "type": "ReturnStatement",
+    "argument": null
 }
 var call_expression_node = {
-	"type": "CallExpression",
-	"callee": null,
-	"arguments": []
+    "type": "CallExpression",
+    "callee": null,
+    "arguments": []
 }
 //var if_statement_node = { //NOTE: using ternary operator instead of if statements, since that maps onto the semantics of church ifs best.
 //	"type": "IfStatement",
@@ -3961,150 +4413,148 @@ var call_expression_node = {
 //	"alternate": null
 //}
 var conditional_expression_node = { //ternary operator a?b:c
-	"type": "ConditionalExpression",
-	"test": null,
-	"consequent": null,
-	"alternate": null
+    "type": "ConditionalExpression",
+    "test": null,
+    "consequent": null,
+    "alternate": null
 }
 var block_statement_node = {
-	"type": "BlockStatement",
-	"body": []
+    "type": "BlockStatement",
+    "body": []
 }
-
 
 // This line must be the first line of any variadic Church function.
 //"var <x> = args_to_list(arguments)"
 var variadic_header = {
-	"type": "VariableDeclaration",
-	"declarations": [
-		{
-			"type": "VariableDeclarator",
-			"id": {
-				"type": "Identifier",
-				"name": null
-			},
-			"init": {
-				"type": "CallExpression",
-				"callee": {
-					"type": "Identifier",
-					"name": "args_to_list"
-				},
-				"arguments": [
-					{
-						"type": "Identifier",
-						"name": "arguments"
-					}
-				]
-			}
-		}
-	],
-	"kind": "var"
+    "type": "VariableDeclaration",
+    "declarations": [
+	{
+	    "type": "VariableDeclarator",
+	    "id": {
+		"type": "Identifier",
+		"name": null
+	    },
+	    "init": {
+		"type": "CallExpression",
+		"callee": {
+		    "type": "Identifier",
+		    "name": "args_to_list"
+		},
+		"arguments": [
+		    {
+			"type": "Identifier",
+			"name": "arguments"
+		    }
+		]
+	    }
+	}
+    ],
+    "kind": "var"
 }
 
 function strip_quotes(s) { return s.slice(1, -1); }
-function get_value_of_string_or_number(s) { 
-	if (util.is_string(s)) {
-		return strip_quotes(s);
-	} else {
-		return parseFloat(s);
-	}
+function get_value_of_string_or_number(s) {
+    if (util.is_string(s)) {
+	return strip_quotes(s);
+    } else {
+	return parseFloat(s);
+    }
 }
 
 function make_location(node) {
-	if (node && node.start && node.end) {
-		var start_coords = node.start.split(":");
-		var end_coords = node.end.split(":");
-		return {
-			start: {line: start_coords[0], column: start_coords[1]},
-			end: {line: end_coords[0], column: end_coords[1]}
-		};
-	}
+    if (node && node.start && node.end) {
+	var start_coords = node.start.split(":");
+	var end_coords = node.end.split(":");
+	return {
+	    start: {line: start_coords[0], column: start_coords[1]},
+	    end: {line: end_coords[0], column: end_coords[1]}
+	};
+    }
 }
 
 function validate_variable(church_tree) {
-	if (!(util.is_leaf(church_tree) && util.is_identifier(church_tree.text))) {
-		throw util.make_church_error("SyntaxError", church_tree.start, church_tree.end, "Invalid variable name");
-	}
+    if (!(util.is_leaf(church_tree) && util.is_identifier(church_tree.text))) {
+	throw util.make_church_error("SyntaxError", church_tree.start, church_tree.end, "Invalid variable name");
+    }
 }
 
 function deep_copy(obj) { return JSON.parse(JSON.stringify(obj)); }
 
 // TODO: add all kinds of error-checking.
 function church_tree_to_esprima_ast(church_tree) {
-	var heads_to_helpers = {
-		"lambda": make_function_expression,
-		"if": make_if_expression,
-		"quote": make_quoted_expression
+    var heads_to_helpers = {
+	"lambda": make_function_expression,
+	"if": make_if_expression,
+	"quote": make_quoted_expression
+    }
+
+    function make_declaration(church_tree) {
+	validate_variable(church_tree.children[1]);
+
+	var name = church_tree.children[1].text;
+	var val = make_expression(church_tree.children[2]);
+
+	var node = deep_copy(declaration_node);
+	node["declarations"][0]["id"]["name"] = name;
+	node["declarations"][0]["init"] = val;
+	return node;
+    }
+
+    function make_marginalize(lambda_args, mh_query) {
+	// TODO
+	var call_expression = deep_copy(call_expression_node);
+	call_expression["callee"] = {"type": "Identifier", "name": "marginalize"};
+
+	var computation = make_query_computation(mh_query.slice(3, -1), mh_query[mh_query.length - 1], lambda_args);
+
+	call_expression["arguments"] = [
+	    computation,
+	    {"type": "Identifier", "name": "traceMH"},
+	    make_expression(mh_query[1]),
+	    make_expression(mh_query[2])];
+	return call_expression;
+    }
+
+    function make_function_expression(church_tree) {
+	var lambda_args = church_tree.children[1];
+	var church_actions = church_tree.children.slice(2);
+	if (church_actions.length == 1 && util.is_leaf(church_actions[0]) && church_actions[0].text == "embedded-mh-query") {
+	    return make_marginalize(lambda_args, church_actions[0]);
 	}
 
-	function make_declaration(church_tree) {
-		validate_variable(church_tree.children[1]);
-
-		var name = church_tree.children[1].text;
-		var val = make_expression(church_tree.children[2]);
-
-		var node = deep_copy(declaration_node);
-		node["declarations"][0]["id"]["name"] = name;
-		node["declarations"][0]["init"] = val;
-		return node;
+	var func_expression = deep_copy(function_expression_node);
+	func_expression["body"]["body"] = make_expression_statement_list(church_actions.slice(0, -1));
+	func_expression["body"]["body"].push(make_return_statement(church_actions[church_actions.length-1]));
+	if (!util.is_leaf(lambda_args)) {
+	    for (var i = 0; i < lambda_args.children.length; i++) {
+		validate_variable(lambda_args.children[i]);
+		func_expression["params"].push(make_leaf_expression(lambda_args.children[i]));
+	    }
+	} else {
+	    validate_variable(lambda_args);
+	    var variadic = deep_copy(variadic_header);
+	    variadic["declarations"][0]["id"]["name"] = lambda_args.text;
+	    func_expression["body"]["body"].unshift(variadic);
 	}
+	return func_expression;
+    }
 
-	function make_marginalize(lambda_args, mh_query) {
-		// TODO
-		var call_expression = deep_copy(call_expression_node);
-		call_expression["callee"] = {"type": "Identifier", "name": "marginalize"};
+    function make_call_expression(church_tree) {
+	var call_expression = deep_copy(call_expression_node);
+	var callee = church_tree.children[0];
+	var args = church_tree.children.slice(1);
 
-		var computation = make_query_computation(mh_query.slice(3, -1), mh_query[mh_query.length - 1], lambda_args);
+	call_expression["callee"] = make_expression(callee);
+	call_expression["arguments"] = make_expression_list(args);
+	call_expression["loc"] = make_location(church_tree);
+	return call_expression;
+    }
 
-		call_expression["arguments"] = [
-			computation,
-			{"type": "Identifier", "name": "traceMH"},
-			make_expression(mh_query[1]),
-			make_expression(mh_query[2])];
-		return call_expression;
-	}
-
-	function make_function_expression(church_tree) {
-		var lambda_args = church_tree.children[1];
-		var church_actions = church_tree.children.slice(2);
-		if (church_actions.length == 1 && util.is_leaf(church_actions[0]) && church_actions[0].text == "embedded-mh-query") {
-			return make_marginalize(lambda_args, church_actions[0]);
-		}
-
-		var func_expression = deep_copy(function_expression_node);
-		func_expression["body"]["body"] = make_expression_statement_list(church_actions.slice(0, -1));
-		func_expression["body"]["body"].push(make_return_statement(church_actions[church_actions.length-1]));
-		if (!util.is_leaf(lambda_args)) {
-			for (var i = 0; i < lambda_args.children.length; i++) {
-				validate_variable(lambda_args.children[i]);
-				func_expression["params"].push(make_leaf_expression(lambda_args.children[i]));
-			}
-		} else {
-			validate_variable(lambda_args);
-			var variadic = deep_copy(variadic_header);
-			variadic["declarations"][0]["id"]["name"] = lambda_args.text;
-			func_expression["body"]["body"].unshift(variadic);
-		}
-		return func_expression;
-	}
-
-	function make_call_expression(church_tree) {
-		var call_expression = deep_copy(call_expression_node);
-		var callee = church_tree.children[0];
-		var args = church_tree.children.slice(1);
-
-		call_expression["callee"] = make_expression(callee);
-		call_expression["arguments"] = make_expression_list(args);
-		call_expression["loc"] = make_location(church_tree);
-		return call_expression;
-	}
-
-	function make_return_statement(church_tree) {
-		var return_statement = deep_copy(return_statement_node);
-		return_statement["argument"] = make_expression(church_tree);
-		return return_statement;
-	}
-
+    function make_return_statement(church_tree) {
+	var return_statement = deep_copy(return_statement_node);
+	return_statement["argument"] = make_expression(church_tree);
+	return return_statement;
+    }
 
     function make_if_expression(church_tree) {
         var conditional_expression = deep_copy(conditional_expression_node)
@@ -4115,161 +4565,158 @@ function church_tree_to_esprima_ast(church_tree) {
         } else {
             conditional_expression.alternate = {type: "Identifier", name: "undefined"}
         }
-            
-		return conditional_expression;
-	}
 
-	function make_quoted_expression(church_tree) {
-		function quote_helper(quoted) {
-			if (!util.is_leaf(quoted)) {
-				if (quoted.children.length == 0) {
-					return make_leaf_expression(quoted);
-				} else {
-					var array = deep_copy(array_node);
-					var proper_list = true;
-					for (var i = 0; i < quoted.children.length; i++) {
-						if (quoted.children[i].text == ".") {
-							if (i != quoted.children.length - 2) {
-								throw util.make_church_error("SyntaxError", quoted.children[i].start, quoted.children[i].end, "Invalid dot");
-							} else {
-								proper_list = false;
-							}
-						} else {
-							array["elements"].push(quote_helper(quoted.children[i]));
-						}
-					}
-					if (proper_list) {
-						array["elements"].push({"type": "Literal", "name": null, "value": null});
-					}
-					return array;
-				}
-			} else {
-				if (util.is_identifier(quoted.text)) {
-					var copy = deep_copy(quoted)
-					copy.text = '"' + copy.text + '"'
-					return make_leaf_expression(copy);
-				} else {
-					return make_leaf_expression(quoted);
-				}
-			}
-		}
-		return quote_helper(church_tree.children[1]);
-	}
+	return conditional_expression;
+    }
 
-	function make_expression(church_tree) {
-		if (util.is_leaf(church_tree) || church_tree.children.length == 0) {
-			return make_leaf_expression(church_tree);
+    function make_quoted_expression(church_tree) {
+        function quote_helper(quoted) {
+            if (!util.is_leaf(quoted)) {
+                if (quoted.children.length == 0) {
+                    return make_leaf_expression(quoted);
+                } else if(quoted.children[0].text == "unquote") { //unquote means stop making things literal: translate to js as usual.
+                    return make_expression(quoted.children[1])
+                } else {
+                    var array = {type: "ArrayExpression", elements: [] }//= deep_copy(array_node);
+                    var proper_list = true;
+                    for (var i = 0; i < quoted.children.length; i++) {
+                        if (quoted.children[i].text == ".") {
+                            if (i != quoted.children.length - 2) {
+                                throw util.make_church_error("SyntaxError", quoted.children[i].start, quoted.children[i].end, "Invalid dot");
+                            } else {
+                                proper_list = false;
+                            }
+                        } else {
+                            array.elements.push(quote_helper(quoted.children[i]));
+                        }
+                    }
+                    if (proper_list) {
+                        array.elements.push({"type": "Literal", "name": null, "value": null});
+                    }
+                    return array;
+                }
+            } else {
+                if (util.is_identifier(quoted.text)) {
+                    var copy = deep_copy(quoted)
+                    copy.text = '"' + copy.text + '"'
+                    return make_leaf_expression(copy);
+                } else {
+                    return make_leaf_expression(quoted);
+                }
+            }
+        }
+        return quote_helper(church_tree.children[1]);
+    }
+
+    function make_expression(church_tree) {
+	if (util.is_leaf(church_tree) || church_tree.children.length == 0) {
+	    return make_leaf_expression(church_tree);
+	} else {
+	    if (!util.is_leaf(church_tree) && church_tree.children.length > 0) {
+		if (church_tree.children[0].text in heads_to_helpers) {
+		    return heads_to_helpers[church_tree.children[0].text](church_tree);
 		} else {
-			if (!util.is_leaf(church_tree) && church_tree.children.length > 0) {
-				if (church_tree.children[0].text in heads_to_helpers) {
-					return heads_to_helpers[church_tree.children[0].text](church_tree);
-				} else {
-					return make_call_expression(church_tree);
-				}
-			}
+		    return make_call_expression(church_tree);
 		}
+	    }
 	}
+    }
 
-	function make_leaf_expression(church_leaf) {
-		var expression = deep_copy(expression_node);
-		if (!util.is_leaf(church_leaf) && church_leaf.children.length == 0) {
-			expression =  {
-				type: "ArrayExpression",
-				elements: [{"type": "Literal", "name": null, "value": null}]
-			}
-		} else if (church_leaf.text == ".") {
-			throw util.make_church_error("SyntaxError", church_leaf.start, church_leaf.end, "Invalid dot");
-		} else if (church_leaf.text == undefined) {
-			expression["type"] = "Identifier";
-			expression["name"] = "undefined";
-		} else if (util.boolean_aliases[church_leaf.text] != undefined) {
-			expression["type"] = "Literal";
-			expression["value"] = util.boolean_aliases[church_leaf.text];
-		} else if (util.is_identifier(church_leaf.text)) {
-			expression = {type: 'Identifier', name: church_leaf.text}
-		} else {
-			var value = get_value_of_string_or_number(church_leaf.text);
-			if (typeof value == "number" && value < 0) {
-				expression["type"] = "UnaryExpression";
-				expression["operator"] = "-"
-				expression["argument"] = {"type": "Literal", "value": -value}
-			} else {
-				expression["type"] = "Literal";
-				expression["value"] = value
-			}
+    function make_leaf_expression(church_leaf) {
+	var expression = deep_copy(expression_node);
+	if (!util.is_leaf(church_leaf) && church_leaf.children.length == 0) {
+	    expression =  {
+		type: "ArrayExpression",
+		elements: [{"type": "Literal", "name": null, "value": null}]
+	    }
+	} else if (church_leaf.text == ".") {
+	    throw util.make_church_error("SyntaxError", church_leaf.start, church_leaf.end, "Invalid dot");
+	} else if (church_leaf.text == undefined) {
+	    expression["type"] = "Identifier";
+	    expression["name"] = "undefined";
+	} else if (util.boolean_aliases[church_leaf.text] != undefined) {
+	    expression["type"] = "Literal";
+	    expression["value"] = util.boolean_aliases[church_leaf.text];
+	} else if (util.is_identifier(church_leaf.text)) {
+	    expression = {type: 'Identifier', name: church_leaf.text}
+	} else {
+	    var value = get_value_of_string_or_number(church_leaf.text);
+	    if (typeof value == "number" && value < 0) {
+		expression["type"] = "UnaryExpression";
+		expression["operator"] = "-"
+		expression["argument"] = {"type": "Literal", "value": -value}
+	    } else {
+		expression["type"] = "Literal";
+		expression["value"] = value
+	    }
 
-		}
-		expression["loc"] = make_location(church_leaf);
-		return expression;
 	}
+	expression["loc"] = make_location(church_leaf);
+	return expression;
+    }
 
-	function make_expression_list(church_trees) {
-		var body = []
-		for (var i = 0; i < church_trees.length; i++) {
-			body.push(make_expression(church_trees[i]));
-		}
-		return body;
+    function make_expression_list(church_trees) {
+	var body = []
+	for (var i = 0; i < church_trees.length; i++) {
+	    body.push(make_expression(church_trees[i]));
 	}
+	return body;
+    }
 
-	function make_expression_statement(church_tree) {
-		if (!util.is_leaf(church_tree) && church_tree.children.length > 1 && church_tree.children[0].text == "define") {
-			return make_declaration(church_tree);
-		} else {
-			var expr_statement = deep_copy(expression_statement_node);
-			expr_statement["expression"] = make_expression(church_tree);
-			return expr_statement;
-		}
+    function make_expression_statement(church_tree) {
+	if (!util.is_leaf(church_tree) && church_tree.children.length > 1 && church_tree.children[0].text == "define") {
+	    return make_declaration(church_tree);
+	} else {
+	    var expr_statement = deep_copy(expression_statement_node);
+	    expr_statement["expression"] = make_expression(church_tree);
+	    return expr_statement;
 	}
+    }
 
-	function make_expression_statement_list(church_trees) {
-		var body = []
-		for (var i = 0; i < church_trees.length; i++) {
-			body.push(make_expression_statement(church_trees[i]));
-		}
-		return body;
+    function make_expression_statement_list(church_trees) {
+	var body = []
+	for (var i = 0; i < church_trees.length; i++) {
+	    body.push(make_expression_statement(church_trees[i]));
 	}
+	return body;
+    }
 
+    var ast = deep_copy(program_node);
+    var body = make_expression_statement_list(church_tree.children);
 
-	var ast = deep_copy(program_node);
-	var body = make_expression_statement_list(church_tree.children);
-
-  
-	ast["body"] = body;
-	ast = estraverse.replace(ast, renameIdentifiers)
-	return ast;
+    ast["body"] = body;
+    ast = estraverse.replace(ast, renameIdentifiers)
+    return ast;
 }
-
 
 function convert_char(c) { return ("_" + c.charCodeAt(0)); }
 
 // Any identifier that doesn't match the form [a-zA-Z_$][0-9a-zA-Z_$]* isn't
 // okay in JS, so we need to rename them.
 function format_identifier(id) {
-  
-	var new_id;
-	if (id[0].match("[a-zA-Z_$]")) {
-		new_id = id[0];
-	} else {
-		new_id = convert_char(id[0]);
-	}
-	for (var j = 1; j < id.length; j++) {
-		if (id[j].match("[0-9a-zA-Z_$]")) {
-			new_id = new_id + id[j];
-		} else {
-			new_id = new_id + convert_char(id[j]);
-		}
-	}
-  
-	return new_id;
 
-  
+    var new_id;
+    if (id[0].match("[a-zA-Z_$]")) {
+	new_id = id[0];
+    } else {
+	new_id = convert_char(id[0]);
+    }
+    for (var j = 1; j < id.length; j++) {
+	if (id[j].match("[0-9a-zA-Z_$]")) {
+	    new_id = new_id + id[j];
+	} else {
+	    new_id = new_id + convert_char(id[j]);
+	}
+    }
+
+    return new_id;
 }
 
 exports.church_tree_to_esprima_ast = church_tree_to_esprima_ast;
 exports.rename_map = rename_map;
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/js_astify.js","/")
-},{"./church_builtins.js":"sy/OMr","./util.js":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen/node_modules/estraverse":27}],17:[function(require,module,exports){
+},{"./church_builtins.js":"sy/OMr","./util.js":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen/node_modules/estraverse":28}],17:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 //     Backbone.js 1.1.2
 
@@ -5881,7 +6328,7 @@ exports.rename_map = rename_map;
 }));
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/backbone/backbone.js","/node_modules/backbone")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"underscore":40}],18:[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"underscore":42}],18:[function(require,module,exports){
 
 },{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],19:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
@@ -14844,7 +15291,9 @@ var substr = 'ab'.substr(-1) === 'b'
 });
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/codemirror/lib/codemirror.js","/node_modules/codemirror/lib")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],25:[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"d3":[function(require,module,exports){
+module.exports=require('Ub4Hh8');
+},{}],"Ub4Hh8":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 !function() {
   var d3 = {
@@ -24141,7 +24590,7 @@ var substr = 'ab'.substr(-1) === 'b'
   }
 }();
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/d3/d3.js","/node_modules/d3")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],26:[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],27:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
   Copyright (C) 2012-2013 Yusuke Suzuki <utatane.tea@gmail.com>
@@ -26210,7 +26659,7 @@ var substr = 'ab'.substr(-1) === 'b'
 /* vim: set sw=4 ts=4 et tw=80 : */
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/escodegen/escodegen.js","/node_modules/escodegen")
-},{"./package.json":28,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"estraverse":27,"source-map":30}],27:[function(require,module,exports){
+},{"./package.json":29,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"estraverse":28,"source-map":32}],28:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
   Copyright (C) 2012-2013 Yusuke Suzuki <utatane.tea@gmail.com>
@@ -26898,7 +27347,7 @@ var substr = 'ab'.substr(-1) === 'b'
 /* vim: set sw=4 ts=4 et tw=80 : */
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/escodegen/node_modules/estraverse/estraverse.js","/node_modules/escodegen/node_modules/estraverse")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],28:[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],29:[function(require,module,exports){
 module.exports={
   "name": "escodegen",
   "description": "ECMAScript code generator",
@@ -26969,7 +27418,7 @@ module.exports={
   "_resolved": "https://registry.npmjs.org/escodegen/-/escodegen-0.0.26.tgz"
 }
 
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
   Copyright (C) 2012 Ariya Hidayat <ariya.hidayat@gmail.com>
@@ -30881,7 +31330,383 @@ parseStatement: true, parseSourceElement: true */
 /* vim: set sw=4 ts=4 et tw=80 : */
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/esprima/esprima.js","/node_modules/esprima")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],30:[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],31:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/**
+
+seedrandom.js
+=============
+
+Seeded random number generator for Javascript.
+
+version 2.3.6<br>
+Author: David Bau<br>
+Date: 2014 May 14
+
+Can be used as a plain script, a node.js module or an AMD module.
+
+Script tag usage
+----------------
+
+<script src=//cdnjs.cloudflare.com/ajax/libs/seedrandom/2.3.6/seedrandom.min.js>
+</script>
+
+// Sets Math.random to a PRNG initialized using the given explicit seed.
+Math.seedrandom('hello.');
+console.log(Math.random());          // Always 0.9282578795792454
+console.log(Math.random());          // Always 0.3752569768646784
+
+// Sets Math.random to an ARC4-based PRNG that is autoseeded using the
+// current time, dom state, and other accumulated local entropy.
+// The generated seed string is returned.
+Math.seedrandom();
+console.log(Math.random());          // Reasonably unpredictable.
+
+// Seeds using the given explicit seed mixed with accumulated entropy.
+Math.seedrandom('added entropy.', { entropy: true });
+console.log(Math.random());          // As unpredictable as added entropy.
+
+// Use "new" to create a local prng without altering Math.random.
+var myrng = new Math.seedrandom('hello.');
+console.log(myrng());                // Always 0.9282578795792454
+
+
+Node.js usage
+-------------
+
+npm install seedrandom
+
+// Local PRNG: does not affect Math.random.
+var seedrandom = require('seedrandom');
+var rng = seedrandom('hello.');
+console.log(rng());                  // Always 0.9282578795792454
+
+// Autoseeded ARC4-based PRNG.
+rng = seedrandom();
+console.log(rng());                  // Reasonably unpredictable.
+
+// Global PRNG: set Math.random.
+seedrandom('hello.', { global: true });
+console.log(Math.random());          // Always 0.9282578795792454
+
+// Mixing accumulated entropy.
+rng = seedrandom('added entropy.', { entropy: true });
+console.log(rng());                  // As unpredictable as added entropy.
+
+
+Require.js usage
+----------------
+
+Similar to node.js usage:
+
+bower install seedrandom
+
+require(['seedrandom'], function(seedrandom) {
+  var rng = seedrandom('hello.');
+  console.log(rng());                  // Always 0.9282578795792454
+});
+
+
+Network seeding via a script tag
+--------------------------------
+
+<script src=//cdnjs.cloudflare.com/ajax/libs/seedrandom/2.3.6/seedrandom.min.js>
+</script>
+<!-- Seeds using urandom bits from a server. -->
+<script src=//jsonlib.appspot.com/urandom?callback=Math.seedrandom">
+</script>
+
+Examples of manipulating the seed for various purposes:
+
+var seed = Math.seedrandom();        // Use prng with an automatic seed.
+document.write(Math.random());       // Pretty much unpredictable x.
+
+var rng = new Math.seedrandom(seed); // A new prng with the same seed.
+document.write(rng());               // Repeat the 'unpredictable' x.
+
+function reseed(event, count) {      // Define a custom entropy collector.
+  var t = [];
+  function w(e) {
+    t.push([e.pageX, e.pageY, +new Date]);
+    if (t.length < count) { return; }
+    document.removeEventListener(event, w);
+    Math.seedrandom(t, { entropy: true });
+  }
+  document.addEventListener(event, w);
+}
+reseed('mousemove', 100);            // Reseed after 100 mouse moves.
+
+The "pass" option can be used to get both the prng and the seed.
+The following returns both an autoseeded prng and the seed as an object,
+without mutating Math.random:
+
+var obj = Math.seedrandom(null, { pass: function(prng, seed) {
+  return { random: prng, seed: seed };
+}});
+
+
+Version notes
+-------------
+
+The random number sequence is the same as version 1.0 for string seeds.
+* Version 2.0 changed the sequence for non-string seeds.
+* Version 2.1 speeds seeding and uses window.crypto to autoseed if present.
+* Version 2.2 alters non-crypto autoseeding to sweep up entropy from plugins.
+* Version 2.3 adds support for "new", module loading, and a null seed arg.
+* Version 2.3.1 adds a build environment, module packaging, and tests.
+* Version 2.3.4 fixes bugs on IE8, and switches to MIT license.
+* Version 2.3.6 adds a readable options object argument.
+
+The standard ARC4 key scheduler cycles short keys, which means that
+seedrandom('ab') is equivalent to seedrandom('abab') and 'ababab'.
+Therefore it is a good idea to add a terminator to avoid trivial
+equivalences on short string seeds, e.g., Math.seedrandom(str + '\0').
+Starting with version 2.0, a terminator is added automatically for
+non-string seeds, so seeding with the number 111 is the same as seeding
+with '111\0'.
+
+When seedrandom() is called with zero args or a null seed, it uses a
+seed drawn from the browser crypto object if present.  If there is no
+crypto support, seedrandom() uses the current time, the native rng,
+and a walk of several DOM objects to collect a few bits of entropy.
+
+Each time the one- or two-argument forms of seedrandom are called,
+entropy from the passed seed is accumulated in a pool to help generate
+future seeds for the zero- and two-argument forms of seedrandom.
+
+On speed - This javascript implementation of Math.random() is several
+times slower than the built-in Math.random() because it is not native
+code, but that is typically fast enough.  Some details (timings on
+Chrome 25 on a 2010 vintage macbook):
+
+* seeded Math.random()          - avg less than 0.0002 milliseconds per call
+* seedrandom('explicit.')       - avg less than 0.2 milliseconds per call
+* seedrandom('explicit.', true) - avg less than 0.2 milliseconds per call
+* seedrandom() with crypto      - avg less than 0.2 milliseconds per call
+
+Autoseeding without crypto is somewhat slower, about 20-30 milliseconds on
+a 2012 windows 7 1.5ghz i5 laptop, as seen on Firefox 19, IE 10, and Opera.
+Seeded rng calls themselves are fast across these browsers, with slowest
+numbers on Opera at about 0.0005 ms per seeded Math.random().
+
+
+LICENSE (MIT)
+-------------
+
+Copyright (c)2014 David Bau.
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+*/
+
+/**
+ * All code is in an anonymous closure to keep the global namespace clean.
+ */
+(function (
+    global, pool, math, width, chunks, digits, module, define, rngname) {
+
+//
+// The following constants are related to IEEE 754 limits.
+//
+var startdenom = math.pow(width, chunks),
+    significance = math.pow(2, digits),
+    overflow = significance * 2,
+    mask = width - 1,
+
+//
+// seedrandom()
+// This is the seedrandom function described above.
+//
+impl = math['seed' + rngname] = function(seed, options, callback) {
+  var key = [];
+  options = (options == true) ? { entropy: true } : (options || {});
+
+  // Flatten the seed string or build one from local entropy if needed.
+  var shortseed = mixkey(flatten(
+    options.entropy ? [seed, tostring(pool)] :
+    (seed == null) ? autoseed() : seed, 3), key);
+
+  // Use the seed to initialize an ARC4 generator.
+  var arc4 = new ARC4(key);
+
+  // Mix the randomness into accumulated entropy.
+  mixkey(tostring(arc4.S), pool);
+
+  // Calling convention: what to return as a function of prng, seed, is_math.
+  return (options.pass || callback ||
+      // If called as a method of Math (Math.seedrandom()), mutate Math.random
+      // because that is how seedrandom.js has worked since v1.0.  Otherwise,
+      // it is a newer calling convention, so return the prng directly.
+      function(prng, seed, is_math_call) {
+        if (is_math_call) { math[rngname] = prng; return seed; }
+        else return prng;
+      })(
+
+  // This function returns a random double in [0, 1) that contains
+  // randomness in every bit of the mantissa of the IEEE 754 value.
+  function() {
+    var n = arc4.g(chunks),             // Start with a numerator n < 2 ^ 48
+        d = startdenom,                 //   and denominator d = 2 ^ 48.
+        x = 0;                          //   and no 'extra last byte'.
+    while (n < significance) {          // Fill up all significant digits by
+      n = (n + x) * width;              //   shifting numerator and
+      d *= width;                       //   denominator and generating a
+      x = arc4.g(1);                    //   new least-significant-byte.
+    }
+    while (n >= overflow) {             // To avoid rounding up, before adding
+      n /= 2;                           //   last byte, shift everything
+      d /= 2;                           //   right using integer math until
+      x >>>= 1;                         //   we have exactly the desired bits.
+    }
+    return (n + x) / d;                 // Form the number within [0, 1).
+  }, shortseed, 'global' in options ? options.global : (this == math));
+};
+
+//
+// ARC4
+//
+// An ARC4 implementation.  The constructor takes a key in the form of
+// an array of at most (width) integers that should be 0 <= x < (width).
+//
+// The g(count) method returns a pseudorandom integer that concatenates
+// the next (count) outputs from ARC4.  Its return value is a number x
+// that is in the range 0 <= x < (width ^ count).
+//
+/** @constructor */
+function ARC4(key) {
+  var t, keylen = key.length,
+      me = this, i = 0, j = me.i = me.j = 0, s = me.S = [];
+
+  // The empty key [] is treated as [0].
+  if (!keylen) { key = [keylen++]; }
+
+  // Set up S using the standard key scheduling algorithm.
+  while (i < width) {
+    s[i] = i++;
+  }
+  for (i = 0; i < width; i++) {
+    s[i] = s[j = mask & (j + key[i % keylen] + (t = s[i]))];
+    s[j] = t;
+  }
+
+  // The "g" method returns the next (count) outputs as one number.
+  (me.g = function(count) {
+    // Using instance members instead of closure state nearly doubles speed.
+    var t, r = 0,
+        i = me.i, j = me.j, s = me.S;
+    while (count--) {
+      t = s[i = mask & (i + 1)];
+      r = r * width + s[mask & ((s[i] = s[j = mask & (j + t)]) + (s[j] = t))];
+    }
+    me.i = i; me.j = j;
+    return r;
+    // For robust unpredictability discard an initial batch of values.
+    // See http://www.rsa.com/rsalabs/node.asp?id=2009
+  })(width);
+}
+
+//
+// flatten()
+// Converts an object tree to nested arrays of strings.
+//
+function flatten(obj, depth) {
+  var result = [], typ = (typeof obj), prop;
+  if (depth && typ == 'object') {
+    for (prop in obj) {
+      try { result.push(flatten(obj[prop], depth - 1)); } catch (e) {}
+    }
+  }
+  return (result.length ? result : typ == 'string' ? obj : obj + '\0');
+}
+
+//
+// mixkey()
+// Mixes a string seed into a key that is an array of integers, and
+// returns a shortened string seed that is equivalent to the result key.
+//
+function mixkey(seed, key) {
+  var stringseed = seed + '', smear, j = 0;
+  while (j < stringseed.length) {
+    key[mask & j] =
+      mask & ((smear ^= key[mask & j] * 19) + stringseed.charCodeAt(j++));
+  }
+  return tostring(key);
+}
+
+//
+// autoseed()
+// Returns an object for autoseeding, using window.crypto if available.
+//
+/** @param {Uint8Array|Navigator=} seed */
+function autoseed(seed) {
+  try {
+    global.crypto.getRandomValues(seed = new Uint8Array(width));
+    return tostring(seed);
+  } catch (e) {
+    return [+new Date, global, (seed = global.navigator) && seed.plugins,
+            global.screen, tostring(pool)];
+  }
+}
+
+//
+// tostring()
+// Converts an array of charcodes to a string
+//
+function tostring(a) {
+  return String.fromCharCode.apply(0, a);
+}
+
+//
+// When seedrandom.js is loaded, we immediately mix a few bits
+// from the built-in RNG into the entropy pool.  Because we do
+// not want to intefere with determinstic PRNG state later,
+// seedrandom will not call math.random on its own again after
+// initialization.
+//
+mixkey(math[rngname](), pool);
+
+//
+// Nodejs and AMD support: export the implemenation as a module using
+// either convention.
+//
+if (module && module.exports) {
+  module.exports = impl;
+} else if (define && define.amd) {
+  define(function() { return impl; });
+}
+
+// End anonymous scope, and pass initial values.
+})(
+  this,   // global window object
+  [],     // pool: entropy pool starts empty
+  Math,   // math: package containing random, pow, and seedrandom
+  256,    // width: each RC4 output is 0 <= x < 256
+  6,      // chunks: at least six RC4 outputs for each double
+  52,     // digits: there are 52 significant digits in a double
+  (typeof module) == 'object' && module,    // present in node.js
+  (typeof define) == 'function' && define,  // present with an AMD loader
+  'random'// rngname: name for Math.random and Math.seedrandom
+);
+
+}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/seedrandom/seedrandom.js","/node_modules/seedrandom")
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],32:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
@@ -30893,7 +31718,7 @@ exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMa
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map.js","/node_modules/source-map/lib")
-},{"./source-map/source-map-consumer":35,"./source-map/source-map-generator":36,"./source-map/source-node":37,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],31:[function(require,module,exports){
+},{"./source-map/source-map-consumer":37,"./source-map/source-map-generator":38,"./source-map/source-node":39,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],33:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -30994,7 +31819,7 @@ define(function (require, exports, module) {
 });
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/array-set.js","/node_modules/source-map/lib/source-map")
-},{"./util":38,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],32:[function(require,module,exports){
+},{"./util":40,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],34:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -31142,7 +31967,7 @@ define(function (require, exports, module) {
 });
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/base64-vlq.js","/node_modules/source-map/lib/source-map")
-},{"./base64":33,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],33:[function(require,module,exports){
+},{"./base64":35,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],35:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -31188,7 +32013,7 @@ define(function (require, exports, module) {
 });
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/base64.js","/node_modules/source-map/lib/source-map")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],34:[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],36:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -31273,7 +32098,7 @@ define(function (require, exports, module) {
 });
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/binary-search.js","/node_modules/source-map/lib/source-map")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],35:[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],37:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -31718,7 +32543,7 @@ define(function (require, exports, module) {
 });
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-map-consumer.js","/node_modules/source-map/lib/source-map")
-},{"./array-set":31,"./base64-vlq":32,"./binary-search":34,"./util":38,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],36:[function(require,module,exports){
+},{"./array-set":33,"./base64-vlq":34,"./binary-search":36,"./util":40,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],38:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -32102,7 +32927,7 @@ define(function (require, exports, module) {
 });
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-map-generator.js","/node_modules/source-map/lib/source-map")
-},{"./array-set":31,"./base64-vlq":32,"./util":38,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],37:[function(require,module,exports){
+},{"./array-set":33,"./base64-vlq":34,"./util":40,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],39:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -32477,7 +33302,7 @@ define(function (require, exports, module) {
 });
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-node.js","/node_modules/source-map/lib/source-map")
-},{"./source-map-generator":36,"./util":38,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],38:[function(require,module,exports){
+},{"./source-map-generator":38,"./util":40,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],40:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -32686,7 +33511,7 @@ define(function (require, exports, module) {
 });
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/util.js","/node_modules/source-map/lib/source-map")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":39,"buffer":19}],39:[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],41:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 0.1.0 Copyright (c) 2011, The Dojo Foundation All Rights Reserved.
@@ -32989,7 +33814,7 @@ function amdefine(module, requireFn) {
 module.exports = amdefine;
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/node_modules/amdefine/amdefine.js","/node_modules/source-map/node_modules/amdefine")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"path":23}],40:[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"path":23}],42:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 //     Underscore.js 1.6.0
 //     http://underscorejs.org
@@ -34336,40 +35161,38 @@ module.exports = amdefine;
 }).call(this);
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/underscore/underscore.js","/node_modules/underscore")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],41:[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],43:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
- A very simple (abstract/tracing) interpreter that takes in the AST generated by js_astify.js. Inteprets only a fragment of javascript (eg does not deal with objects, loops, etc.).
- The traces generated are in an even simpler js fragment, that has no non-primitive function call, no loops, etc. It is:
- S    :=   A_i|I|SS
- A_i  :=   var abi = primfn(ab,..)
- I    :=   if(ab1){S;A_i} else {S;A_i}
- Note that the assigned variable in A_i in both if branches is the same. Otherwise variables are assigned only once.
- 
- 
- FIXME:
- -fix kludge to call ERPs (in evaluate.js)...
- -switch to a better direct conditioning interface for probjs, that doesn't look like arguments.
- -need to add standard precompile environment for higher order fns.
- -when max-depth reach, generated code isn't going to have symbols defined.. need to add wrapper that asisgns all names in interpreter environment when code is generated.
- -should keep around locs for error traces. this means using only ASTs, not direct code.
- -we trace closures more times than needed. trace when closure is created instead of used?
+  A very simple (abstract/tracing) interpreter that takes in the AST generated by js_astify.js. Inteprets only a fragment of javascript (eg does not deal with objects, loops, etc.).
+  The traces generated are in an even simpler js fragment, that has no non-primitive function call, no loops, etc. It is:
+  S    :=   A_i|I|SS
+  A_i  :=   var abi = primfn(ab,..)
+  I    :=   if(ab1){S;A_i} else {S;A_i}
+  Note that the assigned variable in A_i in both if branches is the same. Otherwise variables are assigned only once.
 
- 
- Notes:
- -One special kind of randomChoice is those guaranteed to exist. Those can get simple static names. Can detect from the interpretation by passing down whether we are in an (abstract) if branch.
- -Another special kind of randomChoice are the non-structural ones.
- 
- -Within code generated by tracing, don't need enter/leave wrapping. Only right before randomChoice or untraced fall-through. (Higher-order primitives?) Mark other calls with callskip for wctransform?
- 
- -Trace through ERP lookup (scoring / sampling)? Through church arithmetic primitives?
- 
- in probjs:
- -Add notation for guaranteed random choices.
- -Guaranteed rcs should have different (fast) lookup path.
- -Non-structural proposals use flat list
- 
- */
+  FIXME:
+  -fix kludge to call ERPs (in evaluate.js)...
+  -switch to a better direct conditioning interface for probjs, that doesn't look like arguments.
+  -need to add standard precompile environment for higher order fns.
+  -when max-depth reach, generated code isn't going to have symbols defined.. need to add wrapper that asisgns all names in interpreter environment when code is generated.
+  -should keep around locs for error traces. this means using only ASTs, not direct code.
+  -we trace closures more times than needed. trace when closure is created instead of used?
+
+  Notes:
+  -One special kind of randomChoice is those guaranteed to exist. Those can get simple static names. Can detect from the interpretation by passing down whether we are in an (abstract) if branch.
+  -Another special kind of randomChoice are the non-structural ones.
+
+  -Within code generated by tracing, don't need enter/leave wrapping. Only right before randomChoice or untraced fall-through. (Higher-order primitives?) Mark other calls with callskip for wctransform?
+
+  -Trace through ERP lookup (scoring / sampling)? Through church arithmetic primitives?
+
+  in probjs:
+  -Add notation for guaranteed random choices.
+  -Guaranteed rcs should have different (fast) lookup path.
+  -Non-structural proposals use flat list
+
+*/
 
 var escodegen = require('escodegen');
 var esprima = require('esprima');
@@ -34384,7 +35207,6 @@ var pr = require('./probabilistic-js');
 pr.openModule(pr)//make probjs fns available.
 openModule(builtins)//make church builtins available.
 
-
 //preamble is an array of strings defining church functions for the precompile pass. these all overload built in functions from the church or probjs runtime.
 var preamble = []
 
@@ -34397,9 +35219,8 @@ for (var p in erps) {
 
 //next include some higher order functions in preamble to allow tracing thrugh them... (TODO)
 
-
 function precompile(church_codestring) {
-    
+
     //prepend the standard preamble:
     //stdEnv_code = require('fs').readFileSync("./precompile_stdenv.church", "utf8");
     church_codestring = preamble.join("\n")+ "\n" + church_codestring
@@ -34409,16 +35230,15 @@ function precompile(church_codestring) {
     var church_ast = church_astify(tokens)
     var js_ast = js_astify(church_ast)
     var tracedcode = trace_and_backtrace(js_ast)
-//        console.log("final precompiled:\n",tracedcode,"\n")
+    //        console.log("final precompiled:\n",tracedcode,"\n")
     return tracedcode
 }
-
 
 //trace through an AST, using a current env as the base env, recording trace. then parse, and backtrace to propogate conditions as far back as possible. then addConditions to the trace code. return the final traced code.
 function trace_and_backtrace(ast,env) {
     var old_trace = global_trace
     global_trace = []
-//        console.log("ast ",escodegen.generate(ast),"\n")
+    //        console.log("ast ",escodegen.generate(ast),"\n")
     //trace through the ast, if we escape return a value, make a return statement, otherwise add value as final statement:
     var ret = ""
     try {
@@ -34431,19 +35251,18 @@ function trace_and_backtrace(ast,env) {
             throw e
         }
     }
-    
+
     var new_ast = esprima.parse(global_trace.join("\n"))
-//        console.log("new_ast ",escodegen.generate(new_ast),"\n")
+    //        console.log("new_ast ",escodegen.generate(new_ast),"\n")
     var cond = backTrace(new_ast)
-//        console.log("cond ", cond)
+    //        console.log("cond ", cond)
     new_ast = estraverse.replace( esprima.parse(global_trace.join("\n")),
                                   makeConditionReplacer(cond))
     var new_trace = escodegen.generate(new_ast) + ret
-//        console.log("new_trace ",new_trace,"\n")
+    //        console.log("new_trace ",new_trace,"\n")
     global_trace = old_trace
     return new_trace
 }
-
 
 function trace_closure(body, params, env) {
     //extend environment with abstracts for params:
@@ -34457,13 +35276,9 @@ function trace_closure(body, params, env) {
     ab_arguments = new Abstract()
     closureenv.bind("arguments",ab_arguments) //make arguments keyword bound to new abstract
     var trace = trace_and_backtrace(body,closureenv)
-//    return "function("+newparams.map(valString).join(",")+"){"+trace+"}"
+    //    return "function("+newparams.map(valString).join(",")+"){"+trace+"}"
     return "function("+newparams.map(valString).join(",")+"){var "+valString(ab_arguments)+"=arguments;"+trace+"}"
 }
-
-
-
-
 
 var Environment = function Environment(baseenv) {
     this.base = baseenv
@@ -34480,7 +35295,6 @@ Environment.prototype.lookup = function Environment_lookup(name) {
     if((val == undefined) && this.base) {return this.base.lookup(name)}
     return val
 }
-
 
 //the abstract value class:
 var AbstractId = 0
@@ -34517,7 +35331,7 @@ function valString(ob) {
         return ob.id
     }
     if (isClosure(ob)) {
-//        throw new Error("Tracer valString received closure object. That makes it sad.")
+        //        throw new Error("Tracer valString received closure object. That makes it sad.")
         return escodegen.generate(ob) //FIXME: doesn't capture env variables.
     }
     if (typeof ob === "boolean"
@@ -34542,11 +35356,10 @@ function valString(ob) {
     }
 }
 
-
 var max_trace_depth = 1000
 global_trace=[]
 function extendTrace(line){
-//    console.log("extending trace with ", line)
+    //    console.log("extending trace with ", line)
     global_trace.push(line)
 }
 
@@ -34554,183 +35367,180 @@ function extendTrace(line){
 //a normal interpreter except for certain cases where there is an abstract value. then emit a statement into the trace.
 function tracer(ast, env) {
     env = (env==undefined?new Environment():env)
-//    console.log(env.depth)
-//        console.log("tracer: ",ast)
-//    console.log("tracer, trace so far: ",global_trace)
-//    console.log(env)
+    //    console.log(env.depth)
+    //        console.log("tracer: ",ast)
+    //    console.log("tracer, trace so far: ",global_trace)
+    //    console.log(env)
     switch (ast.type) {
-            //First the statements:
-        case 'Program':
-        case 'BlockStatement':
-            var ret
-            for (a in ast.body) {
-                ret = tracer(ast.body[a],env)
+        //First the statements:
+    case 'Program':
+    case 'BlockStatement':
+        var ret
+        for (a in ast.body) {
+            ret = tracer(ast.body[a],env)
+        }
+        return ret
+
+    case 'ExpressionStatement':
+        return tracer(ast.expression, env)
+
+        //comment out because church compile uses ternary op, not if...
+        //        case 'IfStatement':
+        //            var test = tracer(ast.test,env)
+        //            if(test instanceof Abstract) {
+        //                var ret = new Abstract()
+        //                var cons = tracer(ast.consequent,env)
+        //                cons = (cons instanceof Abstract)? cons.id : cons //FIXME to string?
+        //                var alt = tracer(ast.alternate, env)
+        //                alt = (alt instanceof Abstract)? alt.id : alt
+        //                var tracestring = "var "+ret.id+" = "+test.id+"?"+cons+":"+alt+";"
+        //                extendTrace(tracestring)
+        //
+        //                return ret
+        //            }
+        //            return test?tracer(ast.consequent,env):tracer(ast.alternate, env)
+
+    case 'ReturnStatement':
+        var val = tracer(ast.argument, env)
+        var e ={thrown_return: true, val: val}
+        throw e
+
+    case 'VariableDeclaration':
+        env.bind(ast.declarations[0].id.name, tracer(ast.declarations[0].init,env))
+        return undefined
+
+        //Next the expresisons:
+    case 'FunctionExpression':
+        //represent a closure as the FunctionExpression AST with a field for enclosing env.
+        //            //eagerly trace through closures:
+        //            var clostrace = trace_closure(ast.body,ast.params,env)
+        //            var newast = esprima.parse("var dummy ="+clostrace).body[0].declarations[0].init //esprima can't directly parse function so wrap in id...
+        //            newast.env = env
+        ast.env = env
+        return ast
+
+    case 'ArrayExpression':
+        var ret = []
+        for (a in ast.elements) {
+            ret.push(tracer(ast.elements[a],env))
+        }
+        return ret
+
+    case 'UnaryExpression':
+        var op
+        switch (ast.operator) {
+        case "-": op = "minus"; break;
+        default: throw new Error("Tracer doesn't know how to handle Unary Operator: ",ast.operator)
+        }
+        ast.callee = {type: 'Identifier', name: op}
+        ast.arguments = [ ast.argument ]
+    case 'CallExpression':
+        var args = []
+        var abstract_args=false
+        for(var a in ast.arguments) {
+            var val = tracer(ast.arguments[a], env)
+            args.push(val)
+            if(isAbstract(val) || isClosure(val)) {abstract_args=true}
+        }
+        var fn = tracer(ast.callee,env)
+
+        //            console.log("tracer call: ", fn, "\n",args,"\n",abstract_args )
+
+        if(isClosure(fn)) {
+            if(env.depth==max_trace_depth) {
+                //depth maxed out, don't trace branches, just generate code for this call:
+                var ret = new Abstract()
+                extendTrace("var "+ret.id +" = "+escodegen.generate(ast))
+                console.log("Tracer warning: max_trace_depth reached, generating original code. (This might be broken.)")
+                return ret
             }
-            return ret
-            
-        case 'ExpressionStatement':
-            return tracer(ast.expression, env)
-            
-            //comment out because church compile uses ternary op, not if...
-            //        case 'IfStatement':
-            //            var test = tracer(ast.test,env)
-            //            if(test instanceof Abstract) {
-            //                var ret = new Abstract()
-            //                var cons = tracer(ast.consequent,env)
-            //                cons = (cons instanceof Abstract)? cons.id : cons //FIXME to string?
-            //                var alt = tracer(ast.alternate, env)
-            //                alt = (alt instanceof Abstract)? alt.id : alt
-            //                var tracestring = "var "+ret.id+" = "+test.id+"?"+cons+":"+alt+";"
-            //                extendTrace(tracestring)
-            //
-            //                return ret
-            //            }
-            //            return test?tracer(ast.consequent,env):tracer(ast.alternate, env)
-            
-        case 'ReturnStatement':
-            var val = tracer(ast.argument, env)
-            var e ={thrown_return: true, val: val}
-            throw e
-            
-        case 'VariableDeclaration':
-            env.bind(ast.declarations[0].id.name, tracer(ast.declarations[0].init,env))
+            var callenv = new Environment(fn.env)
+            callenv.bind("arguments",args) //make arguments keyword bound to current call args
+            for(a in fn.params) {
+                callenv.bind(fn.params[a].name,args[a]) //bind args to params
+            }
+            try {
+                tracer(fn.body,callenv)
+            } catch (e) {
+                if (e.thrown_return) {return e.val}
+                throw e
+            }
             return undefined
-            
-            
-            //Next the expresisons:
-        case 'FunctionExpression':
-            //represent a closure as the FunctionExpression AST with a field for enclosing env.
-//            //eagerly trace through closures:
-//            var clostrace = trace_closure(ast.body,ast.params,env)
-//            var newast = esprima.parse("var dummy ="+clostrace).body[0].declarations[0].init //esprima can't directly parse function so wrap in id...
-//            newast.env = env
-            ast.env = env
-            return ast
-            
-        case 'ArrayExpression':
-            var ret = []
-            for (a in ast.elements) {
-                ret.push(tracer(ast.elements[a],env))
+        }
+
+        //if callee isn't a closure and operator or any args are abstract, emit new assignment into trace.
+        //if the fn is list or pair, go ahead and do it, even with abstract args to ennable allocation removal. NOTE: could abstracts in lists screw up other things?
+        var isadtcons = (fn == list) || (fn == pair)
+        var fnisrandom = (fn == random)
+        if(fnisrandom || isAbstract(fn) || (abstract_args && !isadtcons)) {
+            var ret = new Abstract()
+            //                if(isAbstract(fn)){var fnstring = valString(fn)} else {var fnstring = escodegen.generate(ast.callee)}
+            var fnstring = isAbstract(fn) ? valString(fn) : escodegen.generate(ast.callee)
+            var argstrings = []
+            for(var a in args){
+                //                    argstrings.push(valString(args[a]))
+                //if arg is a closure eagerly evaluate it to a trace.
+                if(isClosure(args[a])) {
+                    //TODO: we trace closures more times than needed. trace when closure is created?
+                    argstrings.push(trace_closure(args[a].body,args[a].params,args[a].env))
+                } else {
+                    argstrings.push(valString(args[a]))
+                }
             }
+            extendTrace("var "+ret.id+" = "+fnstring+"("+argstrings.join(",")+");")
             return ret
-            
-        case 'UnaryExpression':
-            var op
-            switch (ast.operator) {
-                case "-": op = "minus"; break;
-                default: throw new Error("Tracer doesn't know how to handle Unary Operator: ",ast.operator)
-            }
-            ast.callee = {type: 'Identifier', name: op}
-            ast.arguments = [ ast.argument ]
-        case 'CallExpression':
-            var args = []
-            var abstract_args=false
-            for(var a in ast.arguments) {
-                var val = tracer(ast.arguments[a], env)
-                args.push(val)
-                if(isAbstract(val) || isClosure(val)) {abstract_args=true}
-            }
-            var fn = tracer(ast.callee,env)
-            
-//            console.log("tracer call: ", fn, "\n",args,"\n",abstract_args )
-            
-            if(isClosure(fn)) {
-                if(env.depth==max_trace_depth) {
-                    //depth maxed out, don't trace branches, just generate code for this call:
-                    var ret = new Abstract()
-                    extendTrace("var "+ret.id +" = "+escodegen.generate(ast))
-                    console.log("Tracer warning: max_trace_depth reached, generating original code. (This might be broken.)")
-                    return ret
-                }
-                var callenv = new Environment(fn.env)
-                callenv.bind("arguments",args) //make arguments keyword bound to current call args
-                for(a in fn.params) {
-                    callenv.bind(fn.params[a].name,args[a]) //bind args to params
-                }
-                try {
-                    tracer(fn.body,callenv)
-                } catch (e) {
-                    if (e.thrown_return) {return e.val}
-                    throw e
-                }
-                return undefined
-            }
-            
-            //if callee isn't a closure and operator or any args are abstract, emit new assignment into trace.
-            //if the fn is list or pair, go ahead and do it, even with abstract args to ennable allocation removal. NOTE: could abstracts in lists screw up other things?
-            var isadtcons = (fn == list) || (fn == pair)
-            var fnisrandom = (fn == random)
-            if(fnisrandom || isAbstract(fn) || (abstract_args && !isadtcons)) {
-                var ret = new Abstract()
-//                if(isAbstract(fn)){var fnstring = valString(fn)} else {var fnstring = escodegen.generate(ast.callee)}
-                var fnstring = isAbstract(fn) ? valString(fn) : escodegen.generate(ast.callee)
-                var argstrings = []
-                for(var a in args){
-//                    argstrings.push(valString(args[a]))
-                    //if arg is a closure eagerly evaluate it to a trace.
-                    if(isClosure(args[a])) {
-                        //TODO: we trace closures more times than needed. trace when closure is created?
-                        argstrings.push(trace_closure(args[a].body,args[a].params,args[a].env))
-                    } else {
-                        argstrings.push(valString(args[a]))
-                    }
-                }
-                extendTrace("var "+ret.id+" = "+fnstring+"("+argstrings.join(",")+");")
-                return ret
-            }
-            //otherwise just do the fn:
-            return fn.apply(fn,args)
-            
-            
-        case 'ConditionalExpression':
-            var test = tracer(ast.test,env)
-            if(isAbstract(test)) {
-                var ret = new Abstract()
-                extendTrace("if("+valString(test)+") {")
-                var cons = valString(tracer(ast.consequent,env))
-                extendTrace("var "+ret.id+" = "+cons +";}")
-                extendTrace(" else {")
-                var alt = valString(tracer(ast.alternate, env))
-                extendTrace("var "+ret.id+" = "+alt +";}")
-                return ret
-            }
-            return test?tracer(ast.consequent,env):tracer(ast.alternate, env)
-            
-        case 'MemberExpression':
-            var ob = tracer(ast.object,env)
-            if (!ast.computed) {
-                var v = ob[ast.property.name]
-                if(v instanceof Object){v.sourcename = ob.sourcename+"."+ast.property.name}
-                return v
-            } else {
-                throw new Error("Have not implemented computed member reference.")
-            }
-            
-        case 'Identifier':
-            //lookup in interpreter environment:
-            var v = env.lookup(ast.name)
-            //if not found, assume it will be defined in js environment for interpreter:
-            if(v == undefined){
-                v = eval(ast.name); //FIXME: better way to do this?
-                if(v instanceof Object){v.sourcename = ast.name}
-            }
+        }
+        //otherwise just do the fn:
+        return fn.apply(fn,args)
+
+    case 'ConditionalExpression':
+        var test = tracer(ast.test,env)
+        if(isAbstract(test)) {
+            var ret = new Abstract()
+            extendTrace("if("+valString(test)+") {")
+            var cons = valString(tracer(ast.consequent,env))
+            extendTrace("var "+ret.id+" = "+cons +";}")
+            extendTrace(" else {")
+            var alt = valString(tracer(ast.alternate, env))
+            extendTrace("var "+ret.id+" = "+alt +";}")
+            return ret
+        }
+        return test?tracer(ast.consequent,env):tracer(ast.alternate, env)
+
+    case 'MemberExpression':
+        var ob = tracer(ast.object,env)
+        if (!ast.computed) {
+            var v = ob[ast.property.name]
+            if(v instanceof Object){v.sourcename = ob.sourcename+"."+ast.property.name}
             return v
-            
-        case 'Literal':
-            return ast.value
-            
-        default:
-            throw new Error("Tracer dosen't know how to handle "+ast.type+" in: "+escodegen.generate(ast))
+        } else {
+            throw new Error("Have not implemented computed member reference.")
+        }
+
+    case 'Identifier':
+        //lookup in interpreter environment:
+        var v = env.lookup(ast.name)
+        //if not found, assume it will be defined in js environment for interpreter:
+        if(v == undefined){
+            v = eval(ast.name); //FIXME: better way to do this?
+            if(v instanceof Object){v.sourcename = ast.name}
+        }
+        return v
+
+    case 'Literal':
+        return ast.value
+
+    default:
+        throw new Error("Tracer dosen't know how to handle "+ast.type+" in: "+escodegen.generate(ast))
     }
 }
 
-
 /*
- Interpret a trace backward, accumulating conditions.
- This is a version of Dijkstra's algorithm for weakest preconditions, but generates simple statements so that a CSP/proof system isn't needed (means can't handle eg disjunction cleverly).
- 
- Conditions are sets of allowable values for variables.
- */
+  Interpret a trace backward, accumulating conditions.
+  This is a version of Dijkstra's algorithm for weakest preconditions, but generates simple statements so that a CSP/proof system isn't needed (means can't handle eg disjunction cleverly).
+
+  Conditions are sets of allowable values for variables.
+*/
 function Condition(cond) {
     this.conditions = {}
     this.erpvals = {}
@@ -34756,193 +35566,189 @@ Unsatisfiable = new Object
 
 function backTrace(ast, cond) {
     cond = (cond==undefined)?new Condition : cond
-//    console.log("backtrace: ", ast, cond, "\n")
+    //    console.log("backtrace: ", ast, cond, "\n")
     switch (ast.type) {
-            //First the statements:
-        case 'Program':
-        case 'BlockStatement':
-            //we evaluate a sequence in *reverse* order:
-            for (var i=ast.body.length-1;i>=0;i--) {
-                cond = backTrace(ast.body[i],cond)
-            }
+        //First the statements:
+    case 'Program':
+    case 'BlockStatement':
+        //we evaluate a sequence in *reverse* order:
+        for (var i=ast.body.length-1;i>=0;i--) {
+            cond = backTrace(ast.body[i],cond)
+        }
+        return cond
+
+        //        case 'ExpressionStatement':
+        //            return backTrace(ast.expression, cond)
+
+    case 'VariableDeclaration':
+        //Assume that a variable declaration has one of the forms:
+        //  "var ab = condition(ab);"
+        //  "var ab = random(ab);"
+        //  "var ab = op(ab,..);" where op might be dotted, and the arguments may be identifiers or literals.
+        //  "var ab = literal;"
+        //  "var ab = ab;"
+        //
+        //We add a condition when it's a condition statement, otherwise check if the declared variable is constrained and if so see if we can push that constraint into the init.
+        //If op is random the we should emit a direct conditioning statement.
+
+        var name = ast.declarations[0].id.name
+        var init = ast.declarations[0].init
+        var varcond = cond.get(name)
+
+        if(init.type=="CallExpression" &&
+           init.callee.type=="Identifier" &&
+           init.callee.name=="condition") {
+            //assume form is "var ab1 = condition(ab2)"
+            cond.add(init.arguments[0].name, true)
+            cond.removed[name]=true
             return cond
-            
-            //        case 'ExpressionStatement':
-            //            return backTrace(ast.expression, cond)
-            
-        case 'VariableDeclaration':
-            //Assume that a variable declaration has one of the forms:
-            //  "var ab = condition(ab);"
-            //  "var ab = random(ab);"
-            //  "var ab = op(ab,..);" where op might be dotted, and the arguments may be identifiers or literals.
-            //  "var ab = literal;"
-            //  "var ab = ab;"
-            //
-            //We add a condition when it's a condition statement, otherwise check if the declared variable is constrained and if so see if we can push that constraint into the init.
-            //If op is random the we should emit a direct conditioning statement.
-            
-            var name = ast.declarations[0].id.name
-            var init = ast.declarations[0].init
-            var varcond = cond.get(name)
-            
-            if(init.type=="CallExpression" &&
-               init.callee.type=="Identifier" &&
-               init.callee.name=="condition") {
-                //assume form is "var ab1 = condition(ab2)"
-                cond.add(init.arguments[0].name, true)
-                cond.removed[name]=true
+        }
+
+        if(varcond==undefined){return cond}
+        else {
+            switch (init.type) {
+            case "Literal":
+                //if variable is assigned a value, check if that's consistent with cond:
+                if(init.value != varcond) {
+                    return Unsatisfiable
+                }
+                cond.remove(name)//have handled the cond on this var.
                 return cond
-            }
-            
-            if(varcond==undefined){return cond}
-            else {
-                switch (init.type) {
-                    case "Literal":
-                        //if variable is assigned a value, check if that's consistent with cond:
-                        if(init.value != varcond) {
-                            return Unsatisfiable
+
+            case "Identifier":
+                console.log("backtrace id: ",name, init.name, varcond)
+                //if variable is assigned a variable, propogate condition:
+                cond.add(init.name,varcond)
+                cond.remove(name)//have handled the cond on this var.
+                return cond
+
+            case "CallExpression":
+                if(init.callee.type=="Identifier"){
+                    var opname = init.callee.name
+                }
+                else {
+                    var opname = undefined
+                }
+                switch (opname) {
+                case "random":
+                    if(varcond != undefined){
+                        cond.remove(name)//have handled the cond on this var.
+                        cond.erpvals[name] = varcond
+                    }
+                    break
+
+                case "eq":
+                case "is_eq":
+                    if(varcond == true) {
+                        //if either arg is a literal, set other to it.
+                        if(init.arguments[0].type == "Literal"){
+                            var argname = init.arguments[1].name
+                            var argval = init.arguments[0].value
+                            cond.add(argname,argval)
+                            cond.remove(name)//have handled the cond on this var.
+                        } else if(init.arguments[1].type == "Literal"){
+                            var argname = init.arguments[0].name
+                            var argval = init.arguments[1].value
+                            cond.add(argname,argval)
+                            cond.remove(name)//have handled the cond on this var.
+                        }
+                    }
+                    break
+
+                case "and":
+                    if(varcond == true) {
+                        //add condition for each argument:
+                        for(var a in init.arguments) {
+                            var argname = init.arguments[a].name
+                            cond.add(argname,true)
                         }
                         cond.remove(name)//have handled the cond on this var.
-                        return cond
-                        
-                    case "Identifier":
-                        console.log("backtrace id: ",name, init.name, varcond)
-                        //if variable is assigned a variable, propogate condition:
-                        cond.add(init.name,varcond)
-                        cond.remove(name)//have handled the cond on this var.
-                        return cond
-                        
-                        
-                    case "CallExpression":
-                        if(init.callee.type=="Identifier"){
-                            var opname = init.callee.name
-                        }
-                        else {
-                            var opname = undefined
-                        }
-                        switch (opname) {
-                            case "random":
-                                if(varcond != undefined){
-                                    cond.remove(name)//have handled the cond on this var.
-                                    cond.erpvals[name] = varcond
-                                }
-                                break
-                                
-                            case "eq":
-                            case "is_eq":
-                                if(varcond == true) {
-                                    //if either arg is a literal, set other to it.
-                                    if(init.arguments[0].type == "Literal"){
-                                        var argname = init.arguments[1].name
-                                        var argval = init.arguments[0].value
-                                        cond.add(argname,argval)
-                                        cond.remove(name)//have handled the cond on this var.
-                                    } else if(init.arguments[1].type == "Literal"){
-                                        var argname = init.arguments[0].name
-                                        var argval = init.arguments[1].value
-                                        cond.add(argname,argval)
-                                        cond.remove(name)//have handled the cond on this var.
-                                    }
-                                }
-                                break
-                                
-                            case "and":
-                                if(varcond == true) {
-                                    //add condition for each argument:
-                                    for(var a in init.arguments) {
-                                        var argname = init.arguments[a].name
-                                        cond.add(argname,true)
-                                    }
-                                    cond.remove(name)//have handled the cond on this var.
-                                }
-                                break
-                        }
-                        return cond
-                }}
-            
-        case 'IfStatement':
-            // "if(a1){SC} else {SA}"
-            //push condition through each branch of 'if', we want condition a1?cond(SC):cond(SA), but we don't want to handle arbirary terms, so: if either branch conndition is unsatisfiable add a1 = true/false to cond and return that branch condition. otherwise return join of conditions (which don't interfere because variables are assigned only once, excepts the final one in a branch).
-            var testvar = ast.test.name
-            //            console.log("consequent");console.log(ast.consequent)
-            var condC = backTrace(ast.consequent,new Condition(cond))
-            var condA = backTrace(ast.alternate,new Condition(cond))
-            if(condC == Unsatisfiable) {
-                condA.add(testvar, false)
-                return condA
-            } else if (condA == Unsatisfiable) {
-                condC.add(testvar, true)
-                return condC
-            }
-            for (var attrname in condC.conditions) { condA.conditions[attrname] = condC.conditions[attrname]; }
-            for (var attrname in condC.erpvals) { condA.erpvals[attrname] = condC.erpvals[attrname]; }
-            //FIXME: cond.removed
+                    }
+                    break
+                }
+                return cond
+            }}
+
+    case 'IfStatement':
+        // "if(a1){SC} else {SA}"
+        //push condition through each branch of 'if', we want condition a1?cond(SC):cond(SA), but we don't want to handle arbirary terms, so: if either branch conndition is unsatisfiable add a1 = true/false to cond and return that branch condition. otherwise return join of conditions (which don't interfere because variables are assigned only once, excepts the final one in a branch).
+        var testvar = ast.test.name
+        //            console.log("consequent");console.log(ast.consequent)
+        var condC = backTrace(ast.consequent,new Condition(cond))
+        var condA = backTrace(ast.alternate,new Condition(cond))
+        if(condC == Unsatisfiable) {
+            condA.add(testvar, false)
             return condA
-            
-            //        case 'ArrayExpression':
-            
-            //        case 'MemberExpression':
-            
-            
-        default:
-            throw new Error("Backtrace can't handle "+ast.type)
+        } else if (condA == Unsatisfiable) {
+            condC.add(testvar, true)
+            return condC
+        }
+        for (var attrname in condC.conditions) { condA.conditions[attrname] = condC.conditions[attrname]; }
+        for (var attrname in condC.erpvals) { condA.erpvals[attrname] = condC.erpvals[attrname]; }
+        //FIXME: cond.removed
+        return condA
+
+        //        case 'ArrayExpression':
+
+        //        case 'MemberExpression':
+
+    default:
+        throw new Error("Backtrace can't handle "+ast.type)
     }
 }
 
-
 /*
- Take a set of conditions computed by backTrace, and the code string, and insert condition or conditioned erp statements as needed.
- Also convert erp wrapper calls to actual erp calls.
- */
+  Take a set of conditions computed by backTrace, and the code string, and insert condition or conditioned erp statements as needed.
+  Also convert erp wrapper calls to actual erp calls.
+*/
 var undefined_node = { type: 'Identifier', name: 'undefined' }
 
 function makeConditionReplacer(cond) {
     return {
-    leave: function(ast) {
-        //check if variable is conditioned or ERP cal:
-        if(ast.type == 'VariableDeclaration') {
-            var name = ast.declarations[0].id.name
-            var init = ast.declarations[0].init
-            // add conditions that didn't make it all the way to erps:
-            if(name in cond.conditions) {
-                var condval = cond.conditions[name]
-                var conditioncall = esprima.parse("condition("+name+"=="+condval+");").body[0]
-                var block = {type:'BlockStatement', body:[ast, conditioncall]}
-                return block
-            }
-            // convert random() calls into the erp call:
-            if(init.type == 'CallExpression' && init.callee.type == 'Identifier' && init.callee.name == 'random') {
-                var erpname = init.arguments[0].value, params = init.arguments[1]
-                if(params.type == 'ArrayExpression') {
-                    var erpargs = []
-                    //flatten the list into an array of args for the erp call:
-                    while(params.elements.length>0) {
-                        erpargs.push(params.elements[0])
-                        params = params.elements[1]
-                    }
-                    if(cond.erpvals[name]){erpargs.push(undefined_node); erpargs.push(esprima.parse(cond.erpvals[name]).body[0].expression);}
-                    var erpcall = {type:'CallExpression', callee: { type: 'Identifier', name: erpname }, arguments: erpargs}
-                } else {
-                    if(cond.erpvals[name]){throw new Error("Have not handled abstract ERP args with condition in makeConditionReplacer.")}
-                    var erpcall = esprima.parse(erpname+".apply(this,"+ params.name +")").body[0].expression
+        leave: function(ast) {
+            //check if variable is conditioned or ERP cal:
+            if(ast.type == 'VariableDeclaration') {
+                var name = ast.declarations[0].id.name
+                var init = ast.declarations[0].init
+                // add conditions that didn't make it all the way to erps:
+                if(name in cond.conditions) {
+                    var condval = cond.conditions[name]
+                    var conditioncall = esprima.parse("condition("+name+"=="+condval+");").body[0]
+                    var block = {type:'BlockStatement', body:[ast, conditioncall]}
+                    return block
                 }
-                ast.declarations[0].init = erpcall
-                return ast
+                // convert random() calls into the erp call:
+                if(init.type == 'CallExpression' && init.callee.type == 'Identifier' && init.callee.name == 'random') {
+                    var erpname = init.arguments[0].value, params = init.arguments[1]
+                    if(params.type == 'ArrayExpression') {
+                        var erpargs = []
+                        //flatten the list into an array of args for the erp call:
+                        while(params.elements.length>0) {
+                            erpargs.push(params.elements[0])
+                            params = params.elements[1]
+                        }
+                        if(cond.erpvals[name]){erpargs.push(undefined_node); erpargs.push(esprima.parse(cond.erpvals[name]).body[0].expression);}
+                        var erpcall = {type:'CallExpression', callee: { type: 'Identifier', name: erpname }, arguments: erpargs}
+                    } else {
+                        if(cond.erpvals[name]){throw new Error("Have not handled abstract ERP args with condition in makeConditionReplacer.")}
+                        var erpcall = esprima.parse(erpname+".apply(this,"+ params.name +")").body[0].expression
+                    }
+                    ast.declarations[0].init = erpcall
+                    return ast
+                }
+                //remove original condition lines:
+                if(name in cond.removed) {
+                    ast.declarations[0].init = { type: 'Identifier', name:'undefined' }
+                    return ast
+                }
             }
-            //remove original condition lines:
-            if(name in cond.removed) {
-                ast.declarations[0].init = { type: 'Identifier', name:'undefined' }
-                return ast
-            }
+            return ast
         }
-        return ast
-    }
     }
 }
 
-
 //function addConditions(string, cond) {
-//    
+//
 //    //take a list represented as a string and convert into the array of elements.
 //    function unlist(L) {
 //        console.log(L)
@@ -34954,14 +35760,14 @@ function makeConditionReplacer(cond) {
 //        }
 //        return vals
 //    }
-//    
+//
 //    var lines = string.split("\n")
 //    //first remove old conditions:
 //    lines.filter(function(l){!l.match(/condition\(/)}) //FIXME:redundant?
-//    
+//
 //    newlines = []
 //    for(l in lines) {
-//                 
+//
 //        var m = lines[l].match(/var ([a-zA-Z_$][0-9a-zA-Z_$]*) = (.+)/);
 //        if (m) {
 //                 var name = m[1], init = m[2]
@@ -34973,12 +35779,12 @@ function makeConditionReplacer(cond) {
 //                 newlines.push("condition("+name+"=="+condval+");")
 //                 continue
 //                 }
-//                 
-//                 
+//
+//
 //                 var initparse = init.match(/(.+)\((.+)\)/)
 //                 if(initparse) {
 //                    var op = initparse[1], args = initparse[2]
-//                 
+//
 //                    if (op == "condition") {
 //                    // remove old conditions by not doing anything with this line.
 //                        continue
@@ -34987,8 +35793,8 @@ function makeConditionReplacer(cond) {
 //                        var erpname = args.split(",")[0] //first argument is erpname string
 //                        erpname = erpname.slice(1,erpname.length-1) //trim off the quotes around erpname
 //                        var paramslist = args.split(",").slice(1).join(",")
-//                 
-//                 
+//
+//
 //                 if(paramslist[0] == "[") {
 //                        var params = unlist(paramslist).join(",")
 //                        var constraintargs = cond.erpvals[name]?",undefined,"+cond.erpvals[name]:""
@@ -35000,36 +35806,28 @@ function makeConditionReplacer(cond) {
 //                        continue
 //                    }
 //                 }
-//                 
+//
 //        }
 //        //if we didn't already handle the line, then keep it:
 //        newlines.push(lines[l])
 //    }
 //    return newlines.join("\n")
 //}
-//                 
-
-            
-
-
-            
-
+//
 
 module.exports =
-{
-    //    interpret : interpret,
-tracer: tracer,
-global_trace: global_trace,
-backTrace: backTrace,
-//addConditions: addConditions,
-            trace_and_backtrace: trace_and_backtrace,
-            precompile: precompile
-}
-
-
+    {
+        //    interpret : interpret,
+        tracer: tracer,
+        global_trace: global_trace,
+        backTrace: backTrace,
+        //addConditions: addConditions,
+        trace_and_backtrace: trace_and_backtrace,
+        precompile: precompile
+    }
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/precompile.js","/")
-},{"./church_astify.js":1,"./church_builtins":"sy/OMr","./js_astify.js":16,"./probabilistic-js":"/takZe","./tokenize.js":53,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29}],42:[function(require,module,exports){
+},{"./church_astify.js":1,"./church_builtins":"sy/OMr","./js_astify.js":16,"./probabilistic-js":"/takZe","./tokenize.js":55,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":27,"escodegen/node_modules/estraverse":28,"esprima":30}],44:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var trace = require("./trace")
 var util = require("./util")
@@ -35127,7 +35925,7 @@ STKernel: STKernel
 
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/STKernel.js","/probabilistic-js/probabilistic")
-},{"./trace":50,"./util":52,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],43:[function(require,module,exports){
+},{"./trace":52,"./util":54,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],45:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 
 // Repeat a computation n times
@@ -35166,7 +35964,7 @@ module.exports =
 	repeat: repeat
 }
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/control.js","/probabilistic-js/probabilistic")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],44:[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],46:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var trace = require("./trace")
 
@@ -35799,9 +36597,7 @@ module.exports =
 }
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/erp.js","/probabilistic-js/probabilistic")
-},{"./trace":50,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./probabilistic-js":[function(require,module,exports){
-module.exports=require('/takZe');
-},{}],"/takZe":[function(require,module,exports){
+},{"./trace":52,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"/takZe":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var trace = require("./trace")
 var erp = require("./erp")
@@ -35846,7 +36642,9 @@ for (var prop in transform)
 var util = require("./util")
 module.exports["openModule"] = util.openModule
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/index.js","/probabilistic-js/probabilistic")
-},{"./control":43,"./erp":44,"./inference":47,"./marginalize":48,"./memoize":49,"./trace":50,"./transform":51,"./util":52,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],47:[function(require,module,exports){
+},{"./control":45,"./erp":46,"./inference":49,"./marginalize":50,"./memoize":51,"./trace":52,"./transform":53,"./util":54,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./probabilistic-js":[function(require,module,exports){
+module.exports=require('/takZe');
+},{}],49:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var trace = require("./trace")
 var util = require("./util")
@@ -36400,7 +37198,7 @@ module.exports =
 }
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/inference.js","/probabilistic-js/probabilistic")
-},{"./STKernel":42,"./trace":50,"./util":52,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],48:[function(require,module,exports){
+},{"./STKernel":44,"./trace":52,"./util":54,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],50:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 
 //this file provides a utility for marginalizing a function.
@@ -36531,7 +37329,7 @@ marginalize: marginalize
 
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/marginalize.js","/probabilistic-js/probabilistic")
-},{"./erp":44,"./inference":47,"./trace":50,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],49:[function(require,module,exports){
+},{"./erp":46,"./inference":49,"./trace":52,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],51:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var trace = require("./trace")
 
@@ -36540,6 +37338,9 @@ Wrapper around a function to memoize its results
 */
 function mem(fn)
 {
+    if (typeof fn !== 'function' ) {
+        throw new Error('mem requires a function')
+    }
 	var cache = {}
 	return function()
 	{
@@ -36560,7 +37361,7 @@ module.exports =
 }
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/memoize.js","/probabilistic-js/probabilistic")
-},{"./trace":50,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],50:[function(require,module,exports){
+},{"./trace":52,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],52:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var util = require("./util")
 
@@ -36976,7 +37777,7 @@ module.exports =
 }
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/trace.js","/probabilistic-js/probabilistic")
-},{"./util":52,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],51:[function(require,module,exports){
+},{"./util":54,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],53:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var esprima = require("esprima")
 var escodegen = require("escodegen")
@@ -37109,16 +37910,18 @@ module.exports =
 
 "var x = foo(1, bar(), 3)"
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/transform.js","/probabilistic-js/probabilistic")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":26,"escodegen/node_modules/estraverse":27,"esprima":29}],52:[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":27,"escodegen/node_modules/estraverse":28,"esprima":30}],54:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 
-function openModule(mod)
+function openModule(mod, prefix)
 {
+        // '.' in scheme tranforms to '_46' in js
+        prefix = typeof prefix === 'undefined' ? "" : prefix + "_46";
 	for (var prop in mod)
 	{
 		if (mod.hasOwnProperty(prop))
 		{
-			global[prop] = mod[prop]
+			global[prefix+prop] = mod[prop]
 		}
 	}
 }
@@ -37167,7 +37970,7 @@ function keys(obj)
 	return a
 }
 
-module.exports = 
+module.exports =
 {
 	openModule: openModule,
 	arrayEquals: arrayEquals,
@@ -37175,73 +37978,74 @@ module.exports =
     discreteChoice: discreteChoice,
 	keys: keys
 }
+
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/util.js","/probabilistic-js/probabilistic")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],53:[function(require,module,exports){
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],55:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var util = require('./util.js');
 
-var delimiters = ["(", ")", "[", "]", "'", "\"", ";"]
+var delimiters = ["(", ")", "[", "]", "'", ",", "@", "\"", ";"]
 var whitespace_re = /^\s/
 
 function get_site_map(s) {
-	var map = {};
-	var row = 1;
-	var col = 1;
-	for (var i = 0; i < s.length; i++) {
-		if (s[i] == "\n") {
-			row++;
-			col = 1;
-		} else {
-			map[i] = row + ":" + col;
-			col++;
-		}
+    var map = {};
+    var row = 1;
+    var col = 1;
+    for (var i = 0; i < s.length; i++) {
+	if (s[i] == "\n") {
+	    row++;
+	    col = 1;
+	} else {
+	    map[i] = row + ":" + col;
+	    col++;
 	}
-	return map;
+    }
+    return map;
 }
 
 function tokenize(s) {
-	var tokens = [];
-	var begin = 0;
-	var end = 0;
-	var site_map = get_site_map(s);
-	while (begin < s.length) {
-		if (s[begin].match(whitespace_re)) {
-			begin++;
-		} else if (s[begin] == ";") {
-			for (; begin < s.length && s[begin] != "\n"; begin++) {}
-		} else {
-			if (s[begin] == "\"") {
-				for (end = begin + 1; ; end++) {
-					if (end > s.length) {
-						throw util.make_church_error("SyntaxError", site_map[begin], site_map[begin], "Unclosed double quote");
-					} else if (s.slice(end, end + 2) == "\\\"") {
-						end++;
-					} else if (s[end] == "\"") {
-						end++;
-						break;
-					}
-				}
-			} else if (delimiters.indexOf(s[begin]) != -1) {
-				end = begin + 1;
-			} else {
-				for (end = begin; end < s.length; end++) {
-					if (delimiters.indexOf(s[end]) != -1 || s[end].match(whitespace_re)) {
-						break;
-					}
-				}
-			}
-			var token = s.slice(begin, end);
-			if (token[0] == '"') 
-				token = '"' + token.substring(1, token.length-1).replace(/\\\"/g, '"') + '"'
-			tokens.push({text: token, start: site_map[begin], end: site_map[end-1]});
-			begin = end;
+    var tokens = [];
+    var begin = 0;
+    var end = 0;
+    var site_map = get_site_map(s);
+    while (begin < s.length) {
+	if (s[begin].match(whitespace_re)) {
+	    begin++;
+	} else if (s[begin] == ";") {
+	    for (; begin < s.length && s[begin] != "\n"; begin++) {}
+	} else {
+	    if (s[begin] == "\"") {
+		for (end = begin + 1; ; end++) {
+		    if (end > s.length) {
+			throw util.make_church_error("SyntaxError", site_map[begin], site_map[begin], "Unclosed double quote");
+		    } else if (s.slice(end, end + 2) == "\\\"") {
+			end++;
+		    } else if (s[end] == "\"") {
+			end++;
+			break;
+		    }
 		}
+	    } else if (delimiters.indexOf(s[begin]) != -1) {
+		end = begin + 1;
+	    } else {
+		for (end = begin; end < s.length; end++) {
+		    if (delimiters.indexOf(s[end]) != -1 || s[end].match(whitespace_re)) {
+			break;
+		    }
+		}
+	    }
+	    var token = s.slice(begin, end);
+	    if (token[0] == '"')
+		token = '"' + token.substring(1, token.length-1).replace(/\\\"/g, '"') + '"'
+	    tokens.push({text: token, start: site_map[begin], end: site_map[end-1]});
+	    begin = end;
 	}
-	return tokens;
+    }
+    return tokens;
 }
 
 module.exports = {
-	tokenize: tokenize
+    tokenize: tokenize
 }
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/tokenize.js","/")
@@ -37249,26 +38053,25 @@ module.exports = {
 module.exports=require('05wbT+');
 },{}],"05wbT+":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
-
 /* global module */
 
 var $x = {};
 
 var listToArray = $x.listToArray = function(list, recurse) {
-	if (recurse) {
-		return list.slice(0, -1).map(function (x) {return Array.isArray(x) ? listToArray(x) : x});
-	} else {
-		return list.slice(0, -1);
-	}
+    if (recurse) {
+	      return list.slice(0, -1).map(function (x) {return Array.isArray(x) ? listToArray(x, recurse) : x});
+    } else {
+	      return list.slice(0, -1);
+    }
 };
 
 var arrayToList = $x.arrayToList = function(arr, mutate) {
-	if (mutate) {
-		arr.push(null);	
-	} else {
-		arr = arr.concat(null);
-	}
-	return arr;
+    if (mutate) {
+        arr.push(null);
+    } else {
+	      arr = arr.concat(null);
+    }
+    return arr;
 };
 
 module.exports = $x;
@@ -37285,12 +38088,12 @@ module.exports=require('Y/OqMs');
 function is_leaf(node) { return (!node["children"]); }
 
 var boolean_aliases = {
-	"#t": true,
-	"#T": true,
-	"true": true,
-	"#f": false,
-	"#F": false,
-	"false": false
+    "#t": true,
+    "#T": true,
+    "true": true,
+    "#f": false,
+    "#F": false,
+    "false": false
 }
 
 function is_string(s) { return s != undefined && s[0] == "\""; }
@@ -37302,59 +38105,59 @@ function is_identifier(s) { return !(boolean_aliases[s]!=undefined || is_string(
 // ******************************
 
 function make_church_error(name, start, end, msg) {
-	return {name: "Church" + name, message: start + "-" + end + ": " + msg, start: start, end: end};
+    return {name: "Church" + name, message: start + "-" + end + ": " + msg, start: start, end: end};
 }
 
 // TODO: update this for new list format
 function format_result(obj) {
-	if (Array.isArray(obj)) {
-    // if we're a list
-    if (obj[obj.length-1] == null) {
-      return "(" + obj.slice(0,-1).map(format_result).join(" ") + ")";
-    }
-    // if we're just a pair
-    else {
-      var formatted = obj.map(format_result);
-      var most = formatted.slice(0,-1);
-      var last = formatted[formatted.length - 1]
+    if (Array.isArray(obj)) {
+        // if we're a list
+        if (obj[obj.length-1] == null) {
+            return "(" + obj.slice(0,-1).map(format_result).join(" ") + ")";
+        }
+        // if we're just a pair
+        else {
+            var formatted = obj.map(format_result);
+            var most = formatted.slice(0,-1);
+            var last = formatted[formatted.length - 1]
 
-      return "(" +
-        most.join(" ") +
-        " . " +
-        last +
-        ")";
-    }      
+            return "(" +
+                most.join(" ") +
+                " . " +
+                last +
+                ")";
+        }
+    } else {
+	if (typeof(obj) == "boolean") {
+	    if (obj) {
+		return "#t";
+	    } else {
+		return "#f";
+	    }
 	} else {
-		if (typeof(obj) == "boolean") {
-			if (obj) {
-				return "#t";
-			} else {
-				return "#f";
-			}
-		} else {
-			return "" + obj;
-		}
+	    return "" + obj;
 	}
+    }
 }
 
 function log(obj, header) {
-	console.log(header||"*********************************");
-	if (typeof(obj) == "string") {
-		console.log(obj);
-	} else {
-		console.log(JSON.stringify(obj, undefined, 2));
-	}
+    console.log(header||"*********************************");
+    if (typeof(obj) == "string") {
+	console.log(obj);
+    } else {
+	console.log(JSON.stringify(obj, undefined, 2));
+    }
 }
 
 module.exports = {
-	is_leaf: is_leaf,
-	boolean_aliases: boolean_aliases,
-	is_string: is_string,
-	is_identifier: is_identifier,
+    is_leaf: is_leaf,
+    boolean_aliases: boolean_aliases,
+    is_string: is_string,
+    is_identifier: is_identifier,
 
-	make_church_error: make_church_error,
-	format_result: format_result,
-	log: log
+    make_church_error: make_church_error,
+    format_result: format_result,
+    log: log
 }
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/util.js","/")
@@ -37364,7 +38167,9 @@ module.exports=require('mJMf/d');
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* global $, require */
 
-var d3 = require("d3");
+// var d3 = require("d3");
+// d3 = require("d3");
+// var vega = require("./vega.js");
 var format_result = require("./util").format_result;
 var _ = require("underscore"); 
 var typeUtils = require("./type-utils");
@@ -37372,646 +38177,532 @@ var listToArray = typeUtils.listToArray;
 var arrayToList = typeUtils.arrayToList; 
 
 var maxBins = 20;
-
-var erinSort = function(array) {
-  var firstElem = array[0];
-  if (typeof(firstElem) == "number") {
-    return array.sort(function(a,b) {return b-a});
-  }
-  if (typeof(firstElem) == "string") {
-    return array.sort();
-  } 
-  if (Object.prototype.toString.call(firstElem) === '[object Array]') {
-    return array;
-  }
-  return array;
-};
-
-var formatPercent = d3.format(".0%");
+var titleOffset = 24;
+var liveDelay = 50;
 
 // input: list of rows. each row is itself a list
 table = function(rows, title) {
-  var arrayRows = listToArray(rows).map(function(cols) { return listToArray(cols) });
+    var arrayRows = listToArray(rows).map(function(cols) { return listToArray(cols) });
 
-  sideEffects.push({type: 'table', data: arrayRows});
-  
+    sideEffects.push({type: 'table', data: arrayRows});
 }
 
-// listXY: a list containing (1) a list of x axis labels and (2) a list containing
-// y axis values
-barplot = function(listXY, title) {
-  var arrayXY = listToArray(listXY, true),
-      xs = arrayXY[0].map(function(x) { return format_result(x) }),
-      ys = arrayXY[1],
-      maxY = Math.max.apply(this, ys),
-      n = xs.length,
-      counts = [],
-      continuous = false;
+var horz_rect_marks = {
+    type: "rect",
+    from: {data:"table"},
+    properties: {
+        enter: {
+            x: {scale:"x", field:"data.value"},
+            x2: {scale:"x", value:0},
+            y: {scale:"y", field:"data.item"},
+            height: {scale:"y", band:true}
+        },
+        update: {fill: {value: "steelblue"} }
+    }
+}
 
-  for(var i = 0; i < n; i++) {
-    counts.push({
-      value: xs[i],
-      freq:  ys[i]
-    });
-  }
+var make_spec = function(padding, width, height, data, scales, axes, marks, title) {
+    var spec = {padding: padding, width: width, height: height, data: data, scales: scales, axes: axes, marks: marks};
+    if (title) {
+        spec.marks.push({
+            type: "text",
+            properties: {
+                enter: {
+                    x: {value: spec.width * 0.5},
+                    y: {value: -titleOffset*0.5},
+                    fontSize: {value: 24},
+                    text: {value: title},
+                    align: {value: "center"},
+                    baseline: {value: "bottom"},
+                    fill: {value: "#000"}
+                }
+            }
+        });
+    }
+    return spec;
+}
 
-  //TODO: make left margin vary depending on how long the names of the elements in the list are
-  var margin = {top: 40, right: 20, bottom: 60, left: 60},
-      width = 0.85 * 600 - margin.left - margin.right,
-      height = 100 + (20 * counts.length) - margin.top - margin.bottom;
+var live_render = function(n, func, spec_maker, title) {
+    var el = create_and_append_result();
+    var i = 0;
+    var samps = [];
+    var time;
 
-  var x = d3.scale.linear()
-        .domain([0, maxY])
-        .range([0, width]);
-  
-	var y = d3.scale.ordinal()
-        .domain(xs)
-        .rangeRoundBands([height, 0], .1);
-  
-	var yAxis = d3.svg.axis()
-	      .scale(y)
-	      .orient("left");
+    var render = function() {
+        var tmp_title = (i == n) ? title : (title || "") + "("+i+"/"+n+")";
+        render_vega(spec_maker(samps, tmp_title), el);
+    }
 
-  var svgContainer = document.createElementNS(d3.ns.prefix.svg,'svg');
+    var execute = function() {
+        var iterate = function() {
+            i++;
+            try {
+                samps.push(func());
+            } catch (e) {
+                kill();
+            }
+        }
+        time = Date.now();
+        while (Date.now() - time < liveDelay && i < n) {
+            iterate();
+        }
+        if (i >= n) kill();
+    }
 
-  var svg = d3
-        .select(svgContainer)
-        .attr("class", "chart")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height+ margin.top + margin.bottom)
-        .style('margin-left', '0')
-        .style('margin-top', '10px')
-        .append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    var kill = function() {
+        clearInterval(render_pid);
+        clearInterval(execute_pid);
+        render();
+    }
+    render();
+    var render_pid = setInterval(render, liveDelay);
+    var execute_pid = setInterval(execute, liveDelay);  
+}
 
-  drawHist(svg, counts, xs, width, height, x, y, false);
+var render_vega = function(spec, element) {
+    vg.parse.spec(spec, function(chart) {chart({el:element, renderer:"svg"}).update();});
+}
 
-  var xAxis = d3.svg.axis()
-        .scale(x)
-        .orient("bottom");
-  // .tickFormat(formatPercent);
+var create_and_append_result = function() {
+    var el = document.createElement("div");
+    $results.append(el);
+    return el;
+}
 
-  drawAxes(svg, xAxis, yAxis, height, 0, width, "hist");
-  drawTitle(svg, title, width, margin);
-  
-  sideEffects.push({type: 'svg', data: svgContainer });
-  
+function Counter(arr) {
+    this.counter = {};
+    this.total = 0;
+    this.type = "number";
+    this.min = Number.MAX_VALUE;
+    this.max = Number.MIN_VALUE;
+    if (arr) this.update_many(arr);
 };
+
+Counter.prototype.update = function(item) {
+    if (typeof item == "number") {
+        this.min = Math.min(this.min, item);
+        this.max = Math.max(this.max, item);
+    } else {
+        this.type = "string";
+    }
+    var key = format_result(item);
+    this.counter[key] = (this.counter[key] || 0) + 1;
+    this.total++;
+}
+
+Counter.prototype.update_many = function(arr) {
+    for (var i = 0; i < arr.length; i++) {this.update(arr[i]);}
+}
+
+Counter.prototype.sorted_keys = function() {
+    if (this.type == "number") {
+        return Object.keys(this.counter).sort(function(a,b) {return parseFloat(b)-parseFloat(a)});
+    } else {
+        return Object.keys(this.counter).sort();
+    }
+}
+
+Counter.prototype.keys = function() {
+    if (this.type == "number") {
+        return Object.keys(this.counter).map(Number);
+    } else {
+        return Object.keys(this.counter);
+    }
+}
+
+Counter.prototype.count = function(item) {
+    return this.counter[item];
+}
+
+Counter.prototype.bin = function() {
+    var sorted_keys = this.sorted_keys().map(Number);
+    var bin_size = (this.max - this.min) / maxBins;
+    var new_counter = {};
+    // TODO: A better binning system
+    for (var i = 0; i < sorted_keys.length; i++) {
+        var bin = Math.floor((sorted_keys[i] - this.min) / bin_size);
+        bin = Math.min(bin, maxBins - 1);
+        new_counter[bin*bin_size + this.min] = (new_counter[bin*bin_size + this.min] || 0) + this.count(sorted_keys[i]);
+    }
+    for (var i=0; i<maxBins; i++) {
+        new_counter[i*bin_size + this.min] = new_counter[i*bin_size + this.min] || 0;
+    }
+    this.counter = new_counter;
+    this.binned = true;
+}
+
+// barplot (data should be a list with two elements)
+// first element is items, second element is values
+// e.g., (barplot '((1 2 3) (4 5 6)))
+barplot = function(data, title) {
+    var myData = listToArray(data, true);
+    
+    
+    var items = myData[0].map(format_result);
+    var values = myData[1];
+
+    var spec_values = [];
+    for (var i = 0; i < items.length; i++) {
+        spec_values.push({item: items[i], value: values[i]});
+    }
+
+    var padding = {
+        top: 30 + (title ? titleOffset : 0),
+        left: 20 + Math.max.apply(undefined, items.map(function(x) {return x.length;})) * 5,
+        bottom: 50, right: 30};
+    var height = 1 + items.length * 20;
+    var width = 600 - padding.left;
+    var data = [{name: "table", values: spec_values}];
+    var scales = [
+            {name: "x", range: "width", nice: true, domain: {data:"table", field:"data.value"}},
+            {name: "y", type: "ordinal", range: "height", domain: {data:"table", field:"data.item"}, padding: 0.1}];
+    var axes = [
+        {type:"x", scale:"x", ticks: 10},
+        {type:"y", scale:"y"}];
+    var marks = [horz_rect_marks];
+
+    render_vega(make_spec(padding, width, height, data, scales, axes, marks, title),
+                create_and_append_result()
+               );
+}
+
+var make_hist_spec = function(samps, title) {
+    var counter = new Counter(listToArray(samps));
+    if (counter.type == "number" && Object.keys(counter.counter).length > maxBins) counter.bin();
+
+    var sorted_keys = counter.sorted_keys();
+
+    if (counter.type == "number") {
+        var spec_values = sorted_keys.map(function(key) {return {item: parseFloat(key), value: counter.count(key) / counter.total}});
+    } else {
+        var spec_values = sorted_keys.map(function(key) {return {item: key, value: counter.count(key) / counter.total}});
+    }
+
+    var padding = {
+        top: 30 + (title ? titleOffset : 0),
+        left: 20 + Math.max.apply(undefined, sorted_keys.map(function(x) {return x.length;})) * 5,
+        bottom: 50,
+        right: 30};
+    var height = 1 + sorted_keys.length * 20;
+    var width = 600 - padding.left;
+    var data = [{name: "table", values: spec_values}];
+    var scales = [
+            {name: "x", range: "width", nice: true, domain: {data:"table", field:"data.value"}},
+            {name: "y", type: "ordinal", range: "height", domain: {data:"table", field:"data.item"}, padding: 0.1}];
+    var axes = [{type:"x", scale:"x", ticks: 10, format: "%"}]
+    var marks = [horz_rect_marks];
+    if (counter.binned) {
+        scales.push({name: "y_labels", range: "height", nice: true, zero: false, domain: {data:"table", field:"data.item"}, padding: 0.1})
+        axes.push({type:"y", scale:"y_labels"});
+    } else {
+        axes.push({type:"y", scale:"y"});
+    }
+    return make_spec(padding, width, height, data, scales, axes, marks, title);
+}
 
 hist = function(samps, title) {
-  
-  // TODO: this is a hack. we want proper conversion of data types
-  var values = erinSort(listToArray(samps));
-  var strvalues = values.map(function(x) {return format_result(x);});
-  var n = values.length;
-  var counts = _(strvalues)
-        .uniq()
-        .map(function(val) {
-          return {
-            value: val,
-            freq: _(strvalues).filter(function(x) {return x == val;}).length / n
-          };
-        });
+    render_vega(make_hist_spec(samps, title), create_and_append_result());
+}
 
-  // console.log(strvalues);
-  
-  var maxFreq = Math.max.apply(Math, counts.map(function(x) {return x.freq;}));
-  var continuous;
-  if (counts.length > maxBins  &&  counts.filter(function(x){return isNaN(x.value)}).length == 0) {
-  	var binnedData = binData(counts, values, maxBins);
-  	counts = binnedData.counts;
-  	values = binnedData.values;
-  	maxFreq = binnedData.maxFreq;
-  	continuous = true;
-  } else {
-  	continuous = false;
-  }
+livehist = function(n, func, title) {
+    live_render(n, func, make_hist_spec, title);
+}
 
-
-  //  var $histDiv = $("<div></div>").appendTo($div);
-  // var div = $histDiv[0];
-  
-  //TODO: make left margin vary depending on how long the names of the elements in the list are
-  // TODO: can we do this abstractly, without knowing beforehand how many pixels we have?
-  var margin = {top: 40, right: 20, bottom: 60, left: 60},
-      width = 0.85 * /* $div.width() */ 600 - margin.left - margin.right,
-      height = 100 + (20 * counts.length) - margin.top - margin.bottom;
-
-  var x = d3.scale.linear()
-        .domain([0, maxFreq])
-        .range([0, width]);
-  if (continuous) {
-	  var yMin = Math.min.apply(Math, values);
-	  var yMax = Math.max.apply(Math, values);
-	  var y = d3.scale.ordinal()
-          .domain(values)
-          .rangeRoundBands([0, height], .1);
-	  var yAxis = d3.svg.axis()
-	        .scale(d3.scale.linear()
-	               .domain([yMin, yMax])
-	               .range([height, 0]))
-	        .orient("left");
-  } else {
-	  var y = d3.scale.ordinal()
-          .domain(strvalues)
-          .rangeRoundBands([height, 0], .1);
-	  var yAxis = d3.svg.axis()
-	        .scale(y)
-	        .orient("left");
-  }
-
-  var svgContainer = document.createElementNS(d3.ns.prefix.svg,'svg');
-
-  var svg = d3
-        .select(svgContainer) // HT http://stackoverflow.com/a/21101552/351392
-        .attr("class", "chart")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height+ margin.top + margin.bottom)
-        .style('margin-left', '0')
-        .style('margin-top', '10px')
-        .append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-  drawHist(svg, counts, strvalues, width, height, x, y, false);
-
-  var xAxis = d3.svg.axis()
-        .scale(x)
-        .orient("bottom")
-        .tickFormat(formatPercent);
-
-  drawAxes(svg, xAxis, yAxis, height, 0, width, "hist");
-  drawTitle(svg, title, width, margin);
-  
-  sideEffects.push({type: 'svg', data: svgContainer});
-
-};
-
-density = function(samps, title, withHist) {
-
-  // TODO: this is a hack. we want proper conversion of data types
-  var values = erinSort(listToArray(samps)),
-      n = values.length,
-      counts = _(values)
-        .uniq()
-        .map(function(val) {
-          return {
-            value: val,
-            freq: _(values).filter(function(x) {return x == val;}).length / n
-          };
-        }),
-      maxFreq = _(counts).chain().map(function(x) { return x.freq}).max().value();
-  
-  //TODO: make left margin vary depending on how long the names of the elements in the list are
-  var margin = {top: 40, right: 20, bottom: 30, left: 40},
-      width = 0.8 * /*$div.width() */ 600 - margin.left - margin.right,
-      height = 300 - margin.top - margin.bottom;
-
-  var svgContainer = document.createElementNS(d3.ns.prefix.svg,'svg');
-  
-  var svg = d3
-        .select(svgContainer)
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height+ margin.top + margin.bottom)
-        .style('margin-left', '10%')
-        .style('margin-top', '20px')
-        .append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-  var xMin = Math.min.apply(Math, values);
-  var xMax = Math.max.apply(Math, values);
-  /*    if (withHist) {
-   var binnedData = binData(counts, values);
-   if (binnedData.maxVal > xMax) {
-   xMax = Math.max(xMax, binnedData.maxVal);
-   }
-   if (binnedData.minVal < xMin) {
-   xMin = Math.min(xMin, binnedData.minVal);
-   }
-   }*/
-  
-  var range = xMax - xMin;
-  var x = d3.scale.linear()
-        .domain([xMin, xMax])
-        .range([0, width]);
-  var xAxis = d3.svg.axis()
-        .scale(x)
-        .orient("bottom");
-  
-  function kernelDensityEstimator(kernel, x) {
-    return function(sample) {
-      return x.map(function(x) {
-        return [x, d3.mean(sample, function(v) { return kernel(x - v); })];
-      });
-    };
-  }
-
-  function epanechnikovKernel(scale) {
-    return function(u) {
-      return Math.abs(u /= scale) <= 1 ? .75 * (1 - u * u) / scale : 0;
-    };
-  }
-
-  var kde = kernelDensityEstimator(epanechnikovKernel(3), x.ticks(100));
-
-  var densities = kde(values).map(function(x) {return x[1];});
-
-  var yMax = Math.max.apply(Math, densities);
-  if (withHist) {
-    var binnedData = binData(counts, values, maxBins);
-    if (binnedData.maxFreq > yMax) {
-      yMax = Math.max(yMax, binnedData.maxFreq);
+var make_density_spec = function(samps, title, with_hist) {
+    function kernelDensityEstimator(counter, kernel, scale) {
+        var density_values = [];
+        var keys = Object.keys(counter.counter);
+        for (var i = 0; i <= maxBins; i++) {
+            var x = counter.min + (counter.max - counter.min) / maxBins * i;
+            var kernel_sum = 0;
+            for (var j = 0; j < keys.length; j++) {
+                kernel_sum += kernel((x - keys[j]) / scale) * counter.count(keys[j]);
+            }
+            density_values.push({item: x, value: kernel_sum / samps.length / scale});
+        }
+        return density_values;
     }
-  }
-  
-  var y = d3.scale.linear()
-        .domain([0, yMax])
-        .range([height, 0]);
-  var yAxis = d3.svg.axis()
-        .scale(y)
-        .ticks(5)
-        .orient("left")
-        .tickFormat(d3.format("%"));
 
-  if (withHist) {
-    drawHist(svg, binnedData.counts, binnedData.values, width, height, x, y, true, yMax/binnedData.maxFreq);
-  }
+    function epanechnikovKernel(u) {
+            return Math.abs(u) <= 1 ? .75 * (1 - u * u) : 0;
+    }
 
-  //density curve
-  var line = d3.svg.line()
-        .x(function(d) { return x(d[0]); })
-        .y(function(d) { return y(d[1]); });
-  svg.append("path")
-    .datum(kde(values))
-    .attr("class", "line")
-    .attr("d", line);
+    var counter = new Counter(listToArray(samps));
 
-  drawAxes(svg, xAxis, yAxis, height, 0, width, "density");
-  drawTitle(svg, title, width, margin);
+    var padding = {top: 30 + (title ? titleOffset : 0), left: 45, bottom: 50, right: 30};
+    var data = [{name: "density", values: kernelDensityEstimator(counter, epanechnikovKernel, 3)}];
+    var height = 300;
+    var width = 600 - padding.left;
+    var scales = [
+            {name: "x_density", type: "ordinal", range: "width", domain: {data:"density", field:"data.item"}, padding: 0.1},
+            {name: "x_labels", nice: true, range: "width", zero: false, domain: {data:"density", field:"data.item"}, padding: 0.1},
+            {name: "y", range: "height", nice: true, domain: {data:"density", field:"data.value"}}];
+    var axes = [
+        {type:"x", scale:"x_labels"},
+        {type:"y", scale:"y", ticks: 10, format: "%"}];
+    var marks = [{
+            type: "line",
+            from: {data:"density"},
+            properties: {
+                enter: {
+                    x: {scale:"x_density", field: "data.item"},
+                    y: {scale:"y", field: "data.value"},
+                    strokeWidth: {value: 3},
+                    stroke: {value: "black"}
+                }
+            }
+    }];
 
-  sideEffects.push({type: 'svg', data: svgContainer});
+    if (with_hist) {
+        if (counter.type == "number" && Object.keys(counter.counter).length > maxBins) counter.bin();
+        if (counter.type == "number" && Object.keys(counter.counter).length > maxBins) counter.bin();
 
-};
+        var sorted_keys = counter.sorted_keys();
+
+        if (counter.type == "number") {
+            var hist_data = sorted_keys.map(function(key) {return {item: parseFloat(key), value: counter.count(key) / counter.total}});
+        } else {
+            var hist_data = sorted_keys.map(function(key) {return {item: key, value: counter.count(key) / counter.total}});
+        }
+
+        data.push({name: "hist", values: hist_data});
+        scales.push({name: "x_hist", type: "ordinal", range: [width, 0], domain: {data:"hist", field:"data.item"}, padding: 0.1},
+                    {name: "y_hist", range: "height", domain: {data:"hist", field:"data.value"}});
+        marks.unshift({
+            type: "rect",
+            from: {data: "hist"},
+            properties: {
+                enter: {
+                    x: {scale:"x_hist", field: "data.item"},
+                    width: {scale:"x_hist", band: true},
+                    y: {scale:"y_hist", field: "data.value"},
+                    y2: {scale:"y_hist", value: 0}
+                },
+                update: {fill: {value: "steelblue"}}
+            }
+        })
+    }
+
+    return make_spec(padding, width, height, data, scales, axes, marks, title);
+}
+
+density = function(samps, title, with_hist) {
+    render_vega(make_density_spec(samps, title, with_hist), create_and_append_result());
+}
+
+livedensity = function(n, func, title, with_hist) {
+    live_render(n, func, function(samps, title) {return make_density_spec(samps, title, with_hist)}, title);
+}
+
+var make_plot_spec = function(data, title) {
+    var padding = {top: 30 + (title ? titleOffset : 0), left: 45, bottom: 50, right: 30};
+    var data_values = listToArray(data).map(function(datum) {return {x: datum[0], y: datum[1]}});
+    var data = [{name: "points", values: data_values}];
+    var height = 300;
+    var width = 600 - padding.left;
+    var scales = [
+            {name: "x", range: "width", nice: true, domain: {data:"points", field:"data.x"}},
+            {name: "y", range: "height", nice: true, domain: {data:"points", field:"data.y"}},
+            {name: "y_labels", reverse: true, range: "height", nice: true, domain: {data:"points", field:"data.y"}}];
+    var axes = [
+        {type:"x", scale:"x", offset: {scale: "y_labels", value: 0}},
+        {type:"y", scale:"y", offset: {scale: "x", value: 0}}];
+    var marks = [{
+        type: "symbol",
+        from: {data:"points"},
+        properties: {
+            enter: {
+                x: {scale:"x", field: "data.x"},
+                y: {scale:"y", field: "data.y"},
+                size: {value: 50},
+                fill: {value:"steelblue"},
+                fillOpacity: {value: 0.8}
+            }
+        }
+    }];
+    return make_spec(padding, width, height, data, scales, axes, marks, title);
+}
+
+scatter = function(samps, title) {
+    render_vega(make_plot_spec(samps, title), create_and_append_result());
+}
+
+livescatter = function(n, func, title) {
+    live_render(n, func, make_plot_spec, title);
+}
+
+var make_lineplot_spec = function(data, title) {
+    var spec = make_plot_spec(data, title);
+    spec.marks.push({
+        type: "line",
+        from: {data:"points", transform: [{type: "sort", by: "data.x"}]},
+        properties: {
+            enter: {
+                x: {scale:"x", field: "data.x"},
+                y: {scale:"y", field: "data.y"},
+                stroke: {value: "steelblue"},
+                strokeWidth: {value: 2}
+            }
+        }
+    });
+    // spec.axes.map(function(axis) {delete axis.offset})
+    return spec;
+}
+
+lineplot = function(samps, title) {
+    render_vega(make_plot_spec(samps, title), create_and_append_result());
+}
+
+livelineplot = function(n, func, title) {
+    live_render(n, func, make_lineplot_spec, title);
+}
 
 multiviz = function() {
 };
 
-scatter = function(samples, title) {
-  plot(samples, title, false);
-};
 
-lineplot = function(samples, title) {
-  plot(samples, title, true);
-};
-
-function plot(samples, title, lines) {
-  //samples is a list of pairs
-  var data = listToArray(samples);
-  var xVals = data.map(function(x) {return x[0];});
-  var yVals = data.map(function(x) {return x[1];});
-  var maxX = Math.max.apply(Math, xVals)
-  var maxY = Math.max.apply(Math, yVals)
-  var minX = Math.min.apply(Math, xVals)
-  var minY = Math.min.apply(Math, yVals)
-  
-  var margin = {top: 40, right: 20, bottom: 30, left: 40},
-      width = 0.8 * /*$div.width()*/ 600 - margin.left - margin.right,
-      height = 300 - margin.top - margin.bottom;
-
-  var svgContainer = document.createElementNS(d3.ns.prefix.svg,'svg');
-
-  var svg = d3
-        .select(svgContainer)
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height+ margin.top + margin.bottom)
-        .style('margin-left', margin.left)
-        .style('margin-top', margin.top / 2)
-        .append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-  var x = d3.scale.linear()
-        .domain([minX, maxX])
-        .range([0, width]);
-  var xAxis = d3.svg.axis()
-        .scale(x)
-        .orient("bottom");
-
-  var y = d3.scale.linear()
-        .domain([minY, maxY])
-        .range([height, 0]);
-  var yAxis = d3.svg.axis()
-        .scale(y)
-        .orient("left");
-
-  if (0 < maxY && 0 > minY) {
-    var xAxisPos = maxY / (maxY - minY) * height;
-  } else if (0 > maxY) {
-    var xAxisPos = 0;
-  } else {
-    var xAxisPos = height;
-  }
-
-  if (0 < maxX && 0 > minX) {
-    var yAxisPos = width - (maxX / (maxX - minX) * width);
-  } else if (0 > maxX) {
-    var yAxisPos = width;
-  } else {
-    var yAxisPos = 0;
-  }
-
-  drawAxes(svg, xAxis, yAxis, xAxisPos, yAxisPos, width, "plot");
-
-  if (lines) {
-    var sortedData = data.sort(function(a,b) {return a[0] - b[0];})
-    var previous = sortedData[0];
-    for (var i=1; i<sortedData.length; i++) {
-      var d = sortedData[i];
-      svg.append("line")
-        .attr("class", "lineplot")
-        .attr("x1", x(previous[0]))
-        .attr("x2", x(d[0]))
-        .attr("y1", y(previous[1]))
-        .attr("y2", y(d[1]));
-      previous = d;
-    }
-  }
-
-  svg.selectAll("circle").data(data)
-    .enter()
-    .append("circle")
-    .attr("class", "point")
-    .attr("cx", function(d) {return x(d[0]);})
-    .attr("cy", function(d) {return y(d[1]);})
-    .attr("r", 3);
-
-  drawTitle(svg, title, width, margin);
-  sideEffects.push({type: 'svg', data: svgContainer});
-
-
-}
-
-function binData(counts, values, maxBins) {
-  function approxEqual(a, b) {
-    var eps=0.000001;
-    return Math.abs(a-b) < eps;
-  }
-  var binnedValues;
-  var binnedCounts;
-  var xMin = Math.min.apply(Math, values);
-  var xMax = Math.max.apply(Math, values);
-  function getBinValue(binNumber) {
-    return ((binNumber + 0.5) * (xMax - xMin) / maxBins) + xMin;
-  }
-  if (counts.length > maxBins) {
-    binnedValues = values.map(function(val) {
-      if (approxEqual(val, xMax)) {
-        binNumber = maxBins - 1;
-      } else {
-        var fractionOfRange = (val - xMin) / (xMax - xMin);
-        var binNumber = Math.floor(fractionOfRange * maxBins);
-      }
-      return getBinValue(binNumber);
-    });
-    var n = binnedValues.length;
-    var binnedCounts = _(binnedValues)
-          .uniq()
-          .map(function(val) {
-            return {
-              value: val,
-              freq: _(binnedValues).filter(function(x) {
-                return x == val;
-              }).length / n
-            };
-          });
-    for (var i=0; i<maxBins; i++) {
-      var binValue = getBinValue(i);
-      if ((binnedValues).filter(function(x) {return approxEqual(x, binValue);}).length == 0) {
-        binnedCounts.push({value: binValue, freq: 0});
-      }
-    }
-  } else {
-    binnedValues = values;
-    binnedCounts = counts;
-  }
-  binnedCounts = binnedCounts.sort(function(a, b) {
-    return a.value - b.value;
-  })
-  var frequencies = binnedCounts.map(function(x) {return x.freq;});
-  var maxFreq = Math.max.apply(Math, frequencies);
-  var minVal = Math.min.apply(Math, binnedValues);
-  var maxVal = Math.max.apply(Math, binnedValues);
-  return {values: binnedValues, counts: binnedCounts, maxFreq: maxFreq,
-          minVal: minVal, maxVal: maxVal};
-}
-
-function drawHist(svg, binnedCounts, binnedValues, width, height, x, y, vertical, scale) {
-
-  if (vertical) {
-    function getFreq(d) {
-      if (d.freq) {
-        return d.freq;
-      } else {
-        return 0;
-      }
-    }
-    var histX = d3.scale.ordinal()
-          .domain(binnedCounts.map(function(x) {return x.value;}))
-          .rangeRoundBands([0, width], .1);
-    svg.selectAll(".bar")
-      .data(binnedCounts)
-      .enter().append("rect")
-      .attr("class", "bar")
-      .attr("fill", "none")
-      .attr("y", function(d) {return y(getFreq(d)*scale);})
-      .attr("x", function(d) {return histX(d.value);})
-      .attr("height", function(d) { return height - y(getFreq(d)*scale);})
-      .attr("width", histX.rangeBand());
-  } else {
-    svg.selectAll(".bar")
-      .data(binnedCounts)
-      .enter().append("rect")
-      .attr("class", "bar")
-      .attr("x", 0)
-      .attr("y", function(d) {return y(d.value);})
-      .attr("stroke","none")
-      .attr("width", function(d) { return x(d.freq); })
-      .attr("height", y.rangeBand());
-  }
-}
-
-function drawTitle(svg, title, width, margin) {
-  svg.append("text")
-    .attr("x", width / 2)             
-    .attr("y", 0 - (margin.top / 2))
-    .attr("text-anchor", "middle")  
-    .style("font-size", "24px") 
-    .attr("stroke", "none") 
-    .attr("fill", "black")
-    .text(title);
-}
-
-function drawAxes(svg, xAxis, yAxis, xAxisPos, yAxisPos, width, type) {
-  var xAxisGroup = svg.append("g")
-        .attr("class", "x axis")
-        .attr("transform", "translate(0," + xAxisPos + ")")
-        .call(xAxis);
-
-  if (type == "hist") {
-    xAxisGroup.attr("class", "x axis")
-      .append("text")
-      .text("Frequency")
-      .attr("dy", "3em")
-      .attr("x", (width/2))
-      .attr("text-anchor", "middle");
-  }
-
-  svg.append("g")
-    .attr("class", "y axis")
-    .attr("transform", "translate(" + yAxisPos + ",0)")
-    .call(yAxis);
+module.exports = {
+    hist: hist
 }
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/viz.js","/")
-},{"./type-utils":"05wbT+","./util":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"d3":25,"underscore":40}],60:[function(require,module,exports){
+},{"./type-utils":"05wbT+","./util":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"underscore":42}],62:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var esprima = require("esprima")
 //var escodegen = require("escodegen")
 var estraverse = require("escodegen/node_modules/estraverse")
 
 /*
--Webchurch generates a simpler js sublanguage than full js.. so transform can be simpler. Make a specialized transform for webchurch, and just use probabilistic-js runtime.
--In transform, first put into A-normal form, by lifting any CallExpression to enclosing statement (which turns into a block statement).
--Then can wrap calls with enter / leave without making and using a thunk.
--on enter:
-if a ConditionalExpression replace any non-imediate subexpression (ie not identifier or literal) with function(){subexp}() statement. (to maintain control flow.) mark this call as skipped so it desn't get moved.
--on leave:
-if a CallExpression (an not skip marked) replace with a fresh identifier, add to  list of calls to move.
-if a Statement, if call list is not empty, replace with Block statement which is variable declaration for each call, wrapped in enterfn/leavefn, then original statement.
- 
-Note: could be more efficient by not wrapping deterministic primitive calls....
-*/
+  -Webchurch generates a simpler js sublanguage than full js.. so transform can be simpler. Make a specialized transform for webchurch, and just use probabilistic-js runtime.
+  -In transform, first put into A-normal form, by lifting any CallExpression to enclosing statement (which turns into a block statement).
+  -Then can wrap calls with enter / leave without making and using a thunk.
+  -on enter:
+  if a ConditionalExpression replace any non-imediate subexpression (ie not identifier or literal) with function(){subexp}() statement. (to maintain control flow.) mark this call as skipped so it desn't get moved.
+  -on leave:
+  if a CallExpression (an not skip marked) replace with a fresh identifier, add to  list of calls to move.
+  if a Statement, if call list is not empty, replace with Block statement which is variable declaration for each call, wrapped in enterfn/leavefn, then original statement.
 
+  Note: could be more efficient by not wrapping deterministic primitive calls....
+*/
 
 function templateReplace(template, replacenode) {
     var replacer =
 	{
-    enter: function(node)
+            enter: function(node)
+	    {
+		if (node.type == estraverse.Syntax.Identifier &&
+		    node.name == "__REPLACEME__")
 		{
-			if (node.type == estraverse.Syntax.Identifier &&
-				node.name == "__REPLACEME__")
-			{
-				return replacenode
-			}
-			return node
+		    return replacenode
 		}
+		return node
+	    }
 	}
     var templateAST = esprima.parse(template).body[0] //NOTE: template must be expression or single statement.
     return estraverse.replace(templateAST, replacer)
 }
 
-
 var WrapIfs =
-{
-    
-enter: function(node)
+    {
+
+        enter: function(node)
 	{
-        if(node.type == 'ConditionalExpression') {
-            //replace any non-imediate subexpression (ie not identifier or literal) with function(){subexp}() statement. (to maintain control flow.) mark this call as skipped so it desn't get moved.
-            if(!(node.test.type == 'Identifier' ||  node.test.type == 'Literal')) {
-                node.test = templateReplace("(function(){return __REPLACEME__}())", node.test).expression
-                node.test.skipcall=true
+            if(node.type == 'ConditionalExpression') {
+                //replace any non-imediate subexpression (ie not identifier or literal) with function(){subexp}() statement. (to maintain control flow.) mark this call as skipped so it desn't get moved.
+                if(!(node.test.type == 'Identifier' ||  node.test.type == 'Literal')) {
+                    node.test = templateReplace("(function(){return __REPLACEME__}())", node.test).expression
+                    node.test.skipcall=true
+                }
+                if(!(node.consequent.type == 'Identifier' ||  node.consequent.type == 'Literal')) {
+                    node.consequent = templateReplace("(function(){return __REPLACEME__}())", node.consequent).expression
+                    node.consequent.skipcall=true
+                }
+                if(!(node.alternate.type == 'Identifier' ||  node.alternate.type == 'Literal')) {
+                    node.alternate = templateReplace("(function(){return __REPLACEME__}())", node.alternate).expression
+                    node.alternate.skipcall=true
+                }
             }
-            if(!(node.consequent.type == 'Identifier' ||  node.consequent.type == 'Literal')) {
-                node.consequent = templateReplace("(function(){return __REPLACEME__}())", node.consequent).expression
-                node.consequent.skipcall=true
-            }
-            if(!(node.alternate.type == 'Identifier' ||  node.alternate.type == 'Literal')) {
-                node.alternate = templateReplace("(function(){return __REPLACEME__}())", node.alternate).expression
-                node.alternate.skipcall=true
-            }
+            return node
         }
-        return node
     }
-}
 
 var nextid = 0
 
 var MoveCalls =
-{
-leave: function(node)
     {
-        
-        //get call to be moved up from children:
-        var callsToMove = []
-        var candidates = estraverse.VisitorKeys[node.type]
-        for(var c in candidates) {
-            var candidate = node[candidates[c]]
-            if(!candidate){break}
-            if(candidate instanceof Array) {
-                for(var i in candidate){callsToMove = callsToMove.concat(candidate[i].callsToMove || [])}
-            } else {
-                callsToMove = callsToMove.concat(candidate.callsToMove || [])
+        leave: function(node)
+        {
+
+            //get call to be moved up from children:
+            var callsToMove = []
+            var candidates = estraverse.VisitorKeys[node.type]
+            for(var c in candidates) {
+                var candidate = node[candidates[c]]
+                if(!candidate){break}
+                if(candidate instanceof Array) {
+                    for(var i in candidate){callsToMove = callsToMove.concat(candidate[i].callsToMove || [])}
+                } else {
+                    callsToMove = callsToMove.concat(candidate.callsToMove || [])
+                }
             }
-        }
-        
-        //transform calls (which could be in args) by replacing with new identifier, wrapping with enter/leave marks, and adding to queue to move up.
-        if(!node.skipcall && node.type == 'CallExpression') {
-            //replace with new identifier, add to call queue.
-            var id = nextid++
-            var idNode = {type: "Identifier", name: "call"+id}
-            var newCallBlock = templateReplace("{enterfn("+id+"); var call"+id+"=__REPLACEME__; leavefn();}",node)
-            newCallBlock.body[1].loc = node.loc //original location of new assignment is set to original call. needed because error stack inside eval doesn't give character, only line.
-            callsToMove.push(newCallBlock)
-            idNode.callsToMove = callsToMove
-            return idNode
-        }
-        
-        //catch calls that are being moved at closest Statement:
-        //IfStatement (which may be generated by tracer) are handled because then paths will be statements of below types and calls in test expression are lifted above the if.
-        if(node.type == 'ExpressionStatement'
-           || node.type == 'Program'
-           || node.type == 'BlockStatement'
-           || node.type == 'ReturnStatement'
-           || node.type == 'VariableDeclaration') {
-            
-            //statements that don't already have a body sequence get wrapped in a block statement:
+
+            //transform calls (which could be in args) by replacing with new identifier, wrapping with enter/leave marks, and adding to queue to move up.
+            if(!node.skipcall && node.type == 'CallExpression') {
+                //replace with new identifier, add to call queue.
+                var id = nextid++
+                var idNode = {type: "Identifier", name: "call"+id}
+                var newCallBlock = templateReplace("{enterfn("+id+"); var call"+id+"=__REPLACEME__; leavefn();}",node)
+                newCallBlock.body[1].loc = node.loc //original location of new assignment is set to original call. needed because error stack inside eval doesn't give character, only line.
+                callsToMove.push(newCallBlock)
+                idNode.callsToMove = callsToMove
+                return idNode
+            }
+
+            //catch calls that are being moved at closest Statement:
+            //IfStatement (which may be generated by tracer) are handled because then paths will be statements of below types and calls in test expression are lifted above the if.
             if(node.type == 'ExpressionStatement'
+               || node.type == 'Program'
+               || node.type == 'BlockStatement'
                || node.type == 'ReturnStatement'
                || node.type == 'VariableDeclaration') {
-                node = {type: "BlockStatement", body: [node]}
+
+                //statements that don't already have a body sequence get wrapped in a block statement:
+                if(node.type == 'ExpressionStatement'
+                   || node.type == 'ReturnStatement'
+                   || node.type == 'VariableDeclaration') {
+                    node = {type: "BlockStatement", body: [node]}
+                }
+                //stick moved calls onto top of body sequence:
+                node.body = callsToMove.concat(node.body)
+                return node
             }
-            //stick moved calls onto top of body sequence:
-            node.body = callsToMove.concat(node.body)
+
+            //if we didn't already return, add moved calls to queue on this node and return:
+            node.callsToMove = callsToMove
             return node
+
         }
-        
-        //if we didn't already return, add moved calls to queue on this node and return:
-        node.callsToMove = callsToMove
-        return node
-        
     }
-}
-
-
 
 /*
- Collapse out nested blockSatements, just to make things prettier.
- */
+  Collapse out nested blockSatements, just to make things prettier.
+*/
 
 var BlockStatementCollapser ={
-leave: function(node){
-    if(node.type == 'BlockStatement' || node.type == 'Program') {
-        var newbody = []
-        for(var i in node.body) {
-            if(node.body[i].type == 'BlockStatement') {
-                node.body[i].body.map(function(x){newbody.push(x)})
-            } else {
-                newbody.push(node.body[i])
+    leave: function(node){
+        if(node.type == 'BlockStatement' || node.type == 'Program') {
+            var newbody = []
+            for(var i in node.body) {
+                if(node.body[i].type == 'BlockStatement') {
+                    node.body[i].body.map(function(x){newbody.push(x)})
+                } else {
+                    newbody.push(node.body[i])
+                }
             }
+            node.body = newbody
         }
-        node.body = newbody
+        return node
     }
-    return node
-}
 }
 
 //preamble that forwards the functions needed at runtime:
@@ -38032,25 +38723,22 @@ openModule(__ch);";
 function probTransformAST(ast, includePreamble)
 {
     estraverse.replace(ast, WrapIfs)
-	estraverse.replace(ast, MoveCalls)
-  if (includePreamble) {
-	  ast.body.unshift(esprima.parse(preamble))
-  }
+    estraverse.replace(ast, MoveCalls)
+    if (includePreamble) {
+	ast.body.unshift(esprima.parse(preamble))
+    }
     estraverse.replace(ast, BlockStatementCollapser)
-	return ast
+    return ast
 }
-
-
-
 
 module.exports =
-{
+    {
 	probTransformAST: probTransformAST,
-//	probTransform: probTransform,
-BlockStatementCollapser: BlockStatementCollapser
-}
+        //	probTransform: probTransform,
+        BlockStatementCollapser: BlockStatementCollapser
+    }
 
 "var x = foo(1, bar(), 3)"
 
 }).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/wctransform.js","/")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen/node_modules/estraverse":27,"esprima":29}]},{},[])
+},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen/node_modules/estraverse":28,"esprima":30}]},{},[])

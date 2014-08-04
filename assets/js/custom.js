@@ -82,10 +82,14 @@ $(function () {
     $.each(code_pres,
         function (index, pre) {
             var defaultText = $(pre).find("code").text();
-            require('./editor').injector(pre, {
-                defaultText: defaultText,
-                defaultEngine: "webchurch"
-            });
+            var EditorModel = require('./editor').EditorModel;
+            var editor = new EditorModel(
+                {
+                    code: defaultText,
+                    engine: "webchurch",
+                }
+            );            
+            editor.replaceDomEl(pre);
         });
 })
 

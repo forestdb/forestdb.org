@@ -56,10 +56,10 @@ Forest uses [webchurch](https://github.com/probmods/webchurch) to run probabilis
 
         git clone https://github.com/forestdb/forestdb.org.git
 
-3. Copy the files in `webchurch/online/` to `forestdb.org/assets/webchurch/`.
+3. **Copy the files in `webchurch/online/` to `forestdb.org/assets/webchurch/`**.
 
 4. Run a local webserver in the Forest directory and go to [0.0.0.0:4000](http://0.0.0.0:4000) to check that the changes did not break functionality:
 
         jekyll serve --watch
 
-5. If code boxes run as expected, great! Commit and push. If not, you may need to update `assets/js/custom.js` in the Forest directory.
+5. If code boxes run as expected, great! Commit and push. If not, you may need to adjust `assets/js/custom.js` in the Forest directory.

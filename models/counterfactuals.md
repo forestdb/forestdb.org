@@ -3,12 +3,12 @@ layout: model
 title: Counterfactuals
 ---
 
-# Pragmatic explainer
+### Pragmatic explainer
 
 We model an informative speaker trying to comunicate the world state (all top-level vars in a model) to a literal listener.
 
 
-## The literal meaning of "because"
+#### The literal meaning of "because"
 
 The meaning of "A because B" is both the presuppositions -- "A" and "B" -- and the counterfactual "if B had not happened then A would not have happened". The counterfactual is implemented by creating "shadow" world where each top-level (i.e. defined) variable in the model has its actual-world value with `eps` probability and a fresh value otherwise. In this shadow world we evaluate a codnitional query to see if "shadow-A" changes when "shadow-B" is conditioned to be false.
 
@@ -215,7 +215,7 @@ We can now plug this into the standard RSA literal listener that conditions on t
 (barplot (listener '(because b c)) "interpretation of b because c")
 ~~~~
 
-## The pragmatic explainer
+#### The pragmatic explainer
 
 Now that we have a literal listener that can understand "because", we can make a standard RSA speaker who is trying to communicate the state of the world and can use "because" explanations:
 
@@ -321,7 +321,7 @@ Next to understand if this meaning for "because" actually reflects people's intu
 
 
 
-# Older versions
+### Older versions
 
 This is a version of the above literal listener, who conditions on counterfactual statements, that doesn't need to do quite so much quasi-quote magic:
 

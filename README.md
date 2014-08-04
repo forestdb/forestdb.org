@@ -45,21 +45,21 @@ Forest uses [webchurch](https://github.com/probmods/webchurch) to run probabilis
 
 1. Clone and build the most recent version of the webchurch repository, following the instructions [here](https://github.com/probmods/webchurch):
 
-    git clone https://github.com/probmods/webchurch.git
-    cd webchurch
-    git init (only if you are on Windows)
-    git submodule update --init --recursive
-    npm install
-    ./compile.sh
+        git clone https://github.com/probmods/webchurch.git
+        cd webchurch
+        git init (only if you are on Windows)
+        git submodule update --init --recursive
+        npm install
+        ./compile.sh
 
 2. Clone the most recent version of the Forest repository:
 
-    git clone https://github.com/forestdb/forestdb.org.git
+        git clone https://github.com/forestdb/forestdb.org.git
 
 3. Copy the files in `webchurch/online/` to `forestdb.org/assets/webchurch/`.
 
 4. Run a local webserver in the Forest directory and go to [0.0.0.0:4000](http://0.0.0.0:4000) to check that the changes did not break functionality:
 
-    jekyll serve --watch
+        jekyll serve --watch
 
 5. If code boxes run as expected, great! Commit and push. If not, you may need to update `assets/js/custom.js` in the Forest directory.

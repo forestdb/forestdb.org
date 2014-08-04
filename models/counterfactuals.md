@@ -16,22 +16,7 @@ To construct the shadow-world query we use a bunch of helpers for splicing, wrap
 
 ~~~~
 ;;;
-;;first we have a bunch of helper code to do meta-transforms..
-
-;;splice shim:
-;; unquote-slicing hasn't been implemented, so write '..(... ,@exp ...) as '..,(splice-shim ... (unquote-splicing exp) ...)
-(define (splice-shim . seq)
-  (apply append
-         (map (lambda (s) (if (list? s)
-                       (if (eq? (first s) 'splice)
-                           (second s)
-                           (list s))
-                       (list s)))
-              seq)))
-
-(define (unquote-splicing x) (list 'splice x))
-
-;;andreas' code: converts name to shadow-name and wraps top-level defines
+;;first we have a bunch of helper code to do meta-transforms.. converts name to shadow-name and wraps top-level defines
 (define (names model)
   (map (lambda (def)
          (if (is-function-definition? def)
@@ -65,9 +50,10 @@ To construct the shadow-world query we use a bunch of helpers for splicing, wrap
          (if (is-function-definition? def)
              (shadow-rename-all def ns)
              (let ([name (second def)])
-               '(define ,(shadow-symbol name) (if (flip eps) ,(shadow-rename-all (third def) ns) ,name)))))
+               '(define ,(shadow-symbol name) (if (flip eps) 
+                                                  ,(shadow-rename-all (third def) ns) 
+                                                  ,name)))))
        model))
-
 
 (define model 
   '((define a (flip .2))
@@ -81,22 +67,7 @@ Now the meaning of "because" is simply constructing the shadow-world query using
 
 ~~~~
 ;;;fold:
-;;first we have a bunch of helper code to do meta-transforms..
-
-;;splice shim:
-;; unquote-slicing hasn't been implemented, so write '..(... ,@exp ...) as '..,(splice-shim ... (unquote-splicing exp) ...)
-(define (splice-shim . seq)
-  (apply append
-         (map (lambda (s) (if (list? s)
-                       (if (eq? (first s) 'splice)
-                           (second s)
-                           (list s))
-                       (list s)))
-              seq)))
-
-(define (unquote-splicing x) (list 'splice x))
-
-;;andreas' code: converts name to shadow-name and wraps top-level defines
+;;first we have a bunch of helper code to do meta-transforms.. converts name to shadow-name and wraps top-level defines
 (define (names model)
   (map (lambda (def)
          (if (is-function-definition? def)
@@ -130,7 +101,9 @@ Now the meaning of "because" is simply constructing the shadow-world query using
          (if (is-function-definition? def)
              (shadow-rename-all def ns)
              (let ([name (second def)])
-               '(define ,(shadow-symbol name) (if (flip eps) ,(shadow-rename-all (third def) ns) ,name)))))
+               '(define ,(shadow-symbol name) (if (flip eps) 
+                                                  ,(shadow-rename-all (third def) ns) 
+                                                  ,name)))))
        model))
 ;;;
 
@@ -140,13 +113,11 @@ Now the meaning of "because" is simply constructing the shadow-world query using
   (define b (third expr))
   '(and ,a ,b
         (apply multinomial
-                ;; use splice shim because ,@ not implemented:
-               ,(splice-shim
-                 'enumeration-query
-                 '(define eps 0.01)
-                 (unquote-splicing (make-shadow-defines model)) ;;the shadow model
-                 '(not ,(shadow-rename-all a (names model)))
-                 '(condition (not ,(shadow-rename-all b (names model))))))))
+               (enumeration-query
+                (define eps 0.01)
+                ,@(make-shadow-defines model) ;;the shadow model
+                (not ,(shadow-rename-all a (names model)))
+                (condition (not ,(shadow-rename-all b (names model))))))))
 
 (define model 
   '((define a (flip .2))
@@ -161,22 +132,7 @@ We can now plug this into the standard RSA literal listener that conditions on t
 
 ~~~~
 ;;;fold:
-;;first we have a bunch of helper code to do meta-transforms..
-
-;;splice shim:
-;; unquote-slicing hasn't been implemented, so write '..(... ,@exp ...) as '..,(splice-shim ... (unquote-splicing exp) ...)
-(define (splice-shim . seq)
-  (apply append
-         (map (lambda (s) (if (list? s)
-                       (if (eq? (first s) 'splice)
-                           (second s)
-                           (list s))
-                       (list s)))
-              seq)))
-
-(define (unquote-splicing x) (list 'splice x))
-
-;;andreas' code: converts name to shadow-name and wraps top-level defines
+;;first we have a bunch of helper code to do meta-transforms.. converts name to shadow-name and wraps top-level defines
 (define (names model)
   (map (lambda (def)
          (if (is-function-definition? def)
@@ -210,7 +166,9 @@ We can now plug this into the standard RSA literal listener that conditions on t
          (if (is-function-definition? def)
              (shadow-rename-all def ns)
              (let ([name (second def)])
-               '(define ,(shadow-symbol name) (if (flip eps) ,(shadow-rename-all (third def) ns) ,name)))))
+               '(define ,(shadow-symbol name) (if (flip eps) 
+                                                  ,(shadow-rename-all (third def) ns) 
+                                                  ,name)))))
        model))
 ;;;
 
@@ -231,25 +189,21 @@ We can now plug this into the standard RSA literal listener that conditions on t
   (define b (third expr))
   '(and ,a ,b
         (apply multinomial
-                ;; use splice shim because ,@ not implemented:
-               ,(splice-shim
-                 'enumeration-query
-                 '(define eps 0.01)
-                 (unquote-splicing (make-shadow-defines model)) ;;the shadow model
-                 '(not ,(shadow-rename-all a (names model)))
-                 '(condition (not ,(shadow-rename-all b (names model))))))))
+               (enumeration-query
+                (define eps 0.01)
+                ,@(make-shadow-defines model) ;;the shadow model
+                (not ,(shadow-rename-all a (names model)))
+                (condition (not ,(shadow-rename-all b (names model))))))))
 
-;;;;;
 ;;listener is standard RSA literal listener, except we dynamically construct the query to allow complex meanings that include because:
 (define listener 
   (mem (lambda (utt)
          (eval
-          (splice-shim
-           'enumeration-query
-           (unquote-splicing model)
-           '(define state ,(append '(list) (names model))) ;;all the named vars
-           'state
-           '(condition ,(meaning utt)))))))
+          '(enumeration-query
+            ,@model
+           (define state (list ,@(names model))) ;;all the named vars
+           state
+           (condition ,(meaning utt)))))))
 
 ;; put model into global scope:
 (define model 
@@ -267,22 +221,7 @@ Now that we have a literal listener that can understand "because", we can make a
 
 ~~~~
 ;;;fold:
-;;first we have a bunch of helper code to do meta-transforms..
-
-;;splice shim:
-;; unquote-slicing hasn't been implemented, so write '..(... ,@exp ...) as '..,(splice-shim ... (unquote-splicing exp) ...)
-(define (splice-shim . seq)
-  (apply append
-         (map (lambda (s) (if (list? s)
-                       (if (eq? (first s) 'splice)
-                           (second s)
-                           (list s))
-                       (list s)))
-              seq)))
-
-(define (unquote-splicing x) (list 'splice x))
-
-;;andreas' code: converts name to shadow-name and wraps top-level defines
+;;first we have a bunch of helper code to do meta-transforms.. converts name to shadow-name and wraps top-level defines
 (define (names model)
   (map (lambda (def)
          (if (is-function-definition? def)
@@ -316,7 +255,9 @@ Now that we have a literal listener that can understand "because", we can make a
          (if (is-function-definition? def)
              (shadow-rename-all def ns)
              (let ([name (second def)])
-               '(define ,(shadow-symbol name) (if (flip eps) ,(shadow-rename-all (third def) ns) ,name)))))
+               '(define ,(shadow-symbol name) (if (flip eps) 
+                                                  ,(shadow-rename-all (third def) ns) 
+                                                  ,name)))))
        model))
 
 ;;the meaning function constructs a church expression from an utterance. 
@@ -336,24 +277,21 @@ Now that we have a literal listener that can understand "because", we can make a
   (define b (third expr))
   '(and ,a ,b
         (apply multinomial
-                ;; use splice shim because ,@ not implemented:
-               ,(splice-shim
-                 'enumeration-query
-                 '(define eps 0.01)
-                 (unquote-splicing (make-shadow-defines model)) ;;the shadow model
-                 '(not ,(shadow-rename-all a (names model)))
-                 '(condition (not ,(shadow-rename-all b (names model))))))))
+               (enumeration-query
+                (define eps 0.01)
+                ,@(make-shadow-defines model) ;;the shadow model
+                (not ,(shadow-rename-all a (names model)))
+                (condition (not ,(shadow-rename-all b (names model))))))))
 
 ;;listener is standard RSA literal listener, except we dynamically construct the query to allow complex meanings that include because:
 (define listener 
   (mem (lambda (utt)
          (eval
-          (splice-shim
-           'enumeration-query
-           (unquote-splicing model)
-           '(define state ,(append '(list) (names model))) ;;all the named vars
-           'state
-           '(condition ,(meaning utt)))))))
+          '(enumeration-query
+            ,@model
+           (define state (list ,@(names model))) ;;all the named vars
+           state
+           (condition ,(meaning utt)))))))
 
 ;;;
 

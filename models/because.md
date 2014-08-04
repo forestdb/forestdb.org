@@ -303,8 +303,9 @@ Now that we have a literal listener that can understand "because", we can make a
    utt
    (condition (equal? state (apply multinomial (listener utt))))))
 
-;;utterances any expression that can use vars from names and 'because. for now a few alternate becauses:
-(define (utt-prior) (uniform-draw '((because b a) (because b c))))
+;;utterances can be any chrch expression includning vars from names and 'because. 
+;;for now consider all the explanations and 'simpler' expressions:
+(define (utt-prior) (uniform-draw '((because b a) (because b c) (and b a) (and b c) a b c)))
 
 ;; put model into global scope:
 (define model 
@@ -312,7 +313,7 @@ Now that we have a literal listener that can understand "because", we can make a
     (define c (flip .5))
     (define b (flip (if (or a c) 0.9 0.1)))))
 
-(barplot (speaker (list true true true)) "utterance if all vars true")
+(barplot (speaker (list true false true)) "utterance if a and b, but not c.")
 ~~~~
 
 Ta-da!

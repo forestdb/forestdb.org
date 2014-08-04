@@ -45,12 +45,12 @@ Forest uses [webchurch](https://github.com/probmods/webchurch) to run probabilis
 
 1. Clone and build the most recent version of the webchurch repository, following the instructions [here](https://github.com/probmods/webchurch):
 
-     git clone https://github.com/probmods/webchurch.git
-     cd webchurch
-     git init (only if you are on Windows)
-     git submodule update --init --recursive
-     npm install
-     ./compile.sh
+    git clone https://github.com/probmods/webchurch.git
+    cd webchurch
+    git init (only if you are on Windows)
+    git submodule update --init --recursive
+    npm install
+    ./compile.sh
 
 2. Clone the most recent version of the Forest repository:
 

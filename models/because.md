@@ -320,7 +320,7 @@ Ta-da!
 
 Next to understand if this meaning for "because" actually reflects people's intuitive understanding...
 
-## As above, with QUD
+#### As above, with QUD
 
 ~~~~
 ;;;fold:

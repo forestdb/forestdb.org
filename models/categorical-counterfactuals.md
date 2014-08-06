@@ -200,10 +200,9 @@ For deterministic dependencies, we can achieve this by turning the dependent var
       (if (flip) 'A 'B))
         
     (define (feature-on)
-      (flip
-       (case category
-             (('A) .6)
-             (('B) .4))))
+      (if (eq? category 'A)
+          #t
+          #f))
     
     ))
 

@@ -3,7 +3,7 @@ layout: model
 title: Categorical counterfactuals
 ---
 
-Suppose we have a category structure such that `A` and `B` are categories, and there is a single Boolean feature with a value that depends on the category.
+Suppose we have a category structure such that `A` and `B` are categories, and such that there is a single Boolean feature with a value that depends on the category.
 
 Let's first consider deterministic dependence:
 

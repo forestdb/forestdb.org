@@ -450,7 +450,7 @@ What about stochastic dependencies? In this case, we also have the two options s
     (and ,a ,b))))
 ~~~~
 
-However, it seems more natural to resample `feature-on` based on the strength of the dependence on `category`: 
+The variable-based approach (version 2) gives an obviously wrong answer. The function-based approach is not obviously crazy, but still doesn't seem right -- it seems more natural to resample `feature-on` based on the strength of the dependence on `category`: 
 
 - If category and feature are independent,  we should resample `feature-on` with the prior probability `epsilon` even if we update `category`. 
 - If `feature-on` deterministically depends on `category`, we should resample it whenever we change `category`. 

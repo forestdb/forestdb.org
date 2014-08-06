@@ -114,7 +114,7 @@ Let's first consider deterministic dependence:
     #t)))
 ~~~
 
-This doesn't look right - we expect that the counterfactual statement ("if it weren't in category A, then the feature wouldn't be on") is #t with probability 1.
+This doesn't look right -- we expect that the counterfactual statement ("if it weren't in category A, then the feature wouldn't be on") is `true` with probability 1.
 
 For deterministic dependencies, we can achieve this by turning the dependent variable into a function:
 

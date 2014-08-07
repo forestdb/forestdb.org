@@ -3,6 +3,8 @@ layout: model
 title: Simple Causal Explanations
 ---
 
+###Explanations in a causal world with non-deterministic links
+
 ~~~~
 ;;;;
 ;;;fold:

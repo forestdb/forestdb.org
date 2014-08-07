@@ -139,4 +139,10 @@ C. B has a low prior probability and a low probability of causing C.
 In this model, instead of knowing for sure the entire state of the world, the speaker instead
 makes an inference about the cause of C, and then attempts to communicate that world state.
 
-The model displays
+The speaker model prefers to produce the utterance "C because A and B" over the alternatives
+"C because B" and "C because A". How is this behavior produced?
+
+Let's start with the literal meaning of because. Suppose the speaker had chosen to say
+"C because A". First, we make sure that A and C are true in the real world. Then, we go to
+the counterfactual world and see if C is not true when A is not true, assuming that the other
+variables retain their values from the real world. Where does this leave us? If 

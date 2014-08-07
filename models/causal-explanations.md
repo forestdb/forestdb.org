@@ -132,7 +132,7 @@ title: Simple Causal Explanations
 (barplot (speaker (list return-true return-true return-true uncertain-.9 uncertain-.1) 
                   '(list a b c at bt)) "A, B, and C; unknown transmissions")
 
-~~~
+~~~~
 
 In the world model above, A has a high prior probability and a high probability of causing 
 C. B has a low prior probability and a low probability of causing C.

@@ -90,6 +90,7 @@ title: Simple Causal Explanations
 ;;the speaker is no different from ordinary RSA
 (define (speaker val-fns qud) ;;want to communicate val as value of qud
   (enumeration-query
+  ;;compute values of variables under discussion
    (define val (map (lambda (x) (x)) val-fns))
    (define utt (utt-prior))
    utt
@@ -116,20 +117,19 @@ title: Simple Causal Explanations
 (define model
   '((define a (flip .9))
     (define b (flip .1))
+    ;;are the causal links between a & c and b & c on?
     (define at (flip 0.9))
     (define bt (flip 0.1))
+    ;;if either variable and its transmission are both on, c happens
     (define c (or (and a at) (and b bt)))))
 
+;;functions to get things the speaker knows
 (define (return-true) true)
 (define (uncertain-.9) (flip .9))
 (define (uncertain-.1) (flip .1))
 
 (barplot (speaker (list return-true return-true return-true uncertain-.9 uncertain-.1) 
                   '(list a b c at bt)) "A, B, and C; unknown transmissions")
-
-(barplot (pragmatic-listener '(because c a) '(list a b c at bt))"C because A")
-(barplot (pragmatic-listener '(because c b) '(list a b c at bt)) "C because B")
-(barplot (pragmatic-listener '(because c (and a b)) '(list a b c at bt)) "C because A and B")
 
 ~~~
 
@@ -159,4 +159,8 @@ A.) This leads listeners to the inference that A, B, and C are all true, which w
 original communicative intent.
 
 "C because A and B" is deemed the best explanation by the model. It is fairly obvious to 
-see why--we require A, B, and C to all be true, and then 
+see why--we require A, B, and C to all be true, and then we go into the counterfactual
+world and check that if A and B had not happened (that is, (not (and a b))). Since we a priori
+think that the transmission from B to C is off, it is easy to construct worlds where all the 
+variables except for B transmission are true, and these will satisfy the counterfactual
+condition.

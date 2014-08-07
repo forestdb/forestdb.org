@@ -133,6 +133,10 @@ title: Simple Causal Explanations
 
 ~~~
 
+In the world model above, A has a high prior probability and a high probability of causing 
+C. B has a low prior probability and a low probability of causing C.
+
 In this model, instead of knowing for sure the entire state of the world, the speaker instead
 makes an inference about the cause of C, and then attempts to communicate that world state.
-In the model above, B is an unlikely cause of C.
+
+The model displays

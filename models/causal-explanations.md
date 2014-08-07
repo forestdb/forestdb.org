@@ -145,4 +145,18 @@ The speaker model prefers to produce the utterance "C because A and B" over the 
 Let's start with the literal meaning of because. Suppose the speaker had chosen to say
 "C because A". First, we make sure that A and C are true in the real world. Then, we go to
 the counterfactual world and see if C is not true when A is not true, assuming that the other
-variables retain their values from the real world. Where does this leave us? If 
+variables retain their values from the real world. Since B has a low prior, B is most likely
+to not be true in the worlds we generate. When B is not true, making A not true guarantees
+that C will not be true, thus satisfying the counterfactual. However, the speaker knows that
+B was true in the real world, so that is why "C because A" is a bad utterance to produce
+given that the goal is to make the listener infer the state of the world.
+
+Instead suppose the speaker says "C because B". Why is this a better option? Now when we
+sample worlds, we require that both C and B be true. However, A is also likely to be true
+since it has a high prior. (Remember that the causal link from A to C needs to be off in order
+for the counterfactual not-C given not-B to be true, but this is independent of the value of
+A.) This leads listeners to the inference that A, B, and C are all true, which was the speaker's
+original communicative intent.
+
+"C because A and B" is deemed the best explanation by the model. It is fairly obvious to 
+see why--we require A, B, and C to all be true, and then 

@@ -9,6 +9,7 @@ Suppose we have a category structure such that `A` and `B` are categories, and s
 
 Let's first consider deterministic dependence:
 
+
 ~~~
 ;;;fold:
 ;;first we have a bunch of helper code to do meta-transforms.. converts name to shadow-name and wraps top-level defines
@@ -682,137 +683,16 @@ To make this more efficient (without loss of accuracy), we can discretize the un
 
     (and ,a ,b))))
 ~~~~
+
 ### Testing the model
-Now we can compare this new Pearl-esque style to the original stlye with randomness embedded in the functions. To see the effect at the listener and speaker levels, we need to look at variables with mediated dependences because the interpretation of (because b a) entails both a and b. In addition, we have implemented randomization
-differently such that the truth of b if a is true is independent of the truh of b if a is false. The two are not independent in the above implementation; if U is sampled as u1, then feature-on will be true regardless of category. I am not yet sure if this is better, but here it is as an example.
 
-*Note: these models are very large, and may take several minutes to run.
-#### Pearl-esque
-~~~~
-;;;fold:
-;;first we have a bunch of helper code to do meta-transforms.. converts name to 
-;;shadow-name and wraps top-level defines
-(define (names model)
-  (map (lambda (def)
-         (if (is-function-definition? def)
-             (first (second def))
-             (second def)))
-       model))
+Now we can compare this new Pearl-esque style to the original stlye with randomness embedded in the functions. To see the effect at the listener and speaker levels, we need to look at variables with mediated dependences because the interpretation of `(because b a)` entails both `a` and `b`. In addition, we have implemented randomization
+differently such that the truth of `b` given `a` is independent of the truh of `b` given ¬`a`. The two are not independent in the above implementation; if `U` is sampled as `u1`, then feature-on will be true regardless of category. I am not yet sure if this is better, but I have included it here as an example.
 
-(define (is-function-definition? def)
-  (list? (second def)))
-
-(define (shadow-symbol name)
-  (string->symbol (string-append "shadow-" name)))
-
-(define (rename expr from-name to-name)
-  (cond [(list? expr) (map (lambda (x) (rename x from-name to-name)) expr)]
-        [(eq? expr from-name) to-name]
-        [else expr]))
-
-(define (shadow-rename expr name)
-  (rename expr name (shadow-symbol name)))
-
-(define (shadow-rename-all expr names)
-  (if (null? names)
-      expr
-      (shadow-rename-all (shadow-rename expr (first names))
-                         (rest names))))
-
-(define (make-shadow-defines model)
-  (define ns (names model))
-  (map (lambda (def)
-         (if (is-function-definition? def)
-             (shadow-rename-all def ns)
-             (let ([name (second def)])
-               '(define ,(shadow-symbol name) (if (flip eps) 
-                                                  ,(shadow-rename-all (third def) ns) 
-                                                  ,name)))))
-       model))
-
-;;the meaning function constructs a church expression from an utterance. 
-;;for 'because it uses quasiquote mojo to dynamically construct the right expression.
-;;(in principle this handles embedded "because", but currently expand-because doesn't do 
-;;the right thing since the model is a fixed global.)
-(define (meaning utt)
-  (define (because? u) (if (list? u) (eq? (first u) 'because) false))
-  (if (list? utt)
-      (if (because? utt)
-          (expand-because (map meaning utt))
-          (map meaning utt))
-      utt))
-
-;;expand an expr with form '(because a b), ie "a because b", into the (hypothesized) 
-;;counterfactual meaning:
-(define (expand-because expr) 
-  (define a (second expr))
-  (define b (third expr))
-  '(and ,a ,b
-        (apply multinomial
-               (enumeration-query
-                (define eps 0.01)
-                ,@(make-shadow-defines model) ;;the shadow model
-                (not ,(shadow-rename-all a (names model)))
-                (condition (not ,(shadow-rename-all b (names model))))))))
-
-;;listener is standard RSA literal listener, except we dynamically construct the 
-;;query to allow complex meanings that include because:
-(define listener 
-  (mem (lambda (utt qud)
-         (eval
-          '(enumeration-query
-            ,@model
-            ,qud
-            (condition ,(meaning utt)))))))
-
-;;the speaker is no different from ordinary RSA
-(define (speaker val qud) ;;want to communicate val as value of qud
-  (enumeration-query
-   (define utt (utt-prior))
-   utt
-   (condition (equal? val (apply multinomial (listener utt qud))))))
-
-;;;
-;; returns value<p1 with probability p1 and value<p2 with probability p2 else 1
-;; this behaves the same way as the uniform distribution, but allows
-;; the use of enumeration-query, making the model fully tractable
-(define (get-U p1 p2)
-  (multinomial (list p1 p2 1)
-               (list p1 (- p2 p1)  (- 1 p2))))
-
-(define background .2)
-
-(define model 
-  '(
-    ;; causal strengths
-    (define a→b (if (flip) .8 background))
-    (define b→c (if (flip) .8 background))
-    
-    (define a| (flip)) ;; probability goes outside of function
-    (define (a) a|) ;; all nodes are deterministic functions
-    
-    (define b|a (flip a→b)) ;; if b|a is true and a is true, b is true
-    (define b|!a (flip background))
-    (define (b) (if (a) b|a  b|!a)) ;; always reference nodes by their function
-    
-    (define c|b (flip b→c))
-    (define c|!b (flip background))
-    (define (c) (if (b) c|b  c|!b))
-
-    ))
-(barplot (listener '(because (c) (a)) '(list (b) a→b b→c))
-         "Interpretation of a because c")
-(barplot (listener '(because (c) (b)) '(list (a) a→b b→c))
-         "Interpretation of a because b")
-
-(define (utt-prior) (uniform-draw '((because (c) (a)) (because (c) (b)) 
-                                    (and (c) (a)) (and (c) (b)))))
-(barplot (speaker (list .8 .8) '(list a→b b→c))
-         "Utterance given a→b and b→ are 0.8")
-
-~~~~
+*Note: these models are very large, and may take a few minutes to run.*
 
 #### Old
+
 ~~~~
 ;;;fold:
 ;;first we have a bunch of helper code to do meta-transforms.. converts name to shadow-name and wraps top-level defines
@@ -920,4 +800,122 @@ differently such that the truth of b if a is true is independent of the truh of 
                                      (and c a) (and c b))))
 (barplot (speaker (list .8 .8) '(list a→b b→c))
          "Utterance given a→b and b→ are 0.8")
-~~~~
+~~~
+
+#### Pearl-esque
+
+~~~
+;;;fold:
+;;first we have a bunch of helper code to do meta-transforms.. converts name to 
+;;shadow-name and wraps top-level defines
+(define (names model)
+  (map (lambda (def)
+         (if (is-function-definition? def)
+             (first (second def))
+             (second def)))
+       model))
+
+(define (is-function-definition? def)
+  (list? (second def)))
+
+(define (shadow-symbol name)
+  (string->symbol (string-append "shadow-" name)))
+
+(define (rename expr from-name to-name)
+  (cond [(list? expr) (map (lambda (x) (rename x from-name to-name)) expr)]
+        [(eq? expr from-name) to-name]
+        [else expr]))
+
+(define (shadow-rename expr name)
+  (rename expr name (shadow-symbol name)))
+
+(define (shadow-rename-all expr names)
+  (if (null? names)
+      expr
+      (shadow-rename-all (shadow-rename expr (first names))
+                         (rest names))))
+
+(define (make-shadow-defines model)
+  (define ns (names model))
+  (map (lambda (def)
+         (if (is-function-definition? def)
+             (shadow-rename-all def ns)
+             (let ([name (second def)])
+               '(define ,(shadow-symbol name) (if (flip eps) 
+                                                  ,(shadow-rename-all (third def) ns) 
+                                                  ,name)))))
+       model))
+
+;;the meaning function constructs a church expression from an utterance. 
+;;for 'because it uses quasiquote mojo to dynamically construct the right expression.
+;;(in principle this handles embedded "because", but currently expand-because doesn't do 
+;;the right thing since the model is a fixed global.)
+(define (meaning utt)
+  (define (because? u) (if (list? u) (eq? (first u) 'because) false))
+  (if (list? utt)
+      (if (because? utt)
+          (expand-because (map meaning utt))
+          (map meaning utt))
+      utt))
+
+;;expand an expr with form '(because a b), ie "a because b", into the (hypothesized) 
+;;counterfactual meaning:
+(define (expand-because expr) 
+  (define a (second expr))
+  (define b (third expr))
+  '(and ,a ,b
+        (apply multinomial
+               (enumeration-query
+                (define eps 0.01)
+                ,@(make-shadow-defines model) ;;the shadow model
+                (not ,(shadow-rename-all a (names model)))
+                (condition (not ,(shadow-rename-all b (names model))))))))
+
+;;listener is standard RSA literal listener, except we dynamically construct the 
+;;query to allow complex meanings that include because:
+(define listener 
+  (mem (lambda (utt qud)
+         (eval
+          '(enumeration-query
+            ,@model
+            ,qud
+            (condition ,(meaning utt)))))))
+
+;;the speaker is no different from ordinary RSA
+(define (speaker val qud) ;;want to communicate val as value of qud
+  (enumeration-query
+   (define utt (utt-prior))
+   utt
+   (condition (equal? val (apply multinomial (listener utt qud))))))
+
+;;;
+(define background .2)
+
+(define model 
+  '(
+    ;; causal strengths
+    (define a→b (if (flip) .8 background))
+    (define b→c (if (flip) .8 background))
+
+    (define a| (flip)) ;; probability goes outside of function
+    (define (a) a|) ;; all nodes are deterministic functions
+
+    (define b|a (flip a→b)) ;; if b|a is true and a is true, b is true
+    (define b|!a (flip background))
+    (define (b) (if (a) b|a  b|!a)) ;; always reference nodes by their function
+
+    (define c|b (flip b→c))
+    (define c|!b (flip background))
+    (define (c) (if (b) c|b  c|!b))
+
+    ))
+(barplot (listener '(because (c) (a)) '(list (b) a→b b→c))
+         "Interpretation of a because c")
+(barplot (listener '(because (c) (b)) '(list (a) a→b b→c))
+         "Interpretation of a because b")
+
+(define (utt-prior) (uniform-draw '((because (c) (a)) (because (c) (b)) 
+                                    (and (c) (a)) (and (c) (b)))))
+(barplot (speaker (list .8 .8) '(list a→b b→c))
+         "Utterance given a→b and b→ are 0.8")
+~~~

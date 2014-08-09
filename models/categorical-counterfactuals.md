@@ -9,7 +9,6 @@ Suppose we have a category structure such that `A` and `B` are categories, and s
 
 Let's first consider deterministic dependence:
 
-
 ~~~
 ;;;fold:
 ;;first we have a bunch of helper code to do meta-transforms.. converts name to shadow-name and wraps top-level defines
@@ -693,7 +692,7 @@ differently such that the truth of `b` given `a` is independent of the truh of `
 
 #### Old
 
-~~~~
+~~~
 ;;;fold:
 ;;first we have a bunch of helper code to do meta-transforms.. converts name to shadow-name and wraps top-level defines
 (define (names model)

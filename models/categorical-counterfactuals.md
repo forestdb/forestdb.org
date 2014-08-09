@@ -929,7 +929,7 @@ A final issue is that the Pearl-esque model only weakly prefers `(because c a). 
 
 ### Faux-uniform distributions
 
-Using faux-uniform distributions, we can make b|a dependent on b|!a, as it was in the first implementation of Pearl-style counterfactuals. This causes the model to make much more dramatic predictions, so I have reduced the causative forces to .3 in order to see the variation. While this version has the benefit of creating more substantial predictions for the speaker, it generates rather odd interpretations for the listener. For example, when given `(and c a)` the model gives equal probability to a state in which `b` is false and causal weights are low as one in which `b` is true and causal weights are high. Intuitively, the second should be much more likely given the utterance.
+Using faux-uniform distributions, we can make b\|a dependent on b\|!a, as it was in the first implementation of Pearl-style counterfactuals. This causes the model to make much more dramatic predictions, so I have reduced the causative forces to .3 in order to see the variation. While this version has the benefit of creating more substantial predictions for the speaker, it generates rather odd interpretations for the listener. For example, when given `(and c a)` the model gives equal probability to a state in which `b` is false and causal weights are low as one in which `b` is true and causal weights are high. Intuitively, the second should be much more likely given the utterance.
 
 ~~~
 ;;;fold:

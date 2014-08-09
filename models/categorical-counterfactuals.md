@@ -775,30 +775,31 @@ differently such that the truth of `b` given `a` is independent of the truh of `
    (condition (equal? val (apply multinomial (listener utt qud))))))
 
 
-
+(define background .1)
 ;; put model into global scope:
 (define model 
   '(
-    (define a→b (if (flip) .8 .2))
-    (define b→c (if (flip) .8 .2))
+    (define a→b (if (flip) .9 background))
+    (define b→c (if (flip) .9 background))
     
     (define a (flip))
     (define b (flip (if a
                         a→b
-                        .2)))
+                        background)))
     (define c (flip (if b
                         b→c
-                        .2)))
+                        background)))
     ))
 (barplot (listener '(because c a) '(list b '_ a→b b→c))
          "Interpretation of c because a")
-(barplot (listener '(because c b) '(list a '_ a→b b→c))
-         "Interpretation of c because b")
+(barplot (listener '(and c a) '(list b '_ a→b b→c))
+         "Interpretation of c and a")
 
 (define (utt-prior) (uniform-draw '((because c a) (because c b)
                                      (and c a) (and c b))))
-(barplot (speaker (list .8 .8) '(list a→b b→c))
-         "Utterance given a→b and b→ are 0.8")
+(barplot (speaker (list .9 .9 #t #t #t) '(list a→b b→c a b c))
+         "Utterance given a→b and b→c are 0.9 and a, b, c")
+
 ~~~
 
 #### Pearl-esque
@@ -888,13 +889,13 @@ differently such that the truth of `b` given `a` is independent of the truh of `
    (condition (equal? val (apply multinomial (listener utt qud))))))
 
 ;;;
-(define background .2)
+(define background .1)
 
 (define model 
   '(
     ;; causal strengths
-    (define a→b (if (flip) .8 background))
-    (define b→c (if (flip) .8 background))
+    (define a→b (if (flip) .9 background))
+    (define b→c (if (flip) .9 background))
 
     (define a| (flip)) ;; probability goes outside of function
     (define (a) a|) ;; all nodes are deterministic functions
@@ -909,12 +910,18 @@ differently such that the truth of `b` given `a` is independent of the truh of `
 
     ))
 (barplot (listener '(because (c) (a)) '(list (b) a→b b→c))
-         "Interpretation of a because c")
-(barplot (listener '(because (c) (b)) '(list (a) a→b b→c))
-         "Interpretation of a because b")
+         "Interpretation of c because a")
+(barplot (listener '(and (c) (a)) '(list (b) a→b b→c))
+         "Interpretation of c and a")
 
 (define (utt-prior) (uniform-draw '((because (c) (a)) (because (c) (b)) 
                                     (and (c) (a)) (and (c) (b)))))
-(barplot (speaker (list .8 .8) '(list a→b b→c))
-         "Utterance given a→b and b→ are 0.8")
+(barplot (speaker (list .9 .9 #t #t #t) '(list a→b b→c (a)(b)(c)))
+         "Utterance given a→b and b→c are 0.9 and a, b, c")
+
 ~~~
+This preliminary comparison demonstrates that the Pearl-esque style produces superior predictions to the original style. `(and c a)` have the same interpretation in each model, indicating that the models are similar in their basic causal structure. The interpretation of `(because c a)` however is quite different. Pearl's interpretation is very close to the `and` interpretation except that states in which `b` is false have been made less probable. This reflects the intuition that `c` can only have caused `a` if `b` was also true. The original style, conversely, makes no general prediction about the value of `b`, giving high weight to the situation in which both causal strengths are low and b is false.
+
+When we examine the speaker model, we see that both models make equal predictions for every statement but `(because c a)`, which is more likely in the Pearl-esque model and less likely in the original model. I argue that Pearl's predictions more closely reflect our intuitive understanding. By saying "c because a" we are telling the listener that there is a causal link between c and a, which by the model's structure must be mediated by `b`. To ground this in a physical example, we can interpret `a` to be the knocking over of a vase, `b` to be the vase falling off the table, and `c` to be the vase breaking. In this example, saying "the vase broke because it was knocked over" seems to be a very good explanation. However, it is unlikely that the QUD in such a situation would be the entire state as it is in the above model. We must construct more complex, psychologically plausible,  models in order to better distinguish the two model types.
+
+A final issue is that the Pearl-esque model only weakly prefers `(because c a). This may be specific to this situation, in which simply asserting the truth of any nodes makes the full state very probable. Creating more complex models will help to confirm or disconfirm this hypothesis.

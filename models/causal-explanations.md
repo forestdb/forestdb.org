@@ -70,8 +70,8 @@ title: Simple Causal Explanations
       (lambda() ((define c (second b)) 
                  (define d (third b))))
       b)
-  '(and ,a 
-        ,b
+  '(and ;,a 
+        ;,b
         (apply multinomial
                (enumeration-query
                 (define eps 0.001)
@@ -82,28 +82,44 @@ title: Simple Causal Explanations
 
 ;;listener is standard RSA literal listener, except we dynamically construct the query to allow complex meanings that include because:
 (define listener
-  (mem (lambda (utt qud)
+  (mem (lambda (utt qud depth)
          (eval
           '(enumeration-query
             ,@model
-            ,qud
-           (condition ,(meaning utt)))))))
+            (define val ,qud)
+            val
+           (condition (if (equal? depth 0)
+                          ,(meaning utt)
+                          (equal? utt (apply multinomial (speaker (map (lambda (x) (lambda () x)) val) qud (- depth 1)))))))))))
 
 ;;;;;;
 ;;the speaker is no different from ordinary RSA
-(define (speaker val-fns qud) ;;want to communicate val as value of qud
+(define (speaker val-fns qud depth) ;;want to communicate val as value of qud
   (enumeration-query
   ;;compute values of variables under discussion
    (define val (map (lambda (x) (x)) val-fns))
    (define utt (utt-prior))
    utt
-   (condition (equal? val (apply multinomial (listener utt qud))))))
+   (condition (if (equal? depth 0) 
+                  (equal? val (apply multinomial (listener utt qud 0)))
+                  (equal? val (apply multinomial (listener utt qud (- depth 1))))))))
+
+(define (pragmatic-speaker val-fns qud) ;;want to communicate val as value of qud
+  (enumeration-query
+  ;;compute values of variables under discussion
+   (define val (map (lambda (x) (x)) val-fns))
+   (define utt (utt-prior))
+   utt
+   (condition (equal? val (apply multinomial (pragmatic-listener utt qud))))))
 
 ;;utterances can be any chrch expression includning vars from names and 'because.
 ;;for now consider all the explanations and 'simpler' expressions:
 (define (utt-prior) (uniform-draw '((because c a)
                                     (because c b)
                                     (because c (and a b))
+                                    ;(and a c)
+                                    ;(and b c)
+                                    ;(and c (and a b))
                                   )))
 
 
@@ -115,6 +131,7 @@ title: Simple Causal Explanations
             (define val ,qud)
             val
            (equal? utt (apply multinomial (speaker (map (lambda (x) (lambda () x)) val) qud))))))))
+
 
 ;; put model into global scope:
 (define model
@@ -128,11 +145,16 @@ title: Simple Causal Explanations
 
 ;;functions to get things the speaker knows
 (define (return-true) true)
+(define (return-false) false)
 (define (uncertain-.9) (flip .9))
 (define (uncertain-.1) (flip .1))
 
 (barplot (speaker (list return-true return-true return-true uncertain-.9 uncertain-.1) 
-                  '(list a b c at bt)) "A, B, and C; unknown transmissions")
+                  '(list a b c at bt) 2) "[depth 2] A, B, and C")
+
+(barplot (listener '(because c a) '(list a b c at bt) 1) "[depth 1] C because A")
+(barplot (listener '(because c b) '(list a b c at bt) 1) "[depth 1] C because B")
+(barplot (listener '(because c (and a b)) '(list a b c at bt) 1) "[depth 1] C because A&B")
 
 ~~~~
 

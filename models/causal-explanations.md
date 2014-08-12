@@ -104,13 +104,6 @@ title: Simple Causal Explanations
                   (equal? val (apply multinomial (listener utt qud 0)))
                   (equal? val (apply multinomial (listener utt qud (- depth 1))))))))
 
-(define (pragmatic-speaker val-fns qud) ;;want to communicate val as value of qud
-  (enumeration-query
-  ;;compute values of variables under discussion
-   (define val (map (lambda (x) (x)) val-fns))
-   (define utt (utt-prior))
-   utt
-   (condition (equal? val (apply multinomial (pragmatic-listener utt qud))))))
 
 ;;utterances can be any chrch expression includning vars from names and 'because.
 ;;for now consider all the explanations and 'simpler' expressions:
@@ -122,15 +115,6 @@ title: Simple Causal Explanations
                                     ;(and c (and a b))
                                   )))
 
-
-(define pragmatic-listener
-  (mem (lambda (utt qud)
-         (eval
-          '(enumeration-query
-            ,@model
-            (define val ,qud)
-            val
-           (equal? utt (apply multinomial (speaker (map (lambda (x) (lambda () x)) val) qud))))))))
 
 
 ;; put model into global scope:

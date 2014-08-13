@@ -82,63 +82,78 @@ title: Simple Causal Explanations
 
 ;;listener is standard RSA literal listener, except we dynamically construct the query to allow complex meanings that include because:
 (define listener
-  (mem (lambda (utt qud depth)
+  (mem (lambda (utt qud)
          (eval
           '(enumeration-query
             ,@model
-            (define val ,qud)
-            val
-           (condition (if (equal? depth 0)
-                          ,(meaning utt)
-                          (equal? utt (apply multinomial (speaker (map (lambda (x) (lambda () x)) val) qud (- depth 1)))))))))))
+            ,qud
+           (condition ,(meaning utt)))))))
 
 ;;;;;;
 ;;the speaker is no different from ordinary RSA
-(define (speaker val-fns qud depth) ;;want to communicate val as value of qud
+(define (speaker val-fns qud) ;;want to communicate val as value of qud
   (enumeration-query
   ;;compute values of variables under discussion
    (define val (map (lambda (x) (x)) val-fns))
    (define utt (utt-prior))
    utt
-   (condition (if (equal? depth 0) 
-                  (equal? val (apply multinomial (listener utt qud 0)))
-                  (equal? val (apply multinomial (listener utt qud (- depth 1))))))))
+   (condition (equal? val (apply multinomial (listener utt qud))))))
 
+(define (pragmatic-speaker val-fns qud) ;;want to communicate val as value of qud
+  (enumeration-query
+  ;;compute values of variables under discussion
+   (define val (map (lambda (x) (x)) val-fns))
+   (define utt (utt-prior))
+   utt
+   (condition (equal? val (apply multinomial (pragmatic-listener utt qud))))))
 
 ;;utterances can be any chrch expression includning vars from names and 'because.
 ;;for now consider all the explanations and 'simpler' expressions:
 (define (utt-prior) (uniform-draw '((because c a)
                                     (because c b)
                                     (because c (and a b))
-                                    ;(and a c)
-                                    ;(and b c)
-                                    ;(and c (and a b))
                                   )))
 
 
+(define pragmatic-listener
+  (mem (lambda (utt qud)
+         (eval
+          '(enumeration-query
+            ,@model
+            (define val ,qud)
+            val
+            (equal? utt (apply multinomial (speaker (map (lambda (x) (lambda () x)) val) qud))))))))
 
 ;; put model into global scope:
 (define model
   '((define a (flip .9))
-    (define b (flip .1))
+    (define b (flip .9))
     ;;are the causal links between a & c and b & c on?
-    (define at (flip 0.9))
-    (define bt (flip 0.1))
+    (define at (flip .1))
+    (define bt (flip .1))
     ;;if either variable and its transmission are both on, c happens
     (define c (or (and a at) (and b bt)))))
 
 ;;functions to get things the speaker knows
 (define (return-true) true)
-(define (return-false) false)
 (define (uncertain-.9) (flip .9))
 (define (uncertain-.1) (flip .1))
+(define (return-high) .9)
+(define (return-low) .1)
 
-(barplot (speaker (list return-true return-true return-true uncertain-.9 uncertain-.1) 
-                  '(list a b c at bt) 2) "[depth 2] A, B, and C")
+(barplot (speaker (list return-true return-true return-true uncertain-.1 uncertain-.1) 
+                  '(list a b c at bt)) "A, B, and C")
 
-(barplot (listener '(because c a) '(list a b c at bt) 1) "[depth 1] C because A")
-(barplot (listener '(because c b) '(list a b c at bt) 1) "[depth 1] C because B")
-(barplot (listener '(because c (and a b)) '(list a b c at bt) 1) "[depth 1] C because A&B")
+(barplot (pragmatic-speaker (list return-true return-true return-true uncertain-.1 uncertain-.1) 
+                  '(list a b c at bt)) "[pragmatic speaker] A, B, and C")
+
+(barplot (listener '(because c a) '(list a b c at bt)) "C because A")
+(barplot (pragmatic-listener '(because c a) '(list a b c at bt)) "[prag] C because A")
+(barplot (listener '(because c b) '(list a b c at bt)) "C because B")
+(barplot (pragmatic-listener '(because c b) '(list a b c at bt)) "[prag] C because B")
+(barplot (listener '(because c (and b a)) '(list a b c at bt)) "C because A&B")
+(barplot (pragmatic-listener '(because c (and b a)) '(list a b c at bt)) "[prag] C because A&B")
+
 
 ~~~~
 

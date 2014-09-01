@@ -338,7 +338,9 @@ What about stochastic dependencies? In this case, we also have the two options s
     (and ,a ,b)))
     "If it weren't in category A, it wouldn't have feature")
 ~~~~
+
 #### Version 2: Function
+
 ~~~~
 ;;;fold:
 ;;first we have a bunch of helper code to do meta-transforms.. converts name to shadow-name and wraps top-level defines
@@ -680,9 +682,9 @@ To make this more efficient (without loss of accuracy), we can discretize the un
     "If it weren't in category A, it wouldn't have feature")
 ~~~~
 
-### Testing the model
+### Testing the models
 
-Now we can compare this new Pearl-esque style to the original stlye with randomness embedded in the functions. The two models below are parallel instantiations of a simple a→b→c causal chain. The values of each node as well as the weights between the nodes are unknown variables that the listener must discover.
+Now we can compare this new exogenous style to the original stlye with randomness embedded in the functions. The two models below are parallel instantiations of a simple a→b→c causal chain. The values of each node as well as the weights between the nodes are unknown variables that the listener must discover.
 
 #### Old
 
@@ -923,7 +925,7 @@ Now we can compare this new Pearl-esque style to the original stlye with randomn
 
 ~~~
 
-This preliminary comparison demonstrates that the Pearl-esque style produces superior predictions to the original style. `(and c a)` have the same interpretation in each model, indicating that the models are similar in their basic causal structure. The interpretation of `(because c a)` however is quite different. Pearl's interpretation is very close to the `and` interpretation except that states in which `b` is false are less probable. This reflects the intuition that `a` can only have caused `c` if `b` was also true. The original style, conversely, makes no general prediction about the value of `b`, giving high weight to the situation in which both causal strengths are low and b is false.
+This preliminary comparison demonstrates that the Pearl-esque style produces superior predictions to the original style. `(and c a)` have the same interpretation in each model, indicating that the models are identical in their basic causal structure. The interpretation of `(because c a)` however is quite different. The exogenous model's interpretation is very close to the `and` interpretation except that states in which `b` is false are less probable. This reflects the intuition that `a` can only have caused `c` if `b` was also true. The original style, conversely, makes no general prediction about the value of `b`, giving high weight to the situation in which both causal strengths are low and b is false.
 
 When we examine the speaker, we see the greatest discrepency `(because c a)`, which is the most probable in the Pearl-esque model and least probable in the original model. I argue that Pearl's predictions more closely reflect our intuitive understanding. `(because c a)` is highly informative because it gives information about all variables: (a) and (c) by default and a→b, b→c, and (b) by the counterfactual. To ground this in a physical example, we can interpret `a` to be the knocking over of a vase, `b` to be the vase falling off the table, and `c` to be the vase breaking. In this example, saying "the vase broke because it was knocked over" seems to be a very good explanation. It is unlikely that the QUD in such a situation would be the entire state as it is in the above model, however. We must construct more complex, psychologically plausible,  models in order to better distinguish the two model types.
 

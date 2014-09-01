@@ -1,13 +1,15 @@
 ---
 layout: model
-title: Categorical counterfactuals
+title: Exogenous counterfactuals
 ---
 
-Suppose we have a category structure such that `A` and `B` are categories, and such that there is a single Boolean feature with a value that depends on the category.
+*This forest page discusses issues that arise with the current counterfactual model and how these issues can be resolved using exogenous randomness (c.f. Pearl, 2000).*
+
+Suppose we have a category structure such that `A` and `B` are categories, and such that there is a single Boolean feature with a value that depends on the category. Let's look at how the counterfactual statement "If it wasn't in category A, it wouldn't have feature" is handled.
 
 ### Deterministic dependencies
 
-Let's first consider deterministic dependence:
+Let's first consider deterministic dependence, where the feature is always on for category A and always off for category B.
 
 ~~~
 ;;;fold:
@@ -96,8 +98,7 @@ Let's first consider deterministic dependence:
           #f))
     
     ))
-
-;; "feature is on because category is A"
+    
 (define a 'feature-on)
 (define b '(eq? category 'A))
 
@@ -112,13 +113,11 @@ Let's first consider deterministic dependence:
             ,@(make-shadow-defines model) ;;the shadow model
             (not ,(shadow-rename-all a (names model)))
             (condition (not ,(shadow-rename-all b (names model))))))
-
-    (and ,a ,b))))
+    (and ,a ,b)))
+    "If it weren't in category A, it wouldn't have feature")
 ~~~
 
-This doesn't look right -- we expect that the counterfactual statement ("if it weren't in category A, then the feature wouldn't be on") is `true` with probability 1.
-
-For deterministic dependencies, we can achieve this by turning the dependent variable into a function:
+This doesn't look right; we expect that the counterfactual statement should be `true` with probability 1. This problem arises because category and feature resample independently. Thus, most of the times that category changes, feature is left with its original value. The causal force of category on feature only comes to play in the .0001 probability event that both resample in the same shadow-cycle. One possible solution to this problem is to make `feature-on` a function, thus forcing it to resample every cycle.
 
 ~~~~
 ;;;fold:
@@ -222,16 +221,17 @@ For deterministic dependencies, we can achieve this by turning the dependent var
             ,@(make-shadow-defines model) ;;the shadow model
             (not ,(shadow-rename-all a (names model)))
             (condition (not ,(shadow-rename-all b (names model))))))
-
-    (and ,a ,b))))
+    (and ,a ,b)))
+    "If it weren't in category A, it wouldn't have feature")
 ~~~~
 
-Functions always get resampled. Now, the counterfactual statements ("if it weren't in category A, then the feature wouldn't be on") is #t with probability 1.
+Functions always get resampled, so every time the category is changed, the feature changes in response. Now, the counterfactual statement ("if it weren't in category A, then the feature wouldn't be on") is true with probability 1. For deterministic dependencies, this strategy seems to work fairly well.
 
 ### Stochastic dependencies
 
-What about stochastic dependencies? In this case, we also have the two options shown above -- we could always resample (by expressing `feature-on` as a function), or we could only resample with probability `epsilon`. 
+What about stochastic dependencies? In this case, we also have the two options shown above: we can resample with probability `epsilon`, or we can always resample (by expressing `feature-on` as a function). Let's look at the result from each option.
 
+#### Version 1: Variable
 ~~~~
 ;;;fold:
 ;;first we have a bunch of helper code to do meta-transforms.. converts name to shadow-name and wraps top-level defines
@@ -307,7 +307,112 @@ What about stochastic dependencies? In this case, we also have the two options s
             (condition ,(meaning utt)))))))
 ;;;
 
-;; Version 1
+(define model 
+  '(   
+
+    (define category
+      (if (flip) 'A 'B))
+
+    (define feature-on
+      (flip
+       (case category
+             (('A) .6)
+             (('B) .4))))
+
+    ))
+
+(define a 'feature-on) ;;feature-on is a variable
+(define b '(eq? category 'A))
+
+(barplot
+ (eval
+  '(enumeration-query
+    ,@model
+
+    (apply multinomial
+           (enumeration-query
+            (define eps 0.01)
+            ,@(make-shadow-defines model) ;;the shadow model
+            (not ,(shadow-rename-all a (names model)))
+            (condition (not ,(shadow-rename-all b (names model))))))
+    (and ,a ,b)))
+    "If it weren't in category A, it wouldn't have feature")
+~~~~
+#### Version 2: Function
+~~~~
+;;;fold:
+;;first we have a bunch of helper code to do meta-transforms.. converts name to shadow-name and wraps top-level defines
+(define (names model)
+  (map (lambda (def)
+         (if (is-function-definition? def)
+             (first (second def))
+             (second def)))
+       model))
+
+(define (is-function-definition? def)
+  (list? (second def)))
+
+(define (shadow-symbol name)
+  (string->symbol (string-append "shadow-" name)))
+
+(define (rename expr from-name to-name)
+  (cond [(list? expr) (map (lambda (x) (rename x from-name to-name)) expr)]
+        [(eq? expr from-name) to-name]
+        [else expr]))
+
+(define (shadow-rename expr name)
+  (rename expr name (shadow-symbol name)))
+
+(define (shadow-rename-all expr names)
+  (if (null? names)
+      expr
+      (shadow-rename-all (shadow-rename expr (first names))
+                         (rest names))))
+
+(define (make-shadow-defines model)
+  (define ns (names model))
+  (map (lambda (def)
+         (if (is-function-definition? def)
+             (shadow-rename-all def ns)
+             (let ([name (second def)])
+               '(define ,(shadow-symbol name) (if (flip eps) 
+                                                  ,(shadow-rename-all (third def) ns) 
+                                                  ,name)))))
+       model))
+
+;;the meaning function constructs a church expression from an utterance. 
+;;for 'because it uses quasiquote mojo to dynamically construct the right expression.
+;;(in principle this handles embedded "because", but currently expand-because doesn't do the right thing since the model is a fixed global.)
+(define (meaning utt)
+  (define (because? u) (if (list? u) (eq? (first u) 'because) false))
+  (if (list? utt)
+      (if (because? utt)
+          (expand-because (map meaning utt))
+          (map meaning utt))
+      utt))
+
+;;expand an expr with form '(because a b), ie "a because b", into the (hypothesized) counterfactual meaning:
+(define (expand-because expr) 
+  (define a (second expr))
+  (define b (third expr))
+  '(and ,a ,b
+        (apply multinomial
+               (enumeration-query
+                (define eps 0.01)
+                ,@(make-shadow-defines model) ;;the shadow model
+                (not ,(shadow-rename-all a (names model)))
+                (condition (not ,(shadow-rename-all b (names model))))))))
+
+;;listener is standard RSA literal listener, except we dynamically construct the query to allow complex meanings that include because:
+(define listener 
+  (mem (lambda (utt)
+         (eval
+          '(enumeration-query
+            ,@model
+            (define state (list ,@(names model))) ;;all the named vars
+            state
+            (condition ,(meaning utt)))))))
+;;;
 
 (define model 
   '(   
@@ -315,7 +420,7 @@ What about stochastic dependencies? In this case, we also have the two options s
     (define category
       (if (flip) 'A 'B))
 
-    (define (feature-on)
+    (define (feature-on) ;;feature-on is a function
       (flip
        (case category
              (('A) .6)
@@ -338,119 +443,11 @@ What about stochastic dependencies? In this case, we also have the two options s
             (not ,(shadow-rename-all a (names model)))
             (condition (not ,(shadow-rename-all b (names model))))))
 
-    (and ,a ,b))))
+    (and ,a ,b)))
+    "If it weren't in category A, it wouldn't have feature")
 ~~~~
 
-~~~~
-;;;fold:
-;;first we have a bunch of helper code to do meta-transforms.. converts name to shadow-name and wraps top-level defines
-(define (names model)
-  (map (lambda (def)
-         (if (is-function-definition? def)
-             (first (second def))
-             (second def)))
-       model))
-
-(define (is-function-definition? def)
-  (list? (second def)))
-
-(define (shadow-symbol name)
-  (string->symbol (string-append "shadow-" name)))
-
-(define (rename expr from-name to-name)
-  (cond [(list? expr) (map (lambda (x) (rename x from-name to-name)) expr)]
-        [(eq? expr from-name) to-name]
-        [else expr]))
-
-(define (shadow-rename expr name)
-  (rename expr name (shadow-symbol name)))
-
-(define (shadow-rename-all expr names)
-  (if (null? names)
-      expr
-      (shadow-rename-all (shadow-rename expr (first names))
-                         (rest names))))
-
-(define (make-shadow-defines model)
-  (define ns (names model))
-  (map (lambda (def)
-         (if (is-function-definition? def)
-             (shadow-rename-all def ns)
-             (let ([name (second def)])
-               '(define ,(shadow-symbol name) (if (flip eps) 
-                                                  ,(shadow-rename-all (third def) ns) 
-                                                  ,name)))))
-       model))
-
-;;the meaning function constructs a church expression from an utterance. 
-;;for 'because it uses quasiquote mojo to dynamically construct the right expression.
-;;(in principle this handles embedded "because", but currently expand-because doesn't do the right thing since the model is a fixed global.)
-(define (meaning utt)
-  (define (because? u) (if (list? u) (eq? (first u) 'because) false))
-  (if (list? utt)
-      (if (because? utt)
-          (expand-because (map meaning utt))
-          (map meaning utt))
-      utt))
-
-;;expand an expr with form '(because a b), ie "a because b", into the (hypothesized) counterfactual meaning:
-(define (expand-because expr) 
-  (define a (second expr))
-  (define b (third expr))
-  '(and ,a ,b
-        (apply multinomial
-               (enumeration-query
-                (define eps 0.01)
-                ,@(make-shadow-defines model) ;;the shadow model
-                (not ,(shadow-rename-all a (names model)))
-                (condition (not ,(shadow-rename-all b (names model))))))))
-
-;;listener is standard RSA literal listener, except we dynamically construct the query to allow complex meanings that include because:
-(define listener 
-  (mem (lambda (utt)
-         (eval
-          '(enumeration-query
-            ,@model
-            (define state (list ,@(names model))) ;;all the named vars
-            state
-            (condition ,(meaning utt)))))))
-;;;
-
-;; Version 2
-
-(define model 
-  '(   
-
-    (define category
-      (if (flip) 'A 'B))
-
-    (define feature-on
-      (flip
-       (case category
-             (('A) .6)
-             (('B) .4))))
-
-    ))
-
-(define a 'feature-on)
-(define b '(eq? category 'A))
-
-(barplot
- (eval
-  '(enumeration-query
-    ,@model
-
-    (apply multinomial
-           (enumeration-query
-            (define eps 0.01)
-            ,@(make-shadow-defines model) ;;the shadow model
-            (not ,(shadow-rename-all a (names model)))
-            (condition (not ,(shadow-rename-all b (names model))))))
-
-    (and ,a ,b))))
-~~~~
-
-The variable-based approach (version 2) gives an obviously wrong answer. The function-based approach is not obviously crazy, but still doesn't seem right -- it seems more natural to resample `feature-on` based on the strength of the dependence on `category`: 
+The variable-based approach (version 1) gives an obviously wrong answer as it did for deterministic dependency. The function-based approach is not obviously crazy, but still doesn't seem quite right. If the feature only weakly depends on the category, the counterfactual should be true less often. This intuition arises clearly when we consider an extreme case in which the probability given A is .501 and given B is .499. In this case, we intuit that if the feature is on with category A, it would probably be on with category B as well. The function-based approach, however, would predict the counterfactual being true with probability .501. Thus, it seems that we should  resample `feature-on` based on the strength of the dependence on `category`: 
 
 - If category and feature are independent,  we should resample `feature-on` with the prior probability `epsilon` even if we update `category`. 
 - If `feature-on` deterministically depends on `category`, we should resample it whenever we change `category`. 
@@ -458,8 +455,7 @@ The variable-based approach (version 2) gives an obviously wrong answer. The fun
 
 ### Towards a solution
 
-Here is one approach based on moving all randomness into independent random variables, and implementing all dependencies using deterministic variables (compare to Pearl's counterfactuals):
-
+Here is one approach based on moving all randomness into independent random variables, and implementing all dependencies using deterministic functions (compare to Pearl's counterfactuals). We call this exogenous randomness.
 ~~~~
 ;;;fold: various
 ;;first we have a bunch of helper code to do meta-transforms.. converts name to shadow-name and wraps top-level defines
@@ -565,7 +561,8 @@ Here is one approach based on moving all randomness into independent random vari
                         (not ,(shadow-rename-all a (names model)))
                         (condition (not ,(shadow-rename-all b (names model)))))
 
-                       (and ,a ,b))))))
+                       (and ,a ,b)))))
+                       "If it weren't in category A, it wouldn't have feature")
 ~~~~
 
 To make this more efficient (without loss of accuracy), we can discretize the uniform choice:
@@ -679,13 +676,13 @@ To make this more efficient (without loss of accuracy), we can discretize the un
             ,@(make-shadow-defines model) ;;the shadow model
             (not ,(shadow-rename-all a (names model)))
             (condition (not ,(shadow-rename-all b (names model))))))
-
-    (and ,a ,b))))
+    (and ,a ,b)))
+    "If it weren't in category A, it wouldn't have feature")
 ~~~~
 
 ### Testing the model
 
-Now we can compare this new Pearl-esque style to the original stlye with randomness embedded in the functions. To see the effect at the listener and speaker levels, we need to look at variables with mediated dependences because the interpretation of `(because b a)` entails both `a` and `b`. The two models below are parallel instantiations of a simple a→b→c causal chain. The values of each node as well as the weights between the nodes are unknown variables that the listener must discover.
+Now we can compare this new Pearl-esque style to the original stlye with randomness embedded in the functions. The two models below are parallel instantiations of a simple a→b→c causal chain. The values of each node as well as the weights between the nodes are unknown variables that the listener must discover.
 
 #### Old
 

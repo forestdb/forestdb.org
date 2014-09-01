@@ -684,9 +684,9 @@ To make this more efficient (without loss of accuracy), we can discretize the un
 
 ### Testing the models
 
-Now we can compare this new exogenous style to the original stlye with randomness embedded in the functions. The two models below are parallel instantiations of a simple a→b→c causal chain. The values of each node as well as the weights between the nodes are unknown variables that the listener must discover.
+Now we can compare this new exogenous style to the original stlye with randomness embedded in the functions. The two models below are parallel instantiations of a simple a→b→c causal chain. The values of each node as well as the weights between the nodes are unknown variables that the listener must discover. Here I show interpretations of "c because a" and "c and a," as well as the best utterance when all variables are on and weights are high. It may help to comment out certain graphs to more easily compare the two models.
 
-#### Old
+#### Original style
 
 ~~~
 ;; runs in ~ 2 seconds
@@ -787,23 +787,28 @@ Now we can compare this new exogenous style to the original stlye with randomnes
                         b→c
                         background)))
     ))
-(barplot (listener '(because c a) '(list b '_ a→b b→c))
-         "Interpretation of c because a")
-(barplot (listener '(and c a) '(list b '_ a→b b→c))
-         "Interpretation of c and a")
+
+(barplot (listener '(because c a) 'b)
+         "b given \"c because a\"")
+(barplot (listener '(and c a) 'b)
+         "b given \"c and a\"")
+
+(barplot (listener '(because c a) '(list a→b b→c ))
+         "{a→b, b→c} given \"c because a\"")
+(barplot (listener '(and c a) '(list a→b b→c ))
+         "{a→b, b→c} given \"c and a\"")
+
 
 (define (utt-prior) (uniform-draw '((because c a) (because c b)
                                      (and c a) (and c b))))
 (barplot (speaker (list .8 .8 #t #t #t) '(list a→b b→c a b c))
-         "Utterance given a→b and b→c are .8 and a, b, c")
-
+         "{a→b, b→c} = 0.8 & {a, b, c} = true")
 ~~~
 
-#### Pearl-esque
-
-
+#### Exogenous style
 
 ~~~
+;;runs in about ~12 seconds
 ;;;fold:
 ;;first we have a bunch of helper code to do meta-transforms.. converts name to 
 ;;shadow-name and wraps top-level defines
@@ -913,23 +918,29 @@ Now we can compare this new exogenous style to the original stlye with randomnes
     (define (c) (if (b) (<= U2 b→c) (<= U2 background)))
 
     ))
-(barplot (listener '(because (c) (a)) '(list (b) a→b b→c))
-         "Interpretation of c because a")
-(barplot (listener '(and (c) (a)) '(list (b) a→b b→c))
-         "Interpretation of c and a")
 
-(define (utt-prior) (uniform-draw '((because (c) (a)) (because (c) (b)) 
-                                    (and (c) (a)) (and (c) (b)))))
-(barplot (speaker (list .8 .8 #t #t #t) '(list a→b b→c (a)(b)(c)))
-         "Utterance given a→b and b→c are .8 and a, b, c")
+(barplot (listener '(because (c) (a) ) '(b) )
+         "b given \"c because a\"")
+(barplot (listener '(and (c) (a) ) '(b) )
+         "b given \"c and a\"")
 
+(barplot (listener '(because (c) (a) ) '(list a→b b→c ))
+         "{a→b, b→c} given \"c because a\"")
+(barplot (listener '(and (c) (a) ) '(list a→b b→c ))
+         "{a→b, b→c} given \"c and a\"")
+
+
+(define (utt-prior) (uniform-draw '((because (c) (a) ) (because (c) (b) )
+                                     (and (c) (a) ) (and (c) (b) ))))
+(barplot (speaker (list .8 .8 #t #t #t) '(list a→b b→c  (a) (b) (c) ))
+         "{a→b, b→c} = 0.8 & {a, b, c} = true")
 ~~~
 
-This preliminary comparison demonstrates that the Pearl-esque style produces superior predictions to the original style. `(and c a)` have the same interpretation in each model, indicating that the models are identical in their basic causal structure. The interpretation of `(because c a)` however is quite different. The exogenous model's interpretation is very close to the `and` interpretation except that states in which `b` is false are less probable. This reflects the intuition that `a` can only have caused `c` if `b` was also true. The original style, conversely, makes no general prediction about the value of `b`, giving high weight to the situation in which both causal strengths are low and b is false.
+This preliminary comparison demonstrates that the exogenous style produces superior predictions to the original style. `(and c a)` have the same interpretation in each model, indicating that the models are identical in their basic causal structure. The interpretation of `(because c a)` however is quite different. The exogenous "because" interpretation is similar to the "and" interpretation except for two key differences: states in which `b` is false are less probable and causal weights are more likely to be high. This reflects the intuition that `a` can only have caused `c` if `b` was also true, and that a is more likely to be the cause of c if its causal force on c is high. The original style, conversely, predicts that `b` is true with lower probability and that causal weights are lower after hearing "c because a" in comparison to "c and a".
 
-When we examine the speaker, we see the greatest discrepency `(because c a)`, which is the most probable in the Pearl-esque model and least probable in the original model. I argue that Pearl's predictions more closely reflect our intuitive understanding. `(because c a)` is highly informative because it gives information about all variables: (a) and (c) by default and a→b, b→c, and (b) by the counterfactual. To ground this in a physical example, we can interpret `a` to be the knocking over of a vase, `b` to be the vase falling off the table, and `c` to be the vase breaking. In this example, saying "the vase broke because it was knocked over" seems to be a very good explanation. It is unlikely that the QUD in such a situation would be the entire state as it is in the above model, however. We must construct more complex, psychologically plausible,  models in order to better distinguish the two model types.
+When we examine the speaker, we see the greatest discrepency for `(because c a)`, which is the most probable in the exogneous model and least probable in the original model. I argue that Pearl's predictions more closely reflect our intuitive understanding. `(because c a)` is highly informative because it gives information about all variables. To ground this in a physical example, we can interpret `a` to be the knocking over of a vase, `b` to be the vase falling off the table, and `c` to be the vase breaking. In this example, saying "the vase broke because it was knocked over" seems to be a very good explanation. However, it is unlikely that the QUD in such a situation would be the entire state as it is in the above model. We must construct more complex, psychologically plausible, models in order to better distinguish the two model types.
 
-A final issue is that the Pearl-esque model only weakly prefers `(because c a). This may be specific to this situation, in which simply asserting the truth of any two nodes makes the full state very probable. Creating more complex models will help to confirm or disconfirm this hypothesis.
+There is also the remaining issue that the exogenous style model only weakly prefers `(because c a). This may be specific to this situation, in which simply asserting the truth of any two nodes makes the full state very probable. Creating more complex models will help to confirm or disconfirm this hypothesis. We also see that the exogenous style is significantly slower than the original style. This will become increasingly problematic as we move to more complex models.
 
 ### Categories and Features
 

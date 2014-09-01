@@ -328,7 +328,6 @@ What about stochastic dependencies? In this case, we also have the two options s
  (eval
   '(enumeration-query
     ,@model
-
     (apply multinomial
            (enumeration-query
             (define eps 0.01)

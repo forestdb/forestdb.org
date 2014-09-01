@@ -457,6 +457,7 @@ The variable-based approach (version 1) gives an obviously wrong answer as it di
 ### Towards a solution
 
 Here is one approach based on moving all randomness into independent random variables, and implementing all dependencies using deterministic functions (compare to Pearl's counterfactuals). We call this exogenous randomness.
+
 ~~~~
 ;;;fold: various
 ;;first we have a bunch of helper code to do meta-transforms.. converts name to shadow-name and wraps top-level defines

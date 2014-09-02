@@ -10,7 +10,8 @@ title: Category explanations
 Below is a model representing a simple taxonomy of fish. Fish come in the northern and southern varieties, and each region has two species: wugs and dels, and haps and niks respectively.
 
 Here I have the listener interpret `(because (big-fins) (eq? (species) 'wug))`. The most interesting effect here is that the model ranks the probability that dels (the other northern species) have big-fins as lower than for either of the southern species. This follows my initial intuition that the categorical counterfactual is interpreted in terms of the super-category: if a wug weren't a wug, it would most likely be a del because only one variable must be resampled. Thus, by saying ¬wug → ¬ big-fins, we are implying that dels don't have big fins more strongly than that the other species don't have big fins. Pragmatics will strengthen this effect because the listener will know that the speaker would say "big-fins because north" if both wugs ands dels had big fins.
-~~~
+
+~~~~
 ;; runs in ~12 minutes
 
 ;;;fold:
@@ -112,16 +113,16 @@ Here I have the listener interpret `(because (big-fins) (eq? (species) 'wug))`. 
     (define (region) (if north:south 'north 'south))
     
     (define wug:del (flip))
-    (define hap:mit (flip))
+    (define hap:nik (flip))
     (define (species) (case (region)
                             (('north) (if wug:del 'wug 'del))
-                            (('south) (if hap:mit 'hap 'mit))))
+                            (('south) (if hap:nik 'hap 'nik))))
 
     ;; feature-weights
     (define wug→big-fins (if (flip) .2 .8))
     (define del→big-fins (if (flip) .2 .8))
     (define hap→big-fins (if (flip) .2 .8))
-    (define mit→big-fins (if (flip) .2 .8))
+    (define nik→big-fins (if (flip) .2 .8))
 
     ;; features
     (define U-big-fins (get-U-crits .2 .8))
@@ -130,16 +131,16 @@ Here I have the listener interpret `(because (big-fins) (eq? (species) 'wug))`. 
             (('wug) (<= U-big-fins wug→big-fins))
             (('del) (<= U-big-fins del→big-fins))
             (('hap) (<= U-big-fins hap→big-fins))
-            (('mit) (<= U-big-fins mit→big-fins))
+            (('nik) (<= U-big-fins nik→big-fins))
             ))
     ))
 
 (barplot (listener '(because (big-fins) (eq? (species) 'wug))
                    '(list wug→big-fins del→big-fins
-                          hap→big-fins mit→big-fins))
+                          hap→big-fins nik→big-fins))
          "Big fins because wug")
 
-~~~
+~~~~
 
 With rejection query instead of enumeration:
 
@@ -243,16 +244,16 @@ With rejection query instead of enumeration:
     (define (region) (if north:south 'north 'south))
     
     (define wug:del (flip))
-    (define hap:mit (flip))
+    (define hap:nik (flip))
     (define (species) (case (region)
                             (('north) (if wug:del 'wug 'del))
-                            (('south) (if hap:mit 'hap 'mit))))
+                            (('south) (if hap:nik 'hap 'nik))))
 
     ;; feature-weights
     (define wug→big-fins (if (flip) .2 .8))
     (define del→big-fins (if (flip) .2 .8))
     (define hap→big-fins (if (flip) .2 .8))
-    (define mit→big-fins (if (flip) .2 .8))
+    (define nik→big-fins (if (flip) .2 .8))
 
     ;; features
     (define U-big-fins (get-U-crits .2 .8))
@@ -261,14 +262,14 @@ With rejection query instead of enumeration:
             (('wug) (<= U-big-fins wug→big-fins))
             (('del) (<= U-big-fins del→big-fins))
             (('hap) (<= U-big-fins hap→big-fins))
-            (('mit) (<= U-big-fins mit→big-fins))
+            (('nik) (<= U-big-fins nik→big-fins))
             ))
 
     ))
 
 (hist (listener '(because (big-fins) (eq? (species) 'wug))
                 '(list wug→big-fins del→big-fins
-                       hap→big-fins mit→big-fins)
+                       hap→big-fins nik→big-fins)
                 100 ;; number of rejection samples
                 )
       "Big fins because wug")
@@ -375,16 +376,16 @@ With rejection query instead of enumeration:
     (define (region) (if north:south 'north 'south))
     
     (define wug:del (flip .5))
-    (define hap:mit (flip .5))
+    (define hap:nik (flip .5))
     (define (species) (case (region)
                             (('north) (if wug:del 'wug 'del))
-                            (('south) (if hap:mit 'hap 'mit))))
+                            (('south) (if hap:nik 'hap 'nik))))
 
     ;; feature-weights
     (define wug→big-fins (if (flip) .8 .2))
     (define del→big-fins (if (flip) .8 .2))
     (define hap→big-fins (if (flip) .8 .2))
-    (define mit→big-fins (if (flip) .8 .2))
+    (define nik→big-fins (if (flip) .8 .2))
 
     ;; features
     (define U-big-fins (get-U-crits .2 .8))
@@ -393,7 +394,7 @@ With rejection query instead of enumeration:
             (('wug) (<= U-big-fins wug→big-fins))
             (('del) (<= U-big-fins del→big-fins))
             (('hap) (<= U-big-fins hap→big-fins))
-            (('mit) (<= U-big-fins mit→big-fins))
+            (('nik) (<= U-big-fins nik→big-fins))
             ))
 
     ))
@@ -411,5 +412,5 @@ With rejection query instead of enumeration:
          (lambda ()
            (speaker (list .8 .8 .2 .2)
                     '(list wug→big-fins del→big-fins
-                           hap→big-fins mit→big-fins)))))
+                           hap→big-fins nik→big-fins)))))
 ~~~~

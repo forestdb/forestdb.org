@@ -5,6 +5,7 @@ title: Surprisingly Rational, Costello & Watts (2014)
 
 This is a church version of their model and some of their derived effects. I wrote this up quickly so there may be bugs / unsightly code.
                    
+                   
                    (define bool-sum (lambda (lst)
                                       (sum (map boolean_to_number lst))))
                    

@@ -113,10 +113,8 @@ Subadditivity:
  "Subadditivity")
 ~~~~
 
-Conjunction fallacy:
+Conjunction fallacy. This is supposedly highest when P(A) is low, P(A|B) & P(B) is high, or highest when P(A) is almost the same as P(A^B).
 
-Supposedly highest when P(A) is low, P(A|B) & P(B) is high, or highest when P(A) is almost the same as P(A^B).
-                   
 ~~~~
 ;;;fold:
 

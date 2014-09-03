@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Biases from noise
+title: Biases from Noise
 model-status: code
 model-category: Miscellaneous
 model-tags: psychology, biases

@@ -3,7 +3,7 @@ layout: model
 title: Category explanations
 ---
 
-*All models on this page use [the exogenous randomness style](http://forestdb.org/models/exogenous-counterfactuls.html) of counterfactual modeling based on [the original countefactual Church model]((http://forestdb.org/models/because.html) and the counterfactuals of Pearl (2000)
+*All models on this page use [the exogenous randomness style](http://forestdb.org/models/exogenous-counterfactuls.html) of counterfactual modeling based on [the original countefactual Church model](http://forestdb.org/models/because.html) and the counterfactuals of Pearl (2000).
 
 ## Fish
 
@@ -171,12 +171,12 @@ Upon hearing "big-fins because stripes," the model ranks the probability that de
 
 We see the predictions roughly match our intuitions for these edge cases. Now let's look at how the model performs when we vary the probabilities more continuously. Below is a copy of the above model but with four possible weights. Unfortunately, creating these possibilities makes the model very slow. Generating 500 samples for each of the four conditions took several hours. The model below is only for reference. I have not run a full statistical analysis yet, so I am hesitant to provide a graph, but I will provide my results in the following table.
 
-% dels with big fins | % "because north"
------------ | -----------
+% dels with big fins    |    % "because north"
+:-----------: | :-----------:
 0.2 | 0.32
-0.2 | 0.45
-0.2 | 0.53
-0.2 | 0.6
+0.4 | 0.45
+0.6 | 0.53
+0.8 | 0.65
 
 ~~~~
 ;; runs in ~25 seconds

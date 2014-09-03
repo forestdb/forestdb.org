@@ -3,16 +3,16 @@ layout: model
 title: Category explanations
 ---
 
-*All models on this page use [the exogenous randomness style](http://forestdb.org/models/exogenous-counterfactuls.html) of counterfactual modeling based on [the original countefactual Church model](http://forestdb.org/models/because.html) and the counterfactuals of Pearl (2000).
+*All models on this page use [the exogenous randomness style](http://forestdb.org/models/exogenous-counterfactuals.html) of counterfactual modeling based on [the original countefactual Church model](http://forestdb.org/models/because.html) and the counterfactuals of Pearl (2000).
 
 ## Fish
 
-Below is a model representing a simple taxonomy of fish. Fish come in the northern and southern varieties, and each region has two species: wugs and dels, and haps and niks respectively [(diagram)](imgur.com/TODO). In the model below, the listener interprets `(because (big-fins) (eq? (species) 'wug))`—*"it has big fins because it's a wug"*. 
+Below is a model representing a simple taxonomy of fish. Fish come in the northern and southern varieties, and each region has two species: wugs and dels, and haps and niks respectively [(diagram)](http://i.imgur.com/MpLcuXF.png). In the model below, the listener interprets `(because (stripes) (eq? (species) 'wug))`—*"it has stripes because it's a wug"*.
 
 ~~~~
 ;; runs in ~60 seconds
 ;;;fold:
-;;first we have a bunch of helper code to do meta-transforms.. converts name to 
+;;first we have a bunch of helper code to do meta-transforms.. converts name to
 ;;shadow-name and wraps top-level defines
 (define (names model)
   (map (lambda (def)
@@ -47,14 +47,14 @@ Below is a model representing a simple taxonomy of fish. Fish come in the northe
          (if (is-function-definition? def)
              (shadow-rename-all def ns)
              (let ([name (second def)])
-               '(define ,(shadow-symbol name) (if (flip eps) 
-                                                  ,(shadow-rename-all (third def) ns) 
+               '(define ,(shadow-symbol name) (if (flip eps)
+                                                  ,(shadow-rename-all (third def) ns)
                                                   ,name)))))
        model))
 
-;;the meaning function constructs a church expression from an utterance. 
+;;the meaning function constructs a church expression from an utterance.
 ;;for 'because it uses quasiquote mojo to dynamically construct the right expression.
-;;(in principle this handles embedded "because", but currently expand-because doesn't do 
+;;(in principle this handles embedded "because", but currently expand-because doesn't do
 ;;the right thing since the model is a fixed global.)
 (define (meaning utt)
   (define (because? u) (if (list? u) (eq? (first u) 'because) false))
@@ -64,9 +64,9 @@ Below is a model representing a simple taxonomy of fish. Fish come in the northe
           (map meaning utt))
       utt))
 
-;;expand an expr with form '(because a b), ie "a because b", into the (hypothesized) 
+;;expand an expr with form '(because a b), ie "a because b", into the (hypothesized)
 ;;counterfactual meaning:
-(define (expand-because expr) 
+(define (expand-because expr)
   (define a (second expr))
   (define b (third expr))
   '(and ,a ,b
@@ -76,9 +76,9 @@ Below is a model representing a simple taxonomy of fish. Fish come in the northe
          (not ,(shadow-rename-all a (names model)))
          (condition (not ,(shadow-rename-all b (names model)))))))
 
-;;listener is standard RSA literal listener, except we dynamically construct the 
+;;listener is standard RSA literal listener, except we dynamically construct the
 ;;query to allow complex meanings that include because:
-(define listener 
+(define listener
   (lambda (utt qud)
     (eval
      '(rejection-query
@@ -102,12 +102,12 @@ Below is a model representing a simple taxonomy of fish. Fish come in the northe
   (multinomial (list p1 p2 1)
                (list p1 (- p2 p1)  (- 1 p2))))
 
-(define model 
+(define model
   '(
     ;; categories
     (define north:south (flip .5))
     (define (region) (if north:south 'north 'south))
-    
+
     (define wug:del (flip .5))
     (define hap:nik (flip .5))
     (define (species) (case (region)
@@ -115,19 +115,19 @@ Below is a model representing a simple taxonomy of fish. Fish come in the northe
                             (('south) (if hap:nik 'hap 'nik))))
 
     ;; feature-weights
-    (define wug→big-fins (if (flip) .8 .2))
-    (define del→big-fins (if (flip) .8 .2))
-    (define hap→big-fins (if (flip) .8 .2))
-    (define nik→big-fins (if (flip) .8 .2))
+    (define wug→stripes (if (flip) .8 .2))
+    (define del→stripes (if (flip) .8 .2))
+    (define hap→stripes (if (flip) .8 .2))
+    (define nik→stripes (if (flip) .8 .2))
 
     ;; features
-    (define U-big-fins (get-U .2 .8))
-    (define (big-fins)
+    (define U-stripes (get-U .2 .8))
+    (define (stripes)
       (case (species)
-            (('wug) (<= U-big-fins wug→big-fins))
-            (('del) (<= U-big-fins del→big-fins))
-            (('hap) (<= U-big-fins hap→big-fins))
-            (('nik) (<= U-big-fins nik→big-fins))
+            (('wug) (<= U-stripes wug→stripes))
+            (('del) (<= U-stripes del→stripes))
+            (('hap) (<= U-stripes hap→stripes))
+            (('nik) (<= U-stripes nik→stripes))
             ))
 
     ))
@@ -136,42 +136,42 @@ Below is a model representing a simple taxonomy of fish. Fish come in the northe
 (hist
  (repeat 300
          (lambda ()
-           (listener '(because (big-fins) (eq? (species) 'wug))
-                     '(list wug→big-fins del→big-fins
-                            hap→big-fins nik→big-fins))))
- "\"big fins because wug\"")
+           (listener '(because (stripes) (eq? (species) 'wug))
+                     '(list wug→stripes del→stripes
+                            hap→stripes nik→stripes))))
+ "\"stripes because wug\"")
 
-;;utterances can be any chrch expression includning vars from names and 'because. 
+;;utterances can be any chrch expression includning vars from names and 'because.
 ;;for now consider all the explanations and 'simpler' expressions:
-(define (utt-prior) 
-  (uniform-draw    
-   '((because (big-fins) (eq? (species) 'wug))
-     (because (big-fins) (eq? (region) 'north))
+(define (utt-prior)
+  (uniform-draw
+   '((because (stripes) (eq? (species) 'wug))
+     (because (stripes) (eq? (region) 'north))
      )))
 
 (hist
  (repeat 30
          (lambda ()
            (speaker (list .8 .8 .2 .2)
-                    '(list wug→big-fins del→big-fins
-                           hap→big-fins nik→big-fins))))
+                    '(list wug→stripes del→stripes
+                           hap→stripes nik→stripes))))
  "wugs and dels have stripes")
 (hist
  (repeat 30
          (lambda ()
            (speaker (list .8 .2 .2 .2)
-                    '(list wug→big-fins del→big-fins
-                           hap→big-fins nik→big-fins))))
+                    '(list wug→stripes del→stripes
+                           hap→stripes nik→stripes))))
  "wugs have stripes")
 ~~~~
 
-Upon hearing "big-fins because stripes," the model ranks the probability that dels (the other northern species) have big-fins as lower than for either of the southern species. It is equally likely for both southern fish to have big fins as it is for just  dels to have big fins. This follows my initial intuition that the categorical counterfactual is interpreted in terms of the super-category: if a wug weren't a wug, it would most likely be a del. Thus, anything you say about the counter-factual wug that isn't a wug most strongly affects the representation of dels. This effect comes to play with the speaker as well. The speaker perfers to say "because north" when weights are high for both northern species, but "because wug" when weights are high for wugs only.
+Upon hearing "stripes because stripes," the model ranks the probability that dels (the other northern species) have stripes as lower than for either of the southern species. It is equally likely for both southern fish to have stripes as it is for just  dels to have stripes. This follows my initial intuition that the categorical counterfactual is interpreted in terms of the super-category: if a wug weren't a wug, it would most likely be a del. Thus, anything you say about the counter-factual wug that isn't a wug most strongly affects the representation of dels. This effect comes to play with the speaker as well. The speaker perfers to say "because north" when weights are high for both northern species, but "because wug" when weights are high for wugs only.
 
 ### Graded predictions
 
 We see the predictions roughly match our intuitions for these edge cases. Now let's look at how the model performs when we vary the probabilities more continuously. Below is a copy of the above model but with four possible weights. Unfortunately, creating these possibilities makes the model very slow. Generating 500 samples for each of the four conditions took several hours. The model below is only for reference. I have not run a full statistical analysis yet, so I am hesitant to provide a graph, but I will provide my results in the following table.
 
-% dels with big fins    |    % "because north"
+% dels with stripes-- | -- % "because north"
 :-----------: | :-----------:
 0.2 | 0.32
 0.4 | 0.45
@@ -180,7 +180,7 @@ We see the predictions roughly match our intuitions for these edge cases. Now le
 
 ~~~~
 ;; runs in ~25 seconds
-;;;fold: 
+;;;fold:
 ;;first we have a bunch of helper code to do meta-transforms.. converts name to
 ;;shadow-name and wraps top-level defines
 (define (names model)
@@ -284,19 +284,19 @@ We see the predictions roughly match our intuitions for these edge cases. Now le
                             (('south) (if hap:nik 'hap 'nik))))
 
     ;; feature-weights
-    (define wug→big-fins (uniform-draw '(.2 .4 .6 .8)))
-    (define del→big-fins (uniform-draw '(.2 .4 .6 .8)))
-    (define hap→big-fins (uniform-draw '(.2 .4 .6 .8)))
-    (define nik→big-fins (uniform-draw '(.2 .4 .6 .8)))
+    (define wug→stripes (uniform-draw '(.2 .4 .6 .8)))
+    (define del→stripes (uniform-draw '(.2 .4 .6 .8)))
+    (define hap→stripes (uniform-draw '(.2 .4 .6 .8)))
+    (define nik→stripes (uniform-draw '(.2 .4 .6 .8)))
 
     ;; features
-    (define U-big-fins (get-U .2 .4 .6 .8))
-    (define (big-fins)
+    (define U-stripes (get-U .2 .4 .6 .8))
+    (define (stripes)
       (case (species)
-            (('wug) (<= U-big-fins wug→big-fins))
-            (('del) (<= U-big-fins del→big-fins))
-            (('hap) (<= U-big-fins hap→big-fins))
-            (('nik) (<= U-big-fins nik→big-fins))
+            (('wug) (<= U-stripes wug→stripes))
+            (('del) (<= U-stripes del→stripes))
+            (('hap) (<= U-stripes hap→stripes))
+            (('nik) (<= U-stripes nik→stripes))
             ))
 
     ))
@@ -305,39 +305,39 @@ We see the predictions roughly match our intuitions for these edge cases. Now le
 ;;for now consider all the explanations and 'simpler' expressions:
 (define (utt-prior)
   (uniform-draw
-   '((because (big-fins) (eq? (species) 'wug))
-     (because (big-fins) (eq? (region) 'north))
+   '((because (stripes) (eq? (species) 'wug))
+     (because (stripes) (eq? (region) 'north))
      )))
 
 (hist
  (repeat 1
          (lambda ()
            (speaker (list .8 .8 .2 .2)
-                    '(list wug→big-fins del→big-fins
-                           hap→big-fins nik→big-fins))))
- "p(big-fins|wug) = 0.8")
+                    '(list wug→stripes del→stripes
+                           hap→stripes nik→stripes))))
+ "p(stripes|wug) = 0.8")
 
 (hist
  (repeat 1
          (lambda ()
            (speaker (list .8 .6 .2 .2)
-                    '(list wug→big-fins del→big-fins
-                           hap→big-fins nik→big-fins))))
- "p(big-fins|wug) = 0.6")
+                    '(list wug→stripes del→stripes
+                           hap→stripes nik→stripes))))
+ "p(stripes|wug) = 0.6")
 
 (hist
  (repeat 1
          (lambda ()
            (speaker (list .8 .4 .2 .2)
-                    '(list wug→big-fins del→big-fins
-                           hap→big-fins nik→big-fins))))
- "p(big-fins|wug) = 0.4")
+                    '(list wug→stripes del→stripes
+                           hap→stripes nik→stripes))))
+ "p(stripes|wug) = 0.4")
 
 (hist
  (repeat 1
          (lambda ()
            (speaker (list .8 .2 .2 .2)
-                    '(list wug→big-fins del→big-fins
-                           hap→big-fins nik→big-fins))))
- "p(big-fins|wug) = 0.2")
+                    '(list wug→stripes del→stripes
+                           hap→stripes nik→stripes))))
+ "p(stripes|wug) = 0.2")
 ~~~~

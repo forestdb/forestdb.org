@@ -1,10 +1,12 @@
 ---
 layout: model
-title: Surprisingly Rational, Costello & Watts (2014)
+title: Biases from noise
 model-status: code
 model-category: Miscellaneous
 model-tags: psychology, biases
 ---
+
+This sequence of models is based on Ref:costello2014surprisingly.
 
 Unbiased probability estimation for p=.5:
 

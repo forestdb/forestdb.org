@@ -1,6 +1,9 @@
 ---
 layout: model
 title: Surprisingly Rational, Costello & Watts (2014)
+model-status: code
+model-category: Miscellaneous
+model-tags: psychology, biases
 ---
 
 Unbiased probability estimation for p=.5:
@@ -155,3 +158,7 @@ Supposedly highest when P(A) is low, P(A|B) & P(B) is high, or highest when P(A)
                 (conjunction-fallacy? 0.75 0.4 100 0.25)))
       "No conjunction fallacy ('bad' conditions)")
 ~~~~
+
+References:
+
+- Cite:costello2014surprisingly

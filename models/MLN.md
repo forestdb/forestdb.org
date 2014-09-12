@@ -6,6 +6,8 @@ model-category: Miscellaneous
 model-tags: mln
 ---
 
+Example Markov Logic Network from Richardson, M., & Domingos, P. (2006). Markov logic networks. Machine learning, 62(1-2), 107-136.
+
     (define (implies x y) (or (not x) y))
     
     (define samples

@@ -3,11 +3,11 @@ layout: model
 title: Causation and counterfactuls
 ---
 
-*This page argues that causation needs to be explicitly considered in a counterfactual model.*
+*This page argues that a counterfactual model in Church must be based on intervention rather than querying.*
 
 # The problem
 
-In the current counterfactual model, causation is only considered in its effect on the correlation between two variables. This is because dependence between the variables of interest are found with a condition statement, not intervention. Essentially, the current model makes the correlation implies causation fallacy. A model that relies entirely on co-occurrence cannot possibly capture causality.
+In the current counterfactual model, causation is only considered in its effect on the correlation between two variables. This is because dependence between the variables of interest are found with a condition statement, not intervention. Thus, the current model makes the correlation implies causation fallacy. A model that relies entirely on co-occurrence cannot possibly capture causality.
 
 ### Example: coughs and colds
 

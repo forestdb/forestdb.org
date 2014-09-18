@@ -11,7 +11,7 @@ In the current counterfactual model, causation is only considered in its effect 
 
 ### Example: colds
 
-Here is an example grounded in the real world of illness and symptoms. We think of illnesses causing symptoms and not the other way around even if p(illness|symptom) is higher than p(symptom|illness). The current counterfactual model does not produce these results:
+Here is an example grounded in the real world of illness and symptoms. We think of illnesses causing symptoms and not the other way around even if p(illness\|symptom) is higher than p(symptom\|illness). The current counterfactual model does not produce these results:
 
 ~~~
 ;;;fold:
@@ -256,6 +256,7 @@ We see here that in a situation where the symptom implies the illness more stron
 
 (barplot (speaker (list #t #t #t) '(list cold→cough cold (cough))))
 ~~~
+
 The speaker has no preference for "he's coughing because he has a cold" over "he has a cold because he's coughing." This is bad. Furthermore, the speaker likes to say "he has a runny nose because he's coughing." This effect occurs because coughing and runny noses are both symptoms of colds. During the shadow cycles, the model may turn off `(cold)` which would turn off coughing and runny noses, verifying the statement "if he wasn't coughing he wouldn't have a runny nose." As we can see by the smaller preference for `(and smokes cold)`, this effect is partially but not entirely due to providing the information that `coughing` and `runny-nose` are on.
 
 # Towards a solution

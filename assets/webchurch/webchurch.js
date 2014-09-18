@@ -6,15 +6,16 @@ var rename_map = require('./js_astify.js').rename_map;
 
 var brackets_map = {"(": ")", "[": "]"};
 
-var query_fns = ["rejection-query", "mh-query", "enumeration-query", "conditional"];
+var query_fns = ["rejection-query", "mh-query", "mh-query-scored", "enumeration-query", "conditional"];
 var query_fns_to_num_params = {
     "rejection-query": 0,
     "enumeration-query": 0,
     "conditional": 1,
-    "mh-query": 2
+    "mh-query": 2,
+    "mh-query-scored": 2
 }
-var query_decls = ["define", "condition", "factor", "condition-repeat-equals"];
-var condition_fns = ["condition", "factor", "condition-repeat-equals"];
+var query_decls = ["define", "condition", "factor", "condition-equal", "condition-repeat-equal"];
+var condition_fns = ["condition", "factor", "condition-equal", "condition-repeat-equal"];
 
 function make_generic_node(head, children) {
     return {"head": head, "children": children};
@@ -625,10 +626,8 @@ module.exports =
         church_shallow_preconditions: church_shallow_preconditions
     }
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/church_astify.js","/")
-},{"./church_builtins.js":"sy/OMr","./js_astify.js":16,"./util.js":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./church_builtins":[function(require,module,exports){
-module.exports=require('sy/OMr');
-},{}],"sy/OMr":[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/church_astify.js","/")
+},{"./church_builtins.js":"sy/OMr","./js_astify.js":16,"./util.js":"Y/OqMs","/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],"sy/OMr":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* global global, require, module, exports */
 
@@ -1556,7 +1555,7 @@ var mean = $b({
     desc: 'Mean of a list',
     params: [{name: "lst", type: "list<real>", desc: ""}],
     fn: function(lst) {
-        return plus.apply(null, listToArray(lst)) / (lst.length-1);
+        return sum(lst) / (lst.length-1);
     }
 });
 
@@ -1638,10 +1637,11 @@ var fold = $b({
     ],
     fn: function(fn, initialValue /*, ... */ ) {
         var args = args_to_array(arguments);
-        var arrs = args.slice(2).map(listToArray);
+        var arrs = args.slice(2).map(function(x) { return listToArray(x) });
+        
         var max_length = Math.min.apply(this, arrs.map(function(el) {return el.length;}));
         var cumulativeValue = initialValue;
-        for (i=0; i<max_length; i++) {
+        for (var i=0; i<max_length; i++) {
             var fn_args = arrs.map(function(el) {return el[i];});
             fn_args.push(cumulativeValue);
             cumulativeValue = fn.apply(this, fn_args);
@@ -2225,6 +2225,18 @@ var wrapped_gamma = $b({
     }
 });
 
+var wrapped_exponential = $b({
+    name: 'wrapped_exponential',
+    desc: 'Sample from the exponential distribution with parameter rate',
+    numArgs: [1,2],
+    params: [{name: "rate", type: "positive real", desc: ""},
+             {name: "[conditionedValue]", type: "", desc: "", noexport: true}],
+    erp: true,
+    fn: function(rate, conditionedValue) {
+	      return exponential(rate, undefined, conditionedValue);
+    }
+});
+
 var wrapped_beta = $b({
     name: 'wrapped_beta',
     desc: 'Sample from the beta distribution B(a,b). Returns only the first element.',
@@ -2260,56 +2272,72 @@ var wrapped_dirichlet = $b({
 var DPmem = $b({
     name: 'DPmem',
     desc: 'Stochastic memoization using the Dirichlet Process',
-    params: [{name: 'alpha', type: 'real', desc: 'Concentration parameter of the DP'},
+    params: [{name: 'alpha', type: 'positive real', desc: 'Concentration parameter of the DP'},
              {name: 'f', type: 'function', desc: 'Function to stochastically memoize'}
             ],
     fn: function(alpha, f) {
-        var restaurants = {};
+        var allLabels = {};
+        var allIndices = {};
+        var allCounts = {};
         return function() {
             var args = args_to_array(arguments);
-            var restaurantId = JSON.stringify(args);
-
-            var tables = restaurants[restaurantId];
-            var numTables;
-
-            if (tables === undefined) {
-                numTables = 0;
-                tables = restaurants[restaurantId] = [];
-            } else {
-                numTables = tables.length;
+            var extractingTables = false;
+            
+            if (args[0] == 'get-tables') {
+                extractingTables = true;
+                args.shift(); 
             }
+            var argsHash = JSON.stringify(args);
 
-            var value;
+            var labels = allLabels[argsHash];
+            var counts = allCounts[argsHash];
+            var indices = allIndices[argsHash];
 
-            // no tables yet or we sample a new one
-            if (numTables == 0 || wrapped_flip(alpha / (numTables + alpha))) {
-                value = f.apply(null, arguments);
-                // store both the count and the un-serialized value
-                // (so we don't have to run JSON.parse if we later reuse it)
-                //tables[JSON.stringify(value)] = {count: 1, value: value};
-                tables.push({value: value, count: 1});
-            }
-            //  reuse existing table
-            else {
-
-                // construct a multinomial over current tables
-                var indices = [];
-                for(var i = 0; i < numTables; i++ ) {
-                    indices.push(i);
+            if (extractingTables) {
+                // return a list of table pairs
+                // in each pair, the first element is the label
+                // and the second value is the count
+                if (!labels) {
+                    return arrayToList([]);
                 }
-
-                var counts = tables.map(function(table) { return table.count });
-
-                var sampledIndex = wrapped_multinomial(arrayToList(indices, true),
-                                                       arrayToList(counts, true));
-
-                value = tables[sampledIndex].value;
-                tables[sampledIndex].count++;
+                var ret = [];
+                for(var i = 0; i < labels.length; i++) {
+                    ret.push([labels[i], counts[i+1]])
+                };
+                return arrayToList(ret); 
             }
-            return value;
+
+            if (labels === undefined) {
+                labels = allLabels[argsHash] = [];
+
+                // virtual index of -1 for sampling a new table
+                indices = allIndices[argsHash] = [-1];
+
+                // virtual count of alpha for sampling a new table
+                counts = allCounts[argsHash] = [alpha];
+            }
+            
+            var sampledIndex = wrapped_multinomial(arrayToList(indices),
+                                                   arrayToList(counts));
+            
+            var label;
+            if (sampledIndex == -1) {
+                label = f.apply(null,arguments);
+                indices.push(indices.length - 1);
+                labels.push(label);
+                counts.push(1);
+            } else {
+                // NB: labels will always have 1 fewer item than counts
+                label = labels[sampledIndex];
+                counts[sampledIndex + 1]++; 
+            }
+
+            return label;
         }
     }
 })
+
+
 
 var wrapped_conditional = $b({
     name: 'wrapped_conditional',
@@ -2347,6 +2375,19 @@ var wrapped_mh_query = $b({
     }
 });
 
+var wrapped_mh_query_scored = $b({
+    name: 'wrapped_mh_query_scored',
+    desc: '',
+    params: [{name: 'comp'},
+             {name: 'samples', type: 'nat'},
+             {name: 'lag', type: 'nat'}],
+    fn: function(comp, samples, lag) {
+    var inn = traceMH(comp, samples, lag, false, "lessdumb").map(function(x) {return [x.sample, x.logprob, null]});
+    var res = arrayToList(inn);
+    return res;
+    }
+});
+
 var wrapped_rejection_query = $b({
     name: 'wrapped_rejection_query',
     desc: '',
@@ -2373,6 +2414,57 @@ var wrapped_enumeration_query = $b({
                        arrayToList(p.map(function(x){return x/norm}), true));
 	return res;
     }
+});
+
+var wrapped_condition_equal = $b({
+    name: 'wrapped_condition_equal',
+    alias: 'condition-equal',
+    desc: '',
+    params: [{name: 'comp'}, {name: 'value'}],
+    fn: function(comp, value) {
+        var marg;
+        try {
+            marg = wrapped_enumeration_query(comp);
+        } catch (e) {
+            throw new Error("Unable to enumerate over function");
+        }
+        for (var i = 0; i < marg.length - 1; i++) {
+            console.log(JSON.stringify(marg), value)
+            if (is_equal(marg[0][i], value)) {
+                factor(Math.log(marg[1][i]));
+                return;
+            }
+        }
+        // If no match is found, then the condition fails
+        condition(false);
+    }
+
+});
+
+
+var wrapped_condition_repeat_equal = $b({
+    name: 'wrapped_condition_repeat_equal',
+    alias: 'condition-repeat-equal',
+    desc: '',
+    params: [{name: 'comp'}, {name: 'values'}],
+    fn: function(comp, values) {
+        var marg;
+        try {
+            marg = wrapped_enumeration_query(comp);
+        } catch (e) {
+            throw new Error("Unable to enumerate over function");
+        }
+        for (var i = 0; i < marg.length - 1; i++) {
+            console.log(JSON.stringify(marg), value)
+            if (is_equal(marg[0][i], value)) {
+                factor(Math.log(marg[1][i]));
+                return;
+            }
+        }
+        // If no match is found, then the condition fails
+        condition(false);
+    }
+
 });
 
 var read_file = $b({
@@ -2821,9 +2913,9 @@ function wrapAsserts(annotation) {
     // return fn;
 }
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/church_builtins.js","/")
-},{"./evaluate.js":"Ih4X1P","./type-utils.js":"05wbT+","./util.js":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"fs":18,"seedrandom":31,"underscore":42}],"./cm-brackets":[function(require,module,exports){
-module.exports=require('G8398M');
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/church_builtins.js","/")
+},{"./evaluate.js":"Ih4X1P","./type-utils.js":"05wbT+","./util.js":"Y/OqMs","/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"fs":18,"seedrandom":37,"underscore":48}],"./church_builtins":[function(require,module,exports){
+module.exports=require('sy/OMr');
 },{}],"G8398M":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 // README: this file contains slightly modified versions of closebrackets.js
@@ -3083,8 +3175,10 @@ var CodeMirror = require('codemirror');
 
 })()
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-brackets.js","/")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"lO4o+E":[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-brackets.js","/")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"codemirror":30}],"./cm-brackets":[function(require,module,exports){
+module.exports=require('G8398M');
+},{}],"lO4o+E":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /**
  * Author: Koh Zi Han, based on implementation by Koh Zi Chun
@@ -3103,7 +3197,7 @@ CodeMirror.defineMode("scheme", function () {
         return obj;
     }
 
-    var keywords = makeKeywords("λ case-lambda call/cc class define-class exit-handler field import inherit init-field interface let*-values let-values let/ec mixin opt-lambda override protect provide public rename require require-for-syntax syntax syntax-case syntax-error unit/sig unless when with-syntax and begin call-with-current-continuation call-with-input-file call-with-output-file case cond define define-syntax delay do dynamic-wind else for-each if lambda let let* let-syntax letrec letrec-syntax map or syntax-rules abs acos angle append apply asin assoc assq assv atan boolean? caar cadr call-with-values car cdddar cddddr cdr ceiling char->integer char-alphabetic? char-ci<=? char-ci<? char-ci=? char-ci>=? char-ci>? char-downcase char-lower-case? char-numeric? char-ready? char-upcase char-upper-case? char-whitespace? char<=? char<? char=? char>=? char>? char? close-input-port close-output-port complex? cons cos current-input-port current-output-port denominator display eof-object? eq? equal? eqv? eval even? exact->inexact exact? exp expt #f floor force gcd imag-part inexact->exact inexact? input-port? integer->char integer? interaction-environment lcm length list list->string list->vector list-ref list-tail list? load log magnitude make-polar make-rectangular make-string make-vector max member memq memv min modulo negative? newline not null-environment null? number->string number? numerator odd? open-input-file open-output-file output-port? pair? peek-char port? positive? procedure? quasiquote quote quotient rational? rationalize read read-char real-part real? remainder reverse round scheme-report-environment set! set-car! set-cdr! sin sqrt string string->list string->number string->symbol string-append string-ci<=? string-ci<? string-ci=? string-ci>=? string-ci>? string-copy string-fill! string-length string-ref string-set! string<=? string<? string=? string>=? string>? string? substring symbol->string symbol? #t tan transcript-off transcript-on truncate values vector vector->list vector-fill! vector-length vector-ref vector-set! with-input-from-file with-output-to-file write write-char zero? barplot enumeration-query rejection-query mh-query condition fold flatten pair first second third fourth fifth sixth seventh rest flip hist repeat gaussian density multiviz uniform-draw mem sum runPhysics animatePhysics uniform worldWidth worldHeight scatter lineplot dirichlet multinomial beta mean");
+    var keywords = makeKeywords("λ case-lambda call/cc class define-class exit-handler field import inherit init-field interface let*-values let-values let/ec mixin opt-lambda override protect provide public rename require require-for-syntax syntax syntax-case syntax-error unit/sig unless when with-syntax and begin call-with-current-continuation call-with-input-file call-with-output-file case cond define define-syntax delay do dynamic-wind else for-each if lambda let let* let-syntax letrec letrec-syntax map or syntax-rules abs acos angle append apply asin assoc assq assv atan boolean? caar cadr call-with-values car cdddar cddddr cdr ceiling char->integer char-alphabetic? char-ci<=? char-ci<? char-ci=? char-ci>=? char-ci>? char-downcase char-lower-case? char-numeric? char-ready? char-upcase char-upper-case? char-whitespace? char<=? char<? char=? char>=? char>? char? close-input-port close-output-port complex? cons cos current-input-port current-output-port denominator display eof-object? eq? equal? eqv? eval even? exact->inexact exact? exp expt #f floor force gcd imag-part inexact->exact inexact? input-port? integer->char integer? interaction-environment lcm length list list->string list->vector list-ref list-tail list? load log magnitude make-polar make-rectangular make-string make-vector max member memq memv min modulo negative? newline not null-environment null? number->string number? numerator odd? open-input-file open-output-file output-port? pair? peek-char port? positive? procedure? quasiquote quote quotient rational? rationalize read read-char real-part real? remainder reverse round scheme-report-environment set! set-car! set-cdr! sin sqrt string string->list string->number string->symbol string-append string-ci<=? string-ci<? string-ci=? string-ci>=? string-ci>? string-copy string-fill! string-length string-ref string-set! string<=? string<? string=? string>=? string>? string? substring symbol->string symbol? #t tan transcript-off transcript-on truncate values vector vector->list vector-fill! vector-length vector-ref vector-set! with-input-from-file with-output-to-file write write-char zero? barplot enumeration-query rejection-query mh-query condition factor fold flatten pair first second third fourth fifth sixth seventh rest flip hist repeat gaussian density multiviz uniform-draw mem sum runPhysics animatePhysics uniform worldWidth worldHeight scatter lineplot dirichlet multinomial beta mean");
     var indentKeys = makeKeywords("define let letrec let* lambda");
 
     function stateStack(indent, type, prev) { // represents a state stack object
@@ -3322,9 +3416,11 @@ CodeMirror.defineMode("scheme", function () {
 
 CodeMirror.defineMIME("text/x-scheme", "scheme");
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-church.js","/")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./cm-church":[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-church.js","/")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"codemirror":30}],"./cm-church":[function(require,module,exports){
 module.exports=require('lO4o+E');
+},{}],"./cm-comments":[function(require,module,exports){
+module.exports=require('L+quEX');
 },{}],"L+quEX":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var CodeMirror = require('codemirror');
@@ -3475,10 +3571,8 @@ var CodeMirror = require('codemirror');
     });
 })();
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-comments.js","/")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./cm-comments":[function(require,module,exports){
-module.exports=require('L+quEX');
-},{}],"./cm-folding":[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-comments.js","/")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"codemirror":30}],"./cm-folding":[function(require,module,exports){
 module.exports=require('s18hqF');
 },{}],"s18hqF":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
@@ -3634,8 +3728,8 @@ module.exports = {
     myRangeFinder: myRangeFinder
 }
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-folding.js","/")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./editor":[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-folding.js","/")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"codemirror":30}],"./editor":[function(require,module,exports){
 module.exports=require('fqJoPW');
 },{}],"fqJoPW":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
@@ -3939,8 +4033,10 @@ module.exports = {
     EditorModel: EditorModel
 };
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/editor.js","/")
-},{"./cm-brackets":"G8398M","./cm-church":"lO4o+E","./cm-comments":"L+quEX","./cm-folding":"s18hqF","./evaluate":"Ih4X1P","./viz":"mJMf/d","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"backbone":17,"buffer":19,"codemirror":24,"d3":"Ub4Hh8","underscore":42}],"Ih4X1P":[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/editor.js","/")
+},{"./cm-brackets":"G8398M","./cm-church":"lO4o+E","./cm-comments":"L+quEX","./cm-folding":"s18hqF","./evaluate":"Ih4X1P","./viz":"mJMf/d","/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"backbone":17,"buffer":19,"codemirror":30,"d3":"Ub4Hh8","underscore":48}],"./evaluate":[function(require,module,exports){
+module.exports=require('Ih4X1P');
+},{}],"Ih4X1P":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* global require */
 
@@ -4243,10 +4339,8 @@ module.exports = {
     churchToBareJs: churchToBareJs
 };
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/evaluate.js","/")
-},{"./church_astify.js":1,"./js_astify.js":16,"./precompile.js":43,"./tokenize.js":55,"./util.js":"Y/OqMs","./wctransform":62,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":27,"escodegen/node_modules/estraverse":28,"esprima":30,"source-map":32,"underscore":42}],"./evaluate":[function(require,module,exports){
-module.exports=require('Ih4X1P');
-},{}],16:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/evaluate.js","/")
+},{"./church_astify.js":1,"./js_astify.js":16,"./precompile.js":49,"./tokenize.js":61,"./util.js":"Y/OqMs","./wctransform":68,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"escodegen":33,"escodegen/node_modules/estraverse":34,"esprima":36,"source-map":38,"underscore":48}],16:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* global require */
 
@@ -4715,8 +4809,8 @@ function format_identifier(id) {
 exports.church_tree_to_esprima_ast = church_tree_to_esprima_ast;
 exports.rename_map = rename_map;
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/js_astify.js","/")
-},{"./church_builtins.js":"sy/OMr","./util.js":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen/node_modules/estraverse":28}],17:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/js_astify.js","/")
+},{"./church_builtins.js":"sy/OMr","./util.js":"Y/OqMs","/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"escodegen/node_modules/estraverse":34}],17:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 //     Backbone.js 1.1.2
 
@@ -6327,10 +6421,10 @@ exports.rename_map = rename_map;
 
 }));
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/backbone/backbone.js","/node_modules/backbone")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"underscore":42}],18:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/backbone/backbone.js","/node_modules/backbone")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"underscore":48}],18:[function(require,module,exports){
 
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],19:[function(require,module,exports){
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],19:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*!
  * The buffer module from node.js, for the browser.
@@ -7442,8 +7536,8 @@ function assert (test, message) {
   if (!test) throw new Error(message || 'Failed assertion')
 }
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/index.js","/node_modules/browserify/node_modules/buffer")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"base64-js":20,"buffer":19,"ieee754":21}],20:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/index.js","/node_modules/browserify/node_modules/buffer")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"base64-js":20,"buffer":19,"ieee754":21}],20:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
@@ -7454,7 +7548,6 @@ var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
     ? Uint8Array
     : Array
 
-	var ZERO   = '0'.charCodeAt(0)
 	var PLUS   = '+'.charCodeAt(0)
 	var SLASH  = '/'.charCodeAt(0)
 	var NUMBER = '0'.charCodeAt(0)
@@ -7563,12 +7656,12 @@ var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 		return output
 	}
 
-	module.exports.toByteArray = b64ToByteArray
-	module.exports.fromByteArray = uint8ToBase64
-}())
+	exports.toByteArray = b64ToByteArray
+	exports.fromByteArray = uint8ToBase64
+}(typeof exports === 'undefined' ? (this.base64js = {}) : exports))
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib/b64.js","/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],21:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib/b64.js","/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],21:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 exports.read = function(buffer, offset, isLE, mLen, nBytes) {
   var e, m,
@@ -7655,8 +7748,538 @@ exports.write = function(buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128;
 };
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/node_modules/ieee754/index.js","/node_modules/browserify/node_modules/buffer/node_modules/ieee754")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],22:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/node_modules/ieee754/index.js","/node_modules/browserify/node_modules/buffer/node_modules/ieee754")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],22:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var Buffer = require('buffer').Buffer;
+var intSize = 4;
+var zeroBuffer = new Buffer(intSize); zeroBuffer.fill(0);
+var chrsz = 8;
+
+function toArray(buf, bigEndian) {
+  if ((buf.length % intSize) !== 0) {
+    var len = buf.length + (intSize - (buf.length % intSize));
+    buf = Buffer.concat([buf, zeroBuffer], len);
+  }
+
+  var arr = [];
+  var fn = bigEndian ? buf.readInt32BE : buf.readInt32LE;
+  for (var i = 0; i < buf.length; i += intSize) {
+    arr.push(fn.call(buf, i));
+  }
+  return arr;
+}
+
+function toBuffer(arr, size, bigEndian) {
+  var buf = new Buffer(size);
+  var fn = bigEndian ? buf.writeInt32BE : buf.writeInt32LE;
+  for (var i = 0; i < arr.length; i++) {
+    fn.call(buf, arr[i], i * 4, true);
+  }
+  return buf;
+}
+
+function hash(buf, fn, hashSize, bigEndian) {
+  if (!Buffer.isBuffer(buf)) buf = new Buffer(buf);
+  var arr = fn(toArray(buf, bigEndian), buf.length * chrsz);
+  return toBuffer(arr, hashSize, bigEndian);
+}
+
+module.exports = { hash: hash };
+
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/crypto-browserify/helpers.js","/node_modules/browserify/node_modules/crypto-browserify")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],23:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+var Buffer = require('buffer').Buffer
+var sha = require('./sha')
+var sha256 = require('./sha256')
+var rng = require('./rng')
+var md5 = require('./md5')
+
+var algorithms = {
+  sha1: sha,
+  sha256: sha256,
+  md5: md5
+}
+
+var blocksize = 64
+var zeroBuffer = new Buffer(blocksize); zeroBuffer.fill(0)
+function hmac(fn, key, data) {
+  if(!Buffer.isBuffer(key)) key = new Buffer(key)
+  if(!Buffer.isBuffer(data)) data = new Buffer(data)
+
+  if(key.length > blocksize) {
+    key = fn(key)
+  } else if(key.length < blocksize) {
+    key = Buffer.concat([key, zeroBuffer], blocksize)
+  }
+
+  var ipad = new Buffer(blocksize), opad = new Buffer(blocksize)
+  for(var i = 0; i < blocksize; i++) {
+    ipad[i] = key[i] ^ 0x36
+    opad[i] = key[i] ^ 0x5C
+  }
+
+  var hash = fn(Buffer.concat([ipad, data]))
+  return fn(Buffer.concat([opad, hash]))
+}
+
+function hash(alg, key) {
+  alg = alg || 'sha1'
+  var fn = algorithms[alg]
+  var bufs = []
+  var length = 0
+  if(!fn) error('algorithm:', alg, 'is not yet supported')
+  return {
+    update: function (data) {
+      if(!Buffer.isBuffer(data)) data = new Buffer(data)
+        
+      bufs.push(data)
+      length += data.length
+      return this
+    },
+    digest: function (enc) {
+      var buf = Buffer.concat(bufs)
+      var r = key ? hmac(fn, key, buf) : fn(buf)
+      bufs = null
+      return enc ? r.toString(enc) : r
+    }
+  }
+}
+
+function error () {
+  var m = [].slice.call(arguments).join(' ')
+  throw new Error([
+    m,
+    'we accept pull requests',
+    'http://github.com/dominictarr/crypto-browserify'
+    ].join('\n'))
+}
+
+exports.createHash = function (alg) { return hash(alg) }
+exports.createHmac = function (alg, key) { return hash(alg, key) }
+exports.randomBytes = function(size, callback) {
+  if (callback && callback.call) {
+    try {
+      callback.call(this, undefined, new Buffer(rng(size)))
+    } catch (err) { callback(err) }
+  } else {
+    return new Buffer(rng(size))
+  }
+}
+
+function each(a, f) {
+  for(var i in a)
+    f(a[i], i)
+}
+
+// the least I can do is make error messages for the rest of the node.js/crypto api.
+each(['createCredentials'
+, 'createCipher'
+, 'createCipheriv'
+, 'createDecipher'
+, 'createDecipheriv'
+, 'createSign'
+, 'createVerify'
+, 'createDiffieHellman'
+, 'pbkdf2'], function (name) {
+  exports[name] = function () {
+    error('sorry,', name, 'is not implemented yet')
+  }
+})
+
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/crypto-browserify/index.js","/node_modules/browserify/node_modules/crypto-browserify")
+},{"./md5":24,"./rng":25,"./sha":26,"./sha256":27,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],24:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/*
+ * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
+ * Digest Algorithm, as defined in RFC 1321.
+ * Version 2.1 Copyright (C) Paul Johnston 1999 - 2002.
+ * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
+ * Distributed under the BSD License
+ * See http://pajhome.org.uk/crypt/md5 for more info.
+ */
+
+var helpers = require('./helpers');
+
+/*
+ * Perform a simple self-test to see if the VM is working
+ */
+function md5_vm_test()
+{
+  return hex_md5("abc") == "900150983cd24fb0d6963f7d28e17f72";
+}
+
+/*
+ * Calculate the MD5 of an array of little-endian words, and a bit length
+ */
+function core_md5(x, len)
+{
+  /* append padding */
+  x[len >> 5] |= 0x80 << ((len) % 32);
+  x[(((len + 64) >>> 9) << 4) + 14] = len;
+
+  var a =  1732584193;
+  var b = -271733879;
+  var c = -1732584194;
+  var d =  271733878;
+
+  for(var i = 0; i < x.length; i += 16)
+  {
+    var olda = a;
+    var oldb = b;
+    var oldc = c;
+    var oldd = d;
+
+    a = md5_ff(a, b, c, d, x[i+ 0], 7 , -680876936);
+    d = md5_ff(d, a, b, c, x[i+ 1], 12, -389564586);
+    c = md5_ff(c, d, a, b, x[i+ 2], 17,  606105819);
+    b = md5_ff(b, c, d, a, x[i+ 3], 22, -1044525330);
+    a = md5_ff(a, b, c, d, x[i+ 4], 7 , -176418897);
+    d = md5_ff(d, a, b, c, x[i+ 5], 12,  1200080426);
+    c = md5_ff(c, d, a, b, x[i+ 6], 17, -1473231341);
+    b = md5_ff(b, c, d, a, x[i+ 7], 22, -45705983);
+    a = md5_ff(a, b, c, d, x[i+ 8], 7 ,  1770035416);
+    d = md5_ff(d, a, b, c, x[i+ 9], 12, -1958414417);
+    c = md5_ff(c, d, a, b, x[i+10], 17, -42063);
+    b = md5_ff(b, c, d, a, x[i+11], 22, -1990404162);
+    a = md5_ff(a, b, c, d, x[i+12], 7 ,  1804603682);
+    d = md5_ff(d, a, b, c, x[i+13], 12, -40341101);
+    c = md5_ff(c, d, a, b, x[i+14], 17, -1502002290);
+    b = md5_ff(b, c, d, a, x[i+15], 22,  1236535329);
+
+    a = md5_gg(a, b, c, d, x[i+ 1], 5 , -165796510);
+    d = md5_gg(d, a, b, c, x[i+ 6], 9 , -1069501632);
+    c = md5_gg(c, d, a, b, x[i+11], 14,  643717713);
+    b = md5_gg(b, c, d, a, x[i+ 0], 20, -373897302);
+    a = md5_gg(a, b, c, d, x[i+ 5], 5 , -701558691);
+    d = md5_gg(d, a, b, c, x[i+10], 9 ,  38016083);
+    c = md5_gg(c, d, a, b, x[i+15], 14, -660478335);
+    b = md5_gg(b, c, d, a, x[i+ 4], 20, -405537848);
+    a = md5_gg(a, b, c, d, x[i+ 9], 5 ,  568446438);
+    d = md5_gg(d, a, b, c, x[i+14], 9 , -1019803690);
+    c = md5_gg(c, d, a, b, x[i+ 3], 14, -187363961);
+    b = md5_gg(b, c, d, a, x[i+ 8], 20,  1163531501);
+    a = md5_gg(a, b, c, d, x[i+13], 5 , -1444681467);
+    d = md5_gg(d, a, b, c, x[i+ 2], 9 , -51403784);
+    c = md5_gg(c, d, a, b, x[i+ 7], 14,  1735328473);
+    b = md5_gg(b, c, d, a, x[i+12], 20, -1926607734);
+
+    a = md5_hh(a, b, c, d, x[i+ 5], 4 , -378558);
+    d = md5_hh(d, a, b, c, x[i+ 8], 11, -2022574463);
+    c = md5_hh(c, d, a, b, x[i+11], 16,  1839030562);
+    b = md5_hh(b, c, d, a, x[i+14], 23, -35309556);
+    a = md5_hh(a, b, c, d, x[i+ 1], 4 , -1530992060);
+    d = md5_hh(d, a, b, c, x[i+ 4], 11,  1272893353);
+    c = md5_hh(c, d, a, b, x[i+ 7], 16, -155497632);
+    b = md5_hh(b, c, d, a, x[i+10], 23, -1094730640);
+    a = md5_hh(a, b, c, d, x[i+13], 4 ,  681279174);
+    d = md5_hh(d, a, b, c, x[i+ 0], 11, -358537222);
+    c = md5_hh(c, d, a, b, x[i+ 3], 16, -722521979);
+    b = md5_hh(b, c, d, a, x[i+ 6], 23,  76029189);
+    a = md5_hh(a, b, c, d, x[i+ 9], 4 , -640364487);
+    d = md5_hh(d, a, b, c, x[i+12], 11, -421815835);
+    c = md5_hh(c, d, a, b, x[i+15], 16,  530742520);
+    b = md5_hh(b, c, d, a, x[i+ 2], 23, -995338651);
+
+    a = md5_ii(a, b, c, d, x[i+ 0], 6 , -198630844);
+    d = md5_ii(d, a, b, c, x[i+ 7], 10,  1126891415);
+    c = md5_ii(c, d, a, b, x[i+14], 15, -1416354905);
+    b = md5_ii(b, c, d, a, x[i+ 5], 21, -57434055);
+    a = md5_ii(a, b, c, d, x[i+12], 6 ,  1700485571);
+    d = md5_ii(d, a, b, c, x[i+ 3], 10, -1894986606);
+    c = md5_ii(c, d, a, b, x[i+10], 15, -1051523);
+    b = md5_ii(b, c, d, a, x[i+ 1], 21, -2054922799);
+    a = md5_ii(a, b, c, d, x[i+ 8], 6 ,  1873313359);
+    d = md5_ii(d, a, b, c, x[i+15], 10, -30611744);
+    c = md5_ii(c, d, a, b, x[i+ 6], 15, -1560198380);
+    b = md5_ii(b, c, d, a, x[i+13], 21,  1309151649);
+    a = md5_ii(a, b, c, d, x[i+ 4], 6 , -145523070);
+    d = md5_ii(d, a, b, c, x[i+11], 10, -1120210379);
+    c = md5_ii(c, d, a, b, x[i+ 2], 15,  718787259);
+    b = md5_ii(b, c, d, a, x[i+ 9], 21, -343485551);
+
+    a = safe_add(a, olda);
+    b = safe_add(b, oldb);
+    c = safe_add(c, oldc);
+    d = safe_add(d, oldd);
+  }
+  return Array(a, b, c, d);
+
+}
+
+/*
+ * These functions implement the four basic operations the algorithm uses.
+ */
+function md5_cmn(q, a, b, x, s, t)
+{
+  return safe_add(bit_rol(safe_add(safe_add(a, q), safe_add(x, t)), s),b);
+}
+function md5_ff(a, b, c, d, x, s, t)
+{
+  return md5_cmn((b & c) | ((~b) & d), a, b, x, s, t);
+}
+function md5_gg(a, b, c, d, x, s, t)
+{
+  return md5_cmn((b & d) | (c & (~d)), a, b, x, s, t);
+}
+function md5_hh(a, b, c, d, x, s, t)
+{
+  return md5_cmn(b ^ c ^ d, a, b, x, s, t);
+}
+function md5_ii(a, b, c, d, x, s, t)
+{
+  return md5_cmn(c ^ (b | (~d)), a, b, x, s, t);
+}
+
+/*
+ * Add integers, wrapping at 2^32. This uses 16-bit operations internally
+ * to work around bugs in some JS interpreters.
+ */
+function safe_add(x, y)
+{
+  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
+  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+  return (msw << 16) | (lsw & 0xFFFF);
+}
+
+/*
+ * Bitwise rotate a 32-bit number to the left.
+ */
+function bit_rol(num, cnt)
+{
+  return (num << cnt) | (num >>> (32 - cnt));
+}
+
+module.exports = function md5(buf) {
+  return helpers.hash(buf, core_md5, 16);
+};
+
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/crypto-browserify/md5.js","/node_modules/browserify/node_modules/crypto-browserify")
+},{"./helpers":22,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],25:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+// Original code adapted from Robert Kieffer.
+// details at https://github.com/broofa/node-uuid
+(function() {
+  var _global = this;
+
+  var mathRNG, whatwgRNG;
+
+  // NOTE: Math.random() does not guarantee "cryptographic quality"
+  mathRNG = function(size) {
+    var bytes = new Array(size);
+    var r;
+
+    for (var i = 0, r; i < size; i++) {
+      if ((i & 0x03) == 0) r = Math.random() * 0x100000000;
+      bytes[i] = r >>> ((i & 0x03) << 3) & 0xff;
+    }
+
+    return bytes;
+  }
+
+  if (_global.crypto && crypto.getRandomValues) {
+    whatwgRNG = function(size) {
+      var bytes = new Uint8Array(size);
+      crypto.getRandomValues(bytes);
+      return bytes;
+    }
+  }
+
+  module.exports = whatwgRNG || mathRNG;
+
+}())
+
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/crypto-browserify/rng.js","/node_modules/browserify/node_modules/crypto-browserify")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],26:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+/*
+ * A JavaScript implementation of the Secure Hash Algorithm, SHA-1, as defined
+ * in FIPS PUB 180-1
+ * Version 2.1a Copyright Paul Johnston 2000 - 2002.
+ * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
+ * Distributed under the BSD License
+ * See http://pajhome.org.uk/crypt/md5 for details.
+ */
+
+var helpers = require('./helpers');
+
+/*
+ * Calculate the SHA-1 of an array of big-endian words, and a bit length
+ */
+function core_sha1(x, len)
+{
+  /* append padding */
+  x[len >> 5] |= 0x80 << (24 - len % 32);
+  x[((len + 64 >> 9) << 4) + 15] = len;
+
+  var w = Array(80);
+  var a =  1732584193;
+  var b = -271733879;
+  var c = -1732584194;
+  var d =  271733878;
+  var e = -1009589776;
+
+  for(var i = 0; i < x.length; i += 16)
+  {
+    var olda = a;
+    var oldb = b;
+    var oldc = c;
+    var oldd = d;
+    var olde = e;
+
+    for(var j = 0; j < 80; j++)
+    {
+      if(j < 16) w[j] = x[i + j];
+      else w[j] = rol(w[j-3] ^ w[j-8] ^ w[j-14] ^ w[j-16], 1);
+      var t = safe_add(safe_add(rol(a, 5), sha1_ft(j, b, c, d)),
+                       safe_add(safe_add(e, w[j]), sha1_kt(j)));
+      e = d;
+      d = c;
+      c = rol(b, 30);
+      b = a;
+      a = t;
+    }
+
+    a = safe_add(a, olda);
+    b = safe_add(b, oldb);
+    c = safe_add(c, oldc);
+    d = safe_add(d, oldd);
+    e = safe_add(e, olde);
+  }
+  return Array(a, b, c, d, e);
+
+}
+
+/*
+ * Perform the appropriate triplet combination function for the current
+ * iteration
+ */
+function sha1_ft(t, b, c, d)
+{
+  if(t < 20) return (b & c) | ((~b) & d);
+  if(t < 40) return b ^ c ^ d;
+  if(t < 60) return (b & c) | (b & d) | (c & d);
+  return b ^ c ^ d;
+}
+
+/*
+ * Determine the appropriate additive constant for the current iteration
+ */
+function sha1_kt(t)
+{
+  return (t < 20) ?  1518500249 : (t < 40) ?  1859775393 :
+         (t < 60) ? -1894007588 : -899497514;
+}
+
+/*
+ * Add integers, wrapping at 2^32. This uses 16-bit operations internally
+ * to work around bugs in some JS interpreters.
+ */
+function safe_add(x, y)
+{
+  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
+  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+  return (msw << 16) | (lsw & 0xFFFF);
+}
+
+/*
+ * Bitwise rotate a 32-bit number to the left.
+ */
+function rol(num, cnt)
+{
+  return (num << cnt) | (num >>> (32 - cnt));
+}
+
+module.exports = function sha1(buf) {
+  return helpers.hash(buf, core_sha1, 20, true);
+};
+
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/crypto-browserify/sha.js","/node_modules/browserify/node_modules/crypto-browserify")
+},{"./helpers":22,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],27:[function(require,module,exports){
+(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
+
+/**
+ * A JavaScript implementation of the Secure Hash Algorithm, SHA-256, as defined
+ * in FIPS 180-2
+ * Version 2.2-beta Copyright Angel Marin, Paul Johnston 2000 - 2009.
+ * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
+ *
+ */
+
+var helpers = require('./helpers');
+
+var safe_add = function(x, y) {
+  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
+  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+  return (msw << 16) | (lsw & 0xFFFF);
+};
+
+var S = function(X, n) {
+  return (X >>> n) | (X << (32 - n));
+};
+
+var R = function(X, n) {
+  return (X >>> n);
+};
+
+var Ch = function(x, y, z) {
+  return ((x & y) ^ ((~x) & z));
+};
+
+var Maj = function(x, y, z) {
+  return ((x & y) ^ (x & z) ^ (y & z));
+};
+
+var Sigma0256 = function(x) {
+  return (S(x, 2) ^ S(x, 13) ^ S(x, 22));
+};
+
+var Sigma1256 = function(x) {
+  return (S(x, 6) ^ S(x, 11) ^ S(x, 25));
+};
+
+var Gamma0256 = function(x) {
+  return (S(x, 7) ^ S(x, 18) ^ R(x, 3));
+};
+
+var Gamma1256 = function(x) {
+  return (S(x, 17) ^ S(x, 19) ^ R(x, 10));
+};
+
+var core_sha256 = function(m, l) {
+  var K = new Array(0x428A2F98,0x71374491,0xB5C0FBCF,0xE9B5DBA5,0x3956C25B,0x59F111F1,0x923F82A4,0xAB1C5ED5,0xD807AA98,0x12835B01,0x243185BE,0x550C7DC3,0x72BE5D74,0x80DEB1FE,0x9BDC06A7,0xC19BF174,0xE49B69C1,0xEFBE4786,0xFC19DC6,0x240CA1CC,0x2DE92C6F,0x4A7484AA,0x5CB0A9DC,0x76F988DA,0x983E5152,0xA831C66D,0xB00327C8,0xBF597FC7,0xC6E00BF3,0xD5A79147,0x6CA6351,0x14292967,0x27B70A85,0x2E1B2138,0x4D2C6DFC,0x53380D13,0x650A7354,0x766A0ABB,0x81C2C92E,0x92722C85,0xA2BFE8A1,0xA81A664B,0xC24B8B70,0xC76C51A3,0xD192E819,0xD6990624,0xF40E3585,0x106AA070,0x19A4C116,0x1E376C08,0x2748774C,0x34B0BCB5,0x391C0CB3,0x4ED8AA4A,0x5B9CCA4F,0x682E6FF3,0x748F82EE,0x78A5636F,0x84C87814,0x8CC70208,0x90BEFFFA,0xA4506CEB,0xBEF9A3F7,0xC67178F2);
+  var HASH = new Array(0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19);
+    var W = new Array(64);
+    var a, b, c, d, e, f, g, h, i, j;
+    var T1, T2;
+  /* append padding */
+  m[l >> 5] |= 0x80 << (24 - l % 32);
+  m[((l + 64 >> 9) << 4) + 15] = l;
+  for (var i = 0; i < m.length; i += 16) {
+    a = HASH[0]; b = HASH[1]; c = HASH[2]; d = HASH[3]; e = HASH[4]; f = HASH[5]; g = HASH[6]; h = HASH[7];
+    for (var j = 0; j < 64; j++) {
+      if (j < 16) {
+        W[j] = m[j + i];
+      } else {
+        W[j] = safe_add(safe_add(safe_add(Gamma1256(W[j - 2]), W[j - 7]), Gamma0256(W[j - 15])), W[j - 16]);
+      }
+      T1 = safe_add(safe_add(safe_add(safe_add(h, Sigma1256(e)), Ch(e, f, g)), K[j]), W[j]);
+      T2 = safe_add(Sigma0256(a), Maj(a, b, c));
+      h = g; g = f; f = e; e = safe_add(d, T1); d = c; c = b; b = a; a = safe_add(T1, T2);
+    }
+    HASH[0] = safe_add(a, HASH[0]); HASH[1] = safe_add(b, HASH[1]); HASH[2] = safe_add(c, HASH[2]); HASH[3] = safe_add(d, HASH[3]);
+    HASH[4] = safe_add(e, HASH[4]); HASH[5] = safe_add(f, HASH[5]); HASH[6] = safe_add(g, HASH[6]); HASH[7] = safe_add(h, HASH[7]);
+  }
+  return HASH;
+};
+
+module.exports = function sha256(buf) {
+  return helpers.hash(buf, core_sha256, 32, true);
+};
+
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/crypto-browserify/sha256.js","/node_modules/browserify/node_modules/crypto-browserify")
+},{"./helpers":22,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],28:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 // shim for using process in browser
 
@@ -7719,8 +8342,8 @@ process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js","/node_modules/browserify/node_modules/insert-module-globals/node_modules/process")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],23:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js","/node_modules/browserify/node_modules/insert-module-globals/node_modules/process")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],29:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -7947,8 +8570,8 @@ var substr = 'ab'.substr(-1) === 'b'
     }
 ;
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/path-browserify/index.js","/node_modules/browserify/node_modules/path-browserify")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],24:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/path-browserify/index.js","/node_modules/browserify/node_modules/path-browserify")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],30:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 // This is CodeMirror (http://codemirror.net), a code editor
 // implemented in JavaScript on top of the browser's DOM.
@@ -15290,8 +15913,8 @@ var substr = 'ab'.substr(-1) === 'b'
   return CodeMirror;
 });
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/codemirror/lib/codemirror.js","/node_modules/codemirror/lib")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"d3":[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/codemirror/lib/codemirror.js","/node_modules/codemirror/lib")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],"d3":[function(require,module,exports){
 module.exports=require('Ub4Hh8');
 },{}],"Ub4Hh8":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
@@ -24589,8 +25212,8 @@ module.exports=require('Ub4Hh8');
     this.d3 = d3;
   }
 }();
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/d3/d3.js","/node_modules/d3")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],27:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/d3/d3.js","/node_modules/d3")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],33:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
   Copyright (C) 2012-2013 Yusuke Suzuki <utatane.tea@gmail.com>
@@ -26658,8 +27281,8 @@ module.exports=require('Ub4Hh8');
 }());
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/escodegen/escodegen.js","/node_modules/escodegen")
-},{"./package.json":29,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"estraverse":28,"source-map":32}],28:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/escodegen/escodegen.js","/node_modules/escodegen")
+},{"./package.json":35,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"estraverse":34,"source-map":38}],34:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
   Copyright (C) 2012-2013 Yusuke Suzuki <utatane.tea@gmail.com>
@@ -27346,8 +27969,8 @@ module.exports=require('Ub4Hh8');
 }));
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/escodegen/node_modules/estraverse/estraverse.js","/node_modules/escodegen/node_modules/estraverse")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],29:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/escodegen/node_modules/estraverse/estraverse.js","/node_modules/escodegen/node_modules/estraverse")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],35:[function(require,module,exports){
 module.exports={
   "name": "escodegen",
   "description": "ECMAScript code generator",
@@ -27363,9 +27986,8 @@ module.exports={
   },
   "maintainers": [
     {
-      "name": "Yusuke Suzuki",
-      "email": "utatane.tea@gmail.com",
-      "url": "http://github.com/Constellation"
+      "name": "constellation",
+      "email": "utatane.tea@gmail.com"
     }
   ],
   "repository": {
@@ -27405,20 +28027,23 @@ module.exports={
     "release": "node tools/release.js",
     "build": "./node_modules/.bin/cjsify -ma path: tools/entry-point.js > escodegen.browser.js"
   },
-  "readme": "\n### Escodegen [![Build Status](https://secure.travis-ci.org/Constellation/escodegen.png)](http://travis-ci.org/Constellation/escodegen) [![Build Status](https://drone.io/github.com/Constellation/escodegen/status.png)](https://drone.io/github.com/Constellation/escodegen/latest)\n\nEscodegen ([escodegen](http://github.com/Constellation/escodegen)) is\n[ECMAScript](http://www.ecma-international.org/publications/standards/Ecma-262.htm)\n(also popularly known as [JavaScript](http://en.wikipedia.org/wiki/JavaScript>JavaScript))\ncode generator from [Parser API](https://developer.mozilla.org/en/SpiderMonkey/Parser_API) AST.\nSee [online generator demo](http://constellation.github.com/escodegen/demo/index.html).\n\n\n### Install\n\nEscodegen can be used in a web browser:\n\n    <script src=\"escodegen.browser.js\"></script>\n\nor in a Node.js application via the package manager:\n\n    npm install escodegen\n\n\n### Usage\n\nA simple example: the program\n\n    escodegen.generate({\n        type: 'BinaryExpression',\n        operator: '+',\n        left: { type: 'Literal', value: 40 },\n        right: { type: 'Literal', value: 2 }\n    });\n\nproduces the string `'40 + 2'`\n\nSee the [API page](https://github.com/Constellation/escodegen/wiki/API) for\noptions. To run the tests, execute `npm test` in the root directory.\n\n\n### License\n\n#### Escodegen\n\nCopyright (C) 2012 [Yusuke Suzuki](http://github.com/Constellation)\n (twitter: [@Constellation](http://twitter.com/Constellation)) and other contributors.\n\nRedistribution and use in source and binary forms, with or without\nmodification, are permitted provided that the following conditions are met:\n\n  * Redistributions of source code must retain the above copyright\n    notice, this list of conditions and the following disclaimer.\n\n  * Redistributions in binary form must reproduce the above copyright\n    notice, this list of conditions and the following disclaimer in the\n    documentation and/or other materials provided with the distribution.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\"\nAND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\nIMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE\nARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY\nDIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES\n(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;\nLOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND\nON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF\nTHIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n\n#### source-map\n\nSourceNodeMocks has a limited interface of mozilla/source-map SourceNode implementations.\n\nCopyright (c) 2009-2011, Mozilla Foundation and contributors\nAll rights reserved.\n\nRedistribution and use in source and binary forms, with or without\nmodification, are permitted provided that the following conditions are met:\n\n* Redistributions of source code must retain the above copyright notice, this\n  list of conditions and the following disclaimer.\n\n* Redistributions in binary form must reproduce the above copyright notice,\n  this list of conditions and the following disclaimer in the documentation\n  and/or other materials provided with the distribution.\n\n* Neither the names of the Mozilla Foundation nor the names of project\n  contributors may be used to endorse or promote products derived from this\n  software without specific prior written permission.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND\nANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED\nWARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\nDISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE\nFOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL\nDAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR\nSERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER\nCAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,\nOR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\nOF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n",
-  "readmeFilename": "README.md",
-  "bugs": {
-    "url": "https://github.com/Constellation/escodegen/issues"
-  },
   "_id": "escodegen@0.0.26",
   "dist": {
-    "shasum": "9b353e7c5a7b7c35fbadb8e4ecfcd8d1d218547e"
+    "shasum": "9b353e7c5a7b7c35fbadb8e4ecfcd8d1d218547e",
+    "tarball": "http://registry.npmjs.org/escodegen/-/escodegen-0.0.26.tgz"
   },
   "_from": "escodegen@0.0.26",
+  "_npmVersion": "1.2.18",
+  "_npmUser": {
+    "name": "constellation",
+    "email": "utatane.tea@gmail.com"
+  },
+  "directories": {},
+  "_shasum": "9b353e7c5a7b7c35fbadb8e4ecfcd8d1d218547e",
   "_resolved": "https://registry.npmjs.org/escodegen/-/escodegen-0.0.26.tgz"
 }
 
-},{}],30:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
   Copyright (C) 2012 Ariya Hidayat <ariya.hidayat@gmail.com>
@@ -31329,8 +31954,8 @@ parseStatement: true, parseSourceElement: true */
 }));
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/esprima/esprima.js","/node_modules/esprima")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],31:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/esprima/esprima.js","/node_modules/esprima")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],37:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /**
 
@@ -31339,16 +31964,16 @@ seedrandom.js
 
 Seeded random number generator for Javascript.
 
-version 2.3.6<br>
-Author: David Bau<br>
-Date: 2014 May 14
+version 2.3.9
+Author: David Bau
+Date: 2014 Sep 18
 
 Can be used as a plain script, a node.js module or an AMD module.
 
 Script tag usage
 ----------------
 
-<script src=//cdnjs.cloudflare.com/ajax/libs/seedrandom/2.3.6/seedrandom.min.js>
+<script src=//cdnjs.cloudflare.com/ajax/libs/seedrandom/2.3.9/seedrandom.min.js>
 </script>
 
 // Sets Math.random to a PRNG initialized using the given explicit seed.
@@ -31407,16 +32032,34 @@ require(['seedrandom'], function(seedrandom) {
 });
 
 
-Network seeding via a script tag
---------------------------------
+Network seeding
+---------------
 
-<script src=//cdnjs.cloudflare.com/ajax/libs/seedrandom/2.3.6/seedrandom.min.js>
+<script src=//cdnjs.cloudflare.com/ajax/libs/seedrandom/2.3.9/seedrandom.min.js>
 </script>
+
 <!-- Seeds using urandom bits from a server. -->
 <script src=//jsonlib.appspot.com/urandom?callback=Math.seedrandom">
 </script>
 
-Examples of manipulating the seed for various purposes:
+<!-- Seeds mixing in random.org bits -->
+<script>
+(function(x, u, s){
+  try {
+    // Make a synchronous request to random.org.
+    x.open('GET', u, false);
+    x.send();
+    s = unescape(x.response.trim().replace(/^|\s/g, '%'));
+  } finally {
+    // Seed with the response, or autoseed on failure.
+    Math.seedrandom(s, !!s);
+  }
+})(new XMLHttpRequest, 'https://www.random.org/integers/' +
+  '?num=256&min=0&max=255&col=1&base=16&format=plain&rnd=new');
+</script>
+
+Reseeding using user input
+--------------------------
 
 var seed = Math.seedrandom();        // Use prng with an automatic seed.
 document.write(Math.random());       // Pretty much unpredictable x.
@@ -31428,7 +32071,7 @@ function reseed(event, count) {      // Define a custom entropy collector.
   var t = [];
   function w(e) {
     t.push([e.pageX, e.pageY, +new Date]);
-    if (t.length < count) { return; }
+    if (t.length &lt; count) { return; }
     document.removeEventListener(event, w);
     Math.seedrandom(t, { entropy: true });
   }
@@ -31456,6 +32099,7 @@ The random number sequence is the same as version 1.0 for string seeds.
 * Version 2.3.1 adds a build environment, module packaging, and tests.
 * Version 2.3.4 fixes bugs on IE8, and switches to MIT license.
 * Version 2.3.6 adds a readable options object argument.
+* Version 2.3.9 adds support for node.js crypto (contributed by ctd1500).
 
 The standard ARC4 key scheduler cycles short keys, which means that
 seedrandom('ab') is equivalent to seedrandom('abab') and 'ababab'.
@@ -31493,7 +32137,7 @@ numbers on Opera at about 0.0005 ms per seeded Math.random().
 LICENSE (MIT)
 -------------
 
-Copyright (c)2014 David Bau.
+Copyright 2014 David Bau.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -31529,6 +32173,7 @@ var startdenom = math.pow(width, chunks),
     significance = math.pow(2, digits),
     overflow = significance * 2,
     mask = width - 1,
+    nodecrypto;
 
 //
 // seedrandom()
@@ -31617,8 +32262,9 @@ function ARC4(key) {
     }
     me.i = i; me.j = j;
     return r;
-    // For robust unpredictability discard an initial batch of values.
-    // See http://www.rsa.com/rsalabs/node.asp?id=2009
+    // For robust unpredictability, the function call below automatically
+    // discards an initial batch of values.  This is called RC4-drop[256].
+    // See http://google.com/search?q=rsa+fluhrer+response&btnI
   })(width);
 }
 
@@ -31659,10 +32305,12 @@ function autoseed(seed) {
   try {
     global.crypto.getRandomValues(seed = new Uint8Array(width));
     return tostring(seed);
-  } catch (e) {
+  } catch (e1) { try {
+    return tostring(nodecrypto.randomBytes(width));
+  } catch (e2) {
     return [+new Date, global, (seed = global.navigator) && seed.plugins,
-            global.screen, tostring(pool)];
-  }
+      global.screen, tostring(pool)];
+  } }
 }
 
 //
@@ -31676,21 +32324,29 @@ function tostring(a) {
 //
 // When seedrandom.js is loaded, we immediately mix a few bits
 // from the built-in RNG into the entropy pool.  Because we do
-// not want to intefere with determinstic PRNG state later,
+// not want to interfere with deterministic PRNG state later,
 // seedrandom will not call math.random on its own again after
 // initialization.
 //
 mixkey(math[rngname](), pool);
 
 //
-// Nodejs and AMD support: export the implemenation as a module using
+// Nodejs and AMD support: export the implementation as a module using
 // either convention.
 //
 if (module && module.exports) {
   module.exports = impl;
+  try {
+    // When in node.js, try using crypto package for autoseeding.
+    nodecrypto = require('crypto');
+  } catch (ex) {}
 } else if (define && define.amd) {
   define(function() { return impl; });
 }
+
+//
+// Node.js native crypto support.
+//
 
 // End anonymous scope, and pass initial values.
 })(
@@ -31705,8 +32361,8 @@ if (module && module.exports) {
   'random'// rngname: name for Math.random and Math.seedrandom
 );
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/seedrandom/seedrandom.js","/node_modules/seedrandom")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],32:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/seedrandom/seedrandom.js","/node_modules/seedrandom")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"crypto":23}],38:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
@@ -31717,8 +32373,8 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map.js","/node_modules/source-map/lib")
-},{"./source-map/source-map-consumer":37,"./source-map/source-map-generator":38,"./source-map/source-node":39,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],33:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map.js","/node_modules/source-map/lib")
+},{"./source-map/source-map-consumer":43,"./source-map/source-map-generator":44,"./source-map/source-node":45,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],39:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -31818,8 +32474,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/array-set.js","/node_modules/source-map/lib/source-map")
-},{"./util":40,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],34:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/array-set.js","/node_modules/source-map/lib/source-map")
+},{"./util":46,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],40:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -31966,8 +32622,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/base64-vlq.js","/node_modules/source-map/lib/source-map")
-},{"./base64":35,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],35:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/base64-vlq.js","/node_modules/source-map/lib/source-map")
+},{"./base64":41,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],41:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -32012,8 +32668,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/base64.js","/node_modules/source-map/lib/source-map")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],36:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/base64.js","/node_modules/source-map/lib/source-map")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],42:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -32097,8 +32753,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/binary-search.js","/node_modules/source-map/lib/source-map")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],37:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/binary-search.js","/node_modules/source-map/lib/source-map")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],43:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -32542,8 +33198,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-map-consumer.js","/node_modules/source-map/lib/source-map")
-},{"./array-set":33,"./base64-vlq":34,"./binary-search":36,"./util":40,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],38:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-map-consumer.js","/node_modules/source-map/lib/source-map")
+},{"./array-set":39,"./base64-vlq":40,"./binary-search":42,"./util":46,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],44:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -32926,8 +33582,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-map-generator.js","/node_modules/source-map/lib/source-map")
-},{"./array-set":33,"./base64-vlq":34,"./util":40,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],39:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-map-generator.js","/node_modules/source-map/lib/source-map")
+},{"./array-set":39,"./base64-vlq":40,"./util":46,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],45:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -33301,8 +33957,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-node.js","/node_modules/source-map/lib/source-map")
-},{"./source-map-generator":38,"./util":40,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],40:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-node.js","/node_modules/source-map/lib/source-map")
+},{"./source-map-generator":44,"./util":46,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],46:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -33510,8 +34166,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/util.js","/node_modules/source-map/lib/source-map")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],41:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/util.js","/node_modules/source-map/lib/source-map")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],47:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 0.1.0 Copyright (c) 2011, The Dojo Foundation All Rights Reserved.
@@ -33813,8 +34469,8 @@ function amdefine(module, requireFn) {
 
 module.exports = amdefine;
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/node_modules/amdefine/amdefine.js","/node_modules/source-map/node_modules/amdefine")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"path":23}],42:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/node_modules/amdefine/amdefine.js","/node_modules/source-map/node_modules/amdefine")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"path":29}],48:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 //     Underscore.js 1.6.0
 //     http://underscorejs.org
@@ -35160,8 +35816,8 @@ module.exports = amdefine;
   }
 }).call(this);
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/underscore/underscore.js","/node_modules/underscore")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],43:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/underscore/underscore.js","/node_modules/underscore")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],49:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
   A very simple (abstract/tracing) interpreter that takes in the AST generated by js_astify.js. Inteprets only a fragment of javascript (eg does not deal with objects, loops, etc.).
@@ -35826,8 +36482,8 @@ module.exports =
         precompile: precompile
     }
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/precompile.js","/")
-},{"./church_astify.js":1,"./church_builtins":"sy/OMr","./js_astify.js":16,"./probabilistic-js":"/takZe","./tokenize.js":55,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":27,"escodegen/node_modules/estraverse":28,"esprima":30}],44:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/precompile.js","/")
+},{"./church_astify.js":1,"./church_builtins":"sy/OMr","./js_astify.js":16,"./probabilistic-js":"/takZe","./tokenize.js":61,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"escodegen":33,"escodegen/node_modules/estraverse":34,"esprima":36}],50:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var trace = require("./trace")
 var util = require("./util")
@@ -35924,8 +36580,8 @@ STKernel: STKernel
 }
 
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/STKernel.js","/probabilistic-js/probabilistic")
-},{"./trace":52,"./util":54,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],45:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/STKernel.js","/probabilistic-js/probabilistic")
+},{"./trace":58,"./util":60,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],51:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 
 // Repeat a computation n times
@@ -35963,8 +36619,8 @@ module.exports =
 	until: until,
 	repeat: repeat
 }
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/control.js","/probabilistic-js/probabilistic")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],46:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/control.js","/probabilistic-js/probabilistic")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],52:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var trace = require("./trace")
 
@@ -36263,8 +36919,8 @@ var gaussian = function gaussian(mu, sigma, isStructural, conditionedValue)
 ///////////////////////////////////////////////////////////////////////////////
 
 
-function GammaRandomPrimtive() {}
-GammaRandomPrimtive.prototype = Object.create(RandomPrimitive.prototype)
+function GammaRandomPrimitive() {}
+GammaRandomPrimitive.prototype = Object.create(RandomPrimitive.prototype)
 
 function gamma_sample(a,b)
 {
@@ -36300,17 +36956,17 @@ function gamma_logprob(x,a,b)
     return (a - 1)*Math.log(x) - x/b - log_gamma(a) - a*Math.log(b);
 }
 
-GammaRandomPrimtive.prototype.sample_impl = function Gamma_sample_impl(params)
+GammaRandomPrimitive.prototype.sample_impl = function Gamma_sample_impl(params)
 {
 	return gamma_sample(params[0], params[1])
 }
 
-GammaRandomPrimtive.prototype.logprob = function Gamma_logprob(val, params)
+GammaRandomPrimitive.prototype.logprob = function Gamma_logprob(val, params)
 {
 	return gamma_logprob(val, params[0], params[1])
 }
 
-var gammaInst = new GammaRandomPrimtive()
+var gammaInst = new GammaRandomPrimitive()
 var gamma = function gamma(a, b, isStructural, conditionedValue)
 {
 	return gammaInst.sample([a, b], isStructural, conditionedValue) + 0
@@ -36318,6 +36974,42 @@ var gamma = function gamma(a, b, isStructural, conditionedValue)
 
 
 ///////////////////////////////////////////////////////////////////////////////
+
+function ExponentialRandomPrimitive() {}
+ExponentialRandomPrimitive.prototype = Object.create(RandomPrimitive.prototype)
+
+// We can just generate from a uniform on the unit interval,
+// take its log, and divide by the negative of the rate 
+// HT http://en.wikipedia.org/wiki/Exponential_distribution#Generating_exponential_variates
+function exponential_sample(a) {
+	  var u = Math.random();
+    return Math.log(u) / (-1 * a);
+}
+
+ExponentialRandomPrimitive.prototype.sample_impl = function Exponential_sample_impl(params)
+{
+	  return exponential_sample(params[0])
+}
+
+function exponential_logprob(val, a) {
+    return Math.log(a) - a * val;
+}
+
+ExponentialRandomPrimitive.prototype.logprob = function Exponential_logprob(val, params)
+{
+	  return exponential_logprob(val, params[0])
+}
+
+var exponentialInst = new ExponentialRandomPrimitive()
+
+var exponential = function exponential(a, isStructural, conditionedValue)
+{
+	  return exponentialInst.sample([a], isStructural, conditionedValue) + 0
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+
 
 
 function BetaRandomPrimitive() {}
@@ -36593,11 +37285,15 @@ module.exports =
 	poisson_logprob: poisson_logprob,
 	poisson: poisson,
 	dirichlet_logprob: dirichlet_logprob,
-	dirichlet: dirichlet
+	dirichlet: dirichlet,
+  exponential: exponential,
+  exponential_logprob: exponential_logprob
 }
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/erp.js","/probabilistic-js/probabilistic")
-},{"./trace":52,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"/takZe":[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/erp.js","/probabilistic-js/probabilistic")
+},{"./trace":58,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],"./probabilistic-js":[function(require,module,exports){
+module.exports=require('/takZe');
+},{}],"/takZe":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var trace = require("./trace")
 var erp = require("./erp")
@@ -36641,10 +37337,8 @@ for (var prop in transform)
 //// b/c this makes source transformation easier.
 var util = require("./util")
 module.exports["openModule"] = util.openModule
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/index.js","/probabilistic-js/probabilistic")
-},{"./control":45,"./erp":46,"./inference":49,"./marginalize":50,"./memoize":51,"./trace":52,"./transform":53,"./util":54,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./probabilistic-js":[function(require,module,exports){
-module.exports=require('/takZe');
-},{}],49:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/index.js","/probabilistic-js/probabilistic")
+},{"./control":51,"./erp":52,"./inference":55,"./marginalize":56,"./memoize":57,"./trace":58,"./transform":59,"./util":60,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],55:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var trace = require("./trace")
 var util = require("./util")
@@ -36791,7 +37485,7 @@ function enumerateDist(computation) {
   //iterate through ERP vals:
   while(currTrace) {
 	if (currTrace.conditionsSatisfied) {addElt(currTrace.returnValue, currTrace.logprob)}
-	currTrace = currTrace.nextEnumState()
+	currTrace = currTrace.nextEnumState(true)
   }
 
   for(var item in dist) {
@@ -37197,8 +37891,8 @@ module.exports =
 	conditional: conditional
 }
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/inference.js","/probabilistic-js/probabilistic")
-},{"./STKernel":44,"./trace":52,"./util":54,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],50:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/inference.js","/probabilistic-js/probabilistic")
+},{"./STKernel":50,"./trace":58,"./util":60,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],56:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 
 //this file provides a utility for marginalizing a function.
@@ -37328,8 +38022,8 @@ marginalize: marginalize
 
 
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/marginalize.js","/probabilistic-js/probabilistic")
-},{"./erp":46,"./inference":49,"./trace":52,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],51:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/marginalize.js","/probabilistic-js/probabilistic")
+},{"./erp":52,"./inference":55,"./trace":58,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],57:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var trace = require("./trace")
 
@@ -37360,8 +38054,8 @@ module.exports =
 	mem: mem
 }
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/memoize.js","/probabilistic-js/probabilistic")
-},{"./trace":52,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],52:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/memoize.js","/probabilistic-js/probabilistic")
+},{"./trace":58,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],58:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var util = require("./util")
 
@@ -37699,7 +38393,7 @@ RandomExecutionTrace.prototype.conditionOn = function conditionOn(boolexpr)
 
 
 //Next state for enumeration:
-RandomExecutionTrace.prototype.nextEnumState = function nextEnumState() {
+RandomExecutionTrace.prototype.nextEnumState = function nextEnumState(strict) {
     this.enumerate=true
     var names = this.freeVarNames()
     
@@ -37722,10 +38416,9 @@ RandomExecutionTrace.prototype.nextEnumState = function nextEnumState() {
                 v.val = newval
             }
             v.logprob = v.erp.logprob(v.val, v.params)
-        } 
-       	// else {
-        // 	throw new Error("Cannot enumerate on a continuous-valed ERP")
-        // }
+        } else if (strict) {
+        	throw new Error("Cannot enumerate over continuous values")
+        }
     }
     this.traceUpdate()
     this.enumerate=false
@@ -37776,8 +38469,8 @@ module.exports =
 	condition: condition
 }
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/trace.js","/probabilistic-js/probabilistic")
-},{"./util":54,"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],53:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/trace.js","/probabilistic-js/probabilistic")
+},{"./util":60,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],59:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var esprima = require("esprima")
 var escodegen = require("escodegen")
@@ -37797,8 +38490,7 @@ if (!String.prototype.format) {
   };
 }
 
-//var replcode = "(function() {__pr.enterfn({0}); var ret = __p_REPLACEME_p__; __pr.leavefn(); return ret; })()"
-var replcode = "(function() {enterfn({0}); var ret = __p_REPLACEME_p__; leavefn(); return ret; })()"
+var replcode = "(function() {enterfn({0}); var ret = __p_REPLACEME_p__; leavefn(); return ret; }).apply(this)"
 
 
 function makeWrappedCallReplacer(callNode)
@@ -37830,13 +38522,13 @@ var callWrapper =
 			nextid++
 
 			// We do NOT wrap the calls to enterfn, the fn itself, or leavefn
-			wrapast.callee.body.body[0].expression.skip = true
+			wrapast.callee.object.body.body[0].expression.skip = true
 			node.skip = true
-			wrapast.callee.body.body[2].expression.skip = true
+			wrapast.callee.object.body.body[2].expression.skip = true
 
 			// To preserve source map information 
 			wrapast.loc = node.loc
-			wrapast.callee.body.body[1].loc = node.callee.loc
+			wrapast.callee.object.body.body[1].loc = node.callee.loc
 
 			estraverse.replace(wrapast, replacer)
 
@@ -37846,12 +38538,6 @@ var callWrapper =
 			// For example, if we have a function call as one of the args, then this call
 			//   will see the id of the outer function call on the stack, which does not reflect
 			//   the execution structure of the original program.
-			var vardecls =
-			{
-				type: "VariableDeclaration",
-				declarations: [],
-				kind: "var"
-			}
 			for (var i = 0; i < node.arguments.length; i++)
 			{
 				var arg = node.arguments[i]
@@ -37869,7 +38555,7 @@ var callWrapper =
 					loc: arg.loc
 				}
 				node.arguments[i] = {type: "Identifier", name: "arg"+i}
-				wrapast.callee.body.body.splice(i, 0, decl)
+				wrapast.callee.object.body.body.splice(i, 0, decl)
 			}
 
 			return wrapast
@@ -37909,8 +38595,8 @@ module.exports =
 }
 
 "var x = foo(1, bar(), 3)"
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/transform.js","/probabilistic-js/probabilistic")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":27,"escodegen/node_modules/estraverse":28,"esprima":30}],54:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/transform.js","/probabilistic-js/probabilistic")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"escodegen":33,"escodegen/node_modules/estraverse":34,"esprima":36}],60:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 
 function openModule(mod, prefix)
@@ -37979,8 +38665,8 @@ module.exports =
 	keys: keys
 }
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/util.js","/probabilistic-js/probabilistic")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],55:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/util.js","/probabilistic-js/probabilistic")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],61:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var util = require('./util.js');
 
@@ -38048,15 +38734,14 @@ module.exports = {
     tokenize: tokenize
 }
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/tokenize.js","/")
-},{"./util.js":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./type-utils.js":[function(require,module,exports){
-module.exports=require('05wbT+');
-},{}],"05wbT+":[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/tokenize.js","/")
+},{"./util.js":"Y/OqMs","/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],"05wbT+":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* global module */
 
 var $x = {};
 
+// TODO: this should probably be written using a stack, rather than recursion
 var listToArray = $x.listToArray = function(list, recurse) {
     if (recurse) {
 	      return list.slice(0, -1).map(function (x) {return Array.isArray(x) ? listToArray(x, recurse) : x});
@@ -38076,8 +38761,10 @@ var arrayToList = $x.arrayToList = function(arr, mutate) {
 
 module.exports = $x;
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/type-utils.js","/")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./util.js":[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/type-utils.js","/")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],"./type-utils.js":[function(require,module,exports){
+module.exports=require('05wbT+');
+},{}],"./util.js":[function(require,module,exports){
 module.exports=require('Y/OqMs');
 },{}],"Y/OqMs":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
@@ -38134,9 +38821,13 @@ function format_result(obj) {
 	    } else {
 		return "#f";
 	    }
-	} else {
-	    return "" + obj;
-	}
+	} else if (typeof obj == "string") {
+	    return obj
+	} else if (typeof obj == "object") {
+      return JSON.stringify(obj);
+  } else {
+      return obj + "";
+  }
     }
 }
 
@@ -38160,8 +38851,8 @@ module.exports = {
     log: log
 }
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/util.js","/")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./viz":[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/util.js","/")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],"./viz":[function(require,module,exports){
 module.exports=require('mJMf/d');
 },{}],"mJMf/d":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
@@ -38171,13 +38862,14 @@ module.exports=require('mJMf/d');
 // d3 = require("d3");
 // var vega = require("./vega.js");
 var format_result = require("./util").format_result;
-var _ = require("underscore"); 
+var _ = require("underscore");
 var typeUtils = require("./type-utils");
 var listToArray = typeUtils.listToArray;
-var arrayToList = typeUtils.arrayToList; 
+var arrayToList = typeUtils.arrayToList;
 
 var maxBins = 20;
 var titleOffset = 24;
+var OneLineTitleOffset = 24;
 var liveDelay = 50;
 
 // input: list of rows. each row is itself a list
@@ -38185,7 +38877,27 @@ table = function(rows, title) {
     var arrayRows = listToArray(rows).map(function(cols) { return listToArray(cols) });
 
     sideEffects.push({type: 'table', data: arrayRows});
-}
+};
+
+
+var lineifyTitle= function(title){
+    var words = title.split(" ");
+    var lineslist = [];
+    var line= "";
+    var width= 40;
+    for (var i = 0; i < words.length; i++) {
+       if (line.length + words[i].length + 1 > width || i == words.length - 1){
+           line += " " + words[i];
+           lineslist.push(line);
+           line="";
+       }
+        else{
+            line += " " + words[i];
+        }
+    }
+    return lineslist;
+};
+
 
 var horz_rect_marks = {
     type: "rect",
@@ -38199,28 +38911,30 @@ var horz_rect_marks = {
         },
         update: {fill: {value: "steelblue"} }
     }
-}
+};
 
 var make_spec = function(padding, width, height, data, scales, axes, marks, title) {
     var spec = {padding: padding, width: width, height: height, data: data, scales: scales, axes: axes, marks: marks};
     if (title) {
-        spec.marks.push({
-            type: "text",
-            properties: {
-                enter: {
-                    x: {value: spec.width * 0.5},
-                    y: {value: -titleOffset*0.5},
-                    fontSize: {value: 24},
-                    text: {value: title},
-                    align: {value: "center"},
-                    baseline: {value: "bottom"},
-                    fill: {value: "#000"}
+        for (var i = 0; i < title.length; i++){
+            spec.marks.push({
+                type: "text",
+                properties: {
+                    enter: {
+                        x: {value: spec.width * 0.5},
+                        y: {value: (title.length * -OneLineTitleOffset) + OneLineTitleOffset*0.5+(i * OneLineTitleOffset)},
+                        fontSize: {value: 24},
+                        text: {value: title[i]},
+                        align: {value: "center"},
+                        baseline: {value: "bottom"},
+                        fill: {value: "#000"}
+                    }
                 }
-            }
-        });
+            });
+        }
     }
     return spec;
-}
+};
 
 var live_render = function(n, func, spec_maker, title) {
     var el = create_and_append_result();
@@ -38231,7 +38945,7 @@ var live_render = function(n, func, spec_maker, title) {
     var render = function() {
         var tmp_title = (i == n) ? title : (title || "") + "("+i+"/"+n+")";
         render_vega(spec_maker(samps, tmp_title), el);
-    }
+    };
 
     var execute = function() {
         var iterate = function() {
@@ -38256,18 +38970,24 @@ var live_render = function(n, func, spec_maker, title) {
     }
     render();
     var render_pid = setInterval(render, liveDelay);
-    var execute_pid = setInterval(execute, liveDelay);  
+    var execute_pid = setInterval(execute, liveDelay);
 }
 
-var render_vega = function(spec, element) {
-    vg.parse.spec(spec, function(chart) {chart({el:element, renderer:"svg"}).update();});
+var render_vega = function(spec, element, callback, renderer) {
+    vg.parse.spec(
+        spec,
+        function(chart) {
+            chart({el:element.get()[0], renderer:renderer || "svg"}).update();
+            if (callback) callback(element);
+        }
+    );
 }
 
 var create_and_append_result = function() {
-    var el = document.createElement("div");
+    var el = $("<div></div>");
     $results.append(el);
     return el;
-}
+};
 
 function Counter(arr) {
     this.counter = {};
@@ -38300,6 +39020,24 @@ Counter.prototype.sorted_keys = function() {
     } else {
         return Object.keys(this.counter).sort();
     }
+}
+
+// Produce another counter resampled from this one, with replacement, of course.
+Counter.prototype.resample = function() {
+    var new_counter = {};
+    for (var key in this.counter) new_counter[key] = 0;
+    for (var i = 0; i < this.total; i++) {
+        var k = Math.random() * this.total;
+        for (var key in this.counter) {
+            if (k <= this.counter[key]) {
+                new_counter[key] += 1;
+                break;
+            } else {
+                k -= this.counter[key];
+            }
+        }
+    }
+    return new_counter;
 }
 
 Counter.prototype.keys = function() {
@@ -38335,9 +39073,11 @@ Counter.prototype.bin = function() {
 // first element is items, second element is values
 // e.g., (barplot '((1 2 3) (4 5 6)))
 barplot = function(data, title) {
+    title = title ? lineifyTitle(title) : undefined;
+
     var myData = listToArray(data, true);
-    
-    
+
+
     var items = myData[0].map(format_result);
     var values = myData[1];
 
@@ -38347,15 +39087,15 @@ barplot = function(data, title) {
     }
 
     var padding = {
-        top: 30 + (title ? titleOffset : 0),
+        top: 30 + (title ? title.length * OneLineTitleOffset : 0),
         left: 20 + Math.max.apply(undefined, items.map(function(x) {return x.length;})) * 5,
         bottom: 50, right: 30};
     var height = 1 + items.length * 20;
     var width = 600 - padding.left;
     var data = [{name: "table", values: spec_values}];
     var scales = [
-            {name: "x", range: "width", nice: true, domain: {data:"table", field:"data.value"}},
-            {name: "y", type: "ordinal", range: "height", domain: {data:"table", field:"data.item"}, padding: 0.1}];
+        {name: "x", range: "width", nice: true, domain: {data:"table", field:"data.value"}},
+        {name: "y", type: "ordinal", range: "height", domain: {data:"table", field:"data.item"}, padding: 0.1}];
     var axes = [
         {type:"x", scale:"x", ticks: 10},
         {type:"y", scale:"y"}];
@@ -38364,9 +39104,10 @@ barplot = function(data, title) {
     render_vega(make_spec(padding, width, height, data, scales, axes, marks, title),
                 create_and_append_result()
                );
-}
+};
 
 var make_hist_spec = function(samps, title) {
+    title = title ? lineifyTitle(title) : undefined;
     var counter = new Counter(listToArray(samps));
     if (counter.type == "number" && Object.keys(counter.counter).length > maxBins) counter.bin();
 
@@ -38379,7 +39120,7 @@ var make_hist_spec = function(samps, title) {
     }
 
     var padding = {
-        top: 30 + (title ? titleOffset : 0),
+        top: 30 + (title ? title.length * OneLineTitleOffset : 0),
         left: 20 + Math.max.apply(undefined, sorted_keys.map(function(x) {return x.length;})) * 5,
         bottom: 50,
         right: 30};
@@ -38387,8 +39128,8 @@ var make_hist_spec = function(samps, title) {
     var width = 600 - padding.left;
     var data = [{name: "table", values: spec_values}];
     var scales = [
-            {name: "x", range: "width", nice: true, domain: {data:"table", field:"data.value"}},
-            {name: "y", type: "ordinal", range: "height", domain: {data:"table", field:"data.item"}, padding: 0.1}];
+        {name: "x", range: "width", nice: true, domain: {data:"table", field:"data.value"}},
+        {name: "y", type: "ordinal", range: "height", domain: {data:"table", field:"data.item"}, padding: 0.1}];
     var axes = [{type:"x", scale:"x", ticks: 10, format: "%"}]
     var marks = [horz_rect_marks];
     if (counter.binned) {
@@ -38402,25 +39143,133 @@ var make_hist_spec = function(samps, title) {
 
 hist = function(samps, title) {
     render_vega(make_hist_spec(samps, title), create_and_append_result());
-}
+};
+
+hist_45ci = function(samps, title) {
+    var counter = new Counter(listToArray(samps));
+    if (counter.type == "number" && Object.keys(counter.counter).length > maxBins) counter.bin();
+
+    var resample_bin_means = {};
+    for (var key in counter.counter) resample_bin_means[key] = [];
+    for (var i = 0; i < 1000; i++) {
+        var resample = counter.resample();
+        for (var key in resample) {
+            resample_bin_means[key].push(resample[key]);
+        }
+    }
+    for (var key in resample_bin_means) resample_bin_means[key].sort(function(a,b) {return a-b});
+
+    var sorted_keys = counter.sorted_keys();
+    var spec_values = sorted_keys.map(
+        function(key) {
+            return {
+                item: key,
+                value: counter.count(key) / counter.total,
+                lo: resample_bin_means[key][49] / counter.total,
+                hi: resample_bin_means[key][949] / counter.total
+            }});
+
+    var padding = {
+        top: 30 + (title ? titleOffset : 0),
+        left: 20 + Math.max.apply(undefined, sorted_keys.map(function(x) {return x.toString().length;})) * 6,
+        bottom: 50,
+        right: 30};
+    var height = 1 + sorted_keys.length * 20;
+    var width = 600 - padding.left;
+    var data = [{name: "table", values: spec_values}];
+    var scales = [
+            {name: "x", range: "width", nice: true, domain: {data:"table", field:"data.hi"}},
+            {name: "y", type: "ordinal", range: "height", domain: {data:"table", field:"data.item"}, padding: 0.1}];
+    var axes = [{type:"x", scale:"x", ticks: 10, format: "%"}]
+    var marks = [
+        horz_rect_marks,
+        {
+            type: "rect",
+            from: {data: "table"},
+            properties: {
+                enter: {
+                  x: {scale: "x", field: "data.lo"},
+                  x2: {scale: "x", field: "data.hi"},
+                  y: {scale: "y", field: "data.item", offset:8},
+                  height: {value: 1}
+                }, 
+                update: {fill: {value: "black"}}
+          }
+        },
+        {
+            type: "rect",
+            from: {data: "table"},
+            properties: {
+                enter: {
+                    x: {scale: "x", field: "data.lo"},
+                    y: {scale: "y", field: "data.item", offset: 3},
+                    y2: {scale: "y", field: "data.item", offset: 13},
+                    width: {value: 1}
+                }, 
+                update: {fill: {value: "black"}}
+            }
+        },
+        {
+            type: "rect",
+            from: {data: "table"},
+            properties: {
+                enter: {
+                    x: {scale: "x", field: "data.hi"},
+                    y: {scale: "y", field: "data.item", offset: 3},
+                    y2: {scale: "y", field: "data.item", offset: 13},
+                    width: {value: 1}
+                }, 
+                update: {fill: {value: "black"}}
+            }
+        }];
+
+    if (counter.binned) {
+        scales.push({name: "y_labels", range: "height", nice: true, zero: false, domain: {data:"table", field:"data.item"}, padding: 0.1})
+        axes.push({type:"y", scale:"y_labels"});
+    } else {
+        axes.push({type:"y", scale:"y"});
+    }
+    var spec = make_spec(padding, width, height, data, scales, axes, marks, title);
+
+    render_vega(spec, create_and_append_result());   
+};
 
 livehist = function(n, func, title) {
     live_render(n, func, make_hist_spec, title);
-}
+};
 
 var make_density_spec = function(samps, title, with_hist) {
+    title = title ? lineifyTitle(title) : undefined;
+    
+    // NB: scale argument is no longer used, as we now estimate the bandwidth
     function kernelDensityEstimator(counter, kernel, scale) {
         var density_values = [];
         var keys = Object.keys(counter.counter);
-        for (var i = 0; i <= maxBins; i++) {
-            var x = counter.min + (counter.max - counter.min) / maxBins * i;
+
+        // get optimal bandwidth
+        // HT http://en.wikipedia.org/wiki/Kernel_density_estimation#Practical_estimation_of_the_bandwidth
+        var sum = samps.reduce(function(x,y) { return x + y });
+        var n = samps.length;
+        var mean = sum / n;
+        var sd = Math.sqrt(samps.reduce(function(acc, x) {
+            return acc + Math.pow(x - mean, 2)
+        }) / (n-1));
+
+        var bandwidth = 1.06 * sd * Math.pow(n, -0.2);
+        var min = counter.min;
+        var max = counter.max;
+
+        var numBins = (max - min) / bandwidth;
+        
+        for (var i = 0; i <= numBins; i++) {
+            var x = min + bandwidth * i;
             var kernel_sum = 0;
             for (var j = 0; j < keys.length; j++) {
-                kernel_sum += kernel((x - keys[j]) / scale) * counter.count(keys[j]);
+                kernel_sum += kernel((x - keys[j]) / bandwidth) * counter.count(keys[j]);
             }
-            density_values.push({item: x, value: kernel_sum / samps.length / scale});
+            density_values.push({item: x, value: kernel_sum / (n * bandwidth)});
         }
-        return density_values;
+        return density_values; 
     }
 
     function epanechnikovKernel(u) {
@@ -38484,26 +39333,31 @@ var make_density_spec = function(samps, title, with_hist) {
     }
 
     return make_spec(padding, width, height, data, scales, axes, marks, title);
-}
+};
 
 density = function(samps, title, with_hist) {
     render_vega(make_density_spec(samps, title, with_hist), create_and_append_result());
-}
+};
 
 livedensity = function(n, func, title, with_hist) {
-    live_render(n, func, function(samps, title) {return make_density_spec(samps, title, with_hist)}, title);
-}
+    live_render(n, func, function(samps, title) {return make_density_spec(samps, title, with_hist);}, title);
+};
 
 var make_plot_spec = function(data, title) {
-    var padding = {top: 30 + (title ? titleOffset : 0), left: 45, bottom: 50, right: 30};
+    title = title ? lineifyTitle(title) : undefined;
+    var padding = {
+        top: 30 + (title ? title.length * OneLineTitleOffset : 0),
+        left: 45,
+        bottom: 50,
+        right: 30};
     var data_values = listToArray(data).map(function(datum) {return {x: datum[0], y: datum[1]}});
     var data = [{name: "points", values: data_values}];
     var height = 300;
     var width = 600 - padding.left;
     var scales = [
-            {name: "x", range: "width", nice: true, domain: {data:"points", field:"data.x"}},
-            {name: "y", range: "height", nice: true, domain: {data:"points", field:"data.y"}},
-            {name: "y_labels", reverse: true, range: "height", nice: true, domain: {data:"points", field:"data.y"}}];
+        {name: "x", range: "width", nice: true, domain: {data:"points", field:"data.x"}},
+        {name: "y", range: "height", nice: true, domain: {data:"points", field:"data.y"}},
+        {name: "y_labels", reverse: true, range: "height", nice: true, domain: {data:"points", field:"data.y"}}];
     var axes = [
         {type:"x", scale:"x", offset: {scale: "y_labels", value: 0}},
         {type:"y", scale:"y", offset: {scale: "x", value: 0}}];
@@ -38532,6 +39386,7 @@ livescatter = function(n, func, title) {
 }
 
 var make_lineplot_spec = function(data, title) {
+    title = title ? lineifyTitle(title) : undefined;
     var spec = make_plot_spec(data, title);
     spec.marks.push({
         type: "line",
@@ -38560,13 +39415,104 @@ livelineplot = function(n, func, title) {
 multiviz = function() {
 };
 
+var make_timeseries_spec = function(data, title) {
+    title = title ? lineifyTitle(title) : undefined;
+    var padding = {top: 30 + (title ? titleOffset : 0), left: 45, bottom: 50, right: 30};
+    data = listToArray(data);
+    var data_values = [];
+    for (var i = 0; i < data.length - 1; i++) {
+        data_values[i] = {x: i, y: data[i]};
+    }
+    var data = [{name: "points", values: data_values}];
+    var height = 300;
+    var width = 600 - padding.left;
+    var scales = [
+            {name: "x", range: "width", nice: true, domain: {data:"points", field:"data.x"}},
+            {name: "y", range: "height", nice: true, zero: false,  domain: {data:"points", field:"data.y"}},
+            {name: "y_labels", reverse: true, range: "height", nice: true, domain: {data:"points", field:"data.y"}}];
+    var axes = [
+        {type:"x", scale:"x"},
+        {type:"y", scale:"y"}];
+    var marks = [
+
+        {
+            type: "line",
+            from: {data:"points", transform: [{type: "sort", by: "data.x"}]},
+            properties: {
+                enter: {
+                    x: {scale:"x", field: "data.x"},
+                    y: {scale:"y", field: "data.y"},
+                    stroke: {value: "steelblue"},
+                    strokeWidth: {value: 2}
+                }
+            }
+        }
+    ];
+    return make_spec(padding, width, height, data, scales, axes, marks, title);
+
+}
+
+viz_45mh = function(samps, title) {
+    samps = listToArray(samps, true);
+    var samples = samps.map(function(x){return x[0];})
+    var logprobs = samps.map(function(x){return x[1];})
+    multi_spec([make_hist_spec(samples, title), make_timeseries_spec(logprobs, title + " : sample scores")]);
+};
+
+var multi_spec = function(specs) {
+    var display = $('<div></div>');
+    var thumbnails = $('<table align="center"><tbody><tr></tr></tbody></table>');
+    var thumbnails_row = thumbnails.children().children();
+    
+    for (var i = 0; i < specs.length; i++) {
+        thumbnails_row.append($('<td></td>'));
+        display.append($('<div></div>').css("display", "none"));
+    }
+    display.children().eq(0).css("display", "inline");
+    thumbnails_row.children().eq(0).css("background-color", "LightSteelBlue").addClass("multi-spec-on");
+    $results.append($('<div></div>').append(display).append(thumbnails));
+
+    for (var i = 0; i < specs.length; i++) {
+        render_vega(specs[i], display.children().eq(i), function(element) {
+            // When finished rendering, make the thumbnail version
+            var index = element.index();
+            var thumbnail = thumbnails_row.children().eq(index);
+            // The element is structured like <div><div><svg><g>...
+            var svg = element.children().children().clone();
+            svg.attr("height", svg.attr("height") * 0.1);
+            svg.attr("width", svg.attr("width") * 0.1);
+            var g = svg.children().attr("transform", "scale(0.1)");
+            thumbnail.append(svg);
+
+            thumbnail.hover(
+                function() {
+                    $(this).css("background-color", "LightSteelBlue");
+                },
+                function() {
+                    if (!$(this).hasClass("multi-spec-on")) $(this).css("background-color", "white");
+                }
+            )
+            thumbnail.click(
+                function() {
+                    var index = $(this).index();
+                    console.log(index);
+                    display.children().css("display", "none");
+                    display.children().eq(index).css("display", "inline");
+                    thumbnails_row.children().css("background-color", "white").removeClass("multi-spec-on");
+                    $(this).css("background-color", "LightSteelBlue").addClass("multi-spec-on");
+                }
+            )
+        });
+    }
+};
+
 
 module.exports = {
     hist: hist
 }
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/viz.js","/")
-},{"./type-utils":"05wbT+","./util":"Y/OqMs","/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"underscore":42}],62:[function(require,module,exports){
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/viz.js","/")
+},{"./type-utils":"05wbT+","./util":"Y/OqMs","/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"underscore":48}],68:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var esprima = require("esprima")
 //var escodegen = require("escodegen")
@@ -38740,5 +39686,5 @@ module.exports =
 
 "var x = foo(1, bar(), 3)"
 
-}).call(this,require("/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/wctransform.js","/")
-},{"/Users/stuhlmueller/code/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen/node_modules/estraverse":28,"esprima":30}]},{},[])
+}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/wctransform.js","/")
+},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"escodegen/node_modules/estraverse":34,"esprima":36}]},{},[])

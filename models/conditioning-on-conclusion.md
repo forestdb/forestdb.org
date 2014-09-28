@@ -31,7 +31,7 @@ The observation was that for the argument-strength / pragamtic-reasoner queries,
 
 The reasoner hasn't learned anything at this point, so their posterior should be the same as their prior: uniform over the three states. The posterior for this model, however, is non-uniform over the three states.
   
-There is a more intuitive way of writing this model, however. Instead of sampling the conclusion uniformly and without regard to the truth of the conclusion, we can sample uniformly over the conclusions true of the world.
+There is another, more intuitive way of writing this model. Instead of sampling the conclusion uniformly and without regard to the truth of the conclusion, we can sample uniformly over the conclusions true of the world.
 
       ; helper function to uniformly sample over the conclusions TRUE of the state
       (define (sample-conclusion state)

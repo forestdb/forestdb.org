@@ -74,7 +74,7 @@ First, the "conditioning on the conclusion" model:
               (('none) (lambda (x) (equal? x 0)))
               (('not-all) (lambda (x) (not (equal? x 3))))))
       
-      (define possible-conclusions (list 'all 'some 'none 'notall))
+      (define possible-conclusions (list 'all 'some 'none 'not-all))
       (define (conclusion-prior) (uniform-draw possible-conclusions))
       
       ;samples number of objects with property A
@@ -93,7 +93,9 @@ First, the "conditioning on the conclusion" model:
       
 One minor difference between this model and the previous one above is that the state-prior has state 0 (to make "none" true of at least one state). 
 
-And the "sample true conclusions" model:
+This model now correctly returns the prior over states as the posterior.
+
+Here is the "sample true conclusions" model:
 
       (define (meaning word)
         (case word
@@ -125,3 +127,7 @@ And the "sample true conclusions" model:
          true))
       
       (reasoner)
+
+Again, try querying for the conclusion instead of the state. You'll see the two models return the same posterior.
+
+So there is something about the symmetry of the conclusion set that is distorting the prior over states in just the right way. To be continued...

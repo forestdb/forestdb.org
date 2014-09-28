@@ -1,6 +1,6 @@
 ---
 layout: model
-title: "Conditioning on the conclusion" model issue (Leon & MH)
+title: Conditioning on the conclusion model issue-- Leon & MH
 model-status: code
 ---
 

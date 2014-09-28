@@ -33,7 +33,8 @@ The reasoner hasn't learned anything at this point, so their posterior should be
   
 There is another, more intuitive way of writing this model. Instead of sampling the conclusion uniformly and without regard to the truth of the conclusion, we can sample uniformly over the conclusions true of the world.
 
-      ; helper function to uniformly sample over the conclusions TRUE of the state
+      ; helper function to check which conclusions are true of the state
+      ; and uniformly sample over those true conclusions
       (define (sample-conclusion state)
             (let* ([conclusion-truth-values (map (lambda (x) (list x ((meaning x) state))) possible-conclusions)];sees which conclusions are true
                 [true-conclusions (filter (lambda (y) (second y)) conclusion-truth-values)] ; returns true conclusion (and their truth-value i.e. true)

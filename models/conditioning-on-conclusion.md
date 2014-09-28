@@ -4,7 +4,7 @@ title: Conditioning on the conclusion model issue-- Leon & MH
 model-status: code
 ---
 
-This is a discussion relating to Rational Speech-act models. It sprang out of the [syllogism model]{http://forestdb.org/models/syllogisms-cogsci14.html}. 
+This is a discussion relating to Rational Speech-act models. It sprang out of the [syllogism model](http://forestdb.org/models/syllogisms-cogsci14.html). 
 The observation was that for the argument-strength / pragamtic-reasoner queries, sampling a conclusion and then conditioning on the truth of the conclusion via ((meaning conclusion) A C), may be a strange thing to do. In particular, it may distort the distribution over situations (represented in the syllogism model as the properties A, B, C). This is evident in the following, simplified model.
 
       (define (meaning word)

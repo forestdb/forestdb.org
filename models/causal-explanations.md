@@ -90,7 +90,7 @@ title: Simple Causal Explanations
 
 ;;;;;;
 ;;the speaker is no different from ordinary RSA
-(define (speaker val-fns qud) ;;want to communicate val as value of qud
+(define (speaker val-fns qud) ;;want to communicate val as value of qud. notice that the speaker computes values of qud "online"
   (enumeration-query
    (define val (map (lambda (x) (x)) val-fns))
    (define utt (utt-prior))
@@ -101,7 +101,7 @@ title: Simple Causal Explanations
 ;;for now consider all the explanations and 'simpler' expressions:
 (define (utt-prior) (uniform-draw '((because c a)
                                     (because c b)
-                                    (because c (and a b))
+                                    (because c (and a b)) ;; we leave these as the only possible utterances for now
 ;;                                     at
 ;;                                     bt
 ;;                                     (and at bt)
@@ -128,26 +128,31 @@ title: Simple Causal Explanations
    utt
    (condition (equal? val (apply multinomial (pragmatic-listener utt qud))))))
 
-;; put model into global scope:
+;; put model into global scope
+;; in this model, a has high prior probability, b has low prior probability, and both have high causal power
 (define model
   '((define a (flip .9))
     (define b (flip .1))
-    (define at (flip 0.9))
+    (define at (flip 0.9)) ;; "a transmission", the probability that the causal link between a and c is on
     (define bt (flip 0.9))
     (define c (or (and a at) (and b bt)))))
 
+;; the speaker computes the values of the causal links online, so we create functions for them
+;; these two are for fixing variable values
 (define (return-true) true)
 (define (return-false) false)
+;; this is for computing the causal links online
 (define (uncertain-.9) (flip .9))
 (define (uncertain-.1) (flip .1))
 
-
-(barplot (speaker (list return-true return-true return-true uncertain-.1 uncertain-.1) 
+;; speaker knows a, b, and c are true and computes the causal links online
+(barplot (speaker (list return-true return-true return-true uncertain-.9 uncertain-.9) 
                   '(list a b c at bt)) "A, B, and C")
 
 (barplot (pragmatic-speaker (list return-true return-true return-true uncertain-.9 uncertain-.9) 
                   '(list a b c at bt)) "[pragmatic speaker] A, B, and C")
 
+;; these show the inferences that the literal listener and pragmatic listener make for each utterance
 (barplot (listener '(because c a) '(list a b c at bt))"C because A")
 (barplot (pragmatic-listener '(because c a) '(list a b c at bt))"[pragmatic listener] C because A")
 (barplot (listener '(because c b) '(list a b c at bt)) "C because B")
@@ -157,34 +162,4 @@ title: Simple Causal Explanations
 
 ~~~~
 
-In the world model above, A has a high prior probability and a high probability of causing 
-C. B has a low prior probability and a low probability of causing C.
 
-In this model, instead of knowing for sure the entire state of the world, the speaker instead
-makes an inference about the cause of C, and then attempts to communicate that world state.
-
-The speaker model prefers to produce the utterance "C because A and B" over the alternatives
-"C because B" and "C because A". How is this behavior produced?
-
-Let's start with the literal meaning of because. Suppose the speaker had chosen to say
-"C because A". First, we make sure that A and C are true in the real world. Then, we go to
-the counterfactual world and see if C is not true when A is not true, assuming that the other
-variables retain their values from the real world. Since B has a low prior, B is most likely
-to not be true in the worlds we generate. When B is not true, making A not true guarantees
-that C will not be true, thus satisfying the counterfactual. However, the speaker knows that
-B was true in the real world, so that is why "C because A" is a bad utterance to produce
-given that the goal is to make the listener infer the state of the world.
-
-Instead suppose the speaker says "C because B". Why is this a better option? Now when we
-sample worlds, we require that both C and B be true. However, A is also likely to be true
-since it has a high prior. (Remember that the causal link from A to C needs to be off in order
-for the counterfactual not-C given not-B to be true, but this is independent of the value of
-A.) This leads listeners to the inference that A, B, and C are all true, which was the speaker's
-original communicative intent.
-
-"C because A and B" is deemed the best explanation by the model. It is fairly obvious to 
-see why--we require A, B, and C to all be true, and then we go into the counterfactual
-world and check that if A and B had not happened (that is, (not (and a b))). Since we a priori
-think that the transmission from B to C is off, it is easy to construct worlds where all the 
-variables except for B transmission are true, and these will satisfy the counterfactual
-condition.

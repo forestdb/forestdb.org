@@ -6,7 +6,7 @@ model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics
 ---
 
-      ;; John could either be an giraffe or a person.
+      ;; John could either be a giraffe or a person.
       (define categories (list 'giraffe 'person))
       
       ;; It is extremely unlikely that John is actually a giraffe.

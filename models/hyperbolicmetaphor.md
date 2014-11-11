@@ -6,7 +6,7 @@ model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics
 ---
 
-A model of metaphor where the feature is gradable and exaggerated.
+A model of metaphor where features are gradable and exaggerated.
 ~~~~
 ;; John could either be an giraffe or a person.
 (define categories (list 'giraffe 'person))
@@ -95,4 +95,4 @@ A model of metaphor where the feature is gradable and exaggerated.
 (define (sample-one utterance)
   (listener utterance depth))
 (barplot (sample-one 'giraffe))
-
+~~~~

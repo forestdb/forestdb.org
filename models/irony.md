@@ -99,4 +99,4 @@ model-tags: linguistics, pragmatics
   (listener utterance depth))
     
 ; Interpretation given an utterance
-(barplot (interpret 'ok))
+(barplot (interpret 'terrible))

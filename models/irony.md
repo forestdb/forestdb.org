@@ -93,7 +93,7 @@ model-tags: linguistics, pragmatics
                (apply multinomial (speaker state valence arousal speaker-goal (- depth 1)))))
     ))))
     
-(define depth 0)
+(define depth 1)
 (define hardness 1)
 (define (interpret utterance) 
   (listener utterance depth))

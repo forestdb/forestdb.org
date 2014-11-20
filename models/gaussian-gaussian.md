@@ -1,27 +1,25 @@
 ---
 layout: model
-title: 1D Gaussian with Gaussian Hyperparameters
-model-status: code-fail
-model-status-verbose: The MH chain cannot be initialized.
+title: 1D Gaussian with Gaussian/gamma Hyperparameters
 model-category: Miscellaneous
 model-tags: continuous models, gaussian distribution
 ---
 
 One-dimensional Gaussian distribution with mean and variance
-sampled from a Gaussian distribution.
+sampled from Gaussian/gamma priors
 
-    (define observed-data
-      '(4.18 5.36 7.54 2.47 8.83 6.21 5.22 6.41))
-    
-    (define num-observations (length observed-data))
-    
-    (query
-    
-     (define mean (gaussian 0 10))
-     (define var  (abs (gaussian 0 5)))
-     (define sample-gaussian (lambda () (gaussian mean var)))
-    
-     (list mean var)
-    
-     (equal? observed-data
-             (repeat num-observations sample-gaussian)))
+(define xdata '(1 1.2 1.5 0.8 0.9 1 1.3 0.9))
+
+(define samples
+  (mh-query
+   1000 10
+   (define mu (gaussian 0 2))
+   (define sigma-squared (gamma 1 1))
+   
+   mu
+
+   (all
+    (map (lambda (x) (equal? (gaussian mu sigma-squared x) x)) xdata)
+    )))
+
+(density samples "Posterior over mu" #t)

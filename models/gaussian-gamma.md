@@ -1,6 +1,7 @@
 ---
 layout: model
 title: 1D Gaussian with Gaussian/gamma Hyperparameters
+model-status: code
 model-category: Miscellaneous
 model-tags: continuous models, gaussian distribution
 ---

@@ -33,3 +33,7 @@ The Probabilistic Deterministic Infinite Automaton (PDIA) is a nonparametric mod
             (sample-words (state/symbol->next-state last-state word))))))
     
     (sample-words 'start) 
+
+References:
+
+- Cite:pfau2010automata

@@ -25,6 +25,11 @@ From Ref:roy2008stochastic:
 
 > This procedure does not halt, and therefore does not induce a well-defined distribution on values, although the original IBP does. This raises the question of whether the IBP has a computable de Finetti representation and may have implications for sampler design.
 
+See also:
+
+- [Dirichlet Process](/models/dpmem.html)
+- [Pitman-Yor Process](/models/pymem.html)
+
 References:
 
 - Cite:thibaux2007hierarchical

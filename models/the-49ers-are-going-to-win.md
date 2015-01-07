@@ -33,8 +33,7 @@ Even with this preference, they can still infer that an undesired outcome has oc
 (define (inference desire evidence)
   (enumeration-query
    (define rain? (equal? 'rain (apply multinomial (biased-beliefs desire))))
-   (define umbrella? (flip (if rain? 0.7 0.3)))
-   (define rain-boots? (flip (if rain? 0.9 0.1)))
+   (define umbrella? (flip (if rain? 0.9 0.1)))
    (define water-falling-from-the-sky? (flip (if rain? 0.99999 0.00001)))
    (if rain? 'rain 'shine)
    (condition (eval evidence))))
@@ -57,8 +56,7 @@ But this will color people's inferences.
 (define (inference desire evidence)
   (enumeration-query
    (define rain? (equal? 'rain (apply multinomial (biased-beliefs desire))))
-   (define umbrella? (flip (if rain? 0.7 0.3)))
-   (define rain-boots? (flip (if rain? 0.9 0.1)))
+   (define umbrella? (flip (if rain? 0.9 0.1)))
    (define water-falling-from-the-sky? (flip (if rain? 0.99999 0.00001)))
    (if rain? 'rain 'shine)
    (condition (eval evidence))))
@@ -87,8 +85,7 @@ The pragmatic listener can infer what the speaker wants and what they believe ba
 (define (inference desire evidence)
   (enumeration-query
    (define rain? (equal? 'rain (apply multinomial (biased-beliefs desire))))
-   (define umbrella? (flip (if rain? 0.7 0.3)))
-   (define rain-boots? (flip (if rain? 0.9 0.1)))
+   (define umbrella? (flip (if rain? 0.9 0.1)))
    (define water-falling-from-the-sky? (flip (if rain? 0.99999 0.00001)))
    (if rain? 'rain 'shine)
    (condition (eval evidence))))
@@ -132,21 +129,26 @@ The pragmatic listener can infer what the speaker wants and what they believe ba
   (mem (lambda (utterance evidence)
          (enumeration-query
           (define desire (uniform-draw '(rain shine whatevs)))
+          ;;the pragmatic listener thinks the speaker is probably biased by their desires
           (define belief (apply multinomial (inference desire evidence)))
-          (list desire belief)
+          (list belief desire)
           (condition (equal? utterance
                              (apply multinomial (speaker belief evidence))))))))
 
-(define (evidence obs)
+(define (see obs)
   (case obs
-        (('sees-shine) '(equal? water-falling-from-the-sky? #f))
-        (('sees-no-umbrella) '(equal? umbrella? #f))
+        (('shine) '(equal? water-falling-from-the-sky? #f))
+        (('no-umbrella) '(equal? umbrella? #f))
         (('no-evidence) #t)
-        (('sees-umbrella) '(equal? umbrella? #t))
-        (('sees-rain) '(equal? water-falling-from-the-sky? #t))))
+        (('umbrella) '(equal? umbrella? #t))
+        (('rain) '(equal? water-falling-from-the-sky? #t))))
 
-(barplot (pragmatic-listener 'shine (evidence 'sees-umbrella))
-         "if you and a biased speaker see an umbrella and they tell you, 'it's not raining', what do they probably (desire, believe)")
+(barplot (pragmatic-listener 'shine (see 'umbrella))
+         "if you and a biased speaker see an umbrella and they tell you, 'it's not raining', what do they probably (believe, desire)?")
+
+(barplot (pragmatic-listener 'shine (see 'shine)) "what if you can both see that it's clearly sunny?")
+(barplot (pragmatic-listener 'shine (see 'rain)) "what if you can both see that it's clearly raining?")
+(barplot (pragmatic-listener 'shine (see 'no-evidence)) "what if you have no evidence at all?")
 ~~~~
 
 If a pragmatic speaker knows it's probably raining, they can say it's not if the question under discussion is their desires rather than their beliefs.
@@ -161,8 +163,7 @@ If a pragmatic speaker knows it's probably raining, they can say it's not if the
 (define (inference desire evidence)
   (enumeration-query
    (define rain? (equal? 'rain (apply multinomial (biased-beliefs desire))))
-   (define umbrella? (flip (if rain? 0.7 0.3)))
-   (define rain-boots? (flip (if rain? 0.9 0.1)))
+   (define umbrella? (flip (if rain? 0.9 0.1)))
    (define water-falling-from-the-sky? (flip (if rain? 0.99999 0.00001)))
    (if rain? 'rain 'shine)
    (condition (eval evidence))))
@@ -214,19 +215,11 @@ If a pragmatic speaker knows it's probably raining, they can say it's not if the
   (mem (lambda (utterance evidence QUD)
          (enumeration-query
           (define desire (uniform-draw '(rain shine whatevs)))
+          ;;the pragmatic listener thinks the speaker is probably biased by their desires
           (define belief (apply multinomial (inference desire evidence)))
           (eval QUD)
           (condition (equal? utterance
                              (apply multinomial (speaker belief evidence))))))))
-
-(define pragmatic-speaker
-  (mem (lambda (desire evidence QUD)
-         (enumeration-query
-          (define belief (apply multinomial (inference desire evidence)))
-          (define utterance (utterance-prior))
-          utterance
-          (condition (equal? (apply multinomial (pragmatic-listener utterance evidence QUD))
-                             (eval QUD)))))))
 
 (define pragmatic-speaker
   (mem (lambda (belief desire evidence QUD)
@@ -244,7 +237,7 @@ If a pragmatic speaker knows it's probably raining, they can say it's not if the
 
 ~~~~
 
-Moving up the chain, a pragmatic L2 listener can infer the QUD, whether or not it's raining, and what the speaker desires.
+Moving up the chain, a pragmatic L2 listener can infer the QUD, whether or not it's raining, and what the speaker desires. Let's assume first that the l2 listener thinks the pragmatic speaker is a wishful thinker.
 
 ~~~~
 ;;;fold:
@@ -256,8 +249,7 @@ Moving up the chain, a pragmatic L2 listener can infer the QUD, whether or not i
 (define (inference desire evidence)
   (enumeration-query
    (define rain? (equal? 'rain (apply multinomial (biased-beliefs desire))))
-   (define umbrella? (flip (if rain? 0.7 0.3)))
-   (define rain-boots? (flip (if rain? 0.9 0.1)))
+   (define umbrella? (flip (if rain? 0.9 0.1)))
    (define water-falling-from-the-sky? (flip (if rain? 0.99999 0.00001)))
    (if rain? 'rain 'shine)
    (condition (eval evidence))))
@@ -325,45 +317,29 @@ Moving up the chain, a pragmatic L2 listener can infer the QUD, whether or not i
 (define l2-listener
   (mem (lambda (utterance evidence whichvar?)
          (enumeration-query
-          (define belief (apply multinomial (inference 'whatevs evidence)))
+          ;;the l2 listener might think the pragmatic speaker is biased, but they might not.
           (define desire (uniform-draw '(rain shine whatevs)))
+          (define belief (apply multinomial (inference desire evidence)))
           (define QUD (uniform-draw '(belief desire)))
-          ;(list belief desire QUD)
           (eval whichvar?)
           (condition (equal? (apply multinomial (pragmatic-speaker belief desire evidence QUD))
                              utterance))))))
 
-(barplot (l2-listener 'shine (see 'umbrella) 'QUD)
-          "we both see an umbrella and i tell you it's not raining. what do i want to communicate about?")
-(barplot (l2-listener 'shine (see 'umbrella) 'desire)
-          "we both see an umbrella and i tell you it's not raining. what do i want?")
-(barplot (l2-listener 'shine (see 'umbrella) 'belief)
-          "we both see an umbrella and i tell you it's not raining. what do i think the weather is like?")
-
 (barplot (l2-listener 'shine (see 'no-evidence) 'QUD)
           "out of the blue i tell you it's not raining. what do i want to communicate about?")
-(barplot (l2-listener 'shine (see 'no-evidence) 'desire)
-          "out of the blue i tell you it's not raining. what do i want?")
-(barplot (l2-listener 'shine (see 'no-evidence) 'belief)
-          "out of the blue i tell you it's not raining. what do i think the weather is like?")
+(barplot (l2-listener 'shine (see 'umbrella) 'QUD)
+          "we both see an umbrella and i tell you it's not raining. what do i want to communicate about?")
+(barplot (l2-listener 'shine (see 'rain) 'QUD)
+          "we both see that it's clearly raining and i tell you it's not raining. what do i want to communicate about?")
 
+(barplot (l2-listener 'shine (see 'rain) '(list belief desire QUD))
+          "we both see that it's clearly raining and i tell you it's not raining. what do i (believe, desire, want to communicate about?)")
+
+(barplot (l2-listener 'shine (see 'no-evidence) '(list belief desire QUD))
+          "we see nothing and i tell you it's not raining. what do i (believe, desire, want to communicate about?)")
 ~~~~
 
-<!-- (define l2-listener
-  (mem (lambda (utterance evidence)
-         (enumeration-query
-          (define belief (apply multinomial (inference 'whatevs evidence)))
-          (define desire (uniform-draw '(rain shine whatevs)))
-          (define QUD (uniform-draw '(belief desire)))
-          (list belief desire QUD)
-          (condition (equal? (apply multinomial (pragmatic-speaker belief desire evidence QUD))
-                             utterance))))))
-
-(barplot (l2-listener 'shine (see 'umbrella))
-          "we both see an umbrella and i tell you it's not raining. what do i (believe, desire, want to communicate about?)") -->
-
-
-<!-- When am I most likely to effectively communicate my desire in this way?
+Even if the l2 listener doesn't think the pragmatic speaker is a wishful thinker, because they have a convention of a hypothetical wishful speaker, the l2 listener and pragmatic speaker can communicate about desire in this way.
 
 ~~~~
 ;;;fold:
@@ -375,8 +351,7 @@ Moving up the chain, a pragmatic L2 listener can infer the QUD, whether or not i
 (define (inference desire evidence)
   (enumeration-query
    (define rain? (equal? 'rain (apply multinomial (biased-beliefs desire))))
-   (define umbrella? (flip (if rain? 0.7 0.3)))
-   (define rain-boots? (flip (if rain? 0.9 0.1)))
+   (define umbrella? (flip (if rain? 0.9 0.1)))
    (define water-falling-from-the-sky? (flip (if rain? 0.99999 0.00001)))
    (if rain? 'rain 'shine)
    (condition (eval evidence))))
@@ -433,39 +408,40 @@ Moving up the chain, a pragmatic L2 listener can infer the QUD, whether or not i
                              (apply multinomial (speaker belief evidence))))))))
 
 (define pragmatic-speaker
-  (mem (lambda (desire evidence QUD)
+  (mem (lambda (belief desire evidence QUD)
          (enumeration-query
-          (define belief (apply multinomial (inference desire evidence)))
           (define utterance (utterance-prior))
           utterance
           (condition (equal? (apply multinomial (pragmatic-listener utterance evidence QUD))
                              (eval QUD)))))))
+;;;
 
 (define l2-listener
-  (mem (lambda (utterance evidence which-variable?)
+  (mem (lambda (utterance evidence whichvar?)
          (enumeration-query
-          (define belief (apply multinomial (inference 'whatevs evidence)))
+          ;;the l2 listener might think the pragmatic speaker is biased, but they might not.
           (define desire (uniform-draw '(rain shine whatevs)))
+          (define belief (apply multinomial (inference desire evidence)))
           (define QUD (uniform-draw '(belief desire)))
-          (eval which-variable?)
-          (condition (equal? (apply multinomial (pragmatic-speaker desire evidence QUD))
+          (eval whichvar?)
+          (condition (equal? (apply multinomial (pragmatic-speaker belief desire evidence QUD))
                              utterance))))))
-;;;
 
-(define (prob-wants-shine obs) (second (second (l2-listener 'shine (see obs) 'desire))))
+(barplot (l2-listener 'shine (see 'no-evidence) '(list belief desire QUD))
+          "no evidence")
 
-(define contexts '(shine no-umbrella no-evidence umbrella rain))
+(barplot (l2-listener 'shine (see 'umbrella) '(list belief desire QUD))
+          "see umbrella")
 
-(barplot (list contexts (map prob-wants-shine contexts))
-         "when will the listener correctly infer the speaker's desire for shine?")
-~~~~ -->
-
-
-
-<!-- 
+(barplot (l2-listener 'shine (see 'rain) '(list belief desire QUD))
+          "see rain")
 ~~~~
+
+What if the bias due to wishful thinking is more subtle?
+
+~~~~
+(define bias .1)
 ;;;fold:
-(define bias .4)
 (define (biased-beliefs desire)
   (define (prob event) (if (equal? desire event) (+ .5 bias) (- .5 bias)))
   (list '(rain shine) (list (prob 'rain) (prob 'shine))))
@@ -473,158 +449,7 @@ Moving up the chain, a pragmatic L2 listener can infer the QUD, whether or not i
 (define (inference desire evidence)
   (enumeration-query
    (define rain? (equal? 'rain (apply multinomial (biased-beliefs desire))))
-   (define umbrella? (flip (if rain? 0.7 0.3)))
-   (define rain-boots? (flip (if rain? 0.9 0.1)))
-   (define water-falling-from-the-sky? (flip (if rain? 0.99999 0.00001)))
-   (if rain? 'rain 'shine)
-   (condition (eval evidence))))
-
-;; utilities & parameters
-(define alpha 5)
-(define (power lst alpha) (map (lambda (x) (expt x alpha)) lst))
-(define (seq start distance end)
-  (if (> (+ start distance) end) (list start)
-      (append (list start) (seq (+ start distance) distance end))))
-(define (theta-prior) (uniform-draw (seq 0 0.2 0.8)))
-(define (approx? a b) (< (abs (- a b)) 0.2))
-
-(define (utterance-prior) (multinomial '(SILENCE rain shine)
-                                       (list (exp -2) (exp -1) (exp -1))))
-
-(define (meaning utterance)
-  (case utterance
-        (('SILENCE) #t)
-        (('rain) '(equal? belief 'rain))
-        (('shine) '(equal? belief 'shine))))
-
-(define literal-listener
-  (mem (lambda (utterance)
-         (enumeration-query
-          ;;let's say the listener is unbiased and has no evidence
-          (define belief (apply multinomial (inference 'whatevs #t)))
-          belief
-          (eval (meaning utterance))))))
-
-(define speaker
-  (mem (lambda (desire evidence)
-         (enumeration-query
-          (define belief (apply multinomial (inference desire evidence)))
-          (define utterance (utterance-prior))
-          utterance
-          (condition (equal? (apply multinomial (literal-listener utterance))
-                             belief))))))
-
-(define (pragmatic-listener utterance evidence)
-  (enumeration-query
-   (define desire (if (flip) 'rain 'shine))
-   desire
-   (condition (equal? utterance
-                      (apply multinomial (speaker desire evidence))))))
-
-(barplot (pragmatic-listener 'shine '(equal? umbrella? #t))
-         "if i say it's raining when i see an umbrella, what do i probably want?")
-~~~~
-
-If the listener knows the QUD is the speaker's desire, the more evidence against the speaker's claim, the more likely it is they desire the claim to be true.
-
-~~~~
-;;;fold:
-(define bias .4)
-(define (biased-beliefs desire)
-  (define (prob event) (if (equal? desire event) (+ .5 bias) (- .5 bias)))
-  (list '(rain shine) (list (prob 'rain) (prob 'shine))))
-
-(define (inference desire evidence)
-  (enumeration-query
-   (define rain? (equal? 'rain (apply multinomial (biased-beliefs desire))))
-   (define umbrella? (flip (if rain? 0.7 0.3)))
-   (define rain-boots? (flip (if rain? 0.9 0.1)))
-   (define water-falling-from-the-sky? (flip (if rain? 0.99999 0.00001)))
-   (if rain? 'rain 'shine)
-   (condition (eval evidence))))
-
-;; utilities & parameters
-(define alpha 5)
-(define (power lst alpha) (map (lambda (x) (expt x alpha)) lst))
-(define (seq start distance end)
-  (if (> (+ start distance) end) (list start)
-      (append (list start) (seq (+ start distance) distance end))))
-(define (theta-prior) (uniform-draw (seq 0 0.2 0.8)))
-(define (approx? a b) (< (abs (- a b)) 0.2))
-
-(define (utterance-prior) (multinomial '(SILENCE rain shine)
-                                       (list (exp -2) (exp -1) (exp -1))))
-
-(define (meaning utterance)
-  (case utterance
-        (('SILENCE) #t)
-        (('rain) '(equal? belief 'rain))
-        (('shine) '(equal? belief 'shine))))
-
-(define literal-listener
-  (mem (lambda (utterance)
-         (enumeration-query
-          ;;let's say the listener is unbiased and has no evidence
-          (define belief (apply multinomial (inference 'whatevs #t)))
-          belief
-          (eval (meaning utterance))))))
-
-(define speaker
-  (mem (lambda (desire evidence)
-         (enumeration-query
-          (define belief (apply multinomial (inference desire evidence)))
-          (define utterance (utterance-prior))
-          utterance
-          (condition (equal? (apply multinomial (literal-listener utterance))
-                             belief))))))
-
-(define pragmatic-listener
-(mem (lambda (utterance evidence)
-  (enumeration-query
-   (define desire (if (flip) 'rain 'shine))
-   desire
-   (condition (equal? utterance
-                      (apply multinomial (speaker desire evidence))))))))
-
-(define pragmatic-speaker
-(mem (lambda (desire evidence)
-(enumeration-query
-(define utterance (utterance-prior))
-utterance
-(condition (equal? (apply multinomial (pragmatic-listener utterance evidence))
-                   desire))))))
-;;;
-
-(define (evidence obs)
-  (case obs
-        (('sees-shine) '(equal? water-falling-from-the-sky? #f))
-        (('sees-no-umbrella) '(equal? umbrella? #f))
-        (('no-evidence) #t)
-        (('sees-umbrella) '(equal? umbrella? #t))
-        (('sees-rain) '(equal? water-falling-from-the-sky? #t))))
-
-(define (prob-wants-shine obs) (first (second (pragmatic-listener 'shine (evidence obs)))))
-
-(define contexts '(sees-shine sees-no-umbrella no-evidence sees-umbrella sees-rain))
-
-(barplot (list contexts (map prob-wants-shine contexts))
-         "when will the listener infer the speaker's desire for shine?")
-~~~~
-
-The listener can also infer the QUD.
-
-~~~~
-;;;fold:
-(define bias .4)
-(define (biased-beliefs desire)
-  (define (prob event) (if (equal? desire event) (+ .5 bias) (- .5 bias)))
-  (list '(rain shine) (list (prob 'rain) (prob 'shine))))
-
-(define (inference desire evidence)
-  (enumeration-query
-   (define rain? (equal? 'rain (apply multinomial (biased-beliefs desire))))
-   (define umbrella? (flip (if rain? 0.7 0.3)))
-   (define rain-boots? (flip (if rain? 0.9 0.1)))
+   (define umbrella? (flip (if rain? 0.9 0.1)))
    (define water-falling-from-the-sky? (flip (if rain? 0.99999 0.00001)))
    (if rain? 'rain 'shine)
    (condition (eval evidence))))
@@ -662,201 +487,66 @@ The listener can also infer the QUD.
           utterance
           (condition (equal? (apply multinomial (literal-listener utterance))
                              belief))))))
-;;;
 
-(define pragmatic-listener
-(mem (lambda (utterance evidence)
-  (enumeration-query
-   (define desire (if (flip) 'rain 'shine))
-   (define belief (apply multinomial (inference desire evidence)))
-   (list desire belief)
-   (condition (equal? utterance
-                      (apply multinomial (speaker desire evidence))))))))
-
-(define (evidence obs)
+(define (see obs)
   (case obs
-        (('sees-shine) '(equal? water-falling-from-the-sky? #f))
-        (('sees-no-umbrella) '(equal? umbrella? #f))
+        (('shine) '(equal? water-falling-from-the-sky? #f))
+        (('no-umbrella) '(equal? umbrella? #f))
         (('no-evidence) #t)
-        (('sees-umbrella) '(equal? umbrella? #t))
-        (('sees-rain) '(equal? water-falling-from-the-sky? #t))))
-
-(barplot (pragmatic-listener shine (evidence 'sees-umbrella)))
-~~~~ -->
-
-<!-- A pragmatic speaker can choose to communicate their desire in this way.
-
-~~~~
-;;;fold:
-(define bias .4)
-(define (biased-beliefs desire)
-  (define (prob event) (if (equal? desire event) (+ .5 bias) (- .5 bias)))
-  (list '(rain shine) (list (prob 'rain) (prob 'shine))))
-
-(define (inference desire evidence)
-  (enumeration-query
-   (define rain? (equal? 'rain (apply multinomial (biased-beliefs desire))))
-   (define umbrella? (flip (if rain? 0.7 0.3)))
-   (define rain-boots? (flip (if rain? 0.9 0.1)))
-   (define water-falling-from-the-sky? (flip (if rain? 0.99999 0.00001)))
-   (if rain? 'rain 'shine)
-   (condition (eval evidence))))
-
-;; utilities & parameters
-(define alpha 5)
-(define (power lst alpha) (map (lambda (x) (expt x alpha)) lst))
-(define (seq start distance end)
-  (if (> (+ start distance) end) (list start)
-      (append (list start) (seq (+ start distance) distance end))))
-(define (theta-prior) (uniform-draw (seq 0 0.2 0.8)))
-(define (approx? a b) (< (abs (- a b)) 0.2))
-
-(define (utterance-prior) (multinomial '(SILENCE rain shine)
-                                       (list (exp -2) (exp -1) (exp -1))))
-
-(define (meaning utterance)
-  (case utterance
-        (('SILENCE) #t)
-        (('rain) '(equal? belief 'rain))
-        (('shine) '(equal? belief 'shine))))
-
-(define literal-listener
-  (mem (lambda (utterance)
-         (enumeration-query
-          ;;let's say the listener is unbiased and has no evidence
-          (define belief (apply multinomial (inference 'whatevs #t)))
-          belief
-          (eval (meaning utterance))))))
-
-(define speaker
-  (mem (lambda (desire evidence)
-         (enumeration-query
-          (define belief (apply multinomial (inference desire evidence)))
-          (define utterance (utterance-prior))
-          utterance
-          (condition (equal? (apply multinomial (literal-listener utterance))
-                             belief))))))
+        (('umbrella) '(equal? umbrella? #t))
+        (('rain) '(equal? water-falling-from-the-sky? #t))))
 
 (define pragmatic-listener
-(mem (lambda (utterance evidence)
-  (enumeration-query
-   (define desire (if (flip) 'rain 'shine))
-   desire
-   (condition (equal? utterance
-                      (apply multinomial (speaker desire evidence))))))))
-;;;
+  (mem (lambda (utterance evidence QUD)
+         (enumeration-query
+          (define desire (uniform-draw '(rain shine whatevs)))
+          (define belief (apply multinomial (inference desire evidence)))
+          (eval QUD)
+          (condition (equal? utterance
+                             (apply multinomial (speaker belief evidence))))))))
 
 (define pragmatic-speaker
-(mem (lambda (desire evidence)
-(enumeration-query
-(define utterance (utterance-prior))
-utterance
-(condition (equal? (apply multinomial (pragmatic-listener utterance evidence))
-                   desire))))))
-
-(barplot (pragmatic-speaker 'shine '(equal? umbrella? #t)))
-~~~~
-
-Communicating desire in this way is most likely to happen when the evidence doesn't clearly contradict the belief, but also doesn't definitively support it.
-
-~~~~
-;;;fold:
-(define bias .4)
-(define (biased-beliefs desire)
-  (define (prob event) (if (equal? desire event) (+ .5 bias) (- .5 bias)))
-  (list '(rain shine) (list (prob 'rain) (prob 'shine))))
-
-(define (inference desire evidence)
-  (enumeration-query
-   (define rain? (equal? 'rain (apply multinomial (biased-beliefs desire))))
-   (define umbrella? (flip (if rain? 0.7 0.3)))
-   (define rain-boots? (flip (if rain? 0.9 0.1)))
-   (define water-falling-from-the-sky? (flip (if rain? 0.99999 0.00001)))
-   (if rain? 'rain 'shine)
-   (condition (eval evidence))))
-
-;; utilities & parameters
-(define alpha 5)
-(define (power lst alpha) (map (lambda (x) (expt x alpha)) lst))
-(define (seq start distance end)
-  (if (> (+ start distance) end) (list start)
-      (append (list start) (seq (+ start distance) distance end))))
-(define (theta-prior) (uniform-draw (seq 0 0.2 0.8)))
-(define (approx? a b) (< (abs (- a b)) 0.2))
-
-(define (utterance-prior) (multinomial '(SILENCE rain shine)
-                                       (list (exp -2) (exp -1) (exp -1))))
-
-(define (meaning utterance)
-  (case utterance
-        (('SILENCE) #t)
-        (('rain) '(equal? belief 'rain))
-        (('shine) '(equal? belief 'shine))))
-
-(define literal-listener
-  (mem (lambda (utterance)
+  (mem (lambda (belief desire evidence QUD)
          (enumeration-query
-          ;;let's say the listener is unbiased and has no evidence
-          (define belief (apply multinomial (inference 'whatevs #t)))
-          belief
-          (eval (meaning utterance))))))
-
-(define speaker
-  (mem (lambda (desire evidence)
-         (enumeration-query
-          (define belief (apply multinomial (inference desire evidence)))
           (define utterance (utterance-prior))
           utterance
-          (condition (equal? (apply multinomial (literal-listener utterance))
-                             belief))))))
+          (condition (equal? (apply multinomial (pragmatic-listener utterance evidence QUD))
+                             (eval QUD)))))))
 
-(define pragmatic-listener
-(mem (lambda (utterance evidence)
-  (enumeration-query
-   (define desire (if (flip) 'rain 'shine))
-   desire
-   (condition (equal? utterance
-                      (apply multinomial (speaker desire evidence))))))))
-
-(define pragmatic-speaker
-(mem (lambda (desire evidence)
-(enumeration-query
-(define utterance (utterance-prior))
-utterance
-(condition (equal? (apply multinomial (pragmatic-listener utterance evidence))
-                   desire))))))
+(define l2-listener
+  (mem (lambda (utterance evidence whichvar?)
+         (enumeration-query
+          ;;the l2 listener might think the pragmatic speaker is biased, but they might not.
+          (define desire (uniform-draw '(rain shine whatevs)))
+          (define belief (apply multinomial (inference desire evidence)))
+          (define QUD (uniform-draw '(belief desire)))
+          (eval whichvar?)
+          (condition (equal? (apply multinomial (pragmatic-speaker belief desire evidence QUD))
+                             utterance))))))
 ;;;
 
-(define (evidence obs)
-  (case obs
-        (('sees-shine) '(equal? water-falling-from-the-sky? #f))
-        (('sees-no-umbrella) '(equal? umbrella? #f))
-        (('no-evidence) #t)
-        (('sees-umbrella) '(equal? umbrella? #t))
-        (('sees-rain) '(equal? water-falling-from-the-sky? #t))))
+(barplot (biased-beliefs 'rain) "my prior beliefs if i want rain")
+(barplot (biased-beliefs 'shine) "my prior beliefs if i want shine")
+(barplot (biased-beliefs 'whatevs) "my prior beliefs if i don't care")
 
-(define (prob-says-shine obs) (third (second (pragmatic-speaker 'shine (evidence obs)))))
+(barplot (l2-listener 'shine (see 'rain) '(list belief desire QUD))
+          "we both see that it's clearly raining and i tell you it's not raining. what do i (believe, desire, want to communicate about?)")
+~~~~
 
-(define contexts '(sees-shine sees-no-umbrella no-evidence sees-umbrella sees-rain))
-
-(barplot (list contexts (map prob-says-shine contexts))
-         "when will the speaker communicate desire this way?")
-~~~~ -->
-
-<!-- Here's some m-implicature for fun.
+Of course, it's also possible for the speaker to just say what they want.
 
 ~~~~
+(define bias .9)
 ;;;fold:
 (define (biased-beliefs desire)
-  (define (prob event) (if (equal? desire event) 0.9 .1))
+  (define (prob event) (if (equal? desire event) (+ .5 bias) (- .5 bias)))
   (list '(rain shine) (list (prob 'rain) (prob 'shine))))
 
 (define (inference desire evidence)
   (enumeration-query
    (define rain? (equal? 'rain (apply multinomial (biased-beliefs desire))))
    (define umbrella? (flip (if rain? 0.9 0.1)))
-   (define rain-boots? (flip (if rain? 0.9 0.1)))
-   (define water-falling-from-the-sky? (flip (if rain? 1 0)))
+   (define water-falling-from-the-sky? (flip (if rain? 0.99999 0.00001)))
    (if rain? 'rain 'shine)
    (condition (eval evidence))))
 
@@ -868,52 +558,74 @@ utterance
       (append (list start) (seq (+ start distance) distance end))))
 (define (theta-prior) (uniform-draw (seq 0 0.2 0.8)))
 (define (approx? a b) (< (abs (- a b)) 0.2))
-;;;
 
-;;let's assume the listener thinks the speaker probably knows one way or the other
-(define (certainty-prior) (multinomial '(0 0.2 0.4 0.6 0.8 1) '(1 2 4 7 11 16)))
-
-(define (utterance-prior) (multinomial '(SILENCE rain shine must-rain must-shine) '(3 2 2 1 1)))
+(define (utterance-prior) (multinomial '(SILENCE rain shine want-rain want-shine)
+                                       (list (exp -2) (exp -1) (exp -1) (exp -1) (exp -1))))
 
 (define (meaning utterance)
   (case utterance
         (('SILENCE) #t)
-        (('rain) '(and (equal? belief 'rain) (> certainty theta)))
-        (('shine) '(and (equal? belief 'shine) (> certainty theta)))
-        (('must-rain) '(and (equal? belief 'rain) (> certainty theta-must)))
-        (('must-shine) '(and (equal? belief 'shine) (> certainty theta-must)))))
+        (('want-rain) '(equal? desire 'rain))
+        (('want-shine) '(equal? desire 'shine))
+        (('rain) '(equal? belief 'rain))
+        (('shine) '(equal? belief 'shine))))
 
 (define literal-listener
-  (mem (lambda (utterance theta theta-must)
+  (mem (lambda (utterance)
          (enumeration-query
-          (define certainty (certainty-prior))
-
           ;;let's say the listener is unbiased and has no evidence
           (define belief (apply multinomial (inference 'whatevs #t)))
-
-          (list belief certainty)
-
+          belief
           (eval (meaning utterance))))))
 
 (define speaker
-  (mem (lambda (belief certainty theta theta-must)
+  (mem (lambda (belief)
          (enumeration-query
           (define utterance (utterance-prior))
-          (define interpretation (apply multinomial (literal-listener utterance theta theta-must)))
           utterance
-          (condition (equal? (first interpretation) belief))
-          (condition (approx? (second interpretation) certainty))))))
+          (condition (equal? (apply multinomial (literal-listener utterance))
+                             belief))))))
 
-(define (listener utterance)
-  (enumeration-query
-   (define theta (theta-prior))
-   (define theta-must (theta-prior))
-   (define belief (if (flip) 'rain 'shine))
-   (define certainty (certainty-prior))
-   (list belief certainty)
-   (condition (equal? utterance
-                      (apply multinomial (speaker belief certainty theta theta-must))))))
+(define (see obs)
+  (case obs
+        (('shine) '(equal? water-falling-from-the-sky? #f))
+        (('no-umbrella) '(equal? umbrella? #f))
+        (('no-evidence) #t)
+        (('umbrella) '(equal? umbrella? #t))
+        (('rain) '(equal? water-falling-from-the-sky? #t))))
 
-(barplot (listener 'rain) "it's raining")
-(barplot (listener 'must-rain) "it must be raining")
-~~~~ -->
+(define pragmatic-listener
+  (mem (lambda (utterance evidence QUD)
+         (enumeration-query
+          (define desire (uniform-draw '(rain shine whatevs)))
+          (define belief (apply multinomial (inference desire evidence)))
+          (eval QUD)
+          (condition (equal? utterance
+                             (apply multinomial (speaker belief evidence))))))))
+
+(define pragmatic-speaker
+  (mem (lambda (belief desire evidence QUD)
+         (enumeration-query
+          (define utterance (utterance-prior))
+          utterance
+          (condition (equal? (apply multinomial (pragmatic-listener utterance evidence QUD))
+                             (eval QUD)))))))
+
+(define l2-listener
+  (mem (lambda (utterance evidence whichvar?)
+         (enumeration-query
+          ;;the l2 listener might think the pragmatic speaker is biased, but they might not.
+          (define desire (uniform-draw '(rain shine whatevs)))
+          (define belief (apply multinomial (inference desire evidence)))
+          (define QUD (uniform-draw '(belief desire)))
+          (eval whichvar?)
+          (condition (equal? (apply multinomial (pragmatic-speaker belief desire evidence QUD))
+                             utterance))))))
+;;;
+
+(barplot (pragmatic-listener 'shine (see 'rain))
+         "L1 *sees rain* "it's not raining" (belief, desire)")
+
+(barplot (l2-listener 'shine (see 'rain) '(list belief desire QUD))
+          "L2 *sees rain* "it's not raining" (belief, desire, QUD)")
+~~~~

@@ -259,6 +259,120 @@ The following model takes into account prosody:
 	(map third (map (lambda (x) (second (speaker (list 'some) x))) (list 1 2 3 4 5 6 7 8 9 10)))
 
 
+This variant allows listeners to back off to a uniform prior over states when they think the world is 'wonky'. Also allows for including different sets of alternative utterances ("some", "all", "none" in the example call) and QUDs ("how-many" in the example call).
+
+
+	(define (rep n val) (repeat n (lambda () val)))
+	
+	(define (power dist a) (list (first dist) 
+	                           (map (lambda (x) (pow x a)) (second dist))))
+	
+	(define (meaning utterance marbles total-marbles)
+	  (case utterance
+	        (('all) (= marbles total-marbles))
+	        (('none) (= marbles 0))        
+	        (('some) (> marbles 0))
+	        (('most) (> marbles (/ total-marbles 2)))
+	        (('many) (> marbles (/ total-marbles 2)))     
+		    (('morethanhalf) (> marbles (/ total-marbles 2)))             
+	        (('one) (= marbles 1))        
+	        (('two) (= marbles 2))          
+	        (('three) (= marbles 3))
+	        (('four) (= marbles 4))        
+	        (('five) (= marbles 5))
+	        (('six) (= marbles 6))        
+	        (('seven) (= marbles 7))        
+	        (('eight) (= marbles 8))
+	        (('nine) (= marbles 9))
+	        (('ten) (= marbles 10))
+	        (('eleven) (= marbles 11))
+	        (('twelve) (= marbles 12))
+	        (('thirteen) (= marbles 13))
+	        (('fourteen) (= marbles 14))
+	        (('fifteen) (= marbles 15))        
+	        (('almostall) (and (> marbles (* .75 total-marbles)) (< marbles total-marbles)))
+	        (('half) (= marbles (/ total-marbles 2)))        
+	        (('acouple) (= marbles 2))        
+	        (('notone) (= marbles 0))        
+	        (('onlyone) (= marbles 1))        
+	        (('everyone) (= marbles total-marbles))        
+	        (('notmany) (< marbles (/ total-marbles 2)))        
+	        (('justone) (= marbles 1))        
+	        (('almostnone) (and (> marbles 0) (< marbles (* .25 total-marbles))))
+	        (('allbutone) (= marbles (- total-marbles 1)))
+	        (('lessthanhalf) (< marbles (/ total-marbles 2)))          
+	        (('overhalf) (> marbles (/ total-marbles 2)))  
+	        (('several) (> marbles 2))
+	        (('afew) (and (< marbles (* total-marbles .7)) (> marbles 1)))               
+	        (('veryfew) (< marbles (/ total-marbles 2)))                         
+	        (('alot) (> marbles (/ total-marbles 2)))
+	        ))
+	
+	(define (QUD-cell QUD marbles total-marbles)
+	  (case QUD
+	        (('is-all) (= marbles total-marbles))
+	        (('is-any) (> marbles 0))
+	        (('how-many) marbles)))
+	
+	(define (quantifier quantifier-alternatives) (uniform-draw quantifier-alternatives))
+	
+	(define (marble-state s)
+		(multinomial '(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15) s))
+	
+	(define literal-listener 
+	  (mem (lambda (utterance QUD total-marbles quantifier-alternatives supposed-prior)
+	         (enumeration-query
+	          (define marbles (marble-state supposed-prior))
+	          
+	          (QUD-cell QUD marbles total-marbles)
+	          
+	          (meaning utterance marbles total-marbles)))))
+	
+	(define pragmatic-speaker 
+	  (mem (lambda (marbles QUD total-marbles quantifier-alternatives supposed-prior)
+	         (enumeration-query
+	          (define utterance (quantifier quantifier-alternatives))
+	          utterance
+	          (and
+	           (equal? (QUD-cell QUD marbles total-marbles)
+	                   (apply multinomial
+	                          (literal-listener utterance QUD total-marbles quantifier-alternatives supposed-prior)))
+	           (meaning utterance marbles total-marbles))))))
+	
+	
+	(define (pragmatic-listener utterance QUD total-marbles quantifier-alternatives speaker-opt)
+		(enumeration-query
+			(define wonky-world? (flip wonkyworld-prior))
+	        (define actualprior (theprior wonky-world?))		
+			(define marbles (marble-state actualprior))
+			
+			;wonky-world?
+			;marbles
+			(list wonky-world? marbles)
+	
+			(equal? utterance (apply multinomial 
+	                                 (power (pragmatic-speaker marbles QUD total-marbles quantifier-alternatives actualprior)
+	                                        speaker-opt))))) 
+	
+	; set of alternatives used in the computation
+	(define alternatives '(some all none))
+	
+	; prior wonkiness probability
+	(define wonkyworld-prior .5)
+	
+	; 'empirical' prior distributions
+	(define empiricalprior (list .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 2 5))
+	
+	(define theprior (lambda (wonky-world?)
+		(if wonky-world?
+			(list .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1)
+			empiricalprior)))
+	
+	; run pragmatic listener with an utterance, a QUD, a total number of marbles (this version requires it to be 15), the set of alternatives defined above, and a speaker optimality parameter
+	(pragmatic-listener 'some 'how-many 15 alternatives 2) 
+
+
+
 References:
 
 - Cite:Goodman2013xz

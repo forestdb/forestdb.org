@@ -36,6 +36,29 @@ The only difference between this model and the one presented in Chapter 5 is tha
 Let's analyze the behavior of the model by looking at a number of different biases.
 To compress out results, we'll compute the percentage endorsements for TRUE using `bool-sum`
 
+      ;;;fold:
+    (define biascoin-model (lambda (sequence bias-weight)
+      (mh-query
+       100 10
+       
+       (define fair-weight 0.5)
+       
+       (define isfair (flip))
+       
+       (define the-weight (if isfair 
+                                                fair-weight 
+                                                bias-weight))
+       
+       (define coin (lambda () 
+                  (flip the-weight)))
+       
+       
+       isfair
+       
+       (equal? sequence 
+                  (repeat 5 coin)))))
+      ;;;
+
       (define bool-sum (lambda (lst)
                   (/ 
                         (sum 

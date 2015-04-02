@@ -162,7 +162,7 @@ This model is super inefficient. It samples a bias-weight, generates predictions
    
 Here is it done with factor statement, instead of a condition statement.
 
-
+```
    (define bc-model (lambda (sequence bias-weight)
         (enumeration-query
          
@@ -245,3 +245,4 @@ Here is it done with factor statement, instead of a condition statement.
         cognitive-model-predictions)))))))
 
   (data-analysis experiment-data)
+```

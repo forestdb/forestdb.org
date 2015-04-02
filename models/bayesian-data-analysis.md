@@ -162,87 +162,85 @@ This model is super inefficient. It samples a bias-weight, generates predictions
    
 Here is it done with factor statement, instead of a condition statement.
 
-```
-   (define bc-model (lambda (sequence bias-weight)
-        (enumeration-query
-         
-         (define fair-weight 0.5)
-         
-         (define isfair (flip))
-         
-         (define the-weight (if isfair fair-weight bias-weight))
-         
-         (define coin (lambda () 
-                    (flip the-weight)))
-         
-         
-         isfair
-         
-         (equal? sequence 
-                    (repeat 5 coin)))))
+     (define bc-model (lambda (sequence bias-weight)
+          (enumeration-query
+           
+           (define fair-weight 0.5)
+           
+           (define isfair (flip))
+           
+           (define the-weight (if isfair fair-weight bias-weight))
+           
+           (define coin (lambda () 
+                      (flip the-weight)))
+           
+           
+           isfair
+           
+           (equal? sequence 
+                      (repeat 5 coin)))))
 
-  (define all-seqs 
-        (list 
-              (list false false false false false)
-              (list false false false false true)
-              (list false false false true true)
-              (list false false true true true) 
-              (list false true true true true)
-              (list true true true true true)))
-
-
-    (define experiment-data
-    (list 
-            (list 
-              (list false false false false false)
-              (list false false false false true)
-              (list false false false true true)
-              (list false false true true true) 
-              (list false true true true true)
-              (list true true true true true))
-     
-     (list (list #f #f #f)
-           (list #f #f #t)
-           (list #f #t #t)
-           (list #t #t #t)
-           (list #f #t #t)
-           (list #f #t #t))))
-     
-  ; takes in "dist": output from an enumeration-query
-  ; and "selection": the element from the posterior that you want
-  ; returns the log-probability (i.e. the score) of that selection
-  (define get-log-probability
-    (lambda (dist selection)
-      (let ([index (list-index (first dist) selection)])
-        (log (list-ref (second dist) index)))))
+    (define all-seqs 
+          (list 
+                (list false false false false false)
+                (list false false false false true)
+                (list false false false true true)
+                (list false false true true true) 
+                (list false true true true true)
+                (list true true true true true)))
 
 
-  (define data-analysis 
-    (lambda (experiment-data)
-      (mh-query 10 10
-
-       (define biased-weight 
-         (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
-
-       ; generate predictions for all sequences
-       (define cognitive-model-predictions
-         (map 
-          (lambda (sequence) 
-            (bc-model sequence biased-weight)) 
-          all-seqs))
-
-       ; what is the best biased-weight?
-       biased-weight
+      (define experiment-data
+      (list 
+              (list 
+                (list false false false false false)
+                (list false false false false true)
+                (list false false false true true)
+                (list false false true true true) 
+                (list false true true true true)
+                (list true true true true true))
        
-       ; given that we've observed this data
-       (factor (sum (flatten (map 
-        (lambda (data-for-one-sequence model)
-          ; map over data points in a given sequence
-           (map (lambda (single-data-point)
-                  (get-log-probability model single-data-point))
-                data-for-one-sequence))       
-        (second experiment-data)
-        cognitive-model-predictions)))))))
+       (list (list #f #f #f)
+             (list #f #f #t)
+             (list #f #t #t)
+             (list #t #t #t)
+             (list #f #t #t)
+             (list #f #t #t))))
+       
+    ; takes in "dist": output from an enumeration-query
+    ; and "selection": the element from the posterior that you want
+    ; returns the log-probability (i.e. the score) of that selection
+    (define get-log-probability
+      (lambda (dist selection)
+        (let ([index (list-index (first dist) selection)])
+          (log (list-ref (second dist) index)))))
 
-  (data-analysis experiment-data)
-```
+
+    (define data-analysis 
+      (lambda (experiment-data)
+        (mh-query 10 10
+
+         (define biased-weight 
+           (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
+
+         ; generate predictions for all sequences
+         (define cognitive-model-predictions
+           (map 
+            (lambda (sequence) 
+              (bc-model sequence biased-weight)) 
+            all-seqs))
+
+         ; what is the best biased-weight?
+         biased-weight
+         
+         ; given that we've observed this data
+         (factor (sum (flatten (map 
+          (lambda (data-for-one-sequence model)
+            ; map over data points in a given sequence
+             (map (lambda (single-data-point)
+                    (get-log-probability model single-data-point))
+                  data-for-one-sequence))       
+          (second experiment-data)
+          cognitive-model-predictions)))))))
+
+    (data-analysis experiment-data)

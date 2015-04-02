@@ -309,22 +309,22 @@ Sometimes parameter values aren't so easily interpreted as in our case here. Ano
         (let ([index (list-index (first dist) selection)])
            (list-ref (second dist) index))))
 
-(define summarize-data 
-  (lambda (dataset)
-    (list (first dataset)
-      (map 
-       (lambda (lst) (mean (map boolean->number lst)))
-       (second dataset)))))
+    (define summarize-data 
+      (lambda (dataset)
+        (list (first dataset)
+          (map 
+           (lambda (lst) (mean (map boolean->number lst)))
+           (second dataset)))))
 
-(define summarize-model
-  (lambda (modelpreds)
-    (list 
-     all-seqs
-    (map 
-     (lambda (dist) 
-       (get-probability dist #t))
-     modelpreds))))
-   
+    (define summarize-model
+      (lambda (modelpreds)
+        (list 
+         all-seqs
+        (map 
+         (lambda (dist) 
+           (get-probability dist #t))
+         modelpreds))))
+       
 
     (define data-analysis 
       (lambda (experiment-data)
@@ -354,8 +354,7 @@ Sometimes parameter values aren't so easily interpreted as in our case here. Ano
           (second experiment-data)
           cognitive-model-predictions)))))))
 
-    (map second (data-analysis experiment-data))
-
+      (transpose (map second (data-analysis experiment-data)))
 
 
 

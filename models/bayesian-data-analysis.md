@@ -83,7 +83,7 @@ This sort of model is sometimes called "bayes in the notebook" (to contrast with
 
 As good scientists, we'll want to collect data for a number of sequences, and we'll want our model to predict the responses for all (or many) of them. 
 
-##  Bad model (conditioning)
+##  Bad model (conditioning) DOESN'T RUN
 
      (define bc-model (lambda (sequence bias-weight)
           (enumeration-query
@@ -329,7 +329,7 @@ Sometimes parameter values aren't so easily interpreted as in our case here. Ano
 
       (define data-analysis 
         (lambda (experiment-data)
-          (mh-query 100 10
+          (enumeration-query
 
                     (define biased-weight 
                       (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))

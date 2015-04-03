@@ -355,20 +355,7 @@ Sometimes parameter values aren't so easily interpreted as in our case here. Ano
                                            (second experiment-data)
                                            cognitive-model-predictions)))))))
 
-          (define posterior-predictive 
-            (map mean 
-                 (transpose (map second (data-analysis experiment-data)))))
-
-          (scatter 
-           (zip 
-            posterior-predictive
-            (second (summarize-data experiment-data)))
-           "data vs. model")
-
-          (barplot (list all-seqs posterior-predictive) "model: probability of fair?")
-
-          (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
-
+      (define results (data-analysis experiment-data))
 
       (define expval-from-enum-analysis-of-enum-model 
         (lambda (results)

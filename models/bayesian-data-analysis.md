@@ -381,3 +381,27 @@ Sometimes parameter values aren't so easily interpreted as in our case here. Ano
       (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
 
 
+Our model provides a pretty good fit to the data set. There are some mismatches, however. 
+The model thinks HHHHH is a fair sequence, whereas our data suggest otherwise.
+
+Try the following data set
+
+      (define experiment-data
+        (list 
+        (list 
+              (list false false false false false)
+              (list false false false false true)
+              (list false false false true true)
+              (list false false true true true) 
+              (list false true true true true)
+              (list true true true true true))
+       (list (list #f #f #f)
+             (list #f #f #t)
+             (list #f #t #t)
+             (list #f #t #t)
+             (list #f #f #t)
+             (list #f #f #f))))
+
+What is the posterior over the `bias weight`? How does the posterior predictive look? What can you conclude about our bias coin model (with respect to this data))?
+
+

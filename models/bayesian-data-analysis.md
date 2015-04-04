@@ -570,7 +570,6 @@ This pseudo-program is saying there is some probability (or, equivalently, propo
       (define posterior-predictive-results (first results))
       (define posterior-noise (second results))
 
-      ; note: this function is subtly different from the one used previously above because of an idiosyncracy with my marginalize function
       (define expval-from-enum-analysis-of-enum-model 
         (lambda (results)
           (map sum 
@@ -579,7 +578,7 @@ This pseudo-program is saying there is some probability (or, equivalently, propo
                              (map (lambda (x)
                                     (* prob x))
                                   (second lst)))
-                           (map first (first results))
+                           (first results)
                            (second results))))))
 
       (define posterior-predictive (expval-from-enum-analysis-of-enum-model posterior-predictive-results))
@@ -588,24 +587,61 @@ This pseudo-program is saying there is some probability (or, equivalently, propo
        (zip 
         posterior-predictive
         (second (summarize-data experiment-data)))
-       "data vs. model")
+       "data vs. cognitive model (no response noise)")
 
-      (barplot (list all-seqs posterior-predictive) "model: probability of fair?")
+      (barplot (list all-seqs posterior-predictive) "cognitive model: probability of fair?")
 
       (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
 
       (barplot posterior-noise "posterior on response noise")
 
 
+Our posterior on response noise is peaked around 0.3. Can you make this value go up? 
+
+(Hint: What would it mean for there to be a lot of guessing in our data set?)
+
+Notice that our initial problem isn't really solved by factoring in response noise (though it is useful and informative to do so).
+What is our problem again? Ourmodel makes good predictions for most of these sequences, but is failing with the following two:
+
+THHHH
+HHHHH
+
+Why might this be the case? To gain an intuition, let's reexamine the bias-weight paramter value. 
+This can easily be done in the full model by using the *query statement* to return the `bias-weight` instead of, say, response-noise. 
+(This helper functions here only play nice with 2 outputs at this point in time. In principle, of course, you can query for any number of arguments, by adding them to the list).
+
+So try this query statement
+
+                ; joint query: 
+                ; what are the model predictions?
+                ; what is the biased-weight?
+                (list (summarize-model cognitive-model-predictions)
+                      biased-weight)
+
+And change the final `barplot` to say
+
+      (barplot posterior-noise "posterior on biased-weight")
+
+Of course, you can change the intermediate variable name `posterior-noise` to `posterior-weight` if you'd like.
 
 
-# A better cognitive model
+The biased-weight is probably below 0.5. What does this mean in terms of our cognitive model?
 
-## Move coin-weight "into" cognitive model 
+Recall the biased-coin-model: it's comparing the sequence a fair coin would generate vs. one that a biased-coin would generate.
+The biased-coin sequence has it's own weight, which means the sequences it prefers are going to sequences with lots of Tails (since our inferred weight is < 0.5).
 
-### v1: Theta ~ Uniform (0 , 1)
+This hints at a fundamental flaw of this model: it can only predict biased-sequences in one direction. How could we get around this issue? 
 
-### v2: Theta ~ Beta (alpha, beta) [alpha,beta in data analysis]
+
+# Moving the coin-weight "into" cognitive model 
+
+To get around this issue, we're going to have to posit that this biased-weight doesn't take on just one value, but rather a distribution of possible values.
+(Note: this is what Griffiths & Tenenbaum (2001) one)
+
+
+## v1: Theta ~ Uniform (0 , 1)
+
+## v2: Theta ~ Beta (alpha, beta) [alpha,beta in data analysis]
 
 ## Noise reduction, posterior predictions
 

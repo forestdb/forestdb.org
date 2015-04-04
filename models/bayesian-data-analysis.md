@@ -587,7 +587,7 @@ This pseudo-program is saying there is some probability (or, equivalently, propo
        (zip 
         posterior-predictive
         (second (summarize-data experiment-data)))
-       "data vs. cognitive model (no response noise)")
+       "data vs. cognitive model")
 
       (barplot (list all-seqs posterior-predictive) "cognitive model: probability of fair?")
 
@@ -633,17 +633,234 @@ The biased-coin sequence has it's own weight, which means the sequences it prefe
 This hints at a fundamental flaw of this model: it can only predict biased-sequences in one direction. How could we get around this issue? 
 
 
-# Moving the coin-weight "into" cognitive model 
+# Moving the coin-weight "into" the cognitive model 
 
 To get around this issue, we're going to have to posit that this biased-weight doesn't take on just one value, but rather a distribution of possible values.
-(Note: this is what Griffiths & Tenenbaum (2001) one)
+(Note: this is what Griffiths & Tenenbaum (2001) did.)
 
 
-## v1: Theta ~ Uniform (0 , 1)
+## Enriched cognitive model: Theta ~ Uniform (0 , 1)
 
-## v2: Theta ~ Beta (alpha, beta) [alpha,beta in data analysis]
+We now revisit our cognitive model (forgetting about the data analysis model for the time being). We move the `biased-weight` parameter from outside the model to inside the model.
 
-## Noise reduction, posterior predictions
+Let's examine the behavior of this model with respect to two sequences of interest.
+
+    (define bc-model (lambda (sequence)
+      (enumeration-query
+       
+       (define fair-weight 0.5)
+       (define biased-weight 
+          (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
+
+       (define isfair (flip))
+       
+       
+       (define the-weight (if isfair 
+                    fair-weight 
+                    biased-weight))
+       
+       (define coin (lambda () 
+          (flip the-weight)))
+       
+       
+       isfair
+       
+       (equal? sequence 
+              (repeat 5 coin)))))
+
+    (barplot (bc-model (list true true true true true)) "HHHHH is fair?")
+    (barplot (bc-model (list false false false false false)) "TTTTT is fair?")
+
+
+This model matches our intuition for the fairness of these sequences. Do you see why?
+
+To gain more insight, we could query for the biased-weight variable, just like we did before in the data analysis model previously.
+
+
+    (define bc-model (lambda (sequence)
+      (enumeration-query
+       
+       (define fair-weight 0.5)
+       (define biased-weight 
+          (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
+
+       (define isfair (flip))
+       
+       
+       (define the-weight (if isfair 
+                    fair-weight 
+                    biased-weight))
+       
+       (define coin (lambda () 
+          (flip the-weight)))
+       
+       
+       biased-weight
+       
+       (equal? sequence 
+              (repeat 5 coin)))))
+
+    (barplot (bc-model (list true true true true true)) "what weight generated HHHHH")
+    (barplot (bc-model (list false false false false false)) "what weight generated TTTTT")
+
+The model has the flexibility to infer different biased coin weights for different sequences. Let's now compare this to our data set.
+
+## Bayesian data analysis of enriched cognitive model
+
+
+      (define bc-model (lambda (sequence)
+        (enumeration-query
+         
+         (define fair-weight 0.5)
+         (define biased-weight 
+            (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
+
+         (define isfair (flip))
+         
+         
+         (define the-weight (if isfair 
+                      fair-weight 
+                      biased-weight))
+         
+         (define coin (lambda () 
+            (flip the-weight)))
+         
+         
+         isfair
+         
+         (equal? sequence 
+                (repeat 5 coin)))))
+
+      (define all-seqs 
+        (list 
+         (list false false false false false)
+         (list false false false false true)
+         (list false false false true true)
+         (list false false true true true) 
+         (list false true true true true)
+         (list true true true true true)))
+
+
+      (define experiment-data
+        (list 
+         (list 
+          (list false false false false false)
+          (list false false false false true)
+          (list false false false true true)
+          (list false false true true true) 
+          (list false true true true true)
+          (list true true true true true))
+
+         (list (list #f #f #f)
+               (list #f #f #t)
+               (list #f #t #t)
+               (list #t #t #t)
+               (list #f #t #t)
+               (list #f #t #t))))
+
+      ; takes in "dist": output from an enumeration-query
+      ; and "selection": the element from the posterior that you want
+      ; returns the probability of that selection
+      (define get-probability
+        (lambda (dist selection)
+          (let ([index (list-index (first dist) selection)])
+            (list-ref (second dist) index))))
+
+      (define summarize-data 
+        (lambda (dataset)
+          (list (first dataset)
+                (map 
+                 (lambda (lst) (mean (map boolean->number lst)))
+                 (second dataset)))))
+
+      (define summarize-model
+        (lambda (modelpreds)
+          (list 
+           all-seqs
+           (map 
+            (lambda (dist) 
+              (get-probability dist #t))
+            modelpreds))))
+
+
+      (define data-analysis 
+        (lambda (experiment-data)
+          (enumeration-query
+
+
+                    ; generate predictions for all sequences
+                    (define cognitive-model-predictions
+                      (map 
+                       (lambda (sequence) 
+                         (bc-model sequence)) 
+                       all-seqs))
+
+
+                    ; what are the model predictions?
+                    (summarize-model cognitive-model-predictions)
+
+                    ; given that we've observed this data
+                    (factor (sum (flatten (map 
+                                           (lambda (data-for-one-sequence model)
+                                             ; map over data points in a given sequence
+                                             (map (lambda (single-data-point)
+                                                    (log (get-probability model single-data-point)))
+                                                  data-for-one-sequence))       
+                                           (second experiment-data)
+                                           cognitive-model-predictions)))))))
+
+      (define results (data-analysis experiment-data))
+
+      (define expval-from-enum-analysis-of-enum-model 
+        (lambda (results)
+          (map sum 
+               (transpose (map 
+                           (lambda (lst prob)
+                             (map (lambda (x)
+                                    (* prob x))
+                                  (second lst)))
+                           (first results) 
+                           (second results))))))
+
+      (define posterior-predictive (expval-from-enum-analysis-of-enum-model results))
+
+      (scatter 
+       (zip 
+        posterior-predictive
+        (second (summarize-data experiment-data)))
+       "data vs. model")
+
+      (barplot (list all-seqs posterior-predictive) "model: probability of fair?")
+
+      (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
+
+This is great. The model doesn't suffer from the same *lower-bias* flaw that it did previously.
+Note that right now, our congitive model has 0 parameters, so we're really just looking at the predictions of the model (as opposed to the posterior predictive).
+
+## v2: Theta ~ Beta (gamma, delta) [gamma,delta in data analysis]
+
+Are there actually 0 parameters to our model? In a sense, yes: there are no variables that take on particular values that we're uncertain about.
+At the same time, we do have an assumption about the `biased-weight' distribution that exists inside the cognitive model. 
+We have a uniform distribution over coin weights. It's conceiveable, however, that there is some global bias to detecting bias-sequences with heads or tails specifically.
+That is, sequences of predominantly H (or, T) might be more confusable with fair sequences.
+
+We can capture this idea by generalizing the uniform distribution to some distribution of coin weights, and we're unsure of the mean and variance of that distribution.
+
+The canonical distribution over coin weights is the Beta distribution. 
+(Coin-weights are formally Binomial parameters. This higher-order distribution is called the Beta distribution. You may (or may not) have heard of Beta-Binomial priors. This is it.)
+
+
+
+
+
+Still, our model predictions look very idyllic, while our observed data is a little more messy. 
+Can we account for this with response noise?
+Let's see what happens when we factor in response noise.
+
+## Noise reduction
+
+
+
 
 # Model selection
 

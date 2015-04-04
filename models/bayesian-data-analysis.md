@@ -404,4 +404,36 @@ Try the following data set
 
 What is the posterior over the `bias weight`? How does the posterior predictive look? What can you conclude about our bias coin model (with respect to this data))?
 
+# Response noise
+
+You may already have an intuition for what is going wrong here. Often, it's difficult to establish a feeling for why some analysis is going wrong. One common culprit is *response noise*, that is, data points that you've collected that don't reflect the subject doing the task. Let's call this behavior "guessing" (i.e. picking responses at random) and try to formalize this:
+
+    (query
+      (define cognitive-model-predictions (bc-model ...))
+      (define guessing-parameter (uniform 0 1))
+
+      query-statement
+
+      (condition 
+        (equal? data
+                (if (flip guessing-parameter)
+                    (flip 0.5)
+                    cognitive-model-predictions))))
+
+This pseudo-program is saying there is some probability (or, equivalently, proportion of responses) that is attributable to response noise, or guessing; this probability is captured by `guessing-parameter`.
+
+# A better cognitive model
+
+## Move coin-weight "into" cognitive model 
+
+### v1: Theta ~ Uniform (0 , 1)
+
+### v2: Theta ~ Beta (alpha, beta) [alpha,beta in data analysis]
+
+## Noise reduction, posterior predictions
+
+# Model selection
+
+
+
 

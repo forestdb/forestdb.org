@@ -406,7 +406,10 @@ What is the posterior over the `bias weight`? How does the posterior predictive 
 
 # Response noise
 
-You may already have an intuition for what is going wrong here. Often, it's difficult to establish a feeling for why some analysis is going wrong. One common culprit is *response noise*, that is, data points that you've collected that don't reflect the subject doing the task. Let's call this behavior "guessing" (i.e. picking responses at random) and try to formalize this:
+You may already have an intuition for what is going wrong here. 
+Often, it's difficult to establish a feeling for why some analysis is going wrong. 
+One common culprit is *response noise*, that is, data points that you've collected that don't reflect the subject doing the task. 
+Let's call this behavior "guessing" (i.e. picking responses at random) and try to formalize this:
 
     (define data-analysis
       (query
@@ -425,188 +428,216 @@ You may already have an intuition for what is going wrong here. Often, it's diff
         (condition 
           (equal? data (thinking-plus-guessing guessing-parameter)))))
 
-This pseudo-program is saying there is some probability (or, equivalently, proportion of responses) that is attributable to response noise, or guessing; this probability is captured by `guessing-parameter`.
+This pseudo-program is saying there is some probability (or, equivalently, proportion of responses) that is attributable to response noise, or guessing; 
+this probability is captured by `guessing-parameter`. It is the amount of the data that is better captured by guessing behavior than our cognitive model predictions.
+It is simultaneously a measure of fit of your cognitive model, as well as the reliability of the data.
 
 
 ## Data analysis model with response noise
 
-      (define (get-indices needle haystack)
-        (define (loop rest-of-haystack index)
-          (if (null? rest-of-haystack) '()
-              (let ((rest-of-indices (loop (rest rest-of-haystack) (+ index 1))))
-                (if (equal? (first rest-of-haystack) needle)
-                    (pair index rest-of-indices)
-                    rest-of-indices))))
-        (loop haystack 1))
+          (define (get-indices needle haystack)
+            (define (loop rest-of-haystack index)
+              (if (null? rest-of-haystack) '()
+                  (let ((rest-of-indices (loop (rest rest-of-haystack) (+ index 1))))
+                    (if (equal? (first rest-of-haystack) needle)
+                        (pair index rest-of-indices)
+                        rest-of-indices))))
+            (loop haystack 1))
 
-      ;; takes in the output of enumeration (a joint posterior)
-      ;; and outputs the marginals
-      (define (marginalize output)
-        (let ([states (first output)])
-          (map (lambda (sub-output) 
-                 (let* ([probs (second output)]
-                        [unique-states (unique sub-output)]
-                        [unique-state-indices 
-                         (map 
-                          (lambda (x) (list x (get-indices x sub-output))) 
-                          unique-states)])
+          ;; takes in the output of enumeration (a joint posterior)
+          ;; and outputs the marginals
+          (define (marginalize output)
+            (let ([states (first output)])
+              (map (lambda (sub-output) 
+                     (let* ([probs (second output)]
+                            [unique-states (unique sub-output)]
+                            [unique-state-indices 
+                             (map 
+                              (lambda (x) (list x (get-indices x sub-output))) 
+                              unique-states)])
 
-                   (list (map first unique-state-indices)
-                         (map 
-                          (lambda (y) (sum (map 
-                                            (lambda (x) (list-elt probs x)) 
-                                            (second y)))) 
-                          unique-state-indices))))
-               (transpose states))))
+                       (list (map first unique-state-indices)
+                             (map 
+                              (lambda (y) (sum (map 
+                                                (lambda (x) (list-elt probs x)) 
+                                                (second y)))) 
+                              unique-state-indices))))
+                   (transpose states))))
 
-      (define bc-model 
-        (lambda (sequence bias-weight)
-          (enumeration-query
+          (define bc-model 
+            (mem
+             (lambda (sequence bias-weight)
+               (enumeration-query
 
-           (define fair-weight 0.5)
-           (define isfair (flip))
-           (define the-weight (if isfair fair-weight bias-weight))
-           (define coin (lambda () 
-                          (flip the-weight)))
+                (define fair-weight 0.5)
+                (define isfair (flip))
+                (define the-weight (if isfair fair-weight bias-weight))
+                (define coin (lambda () (flip the-weight)))
 
+                isfair
 
-           isfair
-
-           (equal? sequence 
-                   (repeat 5 coin)))))
-
-      (define all-seqs 
-        (list 
-         (list false false false false false)
-         (list false false false false true)
-         (list false false false true true)
-         (list false false true true true) 
-         (list false true true true true)
-         (list true true true true true)))
+                (equal? sequence 
+                        (repeat 5 coin))))))
 
 
-      (define experiment-data
-        (list 
-         (list 
-          (list false false false false false)
-          (list false false false false true)
-          (list false false false true true)
-          (list false false true true true) 
-          (list false true true true true)
-          (list true true true true true))
+          (define thinking-and-guessing 
+            (lambda (sequence bias-weight guessing-parameter)
+              (enumeration-query
+               (define thinking (bc-model sequence bias-weight))
+               (define guessing (list '(#t #f) '(0.5 0.5)))
+               (define response
+                 (if (flip guessing-parameter)
+                     guessing
+                     thinking))
 
-         (list (list #f #f #f)
-               (list #f #f #t)
-               (list #f #t #t)
-               (list #t #t #t)
-               (list #f #t #t)
-               (list #f #t #t))))
+               (apply multinomial response)
 
-      ; takes in "dist": output from an enumeration-query
-      ; and "selection": the element from the posterior that you want
-      ; returns the probability of that selection
-      (define get-probability
-        (lambda (dist selection)
-          (let ([index (list-index (first dist) selection)])
-            (list-ref (second dist) index))))
-
-      ; takes the mean "true" responses for each sequence
-      (define summarize-data 
-        (lambda (dataset)
-          (list (first dataset)
-                (map 
-                 (lambda (lst) (mean (map boolean->number lst)))
-                 (second dataset)))))
-
-      (define summarize-model
-        (lambda (modelpreds)
-          (list 
-           all-seqs
-           (map 
-            (lambda (dist) 
-              (get-probability dist #t))
-            modelpreds))))
+               true)))
 
 
-      (define data-analysis 
-        (lambda (experiment-data)
-          (enumeration-query
-
-                    (define biased-weight 
-                      (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
-
-                    ; generate predictions for all sequences
-                    (define cognitive-model-predictions
-                      (map 
-                       (lambda (sequence) 
-                         (bc-model sequence biased-weight)) 
-                       all-seqs))
+          (define all-seqs 
+            (list 
+             (list false false false false false)
+             (list false false false false true)
+             (list false false false true true)
+             (list false false true true true) 
+             (list false true true true true)
+             (list true true true true true)))
 
 
-                    (define response-noise (uniform-draw (list 0 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9 1)))
+          (define experiment-data
+            (list 
+             (list 
+              (list false false false false false)
+              (list false false false false true)
+              (list false false false true true)
+              (list false false true true true) 
+              (list false true true true true)
+              (list true true true true true))
+             (list 
+              (list #f #f #f)
+              (list #f #f #t)
+              (list #f #t #t)
+              (list #t #t #t)
+              (list #f #t #t)
+              (list #f #t #t))))
 
-                    ; joint query: 
-                    ; what are the model predictions?
-                    ; what is the response noise?
-                    ; what is the biased-weight?
-                    (list (summarize-model cognitive-model-predictions)
-                          response-noise
-                          biased-weight)
+          ; takes in "dist": output from an enumeration-query
+          ; and "selection": the element from the posterior that you want
+          ; returns the probability of that selection
+          (define get-probability
+            (lambda (dist selection)
+              (let ([index (list-index (first dist) selection)])
+                (list-ref (second dist) index))))
 
-                    ; given that we've observed this data
-                    (factor (sum (flatten (map 
-                                           (lambda (data-for-one-sequence model)
-                                             ; map over data points in a given sequence
-                                             (map (lambda (single-data-point)
-                                                    ; assumption: data was produced by response-noise (e.g. guessing)
-                                                    ; or by our cogntiive model
-                                                    ; if guessing; the response was probability 0.5
-                                                    ; if not guessing: the response was probability given by our model
-                                                    (log
-                                                      (+ (* response-noise 0.5)
-                                                         (* (- 1 response-noise) 
-                                                            (get-probability model single-data-point)))))
-                                                  data-for-one-sequence))       
-                                           (second experiment-data)
-                                           cognitive-model-predictions)))))))
+          ; takes the mean "true" responses for each sequence
+          (define summarize-data 
+            (lambda (dataset)
+              (list (first dataset)
+                    (map 
+                     (lambda (lst) (mean (map boolean->number lst)))
+                     (second dataset)))))
 
-      (define results (marginalize (data-analysis experiment-data)))
+          (define summarize-model
+            (lambda (modelpreds)
+              (list 
+               all-seqs
+               (map 
+                (lambda (dist) 
+                  (get-probability dist #t))
+                modelpreds))))
 
-      (define posterior-predictive-results (first results))
-      (define posterior-noise (second results))
-      (define posterior-bias (third results))
 
-      (define expval-from-enum-analysis-of-enum-model 
-        (lambda (results)
-          (map sum 
-               (transpose (map 
-                           (lambda (lst prob)
-                             (map (lambda (x)
-                                    (* prob x))
-                                  (second lst)))
-                           (first results)
-                           (second results))))))
+          (define data-analysis 
+            (lambda (experiment-data)
+              (enumeration-query
 
-      (define posterior-predictive (expval-from-enum-analysis-of-enum-model posterior-predictive-results))
+               (define biased-weight 
+                 (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
 
-      (scatter 
-       (zip 
-        posterior-predictive
-        (second (summarize-data experiment-data)))
-       "data vs. cognitive model")
+               (define response-noise (uniform-draw (list 0 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9 1)))
 
-      (barplot (list all-seqs posterior-predictive) "cognitive model: probability of fair?")
+               ; generate predictions for all sequences
+               (define cognitive-model-predictions
+                 (map 
+                  (lambda (sequence) 
+                    (bc-model sequence biased-weight)) 
+                  all-seqs))
 
-      (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
+               (define cognitive-plus-noise-predictions
+                 (map 
+                  (lambda (sequence)
+                    (thinking-and-guessing sequence biased-weight response-noise))
+                  all-seqs))
 
-      (barplot posterior-noise "posterior on response noise")
+               ; joint query: 
+               ; what are the model predictions? including our model of noise
+               ; what are the cognitive model predictions? (idealized; no noise)
+               ; what is the response noise?
+               ; what is the biased-weight?
+               (list 
+                (summarize-model cognitive-plus-noise-predictions)
+                (summarize-model cognitive-model-predictions)
+                response-noise
+                biased-weight)
 
-      (barplot posterior-bias "posterior on biased-weight")
+               ; given that we've observed this data
+               (factor (sum (flatten 
+                             ; map over all of the predictions over our cogmodel+noise
+                             (map 
+                              (lambda (data-for-one-sequence model)
+                                ; map over data points in a given sequence
+                                (map (lambda (single-data-point)
+                                       (log (get-probability model single-data-point)))
+                                     data-for-one-sequence))
+                              (second experiment-data)
+                              cognitive-plus-noise-predictions)))))))
+
+          (define results (marginalize (data-analysis experiment-data)))
+
+          (define posterior-predictive-withNoise-results (first results))
+          (define posterior-predictive-sansNoise-results (second results))
+          (define posterior-noise (third results))
+          (define posterior-bias (fourth results))
+
+          (define expval-from-enum-analysis-of-enum-model 
+            (lambda (results)
+              (map sum 
+                   (transpose (map 
+                               (lambda (lst prob)
+                                 (map (lambda (x)
+                                        (* prob x))
+                                      (second lst)))
+                               (first results)
+                               (second results))))))
+
+          (define posterior-predictive-withNoise
+            (expval-from-enum-analysis-of-enum-model posterior-predictive-withNoise-results))
+
+          (define posterior-predictive-sansNoise
+            (expval-from-enum-analysis-of-enum-model posterior-predictive-sansNoise-results))
+
+          (scatter 
+           (zip 
+            posterior-predictive-withNoise
+            (second (summarize-data experiment-data)))
+           "data vs. cognitive model (including noise)")
+
+          (barplot (list all-seqs posterior-predictive-withNoise) "model (with noise): probability of fair?")
+          (barplot (list all-seqs posterior-predictive-sansNoise) "model (sans noise): probability of fair?")
+
+          (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
+
+          (barplot posterior-noise "posterior on response noise")
+
+          (barplot posterior-bias "posterior on biased-weight")
 
 
 Our posterior on response noise is peaked around 0.3. Can you make this value go up? 
 
 (Hint: What would it mean for there to be a lot of guessing in our data set?)
+
+What is the difference betweent the model with noise and the model without noise? (Theoretically, but also how do the predictions differ?)
 
 Notice that our initial problem isn't really solved by factoring in response noise (though it is useful and informative to do so).
 What is our problem again? Our model makes good predictions for most of these sequences, but is failing with the following two:

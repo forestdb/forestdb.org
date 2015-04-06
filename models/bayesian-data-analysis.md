@@ -1483,10 +1483,10 @@ Let's try to write this in full:
                                            (second experiment-data)
                                            best-model)))))))
 
-                (define results (data-analysis experiment-data))
+                (define results (model-comparison experiment-data))
 
                 (barplot results "is model 1 the best?")
-
+                (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
 
 
 Our data slightly favors the more complex model. Remember that we only have 3 observations for each sequence.

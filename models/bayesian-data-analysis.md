@@ -1318,10 +1318,37 @@ Let's see what happens when we factor in response noise.
       (barplot posterior-delta "posterior on varaince of biased-weight")
 
 
-
-
 # Model selection
 
+We've explored a number of different models, which vary in the quality of their predictions as well as their inherenent complexity (captured loosely by their numbers of parameters).
 
+Can we figure out which one is best?
+
+In a way, this is no different than the problems we've faced before:
+We can say, we have uncertainty about which model is the right model, 
+and whichever one, it should have a high probability of matching our model.
+
+In pseudocode this might look like:
+
+
+    (define model-comparion
+      (query
+        (define model-1 (simple-bc-model ...))
+        (define model-2 (complex-bc-model ...))
+
+        (define is-model-1? (flip 0.5))
+
+        (define best-model
+            (if is-model1?
+                model-1
+                model-2))
+
+        best-model
+
+        (condition 
+          (equal? data best-model))))
+
+
+Let's try to write this in full:
 
 

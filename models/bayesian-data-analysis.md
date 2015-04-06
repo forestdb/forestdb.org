@@ -1352,3 +1352,162 @@ In pseudocode this might look like:
 Let's try to write this in full:
 
 
+
+
+      (define complex-bc-model (lambda (sequence)
+        (enumeration-query
+         
+         (define fair-weight 0.5)
+         (define biased-weight 
+            (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
+
+         (define isfair (flip))
+         (define the-weight (if isfair 
+                      fair-weight 
+                      biased-weight))
+         
+         (define coin (lambda () 
+            (flip the-weight)))
+         
+         
+         isfair
+         
+         (equal? sequence (repeat 5 coin)))))
+
+
+        (define simple-bc-model 
+            (mem
+             (lambda (sequence bias-weight)
+               (enumeration-query
+
+                (define fair-weight 0.5)
+                (define isfair (flip))
+                (define the-weight (if isfair fair-weight bias-weight))
+                (define coin (lambda () (flip the-weight)))
+
+                isfair
+
+                (equal? sequence (repeat 5 coin))))))
+
+      (define all-seqs 
+        (list 
+         (list false false false false false)
+         (list false false false false true)
+         (list false false false true true)
+         (list false false true true true) 
+         (list false true true true true)
+         (list true true true true true)))
+
+
+      (define experiment-data
+        (list 
+         (list 
+          (list false false false false false)
+          (list false false false false true)
+          (list false false false true true)
+          (list false false true true true) 
+          (list false true true true true)
+          (list true true true true true))
+
+         (list (list #f #f #f)
+               (list #f #f #t)
+               (list #f #t #t)
+               (list #t #t #t)
+               (list #f #t #t)
+               (list #f #t #t))))
+
+      ; takes in "dist": output from an enumeration-query
+      ; and "selection": the element from the posterior that you want
+      ; returns the probability of that selection
+      (define get-probability
+        (lambda (dist selection)
+          (let ([index (list-index (first dist) selection)])
+            (list-ref (second dist) index))))
+
+      (define summarize-data 
+        (lambda (dataset)
+          (list (first dataset)
+                (map 
+                 (lambda (lst) (mean (map boolean->number lst)))
+                 (second dataset)))))
+
+      (define summarize-model
+        (lambda (modelpreds)
+          (list 
+           all-seqs
+           (map 
+            (lambda (dist) 
+              (get-probability dist #t))
+            modelpreds))))
+
+
+      (define model-comparison 
+        (lambda (experiment-data)
+          (enumeration-query
+
+               (define biased-weight 
+                 (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
+
+
+
+                (define is-model1? (flip 0.5))
+
+                ; model1: generate predictions for all sequences
+                (define model1
+                  (map 
+                   (lambda (sequence) 
+                     (simple-bc-model sequence biased-weight)) 
+                   all-seqs))
+
+                ; model2: generate predictions for all sequences
+                (define model2
+                  (map 
+                   (lambda (sequence) 
+                     (complex-bc-model sequence))
+                   all-seqs))
+
+                (define best-model (if is-model1?
+                                      model1
+                                      model2))
+
+                    ; which is the best model?
+                    is-model1?
+
+                    ; given that we've observed this data
+                    (factor (sum (flatten (map 
+                                           (lambda (data-for-one-sequence model)
+                                             ; map over data points in a given sequence
+                                             (map (lambda (single-data-point)
+                                                    (log (get-probability model single-data-point)))
+                                                  data-for-one-sequence))       
+                                           (second experiment-data)
+                                           best-model)))))))
+
+                (define results (data-analysis experiment-data))
+
+                (barplot results "is model 1 the best?")
+
+
+
+Our data slightly favors the more complex model. Remember that we only have 3 observations for each sequence.
+
+
+Try this slightly more expanded data set.
+
+      
+      (define experiment-data
+        (list 
+         (list 
+          (list false false false false false)
+          (list false false false false true)
+          (list false false false true true)
+          (list false false true true true) 
+          (list false true true true true)
+          (list true true true true true))
+
+         (list (list #f #f #f #f #f #f #f)
+               (list #f #f #t #f #f #f #t)
+               (list #f #t #t #t #t #t #t)
+               (list #t #t #t #t #t #t #f)
+               (list #f #t #t #t #f #f #f)
+               (list #f #t #t #f #f #f #f))))

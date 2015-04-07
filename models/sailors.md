@@ -8,14 +8,14 @@ title: SAILORS teaching example
 - Bayes' rule and how it helps you infer things that are not directly observable in a generative model
 - Brainstorm: What are some things that Bayes' rule can help you figure out? Draw a generative model.
 - Concrete example with vending machine
-..* Actions (button press) generate outcomes (cookies/bagels)
-..* Given an outcome, what was the action?
-..* What if you had different prior expectations about the action?
+  * Actions (button press) generate outcomes (cookies/bagels)
+  * Given an outcome, what was the action?
+  * What if you had different prior expectations about the action?
 - Exercise: Specify your generative model in more detail (what actions/causes lead to what effects with what probability?) Make some predictions/inferences.
 - Bayes' rule is used A LOT in both AI and cognitive science
-..* Medical diagnosis
-..* Spam detection
-..* etc
+  * Medical diagnosis
+  * Spam detection
+  * etc
 
 ### Motivation
 

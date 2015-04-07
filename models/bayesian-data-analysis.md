@@ -772,135 +772,133 @@ The model has the flexibility to infer different biased coin weights for differe
 
 ## Bayesian data analysis of enriched cognitive model
 
-```
-;;;fold:
-(define bc-model 
-  (lambda (sequence)
-    (enumeration-query
+    ;;;fold:
+    (define bc-model 
+      (lambda (sequence)
+        (enumeration-query
 
-     (define fair-weight 0.5)
-     (define biased-weight 
-       (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
+         (define fair-weight 0.5)
+         (define biased-weight 
+           (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
 
-     (define isfair (flip))
-
-
-     (define the-weight (if isfair 
-                            fair-weight 
-                            biased-weight))
-
-     (define coin (lambda () 
-                    (flip the-weight)))
+         (define isfair (flip))
 
 
-     isfair
+         (define the-weight (if isfair 
+                                fair-weight 
+                                biased-weight))
 
-     (equal? sequence 
-             (repeat 5 coin)))))
-
-(define all-seqs 
-  (list 
-   (list false false false false false)
-   (list false false false false true)
-   (list false false false true true)
-   (list false false true true true) 
-   (list false true true true true)
-   (list true true true true true)))
+         (define coin (lambda () 
+                        (flip the-weight)))
 
 
-(define experiment-data
-  (list 
-   (list 
-    (list false false false false false)
-    (list false false false false true)
-    (list false false false true true)
-    (list false false true true true) 
-    (list false true true true true)
-    (list true true true true true))
+         isfair
 
-   (list (list #f #f #f)
-         (list #f #f #t)
-         (list #f #t #t)
-         (list #t #t #t)
-         (list #f #t #t)
-         (list #f #t #t))))
+         (equal? sequence 
+                 (repeat 5 coin)))))
 
-; takes in "dist": output from an enumeration-query
-; and "selection": the element from the posterior that you want
-; returns the probability of that selection
-(define get-probability
-  (lambda (dist selection)
-    (let ([index (list-index (first dist) selection)])
-      (list-ref (second dist) index))))
-
-(define summarize-data 
-  (lambda (dataset)
-    (list (first dataset)
-          (map 
-           (lambda (lst) (mean (map boolean->number lst)))
-           (second dataset)))))
-
-(define summarize-model
-  (lambda (modelpreds)
-    (list 
-     all-seqs
-     (map 
-      (lambda (dist) 
-        (get-probability dist #t))
-      modelpreds))))
-
-(define expval-from-enum-analysis-of-enum-model 
-  (lambda (results)
-    (map sum 
-         (transpose (map 
-                     (lambda (lst prob)
-                       (map (lambda (x)
-                              (* prob x))
-                            (second lst)))
-                     (first results) 
-                     (second results))))))
-;;;
-
-(define data-analysis 
-  (lambda (experiment-data)
-    (enumeration-query
+    (define all-seqs 
+      (list 
+       (list false false false false false)
+       (list false false false false true)
+       (list false false false true true)
+       (list false false true true true) 
+       (list false true true true true)
+       (list true true true true true)))
 
 
-     ; generate predictions for all sequences
-     (define cognitive-model-predictions
-       (map 
-        (lambda (sequence) 
-          (bc-model sequence)) 
-        all-seqs))
+    (define experiment-data
+      (list 
+       (list 
+        (list false false false false false)
+        (list false false false false true)
+        (list false false false true true)
+        (list false false true true true) 
+        (list false true true true true)
+        (list true true true true true))
+
+       (list (list #f #f #f)
+             (list #f #f #t)
+             (list #f #t #t)
+             (list #t #t #t)
+             (list #f #t #t)
+             (list #f #t #t))))
+
+    ; takes in "dist": output from an enumeration-query
+    ; and "selection": the element from the posterior that you want
+    ; returns the probability of that selection
+    (define get-probability
+      (lambda (dist selection)
+        (let ([index (list-index (first dist) selection)])
+          (list-ref (second dist) index))))
+
+    (define summarize-data 
+      (lambda (dataset)
+        (list (first dataset)
+              (map 
+               (lambda (lst) (mean (map boolean->number lst)))
+               (second dataset)))))
+
+    (define summarize-model
+      (lambda (modelpreds)
+        (list 
+         all-seqs
+         (map 
+          (lambda (dist) 
+            (get-probability dist #t))
+          modelpreds))))
+
+    (define expval-from-enum-analysis-of-enum-model 
+      (lambda (results)
+        (map sum 
+             (transpose (map 
+                         (lambda (lst prob)
+                           (map (lambda (x)
+                                  (* prob x))
+                                (second lst)))
+                         (first results) 
+                         (second results))))))
+    ;;;
+
+    (define data-analysis 
+      (lambda (experiment-data)
+        (enumeration-query
 
 
-     ; what are the model predictions?
-     (summarize-model cognitive-model-predictions)
+         ; generate predictions for all sequences
+         (define cognitive-model-predictions
+           (map 
+            (lambda (sequence) 
+              (bc-model sequence)) 
+            all-seqs))
 
-     ; given that we've observed this data
-     (factor (sum (flatten (map 
-                            (lambda (data-for-one-sequence model)
-                              ; map over data points in a given sequence
-                              (map (lambda (single-data-point)
-                                     (log (get-probability model single-data-point)))
-                                   data-for-one-sequence))       
-                            (second experiment-data)
-                            cognitive-model-predictions)))))))
 
-(define results (data-analysis experiment-data))
+         ; what are the model predictions?
+         (summarize-model cognitive-model-predictions)
 
-(define posterior-predictive (expval-from-enum-analysis-of-enum-model results))
+         ; given that we've observed this data
+         (factor (sum (flatten (map 
+                                (lambda (data-for-one-sequence model)
+                                  ; map over data points in a given sequence
+                                  (map (lambda (single-data-point)
+                                         (log (get-probability model single-data-point)))
+                                       data-for-one-sequence))       
+                                (second experiment-data)
+                                cognitive-model-predictions)))))))
 
-(scatter 
- (zip 
-  posterior-predictive
-  (second (summarize-data experiment-data)))
- "data vs. model")
+    (define results (data-analysis experiment-data))
 
-(barplot (list all-seqs posterior-predictive) "model: probability of fair?")
+    (define posterior-predictive (expval-from-enum-analysis-of-enum-model results))
 
-(barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
-```
+    (scatter 
+     (zip 
+      posterior-predictive
+      (second (summarize-data experiment-data)))
+     "data vs. model")
+
+    (barplot (list all-seqs posterior-predictive) "model: probability of fair?")
+
+    (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
 
 This is great. The model doesn't suffer from the same *lower-bias* flaw that it did previously.
 Note that right now, our congitive model has 0 parameters, so we're really just looking at the predictions of the model (as opposed to the posterior predictive).
@@ -920,119 +918,325 @@ The canonical distribution over coin weights is the Beta distribution.
   You may (or may not) have heard of Beta-Binomial priors. This is it.)
 
 Note: This will take about 10 seconds to run.
-```
-;;;fold:
-(define discretize-beta 
-  (lambda (gamma delta bins)
-    (define shape_alpha (* gamma delta))
-    (define shape_beta (* (- 1 gamma) delta))
-    (define beta-pdf (lambda (x) 
-                       (*
-                        (pow x (- shape_alpha 1))
-                        (pow (- 1 x) (- shape_beta 1)))))
-    (map beta-pdf bins)))
 
-(define bins '(0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9))
+    ;;;fold:
+    (define discretize-beta 
+      (lambda (gamma delta bins)
+        (define shape_alpha (* gamma delta))
+        (define shape_beta (* (- 1 gamma) delta))
+        (define beta-pdf (lambda (x) 
+                           (*
+                            (pow x (- shape_alpha 1))
+                            (pow (- 1 x) (- shape_beta 1)))))
+        (map beta-pdf bins)))
 
-(define (get-indices needle haystack)
-  (define (loop rest-of-haystack index)
-    (if (null? rest-of-haystack) '()
-        (let ((rest-of-indices (loop (rest rest-of-haystack) (+ index 1))))
-          (if (equal? (first rest-of-haystack) needle)
-              (pair index rest-of-indices)
-              rest-of-indices))))
-  (loop haystack 1))
+    (define bins '(0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9))
 
-(define (list-map lst)
-  (if (all (map null? (map rest lst))) 
-      lst
-      (list (map first lst) (list-map (map rest lst)))))
+    (define (get-indices needle haystack)
+      (define (loop rest-of-haystack index)
+        (if (null? rest-of-haystack) '()
+            (let ((rest-of-indices (loop (rest rest-of-haystack) (+ index 1))))
+              (if (equal? (first rest-of-haystack) needle)
+                  (pair index rest-of-indices)
+                  rest-of-indices))))
+      (loop haystack 1))
 
-(define (marginalize output)
-  (let ([states (first output)])
-    (map (lambda (sub-output) 
-           (let* ([probs (second output)]
-                  [unique-states (unique sub-output)]
-                  [unique-state-indices 
-                   (map 
-                    (lambda (x) (list x (get-indices x sub-output))) 
-                    unique-states)])
+    (define (list-map lst)
+      (if (all (map null? (map rest lst))) 
+          lst
+          (list (map first lst) (list-map (map rest lst)))))
 
-             (list (map first unique-state-indices)
-                   (map 
-                    (lambda (y) (sum (map 
-                                      (lambda (x) (list-elt probs x)) 
-                                      (second y)))) 
-                    unique-state-indices))))
+    (define (marginalize output)
+      (let ([states (first output)])
+        (map (lambda (sub-output) 
+               (let* ([probs (second output)]
+                      [unique-states (unique sub-output)]
+                      [unique-state-indices 
+                       (map 
+                        (lambda (x) (list x (get-indices x sub-output))) 
+                        unique-states)])
 
-         (transpose states))))
+                 (list (map first unique-state-indices)
+                       (map 
+                        (lambda (y) (sum (map 
+                                          (lambda (x) (list-elt probs x)) 
+                                          (second y)))) 
+                        unique-state-indices))))
 
-
-(define all-seqs 
-  (list 
-   (list false false false false false)
-   (list false false false false true)
-   (list false false false true true)
-   (list false false true true true) 
-   (list false true true true true)
-   (list true true true true true)))
+             (transpose states))))
 
 
-(define experiment-data
-  (list 
-   (list 
-    (list false false false false false)
-    (list false false false false true)
-    (list false false false true true)
-    (list false false true true true) 
-    (list false true true true true)
-    (list true true true true true))
+    (define all-seqs 
+      (list 
+       (list false false false false false)
+       (list false false false false true)
+       (list false false false true true)
+       (list false false true true true) 
+       (list false true true true true)
+       (list true true true true true)))
 
-   (list (list #f #f #f)
-         (list #f #f #t)
-         (list #f #t #t)
-         (list #t #t #t)
-         (list #f #t #t)
-         (list #f #t #t))))
 
-; takes in "dist": output from an enumeration-query
-; and "selection": the element from the posterior that you want
-; returns the probability of that selection
-(define get-probability
-  (lambda (dist selection)
-    (let ([index (list-index (first dist) selection)])
-      (list-ref (second dist) index))))
+    (define experiment-data
+      (list 
+       (list 
+        (list false false false false false)
+        (list false false false false true)
+        (list false false false true true)
+        (list false false true true true) 
+        (list false true true true true)
+        (list true true true true true))
 
-(define summarize-data 
-  (lambda (dataset)
-    (list (first dataset)
-          (map 
-           (lambda (lst) (mean (map boolean->number lst)))
-           (second dataset)))))
+       (list (list #f #f #f)
+             (list #f #f #t)
+             (list #f #t #t)
+             (list #t #t #t)
+             (list #f #t #t)
+             (list #f #t #t))))
 
-(define summarize-model
-  (lambda (modelpreds)
-    (list 
-     all-seqs
-     (map 
-      (lambda (dist) 
-        (get-probability dist #t))
-      modelpreds))))
+    ; takes in "dist": output from an enumeration-query
+    ; and "selection": the element from the posterior that you want
+    ; returns the probability of that selection
+    (define get-probability
+      (lambda (dist selection)
+        (let ([index (list-index (first dist) selection)])
+          (list-ref (second dist) index))))
 
-(define expval-from-enum-analysis-of-enum-model 
-  (lambda (results)
-    (map sum 
-         (transpose (map 
-                     (lambda (lst prob)
-                       (map (lambda (x)
-                              (* prob x))
-                            (second lst)))
-                     (first results)
-                     (second results))))))
-;;;
+    (define summarize-data 
+      (lambda (dataset)
+        (list (first dataset)
+              (map 
+               (lambda (lst) (mean (map boolean->number lst)))
+               (second dataset)))))
 
-(define bc-model 
-  (mem (lambda (sequence gamma delta)
+    (define summarize-model
+      (lambda (modelpreds)
+        (list 
+         all-seqs
+         (map 
+          (lambda (dist) 
+            (get-probability dist #t))
+          modelpreds))))
+
+    (define expval-from-enum-analysis-of-enum-model 
+      (lambda (results)
+        (map sum 
+             (transpose (map 
+                         (lambda (lst prob)
+                           (map (lambda (x)
+                                  (* prob x))
+                                (second lst)))
+                         (first results)
+                         (second results))))))
+    ;;;
+
+    (define bc-model 
+      (mem (lambda (sequence gamma delta)
+             (enumeration-query
+
+              (define fair-weight 0.5)
+
+              (define biased-weight
+                (multinomial bins (discretize-beta gamma delta bins)))
+
+              ; (define biased-weight 
+              ;    (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
+
+              (define isfair (flip))
+
+
+              (define the-weight (if isfair 
+                                     fair-weight 
+                                     biased-weight))
+
+              (define coin (lambda () 
+                             (flip the-weight)))
+
+              isfair
+
+              (equal? sequence 
+                      (repeat 5 coin))))))
+
+    (define data-analysis 
+      (lambda (experiment-data)
+        (enumeration-query
+
+         (define gamma (uniform-draw (list 0.1 0.3 0.5 0.7 0.9)))
+         (define delta (uniform-draw (list 0.1 0.5 1 3 7 15)))
+
+         ; generate predictions for all sequences
+         (define cognitive-model-predictions
+           (map 
+            (lambda (sequence) 
+              (bc-model sequence gamma delta)) 
+            all-seqs))
+
+
+         ; what are the model predictions?
+         (list 
+          (summarize-model cognitive-model-predictions)
+          gamma
+          delta)
+
+         ; given that we've observed this data
+         (factor (sum (flatten (map 
+                                (lambda (data-for-one-sequence model)
+                                  ; map over data points in a given sequence
+                                  (map (lambda (single-data-point)
+                                         (log (get-probability model single-data-point)))
+                                       data-for-one-sequence))       
+                                (second experiment-data)
+                                cognitive-model-predictions)))))))
+
+
+
+    (define results (marginalize (data-analysis experiment-data)))
+
+
+    (define posterior-predictive-results (first results))
+    (define posterior-gamma (second results))
+    (define posterior-delta (third results))
+    (define posterior-predictive (expval-from-enum-analysis-of-enum-model posterior-predictive-results))
+
+    (scatter 
+     (zip 
+      posterior-predictive
+      (second (summarize-data experiment-data)))
+     "data vs. cognitive model")
+
+    (barplot (list all-seqs posterior-predictive) "cognitive model: probability of fair?")
+
+    (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
+
+    (barplot posterior-gamma "posterior on mean biased-weight")
+    (barplot posterior-delta "posterior on varaince of biased-weight")
+
+
+
+
+Still, our model predictions look very idyllic, while our observed data is a little more messy. 
+Can we account for this with response noise?
+Let's see what happens when we factor in response noise.
+
+## Noise reduction
+
+    ;;;fold:
+    (define discretize-beta 
+      (lambda (gamma delta bins)
+        (define shape_alpha (* gamma delta))
+        (define shape_beta (* (- 1 gamma) delta))
+        (define beta-pdf (lambda (x) 
+                           (*
+                            (pow x (- shape_alpha 1))
+                            (pow (- 1 x) (- shape_beta 1)))))
+        (map beta-pdf bins)))
+
+    (define bins '(0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9))
+
+
+
+
+    (define (get-indices needle haystack)
+      (define (loop rest-of-haystack index)
+        (if (null? rest-of-haystack) '()
+            (let ((rest-of-indices (loop (rest rest-of-haystack) (+ index 1))))
+              (if (equal? (first rest-of-haystack) needle)
+                  (pair index rest-of-indices)
+                  rest-of-indices))))
+      (loop haystack 1))
+
+    (define (list-map lst)
+      (if (all (map null? (map rest lst))) 
+          lst
+          (list (map first lst) (list-map (map rest lst)))))
+
+    (define (marginalize output)
+      (let ([states (first output)])
+        (map (lambda (sub-output) 
+               (let* ([probs (second output)]
+                      [unique-states (unique sub-output)]
+                      [unique-state-indices 
+                       (map 
+                        (lambda (x) (list x (get-indices x sub-output))) 
+                        unique-states)])
+
+                 (list (map first unique-state-indices)
+                       (map 
+                        (lambda (y) (sum (map 
+                                          (lambda (x) (list-elt probs x)) 
+                                          (second y)))) 
+                        unique-state-indices))))
+
+             (transpose states))))
+
+
+    (define all-seqs 
+      (list 
+       (list false false false false false)
+       (list false false false false true)
+       (list false false false true true)
+       (list false false true true true) 
+       (list false true true true true)
+       (list true true true true true)))
+
+
+    (define experiment-data
+      (list 
+       (list 
+        (list false false false false false)
+        (list false false false false true)
+        (list false false false true true)
+        (list false false true true true) 
+        (list false true true true true)
+        (list true true true true true))
+
+       (list (list #f #f #f)
+             (list #f #f #t)
+             (list #f #t #t)
+             (list #t #t #t)
+             (list #f #t #t)
+             (list #f #t #t))))
+
+    ; takes in "dist": output from an enumeration-query
+    ; and "selection": the element from the posterior that you want
+    ; returns the probability of that selection
+    (define get-probability
+      (lambda (dist selection)
+        (let ([index (list-index (first dist) selection)])
+          (list-ref (second dist) index))))
+
+    (define summarize-data 
+      (lambda (dataset)
+        (list (first dataset)
+              (map 
+               (lambda (lst) (mean (map boolean->number lst)))
+               (second dataset)))))
+
+    (define summarize-model
+      (lambda (modelpreds)
+        (list 
+         all-seqs
+         (map 
+          (lambda (dist) 
+            (get-probability dist #t))
+          modelpreds))))
+
+
+    (define expval-from-enum-analysis-of-enum-model 
+      (lambda (results)
+        (map sum 
+             (transpose (map 
+                         (lambda (lst prob)
+                           (map (lambda (x)
+                                  (* prob x))
+                                (second lst)))
+                         (first results)
+                         (second results))))))
+    ;;;
+
+
+    (define bc-model 
+      (mem 
+       (lambda (sequence gamma delta)
          (enumeration-query
 
           (define fair-weight 0.5)
@@ -1053,310 +1257,97 @@ Note: This will take about 10 seconds to run.
           (define coin (lambda () 
                          (flip the-weight)))
 
+
           isfair
 
           (equal? sequence 
                   (repeat 5 coin))))))
 
-(define data-analysis 
-  (lambda (experiment-data)
-    (enumeration-query
-
-     (define gamma (uniform-draw (list 0.1 0.3 0.5 0.7 0.9)))
-     (define delta (uniform-draw (list 0.1 0.5 1 3 7 15)))
-
-     ; generate predictions for all sequences
-     (define cognitive-model-predictions
-       (map 
-        (lambda (sequence) 
-          (bc-model sequence gamma delta)) 
-        all-seqs))
-
-
-     ; what are the model predictions?
-     (list 
-      (summarize-model cognitive-model-predictions)
-      gamma
-      delta)
-
-     ; given that we've observed this data
-     (factor (sum (flatten (map 
-                            (lambda (data-for-one-sequence model)
-                              ; map over data points in a given sequence
-                              (map (lambda (single-data-point)
-                                     (log (get-probability model single-data-point)))
-                                   data-for-one-sequence))       
-                            (second experiment-data)
-                            cognitive-model-predictions)))))))
-
-
-
-(define results (marginalize (data-analysis experiment-data)))
-
-
-(define posterior-predictive-results (first results))
-(define posterior-gamma (second results))
-(define posterior-delta (third results))
-(define posterior-predictive (expval-from-enum-analysis-of-enum-model posterior-predictive-results))
-
-(scatter 
- (zip 
-  posterior-predictive
-  (second (summarize-data experiment-data)))
- "data vs. cognitive model")
-
-(barplot (list all-seqs posterior-predictive) "cognitive model: probability of fair?")
-
-(barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
-
-(barplot posterior-gamma "posterior on mean biased-weight")
-(barplot posterior-delta "posterior on varaince of biased-weight")
-
-```
-
-
-
-
-
-
-Still, our model predictions look very idyllic, while our observed data is a little more messy. 
-Can we account for this with response noise?
-Let's see what happens when we factor in response noise.
-
-## Noise reduction
-
-```
-;;;fold:
-(define discretize-beta 
-  (lambda (gamma delta bins)
-    (define shape_alpha (* gamma delta))
-    (define shape_beta (* (- 1 gamma) delta))
-    (define beta-pdf (lambda (x) 
-                       (*
-                        (pow x (- shape_alpha 1))
-                        (pow (- 1 x) (- shape_beta 1)))))
-    (map beta-pdf bins)))
-
-(define bins '(0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9))
-
-
-
-
-(define (get-indices needle haystack)
-  (define (loop rest-of-haystack index)
-    (if (null? rest-of-haystack) '()
-        (let ((rest-of-indices (loop (rest rest-of-haystack) (+ index 1))))
-          (if (equal? (first rest-of-haystack) needle)
-              (pair index rest-of-indices)
-              rest-of-indices))))
-  (loop haystack 1))
-
-(define (list-map lst)
-  (if (all (map null? (map rest lst))) 
-      lst
-      (list (map first lst) (list-map (map rest lst)))))
-
-(define (marginalize output)
-  (let ([states (first output)])
-    (map (lambda (sub-output) 
-           (let* ([probs (second output)]
-                  [unique-states (unique sub-output)]
-                  [unique-state-indices 
-                   (map 
-                    (lambda (x) (list x (get-indices x sub-output))) 
-                    unique-states)])
-
-             (list (map first unique-state-indices)
-                   (map 
-                    (lambda (y) (sum (map 
-                                      (lambda (x) (list-elt probs x)) 
-                                      (second y)))) 
-                    unique-state-indices))))
-
-         (transpose states))))
-
-
-(define all-seqs 
-  (list 
-   (list false false false false false)
-   (list false false false false true)
-   (list false false false true true)
-   (list false false true true true) 
-   (list false true true true true)
-   (list true true true true true)))
-
-
-(define experiment-data
-  (list 
-   (list 
-    (list false false false false false)
-    (list false false false false true)
-    (list false false false true true)
-    (list false false true true true) 
-    (list false true true true true)
-    (list true true true true true))
-
-   (list (list #f #f #f)
-         (list #f #f #t)
-         (list #f #t #t)
-         (list #t #t #t)
-         (list #f #t #t)
-         (list #f #t #t))))
-
-; takes in "dist": output from an enumeration-query
-; and "selection": the element from the posterior that you want
-; returns the probability of that selection
-(define get-probability
-  (lambda (dist selection)
-    (let ([index (list-index (first dist) selection)])
-      (list-ref (second dist) index))))
-
-(define summarize-data 
-  (lambda (dataset)
-    (list (first dataset)
-          (map 
-           (lambda (lst) (mean (map boolean->number lst)))
-           (second dataset)))))
-
-(define summarize-model
-  (lambda (modelpreds)
-    (list 
-     all-seqs
-     (map 
-      (lambda (dist) 
-        (get-probability dist #t))
-      modelpreds))))
-
-
-(define expval-from-enum-analysis-of-enum-model 
-  (lambda (results)
-    (map sum 
-         (transpose (map 
-                     (lambda (lst prob)
-                       (map (lambda (x)
-                              (* prob x))
-                            (second lst)))
-                     (first results)
-                     (second results))))))
-;;;
-
-
-(define bc-model 
-  (mem 
-   (lambda (sequence gamma delta)
-     (enumeration-query
-
-      (define fair-weight 0.5)
-
-      (define biased-weight
-        (multinomial bins (discretize-beta gamma delta bins)))
-
-      ; (define biased-weight 
-      ;    (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
-
-      (define isfair (flip))
-
-
-      (define the-weight (if isfair 
-                             fair-weight 
-                             biased-weight))
-
-      (define coin (lambda () 
-                     (flip the-weight)))
-
-
-      isfair
-
-      (equal? sequence 
-              (repeat 5 coin))))))
-
-(define thinking-and-guessing 
-  (lambda (sequence gamma delta guessing-parameter)
-    (enumeration-query
-     (define thinking (bc-model sequence gamma delta))
-     (define guessing (list '(#t #f) '(0.5 0.5)))
-     (define response
-       (if (flip guessing-parameter)
-           guessing
-           thinking))
-
-     (apply multinomial response)
-
-     true)))
-
-(define data-analysis 
-  (lambda (experiment-data)
-    (enumeration-query
-
-     (define gamma (uniform-draw (list 0.1 0.3 0.5 0.7 0.9)))
-     (define delta (uniform-draw (list 0.1 0.5 1 3 7 15)))
-
-     ; generate predictions for all sequences
-     (define cognitive-model-predictions
-       (map 
-        (lambda (sequence) 
-          (bc-model sequence gamma delta)) 
-        all-seqs))
-
-     (define response-noise (uniform-draw (list 0 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9 1)))
-
-
-     (define cognitive-plus-noise-predictions
-       (map 
-        (lambda (sequence)
-          (thinking-and-guessing sequence gamma delta response-noise))
-        all-seqs))
-
-
-     ; what are the model predictions?
-     (list 
-      (summarize-model cognitive-plus-noise-predictions)
-      (summarize-model cognitive-model-predictions)
-      response-noise
-      gamma
-      delta)
-
-     ; given that we've observed this data
-     (factor (sum (flatten (map 
-                            (lambda (data-for-one-sequence model)
-                              ; map over data points in a given sequence
-                              (map (lambda (single-data-point)
-                                     (log (get-probability model single-data-point)))
-                                   data-for-one-sequence))       
-                            (second experiment-data)
-                            cognitive-plus-noise-predictions)))))))
-
-
-
-(define results (marginalize (data-analysis experiment-data)))
-
-(define posterior-predictive-withNoise-results (first results))
-(define posterior-predictive-sansNoise-results (second results))
-(define posterior-noise (third results))
-(define posterior-gamma (fourth results))
-(define posterior-delta (fifth results))
-
-(define posterior-predictive-withNoise 
-  (expval-from-enum-analysis-of-enum-model posterior-predictive-withNoise-results))
-
-(define posterior-predictive-sansNoise 
-  (expval-from-enum-analysis-of-enum-model posterior-predictive-sansNoise-results))
-
-(scatter 
- (zip 
-  posterior-predictive-withNoise
-  (second (summarize-data experiment-data)))
- "data vs. cognitive model")
-
-(barplot (list all-seqs posterior-predictive-withNoise) "cognitive model (with noise): probability of fair?")
-(barplot (list all-seqs posterior-predictive-sansNoise) "cognitive model (sans noise): probability of fair?")
-(barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
-
-(barplot posterior-noise "posterior on noise parameter")
-(barplot posterior-gamma "posterior on mean biased-weight")
-(barplot posterior-delta "posterior on varaince of biased-weight")
-
-```
+    (define thinking-and-guessing 
+      (lambda (sequence gamma delta guessing-parameter)
+        (enumeration-query
+         (define thinking (bc-model sequence gamma delta))
+         (define guessing (list '(#t #f) '(0.5 0.5)))
+         (define response
+           (if (flip guessing-parameter)
+               guessing
+               thinking))
+
+         (apply multinomial response)
+
+         true)))
+
+    (define data-analysis 
+      (lambda (experiment-data)
+        (enumeration-query
+
+         (define gamma (uniform-draw (list 0.1 0.3 0.5 0.7 0.9)))
+         (define delta (uniform-draw (list 0.1 0.5 1 3 7 15)))
+
+         ; generate predictions for all sequences
+         (define cognitive-model-predictions
+           (map 
+            (lambda (sequence) 
+              (bc-model sequence gamma delta)) 
+            all-seqs))
+
+         (define response-noise (uniform-draw (list 0 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9 1)))
+
+
+         (define cognitive-plus-noise-predictions
+           (map 
+            (lambda (sequence)
+              (thinking-and-guessing sequence gamma delta response-noise))
+            all-seqs))
+
+
+         ; what are the model predictions?
+         (list 
+          (summarize-model cognitive-plus-noise-predictions)
+          (summarize-model cognitive-model-predictions)
+          response-noise
+          gamma
+          delta)
+
+         ; given that we've observed this data
+         (factor (sum (flatten (map 
+                                (lambda (data-for-one-sequence model)
+                                  ; map over data points in a given sequence
+                                  (map (lambda (single-data-point)
+                                         (log (get-probability model single-data-point)))
+                                       data-for-one-sequence))       
+                                (second experiment-data)
+                                cognitive-plus-noise-predictions)))))))
+
+
+
+    (define results (marginalize (data-analysis experiment-data)))
+
+    (define posterior-predictive-withNoise-results (first results))
+    (define posterior-predictive-sansNoise-results (second results))
+    (define posterior-noise (third results))
+    (define posterior-gamma (fourth results))
+    (define posterior-delta (fifth results))
+
+    (define posterior-predictive-withNoise 
+      (expval-from-enum-analysis-of-enum-model posterior-predictive-withNoise-results))
+
+    (define posterior-predictive-sansNoise 
+      (expval-from-enum-analysis-of-enum-model posterior-predictive-sansNoise-results))
+
+    (scatter 
+     (zip 
+      posterior-predictive-withNoise
+      (second (summarize-data experiment-data)))
+     "data vs. cognitive model")
+
+    (barplot (list all-seqs posterior-predictive-withNoise) "cognitive model (with noise): probability of fair?")
+    (barplot (list all-seqs posterior-predictive-sansNoise) "cognitive model (sans noise): probability of fair?")
+    (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
+
+    (barplot posterior-noise "posterior on noise parameter")
+    (barplot posterior-gamma "posterior on mean biased-weight")
+    (barplot posterior-delta "posterior on varaince of biased-weight")
 
 # Model selection
 
@@ -1370,191 +1361,186 @@ and whichever one, it should have a high probability of matching our model.
 
 In pseudocode this might look like:
 
-```
-(define model-comparion
-  (query
-    (define model-1 (simple-bc-model ...))
-    (define model-2 (complex-bc-model ...))
+    (define model-comparion
+      (query
+        (define model-1 (simple-bc-model ...))
+        (define model-2 (complex-bc-model ...))
 
-    (define is-model-1? (flip 0.5))
+        (define is-model-1? (flip 0.5))
 
-    (define best-model
-        (if is-model1?
-            model-1
-            model-2))
+        (define best-model
+            (if is-model1?
+                model-1
+                model-2))
 
-    best-model
+        best-model
 
-    (condition 
-      (equal? data best-model))))
+        (condition 
+          (equal? data best-model))))
 
-```
 
 
 Let's try to write this in full:
 
-```
-;;;fold:
-(define all-seqs 
-  (list 
-   (list false false false false false)
-   (list false false false false true)
-   (list false false false true true)
-   (list false false true true true) 
-   (list false true true true true)
-   (list true true true true true)))
+
+    ;;;fold:
+    (define all-seqs 
+      (list 
+       (list false false false false false)
+       (list false false false false true)
+       (list false false false true true)
+       (list false false true true true) 
+       (list false true true true true)
+       (list true true true true true)))
 
 
-(define experiment-data
-  (list 
-   (list 
-    (list false false false false false)
-    (list false false false false true)
-    (list false false false true true)
-    (list false false true true true) 
-    (list false true true true true)
-    (list true true true true true))
+    (define experiment-data
+      (list 
+       (list 
+        (list false false false false false)
+        (list false false false false true)
+        (list false false false true true)
+        (list false false true true true) 
+        (list false true true true true)
+        (list true true true true true))
 
-   (list (list #f #f #f)
-         (list #f #f #t)
-         (list #f #t #t)
-         (list #t #t #t)
-         (list #f #t #t)
-         (list #f #t #t))))
+       (list (list #f #f #f)
+             (list #f #f #t)
+             (list #f #t #t)
+             (list #t #t #t)
+             (list #f #t #t)
+             (list #f #t #t))))
 
-; takes in "dist": output from an enumeration-query
-; and "selection": the element from the posterior that you want
-; returns the probability of that selection
-(define get-probability
-  (lambda (dist selection)
-    (let ([index (list-index (first dist) selection)])
-      (list-ref (second dist) index))))
+    ; takes in "dist": output from an enumeration-query
+    ; and "selection": the element from the posterior that you want
+    ; returns the probability of that selection
+    (define get-probability
+      (lambda (dist selection)
+        (let ([index (list-index (first dist) selection)])
+          (list-ref (second dist) index))))
 
-(define summarize-data 
-  (lambda (dataset)
-    (list (first dataset)
-          (map 
-           (lambda (lst) (mean (map boolean->number lst)))
-           (second dataset)))))
+    (define summarize-data 
+      (lambda (dataset)
+        (list (first dataset)
+              (map 
+               (lambda (lst) (mean (map boolean->number lst)))
+               (second dataset)))))
 
-(define summarize-model
-  (lambda (modelpreds)
-    (list 
-     all-seqs
-     (map 
-      (lambda (dist) 
-        (get-probability dist #t))
-      modelpreds))))
+    (define summarize-model
+      (lambda (modelpreds)
+        (list 
+         all-seqs
+         (map 
+          (lambda (dist) 
+            (get-probability dist #t))
+          modelpreds))))
 
-;;;
+    ;;;
 
-(define complex-bc-model 
-  (mem (lambda (sequence)
+    (define complex-bc-model 
+      (mem (lambda (sequence)
+             (enumeration-query
+
+              (define fair-weight 0.5)
+              (define biased-weight 
+                (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
+
+              (define isfair (flip))
+              (define the-weight (if isfair 
+                                     fair-weight 
+                                     biased-weight))
+
+              (define coin (lambda () 
+                             (flip the-weight)))
+
+
+              isfair
+
+              (equal? sequence (repeat 5 coin))))))
+
+
+    (define simple-bc-model 
+      (mem
+       (lambda (sequence bias-weight)
          (enumeration-query
 
           (define fair-weight 0.5)
-          (define biased-weight 
-            (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
-
           (define isfair (flip))
-          (define the-weight (if isfair 
-                                 fair-weight 
-                                 biased-weight))
-
-          (define coin (lambda () 
-                         (flip the-weight)))
-
+          (define the-weight (if isfair fair-weight bias-weight))
+          (define coin (lambda () (flip the-weight)))
 
           isfair
 
           (equal? sequence (repeat 5 coin))))))
 
 
-(define simple-bc-model 
-  (mem
-   (lambda (sequence bias-weight)
-     (enumeration-query
 
-      (define fair-weight 0.5)
-      (define isfair (flip))
-      (define the-weight (if isfair fair-weight bias-weight))
-      (define coin (lambda () (flip the-weight)))
+    (define model-comparison 
+      (lambda (experiment-data)
+        (enumeration-query
 
-      isfair
-
-      (equal? sequence (repeat 5 coin))))))
+         (define biased-weight 
+           (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
 
 
 
-(define model-comparison 
-  (lambda (experiment-data)
-    (enumeration-query
+         (define is-model1? (flip 0.5))
 
-     (define biased-weight 
-       (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
+         ; model1: generate predictions for all sequences
+         (define model1
+           (map 
+            (lambda (sequence) 
+              (simple-bc-model sequence biased-weight)) 
+            all-seqs))
 
+         ; model2: generate predictions for all sequences
+         (define model2
+           (map 
+            (lambda (sequence) 
+              (complex-bc-model sequence))
+            all-seqs))
 
+         (define best-model (if is-model1?
+                                model1
+                                model2))
 
-     (define is-model1? (flip 0.5))
+         ; which is the best model?
+         is-model1?
 
-     ; model1: generate predictions for all sequences
-     (define model1
-       (map 
-        (lambda (sequence) 
-          (simple-bc-model sequence biased-weight)) 
-        all-seqs))
+         ; given that we've observed this data
+         (factor (sum (flatten (map 
+                                (lambda (data-for-one-sequence model)
+                                  ; map over data points in a given sequence
+                                  (map (lambda (single-data-point)
+                                         (log (get-probability model single-data-point)))
+                                       data-for-one-sequence))       
+                                (second experiment-data)
+                                best-model)))))))
 
-     ; model2: generate predictions for all sequences
-     (define model2
-       (map 
-        (lambda (sequence) 
-          (complex-bc-model sequence))
-        all-seqs))
+    (define results (model-comparison experiment-data))
 
-     (define best-model (if is-model1?
-                            model1
-                            model2))
-
-     ; which is the best model?
-     is-model1?
-
-     ; given that we've observed this data
-     (factor (sum (flatten (map 
-                            (lambda (data-for-one-sequence model)
-                              ; map over data points in a given sequence
-                              (map (lambda (single-data-point)
-                                     (log (get-probability model single-data-point)))
-                                   data-for-one-sequence))       
-                            (second experiment-data)
-                            best-model)))))))
-
-(define results (model-comparison experiment-data))
-
-(barplot results "is model 1 the best?")
-(barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
-```
+    (barplot results "is model 1 the best?")
+    (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
 
 Our data slightly favors the more complex model. Remember that we only have 3 observations for each sequence.
 
 
 Try this slightly more expanded data set.
 
- ```
- (define experiment-data
-  (list 
-   (list 
-    (list false false false false false)
-    (list false false false false true)
-    (list false false false true true)
-    (list false false true true true) 
-    (list false true true true true)
-    (list true true true true true))
-   (list 
-    (list #f #f #f #f #f #f #f)
-    (list #f #f #t #f #f #f #t)
-    (list #f #t #t #t #t #t #t)
-    (list #t #t #t #t #t #t #f)
-    (list #f #t #t #t #f #f #f)
-    (list #f #t #t #f #f #f #f))))
-
- ```
+ 
+    (define experiment-data
+    (list 
+     (list 
+      (list false false false false false)
+      (list false false false false true)
+      (list false false false true true)
+      (list false false true true true) 
+      (list false true true true true)
+      (list true true true true true))
+     (list 
+      (list #f #f #f #f #f #f #f)
+      (list #f #f #t #f #f #f #t)
+      (list #f #t #t #t #t #t #t)
+      (list #t #t #t #t #t #t #f)
+      (list #f #t #t #t #f #f #f)
+      (list #f #t #t #f #f #f #f))))

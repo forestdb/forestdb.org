@@ -69,7 +69,8 @@ To compress out results, we're going to extract the `#t` probability; i.e. the p
           (biascoin-model (list false false false false false) bias-weight)))
        many-biases))
 
-    (barplot (list all-weights results-for-many-biases) "TTTTT is fair?, by bias-weight parameter")
+    (barplot (list many-biases results-for-many-biases) 
+      "TTTTT is fair?, by bias-weight parameter")
 
       
 We see that for lower values of `bias-weight`, we get the intuitive ifnerence. 
@@ -137,7 +138,7 @@ As good scientists, we'll want to collect data for a number of sequences, and we
 
     (define data-analysis 
       (lambda (experiment-data)
-        (mh-query 10 10
+        (query
 
                   (define biased-weight 
                     (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
@@ -385,9 +386,11 @@ Sometimes parameter values aren't so easily interpreted as in our case here. Ano
       (second (summarize-data experiment-data)))
      "data vs. model")
 
-    (barplot (list all-seqs posterior-predictive) "model: probability of fair?")
+    (barplot (list all-seqs posterior-predictive) 
+      "model: probability of fair?")
 
-    (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
+    (barplot (list all-seqs (second (summarize-data experiment-data))) 
+      "data: proportion of fair responses")
 
 Our model provides a pretty good fit to the data set. There are some mismatches, however. 
 The model thinks HHHHH is a fair sequence, whereas our data suggest otherwise.
@@ -412,7 +415,6 @@ Try the following data set
         (list #f #t #t)
         (list #f #f #t)
         (list #f #f #f))))
-
 
 What is the posterior over the `bias weight`? How does the posterior predictive look? What can you conclude about our bias coin model (with respect to this data))?
 
@@ -640,10 +642,13 @@ It is simultaneously a measure of fit of your cognitive model, as well as the re
       (second (summarize-data experiment-data)))
      "data vs. cognitive model (including noise)")
 
-    (barplot (list all-seqs posterior-predictive-withNoise) "model (with noise): probability of fair?")
-    (barplot (list all-seqs posterior-predictive-sansNoise) "model (sans noise): probability of fair?")
+    (barplot (list all-seqs posterior-predictive-withNoise) 
+      "model (with noise): probability of fair?")
+    (barplot (list all-seqs posterior-predictive-sansNoise) 
+      "model (sans noise): probability of fair?")
 
-    (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
+    (barplot (list all-seqs (second (summarize-data experiment-data))) 
+      "data: proportion of fair responses")
 
     (barplot posterior-noise "posterior on response noise")
 
@@ -731,8 +736,8 @@ Let's examine the behavior of this model with respect to two sequences of intere
 
          (equal? sequence (repeat 5 coin)))))
 
-    (barplot (bc-model (list true true true true true)) "HHHHH is fair?")
-    (barplot (bc-model (list false false false false false)) "TTTTT is fair?")
+    (barplot (enriched-bc-model (list true true true true true)) "HHHHH is fair?")
+    (barplot (enriched-bc-model (list false false false false false)) "TTTTT is fair?")
 
 
 
@@ -896,9 +901,11 @@ The model has the flexibility to infer different biased coin weights for differe
       (second (summarize-data experiment-data)))
      "data vs. model")
 
-    (barplot (list all-seqs posterior-predictive) "model: probability of fair?")
+    (barplot (list all-seqs posterior-predictive) 
+      "model: probability of fair?")
 
-    (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
+    (barplot (list all-seqs (second (summarize-data experiment-data))) 
+      "data: proportion of fair responses")
 
 This is great. The model doesn't suffer from the same *lower-bias* flaw that it did previously.
 Note that right now, our congitive model has 0 parameters, so we're really just looking at the predictions of the model (as opposed to the posterior predictive).
@@ -1103,9 +1110,11 @@ Note: This will take about 10 seconds to run.
       (second (summarize-data experiment-data)))
      "data vs. cognitive model")
 
-    (barplot (list all-seqs posterior-predictive) "cognitive model: probability of fair?")
+    (barplot (list all-seqs posterior-predictive) 
+      "cognitive model: probability of fair?")
 
-    (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
+    (barplot (list all-seqs (second (summarize-data experiment-data))) 
+      "data: proportion of fair responses")
 
     (barplot posterior-gamma "posterior on mean biased-weight")
     (barplot posterior-delta "posterior on varaince of biased-weight")
@@ -1341,9 +1350,12 @@ Let's see what happens when we factor in response noise.
       (second (summarize-data experiment-data)))
      "data vs. cognitive model")
 
-    (barplot (list all-seqs posterior-predictive-withNoise) "cognitive model (with noise): probability of fair?")
-    (barplot (list all-seqs posterior-predictive-sansNoise) "cognitive model (sans noise): probability of fair?")
-    (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
+    (barplot (list all-seqs posterior-predictive-withNoise) 
+      "cognitive model (with noise): probability of fair?")
+    (barplot (list all-seqs posterior-predictive-sansNoise) 
+      "cognitive model (sans noise): probability of fair?")
+    (barplot (list all-seqs (second (summarize-data experiment-data))) 
+      "data: proportion of fair responses")
 
     (barplot posterior-noise "posterior on noise parameter")
     (barplot posterior-gamma "posterior on mean biased-weight")
@@ -1520,7 +1532,8 @@ Let's try to write this in full:
     (define results (model-comparison experiment-data))
 
     (barplot results "is model 1 the best?")
-    (barplot (list all-seqs (second (summarize-data experiment-data))) "data: proportion of fair responses")
+    (barplot (list all-seqs (second (summarize-data experiment-data))) 
+      "data: proportion of fair responses")
 
 Our data slightly favors the more complex model. Remember that we only have 3 observations for each sequence.
 

@@ -3,64 +3,69 @@ layout: model
 title: Bayesian Data Analysis
 ---
 
-Here is the biased coin model described in Chapter 5.
+By: Michael Henry Tessler and Noah D. Goodman
+
+In this book we are primarily concerned with probabilistic models of cognition: understanding inferences that people draw as Bayesian conditioning given a generative model that captures a persons models of the world. Bayesian statistics are equally useful to us as scientists, when we are trying to understand what our data means about psychological hypotheses. This can become confusing: a particular modeling assumption can be something we hypothesize that people assume about the world, or can be something that we as scientists want to assume (but don't assume that people assume). A pithy way of saying this is that we can make assumptions about "Bayes in the head" or about "Bayes in the notebook". We will illustrate by considering cognitive models of randomness judgements, as explored in Chapter 5.
+
+Imagine that you are asked to judge whether a sequence of coin flips came from a fair coin or a trick (weighted) coin. The sequence "TTTTT" probably strikes you as almost certainly trick, while the sequence "THHTH" probably strikes you as likely coming from a fair coin. The sequence "HHHTT" may seem more ambiguous.
+Cognitive scientists like to confirm such intuitions, and explore the borderline cases in a quantitative way. So we did an experiment asking 30 participants to make this judgement for a number of different sequences. You can do this experiment yourself [here](http://stanford.edu/~mtessler/experiments/subjective-randomness/experiment/experiment.html) (your data won't be recorded).
+
+In Chapter 5 we discussed several models of how people might make this judgement. First we'll recall the simplest such model, then we'll think about how to compare it to the data we have gathered.
+
+#A simple model of randomness judgements
+
+The simplest model assumes that the sequence comes from a fair coin (with heads probability 0.5) or a biased coin whose probability of landing Heads (the `bias-weight`) is a parameter of the model.
 
 ~~~~
-(define biascoin-model 
-  (lambda (sequence bias-weight)
-    (enumeration-query
+(define (biascoin-model sequence bias-weight)
+  (enumeration-query
 
-     (define fair-weight 0.5)
+   (define fair-weight 0.5)
 
-     (define isfair (flip))
+   (define isfair (flip))
 
-     (define the-weight (if isfair fair-weight bias-weight))
+   (define the-weight (if isfair fair-weight bias-weight))
 
-     (define coin (lambda () 
-                    (flip the-weight)))
+   (define coin (lambda () 
+                  (flip the-weight)))
 
 
-     isfair
+   isfair
 
-     (equal? sequence 
-             (repeat 5 coin)))))
+   (equal? sequence (repeat 5 coin))))
 
 (barplot (biascoin-model (list false false false false true) 0.2) "TTTTH is fair?")
 
 (barplot (biascoin-model (list false true true false true) 0.2) "THHTH is fair?")
 ~~~~
 
-The only difference between this model and the one presented in Chapter 5 is that we've made  `bias-weight` an argument to the function `biascoin-model`. `bias-weight` was a parameter implicit in the model in Chapter 5; by making it into an argument, we have made it explicit. Also, we have changed this from an `mh-query` model to an `enumeration-query` model.
-
-Let's analyze the behavior of the model by looking at a number of different biases.
-To compress out results, we're going to extract the `#t` probability; i.e. the probability that the sequence came from a fair coin.
+We can gain some intuition for the possible predictions of this model by exploring different bias parameters.
+To simplify the results, we make a function `get-probability-of-faircoin` to extract the `#t` probability (i.e. the probability that the sequence came from a fair coin).
 
 ~~~
 ;;;fold:
-(define biascoin-model 
-  (lambda (sequence bias-weight)
-    (enumeration-query
+(define (biascoin-model sequence bias-weight)
+  (enumeration-query
 
-     (define fair-weight 0.5)
+   (define fair-weight 0.5)
 
-     (define isfair (flip))
+   (define isfair (flip))
 
-     (define the-weight (if isfair fair-weight bias-weight))
+   (define the-weight (if isfair fair-weight bias-weight))
 
-     (define coin (lambda () 
-                    (flip the-weight)))
+   (define coin (lambda () 
+                  (flip the-weight)))
 
 
-     isfair
+   isfair
 
-     (equal? sequence 
-             (repeat 5 coin)))))
+   (equal? sequence (repeat 5 coin))))
 ;;;
 
 (define get-probability-of-faircoin 
   (lambda (dist)
-    (let ([index (list-index (first dist) #t)])
-      (list-ref (second dist) index))))
+    (define index (list-index (first dist) #t))
+    (list-ref (second dist) index)))
 
 (define many-biases (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9))
 
@@ -72,292 +77,279 @@ To compress out results, we're going to extract the `#t` probability; i.e. the p
    many-biases))
 
 (barplot (list many-biases results-for-many-biases) 
-  "TTTTT is fair?, by bias-weight parameter")
+         "TTTTT is fair?, by bias-weight parameter")
 ~~~
       
-We see that for lower values of `bias-weight`, we get the intuitive inference. 
-
-Now, let's suppose we've collected some data, and have judgements about whether or not certain sequences are biased. Could we use this data to infer the right value of `bias-weight'? 
-One method to find out the best parameter value would be to "guess and check". We could plug in different values, and see if the predictions match our data
-
-A more formal (and Bayesian) way to to do this is to say we (as scientists) have uncertainty about what the value of `bias-weight` is, but whatever it is, it should lead to good predictions of the data.
-
-This sort of model is sometimes called "bayes in the notebook" (to contrast with the "bayes in the head" models we've dealt with so far).
+We see that for lower values of `bias-weight`, we get the intuitive inference: this is not a fair coin. Conversely, if we imagine trying to enforce the judgement that TTTTT comes from a biased coin, we will be forced to assume the `bias-weight` is low. 
 
 # Inferring model parameters
 
-As good scientists, we'll want to collect data for a number of sequences, and we'll want our model to predict the responses for all (or many) of them. 
+How can we ask more rigorously what the right value of `bias-weight` is, given the data we have collected? 
+A standard method would be to optimize the fit (e.g. correlation) of data to model predictions, by adjusting the `bias-weight` parameter.
+Another (more Bayesian) way to approach this is to say we (as scientists) have uncertainty about the true value of `bias-weight`, but we believe the data is the result of participants behaving according  to `biascoin-model` with some parameter value. This naturally leads to a generative model based on sampling `bias-weight` and then using `biascoin-model` to predict the distribution from which responses are sampled; conditioning on the data then let's us form our (scientific) beliefs about the parameter after seeing the data.
 
-##  Bad model (conditioning) DOESN'T RUN
+Here is a sketch of this model:
 
-    ;;;fold:
-    (define bc-model 
-      (lambda (sequence bias-weight)
-        (enumeration-query
+~~~
+;;;fold:
+(define bc-model 
+  (lambda (sequence bias-weight)
+    (enumeration-query
 
-         (define fair-weight 0.5)
+     (define fair-weight 0.5)
 
-         (define isfair (flip))
+     (define isfair (flip))
 
-         (define the-weight (if isfair fair-weight bias-weight))
+     (define the-weight (if isfair fair-weight bias-weight))
 
-         (define coin (lambda () 
-                        (flip the-weight)))
+     (define coin (lambda () 
+                    (flip the-weight)))
 
-         isfair
+     isfair
 
-         (equal? sequence 
-                 (repeat 5 coin)))))
-    ;;;
+     (equal? sequence 
+             (repeat 5 coin)))))
+;;;
 
+;actual data from the experiment:
+(define experiment-data
+  (list
+   list
+   (list #t #t #t #t #t) 
+   (list #t #t #t #t #f) 
+   (list #t #t #t #f #t) 
+   (list #t #t #t #f #f) 
+   (list #t #t #f #t #t) 
+   (list #t #t #f #t #f) 
+   (list #t #t #f #f #t) 
+   (list #t #t #f #f #f) 
+   (list #t #f #t #t #t) 
+   (list #t #f #t #t #f) 
+   (list #t #f #t #f #t) 
+   (list #t #f #t #f #f) 
+   (list #t #f #f #t #t) 
+   (list #t #f #f #t #f) 
+   (list #t #f #f #f #t) 
+   (list #t #f #f #f #f) 
+   (list #f #t #t #t #t) 
+   (list #f #t #t #t #f) 
+   (list #f #t #t #f #t) 
+   (list #f #t #t #f #f) 
+   (list #f #t #f #t #t) 
+   (list #f #t #f #t #f) 
+   (list #f #t #f #f #t) 
+   (list #f #t #f #f #f)
+   (list #f #f #t #t #t) 
+   (list #f #f #t #t #f) 
+   (list #f #f #t #f #t) 
+   (list #f #f #t #f #f) 
+   (list #f #f #f #t #t) 
+   (list #f #f #f #t #f) 
+   (list #f #f #f #f #t) 
+   (list #f #f #f #f #f))
+  list 
+  (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+  (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+  (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
+  (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+  (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
+  (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
+  (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+  (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
+  (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
+  (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+  (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
+  (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+  (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+  (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+  (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+  (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
+  (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+  (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
+  (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+  (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+  (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+  (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+  (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+  (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
+  (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
+  (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+  (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+  (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
+  (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+  (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
+  (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+  (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
-    (define experiment-data
-      (list
-       (list
-        (list #t #t #t #t #t) 
-        (list #t #t #t #t #f) 
-        (list #t #t #t #f #t) 
-        (list #t #t #t #f #f) 
-        (list #t #t #f #t #t) 
-        (list #t #t #f #t #f) 
-        (list #t #t #f #f #t) 
-        (list #t #t #f #f #f) 
-        (list #t #f #t #t #t) 
-        (list #t #f #t #t #f) 
-        (list #t #f #t #f #t) 
-        (list #t #f #t #f #f) 
-        (list #t #f #f #t #t) 
-        (list #t #f #f #t #f) 
-        (list #t #f #f #f #t) 
-        (list #t #f #f #f #f) 
-        (list #f #t #t #t #t) 
-        (list #f #t #t #t #f) 
-        (list #f #t #t #f #t) 
-        (list #f #t #t #f #f) 
-        (list #f #t #f #t #t) 
-        (list #f #t #f #t #f) 
-        (list #f #t #f #f #t) 
-        (list #f #t #f #f #f)
-        (list #f #f #t #t #t) 
-        (list #f #f #t #t #f) 
-        (list #f #f #t #f #t) 
-        (list #f #f #t #f #f) 
-        (list #f #f #f #t #t) 
-        (list #f #f #f #t #f) 
-        (list #f #f #f #f #t) 
-        (list #f #f #f #f #f))
-       (list 
-        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
-        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
-        (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
-        (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
-        (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
-        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
-        (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
-        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
-        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
-        (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
-        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
-        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
-
-    (define all-seqs (first experiment-data))
-
-
-    (define data-analysis 
-      (lambda (experiment-data)
-        (query
-
-                  (define biased-weight 
-                    (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
-
-                  ; generate predictions for all sequences
-                  (define cognitive-model-predictions
-                    (map 
-                     (lambda (sequence) 
-                       (bc-model sequence biased-weight)) 
-                     all-seqs))
-
-                  ; what is the best biased-weight?
-                  biased-weight
-
-                  ; given that we've observed this data
-                  (all (flatten
-                        (map 
-                         (lambda (data-for-one-sequence model)
-                           ; map over data points in a given sequence
-                           (map (lambda (single-data-point)
-                                  ;single-data-point)
-                                  (equal? single-data-point (apply multinomial model)))
-                                data-for-one-sequence))
-                         (second experiment-data)
-                         cognitive-model-predictions)))))
+(define all-seqs (first experiment-data))
 
 
-This model is super inefficient. It samples a bias-weight, generates predictions from the biased-coin model with the weight, *samples* a response from the posterior of that model, and see's if it matches up with the observed data. 
+(define data-analysis 
+  (lambda (experiment-data)
+    (query
 
-## Better model (using factors)
+     (define biased-weight 
+       (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
 
-Here is it done with factor statement, instead of a condition statement.
+     ; generate predictions for all sequences
+     (define cognitive-model-predictions
+       (map 
+        (lambda (sequence) 
+          (bc-model sequence biased-weight)) 
+        all-seqs))
 
+     ; what is the best biased-weight?
+     biased-weight
 
-    ;;;fold:
-    (define bc-model 
-      (lambda (sequence bias-weight)
-        (enumeration-query
-
-         (define fair-weight 0.5)
-
-         (define isfair (flip))
-
-         (define the-weight (if isfair fair-weight bias-weight))
-
-         (define coin (lambda () 
-                        (flip the-weight)))
-
-         isfair
-
-         (equal? sequence 
-                 (repeat 5 coin)))))
-    ;;;
-
-    (define experiment-data
-      (list
-       (list
-        (list #t #t #t #t #t) 
-        (list #t #t #t #t #f) 
-        (list #t #t #t #f #t) 
-        (list #t #t #t #f #f) 
-        (list #t #t #f #t #t) 
-        (list #t #t #f #t #f) 
-        (list #t #t #f #f #t) 
-        (list #t #t #f #f #f) 
-        (list #t #f #t #t #t) 
-        (list #t #f #t #t #f) 
-        (list #t #f #t #f #t) 
-        (list #t #f #t #f #f) 
-        (list #t #f #f #t #t) 
-        (list #t #f #f #t #f) 
-        (list #t #f #f #f #t) 
-        (list #t #f #f #f #f) 
-        (list #f #t #t #t #t) 
-        (list #f #t #t #t #f) 
-        (list #f #t #t #f #t) 
-        (list #f #t #t #f #f) 
-        (list #f #t #f #t #t) 
-        (list #f #t #f #t #f) 
-        (list #f #t #f #f #t) 
-        (list #f #t #f #f #f)
-        (list #f #f #t #t #t) 
-        (list #f #f #t #t #f) 
-        (list #f #f #t #f #t) 
-        (list #f #f #t #f #f) 
-        (list #f #f #f #t #t) 
-        (list #f #f #f #t #f) 
-        (list #f #f #f #f #t) 
-        (list #f #f #f #f #f))
-       (list 
-        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
-        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
-        (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
-        (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
-        (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
-        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
-        (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
-        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
-        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
-        (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
-        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
-        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
-
-    (define all-seqs (first experiment-data))
-
-
-    ; takes in "dist": output from an enumeration-query
-    ; and "selection": the element from the posterior that you want
-    ; returns the probability of that selection
-    (define get-probability
-      (lambda (dist selection)
-        (let ([index (list-index (first dist) selection)])
-          (list-ref (second dist) index))))
-
-
-    (define data-analysis 
-      (lambda (experiment-data)
-        (enumeration-query
-
-         (define biased-weight 
-           (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
-
-         ; generate predictions for all sequences
-         (define cognitive-model-predictions
+     ; given that we've observed this data
+     (all (flatten
            (map 
-            (lambda (sequence) 
-              (bc-model sequence biased-weight)) 
-            all-seqs))
+            (lambda (data-for-one-sequence model)
+              ; map over data points in a given sequence
+              (map (lambda (single-data-point)
+                     ;single-data-point)
+                     (equal? single-data-point (apply multinomial model)))
+                   data-for-one-sequence))
+            (second experiment-data)
+            cognitive-model-predictions)))))
+~~~
 
-         ; what is the best biased-weight?
-         biased-weight
+Notice that there are two queries: one as part of the cognitive model ('in the head') and once as part of the data analysis model ('in the notebook').
 
-         ; given that we've observed this data
-         (factor (sum (flatten (map 
-                                (lambda (data-for-one-sequence model)
-                                  ; map over data points in a given sequence
-                                  (map (lambda (single-data-point)
-                                         (log (get-probability model single-data-point)))
-                                       data-for-one-sequence))       
-                                (second experiment-data)
-                                cognitive-model-predictions)))))))
+As written this model is very inefficient, because it *samples* each response and checks to see if all match up with the observed data. We can re-write this in a more efficient way by computing the probability of the responses directly, and adding them with a factor statement (instead of a condition statement).
 
-    (barplot (data-analysis experiment-data) "inferred bias weight")
+~~~
+(define (biascoin-model sequence bias-weight)
+  (enumeration-query
+
+   (define fair-weight 0.5)
+
+   (define isfair (flip))
+
+   (define the-weight (if isfair fair-weight bias-weight))
+
+   (define coin (lambda () 
+                  (flip the-weight)))
 
 
-This is cool. We've taken some data, and written a cognitive model with some parameters (in this case, one parameter: bias-weight), and asked what the most likely value of that parameter is.
+   isfair
 
-Our inferred parameter setting makes sense given this made-up data. Our made-up data said the coin wasn't fair when mostly Tails came up. 
+   (equal? sequence (repeat 5 coin))))
 
-Sometimes parameter values aren't so easily interpreted as in our case here. Another way to test how well your model does is to look at the predictions of the model under these "inferred" parameter settings. This is called the "posterior predictive" distribution: it is the data that the model *actually* predicts. 
+(define get-probability-of-faircoin 
+  (lambda (dist)
+    (define index (list-index (first dist) #t))
+    (list-ref (second dist) index)))
+
+(define experiment-data
+  (list
+   (list
+    (list #t #t #t #t #t) 
+    (list #t #t #t #t #f) 
+    (list #t #t #t #f #t) 
+    (list #t #t #t #f #f) 
+    (list #t #t #f #t #t) 
+    (list #t #t #f #t #f) 
+    (list #t #t #f #f #t) 
+    (list #t #t #f #f #f) 
+    (list #t #f #t #t #t) 
+    (list #t #f #t #t #f) 
+    (list #t #f #t #f #t) 
+    (list #t #f #t #f #f) 
+    (list #t #f #f #t #t) 
+    (list #t #f #f #t #f) 
+    (list #t #f #f #f #t) 
+    (list #t #f #f #f #f) 
+    (list #f #t #t #t #t) 
+    (list #f #t #t #t #f) 
+    (list #f #t #t #f #t) 
+    (list #f #t #t #f #f) 
+    (list #f #t #f #t #t) 
+    (list #f #t #f #t #f) 
+    (list #f #t #f #f #t) 
+    (list #f #t #f #f #f)
+    (list #f #f #t #t #t) 
+    (list #f #f #t #t #f) 
+    (list #f #f #t #f #t) 
+    (list #f #f #t #f #f) 
+    (list #f #f #f #t #t) 
+    (list #f #f #f #t #f) 
+    (list #f #f #f #f #t) 
+    (list #f #f #f #f #f))
+   (list 
+    (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
+    (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
+    (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
+    (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
+    (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+    (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
+    (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+    (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
+    (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
+    (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
+    (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
+    (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
+;;;
+
+(define all-seqs (first experiment-data))
+
+(define data-analysis 
+  (lambda (experiment-data)
+    (enumeration-query
+
+     (define biased-weight 
+       (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
+
+     ; generate predictions for all sequences
+     (define cognitive-model-predictions
+       (map 
+        (lambda (sequence) 
+          (bc-model sequence biased-weight)) 
+        all-seqs))
+
+     ; what is the best biased-weight?
+     biased-weight
+
+     ; given that we've observed this data
+     (factor (sum (flatten (map 
+                            (lambda (data-for-one-sequence model)
+                              ; map over data points in a given sequence
+                              (map (lambda (single-data-point)
+                                     (log (get-probability model single-data-point)))
+                                   data-for-one-sequence))       
+                            (second experiment-data)
+                            cognitive-model-predictions)))))))
+
+(barplot (data-analysis experiment-data) "inferred bias weight")
+~~~
+
+We've taken some data, and written a cognitive model with some parameters (in this case, one parameter: bias-weight), and asked what the most likely value of that parameter is.
+Our inferred parameter distribution reflects the beliefs we should have as scientists given the data and the assumptions that go into the model. 
+
 
 # Posterior predictive
+
+Sometimes parameter values aren't so easily interpreted as in our case here. Another way to test how well your model does is to look at the predictions of the model under these "inferred" parameter settings. This is called the "posterior predictive" distribution: it is the data that the model *actually* predicts. 
 
 
     ;;;fold:

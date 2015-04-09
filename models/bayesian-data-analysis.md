@@ -35,44 +35,45 @@ The only difference between this model and the one presented in Chapter 5 is tha
 Let's analyze the behavior of the model by looking at a number of different biases.
 To compress out results, we're going to extract the `#t` probability; i.e. the probability that the sequence came from a fair coin.
 
-    ;;;fold:
-    (define biascoin-model 
-      (lambda (sequence bias-weight)
-        (enumeration-query
+~~~
+;;;fold:
+(define biascoin-model 
+  (lambda (sequence bias-weight)
+    (enumeration-query
 
-         (define fair-weight 0.5)
+     (define fair-weight 0.5)
 
-         (define isfair (flip))
+     (define isfair (flip))
 
-         (define the-weight (if isfair fair-weight bias-weight))
+     (define the-weight (if isfair fair-weight bias-weight))
 
-         (define coin (lambda () 
-                        (flip the-weight)))
+     (define coin (lambda () 
+                    (flip the-weight)))
 
 
-         isfair
+     isfair
 
-         (equal? sequence 
-                 (repeat 5 coin)))))
-    ;;;
+     (equal? sequence 
+             (repeat 5 coin)))))
+;;;
 
-    (define get-probability-of-faircoin 
-      (lambda (dist)
-        (let ([index (list-index (first dist) #t)])
-          (list-ref (second dist) index))))
+(define get-probability-of-faircoin 
+  (lambda (dist)
+    (let ([index (list-index (first dist) #t)])
+      (list-ref (second dist) index))))
 
-    (define many-biases (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9))
+(define many-biases (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9))
 
-    (define results-for-many-biases 
-      (map 
-       (lambda (bias-weight) 
-         (get-probability-of-faircoin 
-          (biascoin-model (list false false false false false) bias-weight)))
-       many-biases))
+(define results-for-many-biases 
+  (map 
+   (lambda (bias-weight) 
+     (get-probability-of-faircoin 
+      (biascoin-model (list false false false false false) bias-weight)))
+   many-biases))
 
-    (barplot (list many-biases results-for-many-biases) 
-      "TTTTT is fair?, by bias-weight parameter")
-
+(barplot (list many-biases results-for-many-biases) 
+  "TTTTT is fair?, by bias-weight parameter")
+~~~
       
 We see that for lower values of `bias-weight`, we get the intuitive ifnerence. 
 
@@ -109,32 +110,77 @@ As good scientists, we'll want to collect data for a number of sequences, and we
                  (repeat 5 coin)))))
     ;;;
 
-    (define all-seqs 
-      (list 
-       (list false false false false false)
-       (list false false false false true)
-       (list false false false true true)
-       (list false false true true true) 
-       (list false true true true true)
-       (list true true true true true)))
-
 
     (define experiment-data
-      (list 
+      (list
+       (list
+        (list #t #t #t #t #t) 
+        (list #t #t #t #t #f) 
+        (list #t #t #t #f #t) 
+        (list #t #t #t #f #f) 
+        (list #t #t #f #t #t) 
+        (list #t #t #f #t #f) 
+        (list #t #t #f #f #t) 
+        (list #t #t #f #f #f) 
+        (list #t #f #t #t #t) 
+        (list #t #f #t #t #f) 
+        (list #t #f #t #f #t) 
+        (list #t #f #t #f #f) 
+        (list #t #f #f #t #t) 
+        (list #t #f #f #t #f) 
+        (list #t #f #f #f #t) 
+        (list #t #f #f #f #f) 
+        (list #f #t #t #t #t) 
+        (list #f #t #t #t #f) 
+        (list #f #t #t #f #t) 
+        (list #f #t #t #f #f) 
+        (list #f #t #f #t #t) 
+        (list #f #t #f #t #f) 
+        (list #f #t #f #f #t) 
+        (list #f #t #f #f #f)
+        (list #f #f #t #t #t) 
+        (list #f #f #t #t #f) 
+        (list #f #f #t #f #t) 
+        (list #f #f #t #f #f) 
+        (list #f #f #f #t #t) 
+        (list #f #f #f #t #f) 
+        (list #f #f #f #f #t) 
+        (list #f #f #f #f #f))
        (list 
-        (list false false false false false)
-        (list false false false false true)
-        (list false false false true true)
-        (list false false true true true) 
-        (list false true true true true)
-        (list true true true true true))
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
-       (list (list #f #f #f)
-             (list #f #f #t)
-             (list #f #t #t)
-             (list #t #t #t)
-             (list #f #t #t)
-             (list #f #t #t))))
+    (define all-seqs (first experiment-data))
 
 
     (define data-analysis 
@@ -194,32 +240,77 @@ Here is it done with factor statement, instead of a condition statement.
                  (repeat 5 coin)))))
     ;;;
 
-    (define all-seqs 
-      (list 
-       (list false false false false false)
-       (list false false false false true)
-       (list false false false true true)
-       (list false false true true true) 
-       (list false true true true true)
-       (list true true true true true)))
-
-
     (define experiment-data
-      (list 
+      (list
+       (list
+        (list #t #t #t #t #t) 
+        (list #t #t #t #t #f) 
+        (list #t #t #t #f #t) 
+        (list #t #t #t #f #f) 
+        (list #t #t #f #t #t) 
+        (list #t #t #f #t #f) 
+        (list #t #t #f #f #t) 
+        (list #t #t #f #f #f) 
+        (list #t #f #t #t #t) 
+        (list #t #f #t #t #f) 
+        (list #t #f #t #f #t) 
+        (list #t #f #t #f #f) 
+        (list #t #f #f #t #t) 
+        (list #t #f #f #t #f) 
+        (list #t #f #f #f #t) 
+        (list #t #f #f #f #f) 
+        (list #f #t #t #t #t) 
+        (list #f #t #t #t #f) 
+        (list #f #t #t #f #t) 
+        (list #f #t #t #f #f) 
+        (list #f #t #f #t #t) 
+        (list #f #t #f #t #f) 
+        (list #f #t #f #f #t) 
+        (list #f #t #f #f #f)
+        (list #f #f #t #t #t) 
+        (list #f #f #t #t #f) 
+        (list #f #f #t #f #t) 
+        (list #f #f #t #f #f) 
+        (list #f #f #f #t #t) 
+        (list #f #f #f #t #f) 
+        (list #f #f #f #f #t) 
+        (list #f #f #f #f #f))
        (list 
-        (list false false false false false)
-        (list false false false false true)
-        (list false false false true true)
-        (list false false true true true) 
-        (list false true true true true)
-        (list true true true true true))
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
-       (list (list #f #f #f)
-             (list #f #f #t)
-             (list #f #t #t)
-             (list #t #t #t)
-             (list #f #t #t)
-             (list #f #t #t))))
+    (define all-seqs (first experiment-data))
+
 
     ; takes in "dist": output from an enumeration-query
     ; and "selection": the element from the posterior that you want
@@ -286,32 +377,76 @@ Sometimes parameter values aren't so easily interpreted as in our case here. Ano
          (equal? sequence 
                  (repeat 5 coin)))))
 
-    (define all-seqs 
-      (list 
-       (list false false false false false)
-       (list false false false false true)
-       (list false false false true true)
-       (list false false true true true) 
-       (list false true true true true)
-       (list true true true true true)))
-
-
     (define experiment-data
-      (list 
+      (list
+       (list
+        (list #t #t #t #t #t) 
+        (list #t #t #t #t #f) 
+        (list #t #t #t #f #t) 
+        (list #t #t #t #f #f) 
+        (list #t #t #f #t #t) 
+        (list #t #t #f #t #f) 
+        (list #t #t #f #f #t) 
+        (list #t #t #f #f #f) 
+        (list #t #f #t #t #t) 
+        (list #t #f #t #t #f) 
+        (list #t #f #t #f #t) 
+        (list #t #f #t #f #f) 
+        (list #t #f #f #t #t) 
+        (list #t #f #f #t #f) 
+        (list #t #f #f #f #t) 
+        (list #t #f #f #f #f) 
+        (list #f #t #t #t #t) 
+        (list #f #t #t #t #f) 
+        (list #f #t #t #f #t) 
+        (list #f #t #t #f #f) 
+        (list #f #t #f #t #t) 
+        (list #f #t #f #t #f) 
+        (list #f #t #f #f #t) 
+        (list #f #t #f #f #f)
+        (list #f #f #t #t #t) 
+        (list #f #f #t #t #f) 
+        (list #f #f #t #f #t) 
+        (list #f #f #t #f #f) 
+        (list #f #f #f #t #t) 
+        (list #f #f #f #t #f) 
+        (list #f #f #f #f #t) 
+        (list #f #f #f #f #f))
        (list 
-        (list false false false false false)
-        (list false false false false true)
-        (list false false false true true)
-        (list false false true true true) 
-        (list false true true true true)
-        (list true true true true true))
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
-       (list (list #f #f #f)
-             (list #f #f #t)
-             (list #f #t #t)
-             (list #t #t #t)
-             (list #f #t #t)
-             (list #f #t #t))))
+    (define all-seqs (first experiment-data))
 
     ; takes in "dist": output from an enumeration-query
     ; and "selection": the element from the posterior that you want
@@ -497,34 +632,77 @@ It is simultaneously a measure of fit of your cognitive model, as well as the re
           (equal? sequence 
                   (repeat 5 coin))))))
 
-
-
-    (define all-seqs 
-      (list 
-       (list false false false false false)
-       (list false false false false true)
-       (list false false false true true)
-       (list false false true true true) 
-       (list false true true true true)
-       (list true true true true true)))
-
-
     (define experiment-data
-      (list 
+      (list
+       (list
+        (list #t #t #t #t #t) 
+        (list #t #t #t #t #f) 
+        (list #t #t #t #f #t) 
+        (list #t #t #t #f #f) 
+        (list #t #t #f #t #t) 
+        (list #t #t #f #t #f) 
+        (list #t #t #f #f #t) 
+        (list #t #t #f #f #f) 
+        (list #t #f #t #t #t) 
+        (list #t #f #t #t #f) 
+        (list #t #f #t #f #t) 
+        (list #t #f #t #f #f) 
+        (list #t #f #f #t #t) 
+        (list #t #f #f #t #f) 
+        (list #t #f #f #f #t) 
+        (list #t #f #f #f #f) 
+        (list #f #t #t #t #t) 
+        (list #f #t #t #t #f) 
+        (list #f #t #t #f #t) 
+        (list #f #t #t #f #f) 
+        (list #f #t #f #t #t) 
+        (list #f #t #f #t #f) 
+        (list #f #t #f #f #t) 
+        (list #f #t #f #f #f)
+        (list #f #f #t #t #t) 
+        (list #f #f #t #t #f) 
+        (list #f #f #t #f #t) 
+        (list #f #f #t #f #f) 
+        (list #f #f #f #t #t) 
+        (list #f #f #f #t #f) 
+        (list #f #f #f #f #t) 
+        (list #f #f #f #f #f))
        (list 
-        (list false false false false false)
-        (list false false false false true)
-        (list false false false true true)
-        (list false false true true true) 
-        (list false true true true true)
-        (list true true true true true))
-       (list 
-        (list #f #f #f)
-        (list #f #f #t)
-        (list #f #t #t)
-        (list #t #t #t)
-        (list #f #t #t)
-        (list #f #t #t))))
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
+
+    (define all-seqs (first experiment-data))
+
 
     ; takes in "dist": output from an enumeration-query
     ; and "selection": the element from the posterior that you want
@@ -803,32 +981,77 @@ The model has the flexibility to infer different biased coin weights for differe
          (equal? sequence 
                  (repeat 5 coin)))))
 
-    (define all-seqs 
-      (list 
-       (list false false false false false)
-       (list false false false false true)
-       (list false false false true true)
-       (list false false true true true) 
-       (list false true true true true)
-       (list true true true true true)))
-
-
     (define experiment-data
-      (list 
+      (list
+       (list
+        (list #t #t #t #t #t) 
+        (list #t #t #t #t #f) 
+        (list #t #t #t #f #t) 
+        (list #t #t #t #f #f) 
+        (list #t #t #f #t #t) 
+        (list #t #t #f #t #f) 
+        (list #t #t #f #f #t) 
+        (list #t #t #f #f #f) 
+        (list #t #f #t #t #t) 
+        (list #t #f #t #t #f) 
+        (list #t #f #t #f #t) 
+        (list #t #f #t #f #f) 
+        (list #t #f #f #t #t) 
+        (list #t #f #f #t #f) 
+        (list #t #f #f #f #t) 
+        (list #t #f #f #f #f) 
+        (list #f #t #t #t #t) 
+        (list #f #t #t #t #f) 
+        (list #f #t #t #f #t) 
+        (list #f #t #t #f #f) 
+        (list #f #t #f #t #t) 
+        (list #f #t #f #t #f) 
+        (list #f #t #f #f #t) 
+        (list #f #t #f #f #f)
+        (list #f #f #t #t #t) 
+        (list #f #f #t #t #f) 
+        (list #f #f #t #f #t) 
+        (list #f #f #t #f #f) 
+        (list #f #f #f #t #t) 
+        (list #f #f #f #t #f) 
+        (list #f #f #f #f #t) 
+        (list #f #f #f #f #f))
        (list 
-        (list false false false false false)
-        (list false false false false true)
-        (list false false false true true)
-        (list false false true true true) 
-        (list false true true true true)
-        (list true true true true true))
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
-       (list (list #f #f #f)
-             (list #f #f #t)
-             (list #f #t #t)
-             (list #t #t #t)
-             (list #f #t #t)
-             (list #f #t #t))))
+    (define all-seqs (first experiment-data))
+
 
     ; takes in "dist": output from an enumeration-query
     ; and "selection": the element from the posterior that you want
@@ -974,32 +1197,77 @@ Note: This will take about 10 seconds to run.
              (transpose states))))
 
 
-    (define all-seqs 
-      (list 
-       (list false false false false false)
-       (list false false false false true)
-       (list false false false true true)
-       (list false false true true true) 
-       (list false true true true true)
-       (list true true true true true)))
-
-
     (define experiment-data
-      (list 
+      (list
+       (list
+        (list #t #t #t #t #t) 
+        (list #t #t #t #t #f) 
+        (list #t #t #t #f #t) 
+        (list #t #t #t #f #f) 
+        (list #t #t #f #t #t) 
+        (list #t #t #f #t #f) 
+        (list #t #t #f #f #t) 
+        (list #t #t #f #f #f) 
+        (list #t #f #t #t #t) 
+        (list #t #f #t #t #f) 
+        (list #t #f #t #f #t) 
+        (list #t #f #t #f #f) 
+        (list #t #f #f #t #t) 
+        (list #t #f #f #t #f) 
+        (list #t #f #f #f #t) 
+        (list #t #f #f #f #f) 
+        (list #f #t #t #t #t) 
+        (list #f #t #t #t #f) 
+        (list #f #t #t #f #t) 
+        (list #f #t #t #f #f) 
+        (list #f #t #f #t #t) 
+        (list #f #t #f #t #f) 
+        (list #f #t #f #f #t) 
+        (list #f #t #f #f #f)
+        (list #f #f #t #t #t) 
+        (list #f #f #t #t #f) 
+        (list #f #f #t #f #t) 
+        (list #f #f #t #f #f) 
+        (list #f #f #f #t #t) 
+        (list #f #f #f #t #f) 
+        (list #f #f #f #f #t) 
+        (list #f #f #f #f #f))
        (list 
-        (list false false false false false)
-        (list false false false false true)
-        (list false false false true true)
-        (list false false true true true) 
-        (list false true true true true)
-        (list true true true true true))
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
-       (list (list #f #f #f)
-             (list #f #f #t)
-             (list #f #t #t)
-             (list #t #t #t)
-             (list #f #t #t)
-             (list #f #t #t))))
+
+    (define all-seqs (first experiment-data))
 
     ; takes in "dist": output from an enumeration-query
     ; and "selection": the element from the posterior that you want
@@ -1179,32 +1447,76 @@ Let's see what happens when we factor in response noise.
              (transpose states))))
 
 
-    (define all-seqs 
-      (list 
-       (list false false false false false)
-       (list false false false false true)
-       (list false false false true true)
-       (list false false true true true) 
-       (list false true true true true)
-       (list true true true true true)))
-
-
     (define experiment-data
-      (list 
+      (list
+       (list
+        (list #t #t #t #t #t) 
+        (list #t #t #t #t #f) 
+        (list #t #t #t #f #t) 
+        (list #t #t #t #f #f) 
+        (list #t #t #f #t #t) 
+        (list #t #t #f #t #f) 
+        (list #t #t #f #f #t) 
+        (list #t #t #f #f #f) 
+        (list #t #f #t #t #t) 
+        (list #t #f #t #t #f) 
+        (list #t #f #t #f #t) 
+        (list #t #f #t #f #f) 
+        (list #t #f #f #t #t) 
+        (list #t #f #f #t #f) 
+        (list #t #f #f #f #t) 
+        (list #t #f #f #f #f) 
+        (list #f #t #t #t #t) 
+        (list #f #t #t #t #f) 
+        (list #f #t #t #f #t) 
+        (list #f #t #t #f #f) 
+        (list #f #t #f #t #t) 
+        (list #f #t #f #t #f) 
+        (list #f #t #f #f #t) 
+        (list #f #t #f #f #f)
+        (list #f #f #t #t #t) 
+        (list #f #f #t #t #f) 
+        (list #f #f #t #f #t) 
+        (list #f #f #t #f #f) 
+        (list #f #f #f #t #t) 
+        (list #f #f #f #t #f) 
+        (list #f #f #f #f #t) 
+        (list #f #f #f #f #f))
        (list 
-        (list false false false false false)
-        (list false false false false true)
-        (list false false false true true)
-        (list false false true true true) 
-        (list false true true true true)
-        (list true true true true true))
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
-       (list (list #f #f #f)
-             (list #f #f #t)
-             (list #f #t #t)
-             (list #t #t #t)
-             (list #f #t #t)
-             (list #f #t #t))))
+    (define all-seqs (first experiment-data))
 
     ; takes in "dist": output from an enumeration-query
     ; and "selection": the element from the posterior that you want
@@ -1397,32 +1709,76 @@ Let's try to write this in full:
 
 
     ;;;fold:
-    (define all-seqs 
-      (list 
-       (list false false false false false)
-       (list false false false false true)
-       (list false false false true true)
-       (list false false true true true) 
-       (list false true true true true)
-       (list true true true true true)))
-
-
     (define experiment-data
-      (list 
+      (list
+       (list
+        (list #t #t #t #t #t) 
+        (list #t #t #t #t #f) 
+        (list #t #t #t #f #t) 
+        (list #t #t #t #f #f) 
+        (list #t #t #f #t #t) 
+        (list #t #t #f #t #f) 
+        (list #t #t #f #f #t) 
+        (list #t #t #f #f #f) 
+        (list #t #f #t #t #t) 
+        (list #t #f #t #t #f) 
+        (list #t #f #t #f #t) 
+        (list #t #f #t #f #f) 
+        (list #t #f #f #t #t) 
+        (list #t #f #f #t #f) 
+        (list #t #f #f #f #t) 
+        (list #t #f #f #f #f) 
+        (list #f #t #t #t #t) 
+        (list #f #t #t #t #f) 
+        (list #f #t #t #f #t) 
+        (list #f #t #t #f #f) 
+        (list #f #t #f #t #t) 
+        (list #f #t #f #t #f) 
+        (list #f #t #f #f #t) 
+        (list #f #t #f #f #f)
+        (list #f #f #t #t #t) 
+        (list #f #f #t #t #f) 
+        (list #f #f #t #f #t) 
+        (list #f #f #t #f #f) 
+        (list #f #f #f #t #t) 
+        (list #f #f #f #t #f) 
+        (list #f #f #f #f #t) 
+        (list #f #f #f #f #f))
        (list 
-        (list false false false false false)
-        (list false false false false true)
-        (list false false false true true)
-        (list false false true true true) 
-        (list false true true true true)
-        (list true true true true true))
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
+        (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
+        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
+        (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+        (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
+        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+        (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
+        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
-       (list (list #f #f #f)
-             (list #f #f #t)
-             (list #f #t #t)
-             (list #t #t #t)
-             (list #f #t #t)
-             (list #f #t #t))))
+    (define all-seqs (first experiment-data))
 
     ; takes in "dist": output from an enumeration-query
     ; and "selection": the element from the posterior that you want

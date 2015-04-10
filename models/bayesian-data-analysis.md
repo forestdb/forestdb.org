@@ -1915,3 +1915,66 @@ Try this slightly more expanded data set.
       (list #t #t #t #t #t #t #f)
       (list #f #t #t #t #f #f #f)
       (list #f #t #t #f #f #f #f))))
+
+# Exercises
+
+1. **Bayes in the head vs. Bayes in the notebook.** We've seen in this chapter how we can precisely separate assumptions about our computational-level theory of cognition from the assumptions that go into analyzing our data (and our theory). In this exercicse, we will try to go between the two ways of looking at these things: by going from a theory and analysis in words, to a theory and analysis in Church (and back).
+
+Consider the [reflectance and luminance model](https://probmods.org/patterns-of-inference.html#a-case-study-in-modularity-visual-perception-of-surface-lightness-and-color) from Chapter 4. This model captured the illusion of increased reflectance in terms of explaining away the observed luminance by the decreased illumination (caused by the shadow). Here is the model again
+
+~~~
+(define observed-luminance 3.0)
+
+(define samples
+   (mh-query
+    1000 10
+
+    (define reflectance (gaussian 1 1))
+    (define illumination (gaussian 3 0.5))
+    (define luminance (* reflectance illumination))
+
+    luminance
+
+    ;true
+    (= luminance (gaussian observed-luminance 0.1))))
+
+(display (list "Mean reflectance:" (mean samples)))
+(hist samples "Reflectance")
+~~~
+
+Here I have included a commented `true` condition to make it easy for you to explore this model. 
+
+A. **What does the prior for luminance look like? How does the prior change when we condition on the observed luminance.**
+
+  Just as a reminder, the illusion is observed in the model when we condition on this statement about illumination  `(condition (= illumination (gaussian 0.5  0.1)))`, which is a stand-in for the effect of the shadow from the cylinder on the scene.
+
+B. **How many parameters does this model of perception have?** (Hint: Go through each `define` and `condition`: Are the constituent elements of the statements (a) modeling assumptions or (b) part of the experimental setup / manipulation) **Which parameters refer to aspects of the perceptual system and which refer to aspects of the environment? What do you think these parameters represent in terms of the perceptual system or environment? (Feel free to use super general, even colloquial, terms to answer this.)**
+
+C. Replace the hard-coded parameters of this model with variables, defined outside the query. Give them the most intuitive names you can fashion. Use this starter (pseudo) code.
+
+
+~~~
+(define parameter1 ...)
+(define parameter2 ...)
+;...
+
+(define observed-luminance 3.0)
+
+(query
+
+ (define reflectance (gaussian 1 1))
+ (define illumination (gaussian 3 0.5))
+ (define luminance (* reflectance illumination))
+
+ luminance
+
+ (= luminance (gaussian observed-luminance 0.1))))
+~~~
+
+D. Are all of these parameters independent? (If you had to specify values for them, would you have to consider values of other parameters when specifying them?) If two are not independent, can you think of a reparameterization that would be more independent? (Hint: If you have non-independent parameters, you could keep only one of them and introduce a parameter specifying the relation between the two. E.g., two points that are linearly associated can be expressed as an one of them and the distance between them).
+
+E. Writing data analysis models requires specifying priors over parameters. Without much prior knowledge in a domain, we want to pick priors that make the fewest assumptions. A good place to start is to think about the possible values the parameter could take on. For each parameter, write down what you know about the possible values it could take on? 
+
+F. Write the data analysis model? What are you going to query for? (parameters, posterior predictive)
+
+

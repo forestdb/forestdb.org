@@ -489,7 +489,7 @@ Sometimes parameter values aren't so easily interpreted as in our case here. Ano
      (define cognitive-model-predictions
        (map 
         (lambda (sequence) 
-          (bc-model sequence biased-weight)) 
+          (biascoin-model sequence biased-weight)) 
         all-seqs))
 
 

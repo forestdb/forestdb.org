@@ -760,7 +760,7 @@ It is simultaneously a measure of fit of your cognitive model, as well as the re
      (define biased-weight 
        (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
 
-     (define response-noise (uniform-draw (list 0 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9 1)))
+     (define response-noise (uniform-draw (list 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1)))
 
      ; generate predictions for all sequences
      (define cognitive-model-predictions
@@ -1148,7 +1148,7 @@ The canonical distribution over coin weights is the Beta distribution.
   This higher-order distribution is called the Beta distribution. 
   You may (or may not) have heard of Beta-Binomial priors. This is it.)
 
-Note: This will take about 10 seconds to run.
+Note: This will take about 30 seconds to run.
 
 ~~~
 ;;;fold:
@@ -1398,6 +1398,9 @@ Let's see what happens when we factor in response noise.
 
 ## Noise reduction
 
+Note: This will take about 30 seconds to run. Chrome may ask you to kill the page; power through.
+
+
     ;;;fold:
     (define discretize-beta 
       (lambda (gamma delta bins)
@@ -1614,7 +1617,7 @@ Let's see what happens when we factor in response noise.
               (bc-model sequence gamma delta)) 
             all-seqs))
 
-         (define response-noise (uniform-draw (list 0 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9 1)))
+         (define response-noise (uniform-draw (list 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1)))
 
 
          (define cognitive-plus-noise-predictions
@@ -1919,97 +1922,102 @@ Try this slightly more expanded data set.
 # Exercises
 
 1. **Bayes in the head vs. Bayes in the notebook.** We've seen in this chapter how we can precisely separate assumptions about our computational-level theory of cognition from the assumptions that go into analyzing our data (and our theory). In this exercise, we will try to go between the two ways of looking at these things: by going from a theory and analysis in words, to a theory and analysis in Church (and back).
-
-Consider the [reflectance and luminance model](https://probmods.org/patterns-of-inference.html#a-case-study-in-modularity-visual-perception-of-surface-lightness-and-color) from Chapter 4. This model captured the illusion of increased reflectance in terms of explaining away the observed luminance by the decreased illumination (caused by the shadow). Here is the model again
-
-~~~
-(define observed-luminance 3.0)
-
-(define samples
-   (mh-query
-    1000 10
-
-    (define reflectance (gaussian 1 1))
-    (define illumination (gaussian 3 0.5))
-    (define luminance (* reflectance illumination))
-
-    luminance
-
-    ;true
-    (= luminance (gaussian observed-luminance 0.1))))
-
-(display (list "Mean reflectance:" (mean samples)))
-(hist samples "Reflectance")
-~~~
-
-Here I have included a commented `true` condition to make it easy for you to explore this model. 
-
-A. **Warmup: What does the prior for luminance look like? How does the prior change when we condition on the observed luminance.**
-
-	Just as a reminder, the illusion is observed in the model when we condition on this statement about illumination  `(condition (= illumination (gaussian 0.5  0.1)))`, which is a stand-in for the effect of the shadow from the cylinder on the scene.
-
-B. **How many parameters does this model of perception have?** (Hint: Go through each `define` and `condition`: Are the constituent variables of the statements (a) modeling assumptions or (b) part of the experimental setup / manipulation) **For all of the variables you've categorized as (a), which ones do you think refer to aspects of the perceptual system and which refer to aspects of the environment? What do you think these parameters represent in terms of the perceptual system or environment? (Feel free to use super general, even colloquial, terms to answer this.)**
-
-C. Replace the hard-coded parameters of this model with variables, defined outside the query. Give them the most intuitive names you can fashion. Use this starter (pseudo) code.
-
-
-	~~~
-	(define parameter1 ...)
-	(define parameter2 ...)
-	;...
 	
+	Consider the [reflectance and luminance model](https://probmods.org/patterns-of-inference.html#a-case-study-in-modularity-visual-perception-of-surface-lightness-and-color) from Chapter 4. This model captured the illusion of increased reflectance in terms of explaining away the observed luminance by the decreased illumination (caused by the shadow). Here is the model again
+	
+	~~~
 	(define observed-luminance 3.0)
 	
-	(query
+	(define samples
+	   (mh-query
+	    1000 10
 	
-	 (define reflectance (gaussian 1 1))
-	 (define illumination (gaussian 3 0.5))
-	 (define luminance (* reflectance illumination))
+	    (define reflectance (gaussian 1 1))
+	    (define illumination (gaussian 3 0.5))
+	    (define luminance (* reflectance illumination))
 	
-	 luminance
+	    luminance
 	
-	 (= luminance (gaussian observed-luminance 0.1))))
+	    ;true
+	    (= luminance (gaussian observed-luminance 0.1))))
+	
+	(display (list "Mean reflectance:" (mean samples)))
+	(hist samples "Reflectance")
 	~~~
+	
+	Here I have included a commented `true` condition to make it easy for you to explore this model. 
+	
+	A. **Warmup: What does the prior for luminance look like? How does the prior change when we condition on the observed luminance.**
+	
+		Just as a reminder, the illusion is observed in the model when we condition on this statement about illumination  `(condition (= illumination (gaussian 0.5  0.1)))`, which is a stand-in for the effect of the shadow from the cylinder on the scene.
+	
+	B. **How many parameters does this model of perception have?** (Hint: Go through each `define` and `condition`: Are the constituent variables of the statements (a) modeling assumptions or (b) part of the experimental setup / manipulation) **For all of the variables you've categorized as (a), which ones do you think refer to aspects of the perceptual system and which refer to aspects of the environment? What do you think these parameters represent in terms of the perceptual system or environment? (Feel free to use super general, even colloquial, terms to answer this.)**
+	
+	C. Replace the hard-coded parameters of this model with variables, defined outside the query. Give them the most intuitive names you can fashion. Use this starter (pseudo) code.
+	
+	
+		~~~
+		(define parameter1 ...)
+		(define parameter2 ...)
+		;...
+		
+		(define observed-luminance 3.0)
+		
+		(query
+		
+		 (define reflectance (gaussian 1 1))
+		 (define illumination (gaussian 3 0.5))
+		 (define luminance (* reflectance illumination))
+		
+		 luminance
+		
+		 (= luminance (gaussian observed-luminance 0.1))))
+		~~~
+	
+	D. **Are all of these parameters independent?** (If you had to specify values for them, would you have to consider values of other parameters when specifying them?) If two are not independent, can you think of a reparameterization that would be more independent? (Hint: If you have two non-independent parameters, you could keep only one of them and introduce a parameter specifying the relation between the two. E.g., two points that are linearly associated can be expressed as an one of them and the distance between them).
+	
+	E. Writing data analysis models requires specifying priors over parameters. Without much prior knowledge in a domain, we want to pick priors that make the fewest assumptions. A good place to start is to think about the possible values the parameter could take on. **For each parameter, write down what you know about the possible values it could take on. **
+	
+	F. We're now in a position to write a data analysis model. The most common distributional forms for priors are [uniform](http://en.wikipedia.org/wiki/Uniform_distribution_(continuous), [gaussian](http://en.wikipedia.org/wiki/Normal_distribution), [beta](http://en.wikipedia.org/wiki/Beta_distribution), and [exponential](http://en.wikipedia.org/wiki/Exponential_distribution). Put priors on your parameters from part C. Use this starter (pseudo) code.
+	
+		~~~
+		(define perceptual-model
+		  (lambda (parameter1 parameter2 ...))
+		  (query
+		
+		   ; fill in, copying where appropriate from the original model specification
+		   (define reflectance ...)
+		   (define illumination ...)
+		   (define luminance (* reflectance illumination))
+		
+		   luminance
+		
+		   (= luminance ...))))
+		
+		
+		
+		(define data-analysis-model
+		  (query
+		   ; replace with parameters you specified in Part C
+		   ; put priors over parameters
+		   (define parameter1 ...)
+		   (define parameter2 ...)
+		   (define ...)
+		   (define perceptual-model-predictions 
+		     (perceptual-model parameter1 parameter2 ...))
+		    
+		   ;;; what are you going to query for?
+		   ...  
+		   
+		   (condition (= experimental-data perceptual-model-predictions))))
+		
+		
+		~~~ 
+	
+	G. What are you going to query for? Add that to your pseudocode above. What do each of things that you are querying for in the data analysis model represent?
 
-D. **Are all of these parameters independent?** (If you had to specify values for them, would you have to consider values of other parameters when specifying them?) If two are not independent, can you think of a reparameterization that would be more independent? (Hint: If you have two non-independent parameters, you could keep only one of them and introduce a parameter specifying the relation between the two. E.g., two points that are linearly associated can be expressed as an one of them and the distance between them).
+2. **Parameter fitting vs. Parameter integration** One of the strongest motivations for using Bayesian techniques for model-data evaluation is in how "nuisance" parameters are treated. "Nuisance" parameters are parameters of no theoretical interest; their only purpose is to fill in a slot in the model. Classically, the most prominant technique (from the frequentist tradition) for dealing with these parameters is to fit them to the data, i.e., to set the value equal to whatever maximizes the model-data fit (or, equivalently, minimizes some cost function). 
 
-E. Writing data analysis models requires specifying priors over parameters. Without much prior knowledge in a domain, we want to pick priors that make the fewest assumptions. A good place to start is to think about the possible values the parameter could take on. **For each parameter, write down what you know about the possible values it could take on. **
-
-F. We're now in a position to write a data analysis model. The most common distributional forms for priors are [uniform](http://en.wikipedia.org/wiki/Uniform_distribution_(continuous), [gaussian](http://en.wikipedia.org/wiki/Normal_distribution), [beta](http://en.wikipedia.org/wiki/Beta_distribution), and [exponential](http://en.wikipedia.org/wiki/Exponential_distribution). Put priors on your parameters from part C. Use this starter (pseudo) code.
-
-	~~~
-	(define perceptual-model
-	  (lambda (parameter1 parameter2 ...))
-	  (query
+	The Bayesian approach is different. Since we have *a priori* uncertainty about the value of our parameter (as you specified in Part F of Exercise 1), we will also have *a posteriori* uncertainty (though hopefully the uncertainty will be a little less). What the Bayesian does is *integrate* over her posterior distribution of parameter values to make predictions. Intuitively, rather than taking the value corresponding to the peak of the distribution, she's considering all values with their respective heights.
 	
-	   ; fill in, copying where appropriate from the original model specification
-	   (define reflectance ...)
-	   (define illumination ...)
-	   (define luminance (* reflectance illumination))
-	
-	   luminance
-	
-	   (= luminance ...))))
-	
-	
-	
-	(define data-analysis-model
-	  (query
-	   ; replace with parameters you specified in Part C
-	   ; put priors over parameters
-	   (define parameter1 ...)
-	   (define parameter2 ...)
-	   (define ...)
-	   (define perceptual-model-predictions 
-	     (perceptual-model parameter1 parameter2 ...))
-	    
-	   ;;; what are you going to query for?
-	   ...  
-	   
-	   (condition (= experimental-data perceptual-model-predictions))))
-	
-	
-	~~~ 
-
-G. What are you going to query for? Add that to your pseudocode above. What do each of things that you are querying for in the data analysis model represent?
-
+	Why might this be important for model assessment? 

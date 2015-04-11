@@ -1954,8 +1954,404 @@ F. We're now in a position to write a data analysis model. The most common distr
 G. What are you going to query for? Add that to your pseudocode above. What do each of things that you are querying for in the data analysis model represent?
 
 
-**2. Parameter fitting vs. Parameter integration** One of the strongest motivations for using Bayesian techniques for model-data evaluation is in how "nuisance" parameters are treated. "Nuisance" parameters are parameters of no theoretical interest; their only purpose is to fill in a slot in the model. Classically, the most prominant technique (from the frequentist tradition) for dealing with these parameters is to fit them to the data, i.e., to set the value equal to whatever maximizes the model-data fit (or, equivalently, minimizes some cost function). 
+**2. Parameter fitting vs. Parameter integration** One of the strongest motivations for using Bayesian techniques for model-data evaluation is in how "nuisance" parameters are treated. "Nuisance" parameters are parameters of no theoretical interest; their only purpose is to fill in a slot in the model. Classically, the most prominant technique (from the frequentist tradition) for dealing with these parameters is to fit them to the data, i.e., to set their value equal to whatever maximizes the model-data fit (or, equivalently, minimizes some cost function). 
 
-The Bayesian approach is different. Since we have *a priori* uncertainty about the value of our parameter (as you specified in Part F of Exercise 1), we will also have *a posteriori* uncertainty (though hopefully the uncertainty will be a little less). What the Bayesian does is *integrate* over her posterior distribution of parameter values to make predictions. Intuitively, rather than taking the value corresponding to the peak of the distribution, she's considering all values with their respective heights.
+The Bayesian approach is different. Since we have *a priori* uncertainty about the value of our parameter (as you specified in Part F of Exercise 1), we will also have *a posteriori* uncertainty (though hopefully the uncertainty will be a little less). What the Bayesian does is *integrate* over her posterior distribution of parameter values to make predictions. Intuitively, rather than taking the value corresponding to the peak of the distribution, she's considering all values with their respective probabilites.
 	
-Why might this be important for model assessment? 
+Why might this be important for model assessment? One feature of this approach is that you can examine the posterior over parameter values. This posterior can give you an idea whether or not your model is well-behaved. In other words, do the predictoins of your model depend heavily on the exact parameter value?
+
+To help us understand how to examine posteriors over parameter settings, we're going to revisit the [example of the blicket detector](https://probmods.org/patterns-of-inference.html#example-of-blickets-and-blocking) from Chapter 4.
+
+Here is the model, with slightly different names than the original example, and written in a parameter-friendly way. It is set up to display the ["backwards blocking"](http://en.wikipedia.org/wiki/Blocking_effect#Backward_blocking) phenomenon. 
+
+~~~
+(define blicket-base-rate 0.2)
+(define blicket-power 0.9)
+(define non-blicket-power 0.05)
+(define machine-spontaneously-goes-off 0.05)
+
+(define detecting-blickets
+  (lambda 
+    (evidence)
+
+    (enumeration-query
+
+     ; some objects are blickets
+     (define blicket (mem (lambda (block) (flip blicket-base-rate))))
+
+     ; some blocks have the power to make the box go off
+     (define block-power (lambda (block) (if (blicket block) blicket-power non-blicket-power)))
+
+     ; sometimes the machine goes off spontaneously
+     ; otherwise, goes off if one of the blocks has the ability to make it go off (sequentially evaluated)
+
+     (define machine-goes-off
+       (lambda (blocks)
+         (if (null? blocks)
+             (flip machine-spontaneously-goes-off)
+             (or (flip (block-power (first blocks)))
+                 (machine-goes-off (rest blocks))))))
+
+     (blicket 'A)
+
+     ; all checks to make sure all are true; i.e. all the of the lists of blickets made the machine-go-off
+     (all (map machine-goes-off evidence)))))
+
+; A&B make the blicket-detector go off
+(barplot (detecting-blickets (list (list 'A 'B))) 
+         "Is A a blicket, given A&B works?")
+; A&B make the blicket-detector go off, and then B makes the blicket detector go off
+(barplot (detecting-blickets (list (list 'A 'B) (list 'B))) 
+         "Is A a blicket, given A&B works, and B works?")
+     
+~~~
+
+A. What are the parameters of this model? In the plainest English you can muster, interpret the current values of the parameters. What do they mean?
+
+Let's analyze this model with respect to some data. First, we'll put priors on these parameters, and then we'll do inference, conditioning on some data we might have collected in an experiment on 4 year olds, a la Sobel, Tenenbaum, & Gopnik (2004). [The data used in this exercise is schematic data].
+
+~~~
+;;;fold:
+(define (get-indices needle haystack)
+  (define (loop rest-of-haystack index)
+    (if (null? rest-of-haystack) '()
+        (let ((rest-of-indices (loop (rest rest-of-haystack) (+ index 1))))
+          (if (equal? (first rest-of-haystack) needle)
+              (pair index rest-of-indices)
+              rest-of-indices))))
+  (loop haystack 1))
+
+(define discretize-beta 
+  (lambda (gamma delta bins)
+    (define shape_alpha (* gamma delta))
+    (define shape_beta (* (- 1 gamma) delta))
+    (define beta-pdf (lambda (x) 
+                       (*
+                        (pow x (- shape_alpha 1))
+                        (pow (- 1 x) (- shape_beta 1)))))
+    (map beta-pdf bins)))
+
+(define get-probability
+  (lambda (dist selection)
+    (define index (list-index (first dist) selection))
+    (list-ref (second dist) index)))
+
+(define expval-from-enum-analysis-of-enum-model 
+  (lambda (results)
+    (map sum 
+         (transpose (map 
+                     (lambda (lst prob)
+                       (map (lambda (x)
+                              (* prob x))
+                            (second lst)))
+                     (first results)
+                     (second results))))))
+
+
+(define expval-from-mh-analysis-of-enum-model 
+  (lambda (results)
+    (map mean 
+         (transpose 
+          (map second results)))))
+
+(define make-bins
+  (lambda (lowerbound upperbound gap)
+    (define effective-ub (+ 1 (round (/ (- upperbound lowerbound) gap))))
+    (define effective-range (range (round (* 10 lowerbound)) effective-ub))
+    (define binned-range (map (lambda (x) (+ (* (position effective-range x)
+                                                gap)
+                                             lowerbound))
+                              effective-range))
+    (filter (lambda (x) (<= x 1)) binned-range)))
+
+; returns a sample from a discretized beta with mean gamma and stdev delta
+; (disc-beta 0.5 2 bins) = (uniform-draw bins)
+(define disc-beta 
+  (lambda (gamma delta bins)
+    (multinomial bins (discretize-beta gamma delta bins))))
+
+
+(define (marginalize output)
+  (let ([states (first output)])
+    (map (lambda (sub-output) 
+           (let* ([probs (second output)]
+                  [unique-states (unique sub-output)]
+                  [unique-state-indices 
+                   (map 
+                    (lambda (x) (list x (get-indices x sub-output))) 
+                    unique-states)])
+
+             (list (map first unique-state-indices)
+                   (map 
+                    (lambda (y) (sum (map 
+                                      (lambda (x) (list-elt probs x)) 
+                                      (second y)))) 
+                    unique-state-indices))))
+
+         (transpose states))))
+
+(define summarize-data 
+  (lambda (dataset)
+    (list (first dataset)
+          (map 
+           (lambda (lst) (mean (map boolean->number lst)))
+           (second dataset)))))
+
+
+(define summarize-model
+  (lambda (modelpreds)
+    (list 
+     possible-evidence-streams
+     (map 
+      (lambda (dist) 
+        (get-probability dist #t))
+      modelpreds))))
+
+;;;
+
+
+(define detecting-blickets
+  (mem 
+   (lambda 
+     (evidence
+      blicket-base-rate 
+      blicket-power 
+      non-blicket-power 
+      machine-spontaneously-goes-off)
+
+     (enumeration-query
+
+      ; some objects are blickets
+      (define blicket (mem (lambda (block) (flip blicket-base-rate))))
+
+      ; some blocks have the power to make the box go off
+      (define block-power (lambda (block) (if (blicket block) blicket-power non-blicket-power)))
+
+      ; sometimes the machine goes off spontaneously
+      ; otherwise, goes off if one of the blocks has the ability to make it go off (sequentially evaluated)
+
+      (define machine-goes-off
+        (lambda (blocks)
+          (if (null? blocks)
+              (flip machine-spontaneously-goes-off)
+              (or (flip (block-power (first blocks)))
+                  (machine-goes-off (rest blocks))))))
+
+      (blicket 'A)
+
+      ; all checks to make sure all are true; i.e. all the of the lists of blickets made the machine-go-off
+      (all (map machine-goes-off evidence))))))
+
+
+; 5 experiment conditions / stimuli
+(define possible-evidence-streams
+  (list 
+   (list (list 'A))
+   (list (list 'A 'B))
+   (list (list 'A 'B) (list 'B))
+   (list (list 'A 'B) (list 'A 'B))
+   (list '())))
+
+
+; note: always the query "is A a blicket?"
+(define data
+  (list 
+   (list #t #t #t #t #t #t #t #t #t #t #f) 
+   (list #t #t #t #t #t #t #f #f #f #f #f)
+   (list #t #t #t #t #f #f #f #f #f #f #f)
+   (list #t #t #t #t #t #t #t #t #f #f #f)
+   (list #t #t #f #f #f #f #f #f #f #f #f)))
+
+
+(define data-analysis
+  (mh-query 100 10
+
+            ; make-bins takes arguments: lower-bound, upper-bound, step
+            (define blicket-base-rate (uniform-draw (make-bins 0.1 0.9 0.1)))
+
+            (define blicket-power (uniform-draw (make-bins 0.1 0.9 0.1)))
+            (define non-blicket-power (uniform-draw (make-bins 0.1 0.9 0.1)))
+
+            (define machine-spontaneously-goes-off (uniform-draw (make-bins 0.1 0.9 0.1)))
+
+            (define cognitive-model-predictions
+              (map (lambda (evidence) 
+                     (detecting-blickets evidence blicket-base-rate blicket-power 
+                                         non-blicket-power machine-spontaneously-goes-off))
+                   possible-evidence-streams))
+
+
+            ; query statement
+            (list 
+             (summarize-model cognitive-model-predictions)
+             blicket-base-rate
+             blicket-power
+             non-blicket-power
+             machine-spontaneously-goes-off)
+
+            ; factor statement (in leiu of the condition statement)
+            (factor (sum (flatten (map 
+                                   (lambda (data-for-one-stimulus model)
+                                     ; map over data points in a given stimulus
+                                     (map (lambda (single-data-point)
+                                            (log (get-probability model single-data-point)))
+                                          data-for-one-stimulus))
+                                   data
+                                   cognitive-model-predictions))))))
+
+
+(define results (transpose data-analysis))
+
+;;;fold:
+(define posterior-predictive (list possible-evidence-streams 
+                                   (expval-from-mh-analysis-of-enum-model (first results))))
+
+(define posterior-blicket-br (second results))
+(define posterior-blicket-pow (third results))
+(define posterior-nonblicket-pow (fourth results))
+(define posterior-machine (fifth results))
+(define data-summary  (summarize-data (list possible-evidence-streams data)))
+(define model-data (zip (second posterior-predictive) (second data-summary)))
+;;;
+
+
+(hist posterior-blicket-br "posterior on blicket base rate")
+(hist posterior-blicket-pow "posterior on blicket power")
+(hist posterior-nonblicket-pow "posterior on nonblicket power")
+(hist posterior-machine "posterior on machine sponatenously going off")
+
+(scatter model-data "data vs. cognitive model")
+
+(barplot posterior-predictive "cognitive model: probability of blicket?")
+(barplot data-summary "data: proportion of 'Blicket!' responses")
+~~~
+
+Before running this program, answer the following question:
+
+B. What does the query statement in `data-analysis` return? What does the query statement in `detecting-blickets` return? Why are there two queries in this program?
+
+C. Now, run the program. [Note: This will take between 15-30 seconds to run.] Interpret each of the resulting plots.
+
+D. How do your interpretations relate to the parameter values that were set in the original program?
+
+E. Do you notice anything about the scatter plot? How would you interpret this? Is there something we could add to the data analysis model to account for this?
+
+F. Now, we're going to examine the predictions of the model if we had done a more traditional analysis of point-estimates of parameters (i.e. fitting parameters).
+Examine your histograms and determine the "maximum a posteriori" (MAP) value for each parameter. Plug those into the code below and run it.
+
+~~~
+;;;fold:
+(define (get-indices needle haystack)
+  (define (loop rest-of-haystack index)
+    (if (null? rest-of-haystack) '()
+        (let ((rest-of-indices (loop (rest rest-of-haystack) (+ index 1))))
+          (if (equal? (first rest-of-haystack) needle)
+              (pair index rest-of-indices)
+              rest-of-indices))))
+  (loop haystack 1))
+
+
+(define get-probability
+  (lambda (dist selection)
+    (define index (list-index (first dist) selection))
+    (list-ref (second dist) index)))
+
+
+(define summarize-data 
+  (lambda (dataset)
+    (list (first dataset)
+          (map 
+           (lambda (lst) (mean (map boolean->number lst)))
+           (second dataset)))))
+
+
+(define summarize-model
+  (lambda (modelpreds)
+    (list 
+     possible-evidence-streams
+     (map 
+      (lambda (dist) 
+        (get-probability dist #t))
+      modelpreds))))
+
+;;;
+
+
+(define detecting-blickets
+  (mem 
+   (lambda 
+     (evidence
+      blicket-base-rate 
+      blicket-power 
+      non-blicket-power 
+      machine-spontaneously-goes-off)
+
+     (enumeration-query
+
+      ; some objects are blickets
+      (define blicket (mem (lambda (block) (flip blicket-base-rate))))
+
+      ; some blocks have the power to make the box go off
+      (define block-power (lambda (block) (if (blicket block) blicket-power non-blicket-power)))
+
+      ; sometimes the machine goes off spontaneously
+      ; otherwise, goes off if one of the blocks has the ability to make it go off (sequentially evaluated)
+
+      (define machine-goes-off
+        (lambda (blocks)
+          (if (null? blocks)
+              (flip machine-spontaneously-goes-off)
+              (or (flip (block-power (first blocks)))
+                  (machine-goes-off (rest blocks))))))
+
+      (blicket 'A)
+
+      ; all checks to make sure all are true; i.e. all the of the lists of blickets made the machine-go-off
+      (all (map machine-goes-off evidence))))))
+
+
+; 5 experiment conditions / stimuli
+(define possible-evidence-streams
+  (list 
+   (list (list 'A))
+   (list (list 'A 'B))
+   (list (list 'A 'B) (list 'B))
+   (list (list 'A 'B) (list 'A 'B))
+   (list '())))
+
+
+; note: always the query "is A a blicket?"
+(define data
+  (list 
+   (list #t #t #t #t #t #t #t #t #t #t #f) 
+   (list #t #t #t #t #t #t #f #f #f #f #f)
+   (list #t #t #t #t #f #f #f #f #f #f #f)
+   (list #t #t #t #t #t #t #t #t #f #f #f)
+   (list #t #t #f #f #f #f #f #f #f #f #f)))
+
+; fill in with your "maximum likelihood" parameter values from Part C.
+(define blicket-base-rate ...)
+(define blicket-power ...)
+(define non-blicket-power ...)
+(define machine-spontaneously-goes-off ...)
+
+(define best-fit-model-predictions 
+  (map (lambda (evidence) 
+         (get-probability 
+            (detecting-blickets evidence blicket-base-rate blicket-power 
+                                non-blicket-power machine-spontaneously-goes-off) 
+          #t))
+       possible-evidence-streams))
+
+
+(define data-summary  (summarize-data (list possible-evidence-streams data)))
+(define model-data (zip (map second best-fit-model-predictions) (second data-summary)))
+
+(scatter model-data "data vs. cognitive model")
+
+(barplot posterior-predictive "cognitive model: probability of blicket?")
+(barplot data-summary "data: proportion of 'Blicket!' responses")
+~~~
+
+G. What can you conclude about the two ways of looking at parameters in this model's case? Do you think is relatively robust to different parameter settings?
+

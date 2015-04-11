@@ -29,7 +29,6 @@ The simplest model assumes that the sequence comes from a fair coin (with heads 
    (define coin (lambda () 
                   (flip the-weight)))
 
-
    isfair
 
    (equal? sequence (repeat 5 coin))))
@@ -62,17 +61,20 @@ To simplify the results, we make a function `get-probability-of-faircoin` to ext
    (equal? sequence (repeat 5 coin))))
 ;;;
 
-(define get-probability
+; takes in "dist": output from an enumeration-query
+; and "selection": the element from the posterior that you want
+; returns the probability of that selection
+(define get-probability-of-faircoin
   (lambda (dist selection)
-    (let ([index (list-index (first dist) selection)])
-      (list-ref (second dist) index))))
+    (define index (list-index (first dist) selection))
+      (list-ref (second dist) index)))
 
 (define many-biases (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9))
 
 (define results-for-many-biases 
   (map 
    (lambda (bias-weight) 
-     (get-probability 
+     (get-probability-of-faircoin 
       (biascoin-model (list false false false false false) bias-weight)
       #t))
    many-biases))
@@ -81,19 +83,19 @@ To simplify the results, we make a function `get-probability-of-faircoin` to ext
          "TTTTT is fair?, by bias-weight parameter")
 ~~~
       
-We see that for lower values of `bias-weight`, we get the intuitive inference: this is not a fair coin. Conversely, if we imagine trying to enforce the judgement that TTTTT comes from a biased coin, we will be forced to assume the `bias-weight` is low. 
+We see that for lower values of `bias-weight`, we get the intuitive inference: TTTTT is not from a fair coin. The converse way of putting this is, if we imagine trying to enforce the judgement that TTTTT comes from a biased coin, we will be forced to assume the `bias-weight` is low. 
 
 # Inferring model parameters
 
 How can we ask more rigorously what the right value of `bias-weight` is, given the data we have collected? 
 A standard method would be to optimize the fit (e.g. correlation) of data to model predictions, by adjusting the `bias-weight` parameter.
-Another (more Bayesian) way to approach this is to say we (as scientists) have uncertainty about the true value of `bias-weight`, but we believe the data is the result of participants behaving according  to `biascoin-model` with some parameter value. This naturally leads to a generative model based on sampling `bias-weight` and then using `biascoin-model` to predict the distribution from which responses are sampled; conditioning on the data then let's us form our (scientific) beliefs about the parameter after seeing the data.
+Another (more Bayesian) way to approach this is to say we (as scientists) have uncertainty about the true value of `bias-weight`, but we believe the data is the result of participants behaving according  to `biascoin-model` with some parameter value (This is our psychological theory). This naturally leads to a generative model based on sampling `bias-weight` and then using `biascoin-model` to predict the distribution from which responses are sampled; conditioning on the data then lets us form our (scientific) beliefs about the parameter after seeing the data.
 
 Here is a sketch of this model:
 
 ~~~
 ;;;fold:
-(define bc-model 
+(define biascoin-model 
   (lambda (sequence bias-weight)
     (enumeration-query
 
@@ -113,76 +115,82 @@ Here is a sketch of this model:
 ;;;
 
 ;actual data from the experiment:
+; organized as a list of two lists
+; list 1: lists of sequences (stimuli)
+; list 2: lists of responses
 (define experiment-data
   (list
-   list
-   (list #t #t #t #t #t) 
-   (list #t #t #t #t #f) 
-   (list #t #t #t #f #t) 
-   (list #t #t #t #f #f) 
-   (list #t #t #f #t #t) 
-   (list #t #t #f #t #f) 
-   (list #t #t #f #f #t) 
-   (list #t #t #f #f #f) 
-   (list #t #f #t #t #t) 
-   (list #t #f #t #t #f) 
-   (list #t #f #t #f #t) 
-   (list #t #f #t #f #f) 
-   (list #t #f #f #t #t) 
-   (list #t #f #f #t #f) 
-   (list #t #f #f #f #t) 
-   (list #t #f #f #f #f) 
-   (list #f #t #t #t #t) 
-   (list #f #t #t #t #f) 
-   (list #f #t #t #f #t) 
-   (list #f #t #t #f #f) 
-   (list #f #t #f #t #t) 
-   (list #f #t #f #t #f) 
-   (list #f #t #f #f #t) 
-   (list #f #t #f #f #f)
-   (list #f #f #t #t #t) 
-   (list #f #f #t #t #f) 
-   (list #f #f #t #f #t) 
-   (list #f #f #t #f #f) 
-   (list #f #f #f #t #t) 
-   (list #f #f #f #t #f) 
-   (list #f #f #f #f #t) 
-   (list #f #f #f #f #f))
-  list 
-  (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-  (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-  (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
-  (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
-  (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
-  (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
-  (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
-  (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
-  (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
-  (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-  (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
-  (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-  (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
-  (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-  (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
-  (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
-  (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-  (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
-  (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
-  (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-  (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-  (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-  (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-  (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
-  (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
-  (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-  (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-  (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
-  (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
-  (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
-  (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-  (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
+   (list
+    (list #t #t #t #t #t) 
+    (list #t #t #t #t #f) 
+    (list #t #t #t #f #t) 
+    (list #t #t #t #f #f) 
+    (list #t #t #f #t #t) 
+    (list #t #t #f #t #f) 
+    (list #t #t #f #f #t) 
+    (list #t #t #f #f #f) 
+    (list #t #f #t #t #t) 
+    (list #t #f #t #t #f) 
+    (list #t #f #t #f #t) 
+    (list #t #f #t #f #f) 
+    (list #t #f #f #t #t) 
+    (list #t #f #f #t #f) 
+    (list #t #f #f #f #t) 
+    (list #t #f #f #f #f) 
+    (list #f #t #t #t #t) 
+    (list #f #t #t #t #f) 
+    (list #f #t #t #f #t) 
+    (list #f #t #t #f #f) 
+    (list #f #t #f #t #t) 
+    (list #f #t #f #t #f) 
+    (list #f #t #f #f #t) 
+    (list #f #t #f #f #f)
+    (list #f #f #t #t #t) 
+    (list #f #f #t #t #f) 
+    (list #f #f #t #f #t) 
+    (list #f #f #t #f #f) 
+    (list #f #f #f #t #t) 
+    (list #f #f #f #t #f) 
+    (list #f #f #f #f #t) 
+    (list #f #f #f #f #f))
+   (list 
+    (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
+    (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
+    (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
+    (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
+    (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+    (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
+    (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+    (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
+    (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
+    (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
+    (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
+    (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
+; list of sequences (stimuli)
 (define all-seqs (first experiment-data))
+; list of responses
+(define all-responses (second experiment-data))
 
 
 (define data-analysis 
@@ -195,53 +203,57 @@ Here is a sketch of this model:
      ; generate predictions for all sequences
      (define cognitive-model-predictions
        (map 
-        (lambda (sequence) 
-          (bc-model sequence biased-weight)) 
+        (lambda (sequence) (biascoin-model sequence biased-weight)) 
         all-seqs))
 
-     ; what is the best biased-weight?
+     ; query for: what is the best biased-weight?
      biased-weight
 
      ; given that we've observed this data
-     (all (flatten
-           (map 
-            (lambda (data-for-one-sequence model)
-              ; map over data points in a given sequence
-              (map (lambda (single-data-point)
-                     ;single-data-point)
-                     (equal? single-data-point (apply multinomial model)))
-                   data-for-one-sequence))
-            (second experiment-data)
-            cognitive-model-predictions)))))
+     (condition 
+      (all (flatten
+            ; map over sequences 
+            ; (all-responses, and cognitive-model-predictions are organized by sequence)
+            (map 
+             (lambda (data-for-one-sequence model-for-one-sequence)
+               ; map over data points in a given sequence
+               (map 
+                (lambda (single-data-point)
+                  ; condition on data = model
+                  (equal? single-data-point (apply multinomial model)))
+                data-for-one-sequence))
+             all-responses
+             cognitive-model-predictions))))))
 ~~~
 
-Notice that there are two queries: one as part of the cognitive model ('in the head') and once as part of the data analysis model ('in the notebook').
+Notice that there are two queries: one as part of the cognitive model ('in the head') and one as part of the data analysis model ('in the notebook').
 
-As written this model is very inefficient, because it *samples* each response and checks to see if all match up with the observed data. We can re-write this in a more efficient way by computing the probability of the responses directly, and adding them with a factor statement (instead of a condition statement).
+As written, this model is very inefficient, because for each response, it *samples* a model prediction (by way of `(apply multinomial model)`, which produces a sample from the result of an `enumeration-query`) and checks to see if all model predictions match up with the observed data. We can re-write this in a more efficient way by computing the probability of the responses directly (using our handy `get-probability-of-faircoin` function from before), and adding them with a factor statement (instead of a condition statement).
 
 ~~~
-(define (biascoin-model sequence bias-weight)
-  (enumeration-query
+(define biascoin-model 
+  (mem (lambda (sequence bias-weight)
+         (enumeration-query
 
-   (define fair-weight 0.5)
+          (define fair-weight 0.5)
 
-   (define isfair (flip))
+          (define isfair (flip))
 
-   (define the-weight (if isfair fair-weight bias-weight))
+          (define the-weight (if isfair fair-weight bias-weight))
 
-   (define coin (lambda () 
-                  (flip the-weight)))
-
-
-   isfair
-
-   (equal? sequence (repeat 5 coin))))
+          (define coin (lambda () 
+                         (flip the-weight)))
 
 
-(define get-probability
+          isfair
+
+          (equal? sequence (repeat 5 coin))))))
+
+
+(define get-probability-of-faircoin
   (lambda (dist selection)
-    (let ([index (list-index (first dist) selection)])
-      (list-ref (second dist) index))))
+    (define index (list-index (first dist) selection))
+      (list-ref (second dist) index)))
 
 (define experiment-data
   (list
@@ -313,7 +325,10 @@ As written this model is very inefficient, because it *samples* each response an
     (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 ;;;
 
+; list of sequences
 (define all-seqs (first experiment-data))
+; list of responses 
+(define all-responses (second experiment-data))
 
 (define data-analysis 
   (lambda (experiment-data)
@@ -334,15 +349,18 @@ As written this model is very inefficient, because it *samples* each response an
 
      ; given that we've observed this data
      (factor (sum (flatten (map 
+                            ; map over sequences 
                             (lambda (data-for-one-sequence model)
                               ; map over data points in a given sequence
                               (map (lambda (single-data-point)
-                                     (log (get-probability model single-data-point)))
+                                     ; compute log p(data | model)
+                                     (log (get-probability-of-faircoin model single-data-point)))
                                    data-for-one-sequence))       
-                            (second experiment-data)
+                            all-responses
                             cognitive-model-predictions)))))))
 
 (barplot (data-analysis experiment-data) "inferred bias weight")
+
 ~~~
 
 We've taken some data, and written a cognitive model with some parameters (in this case, one parameter: bias-weight), and asked what the most likely value of that parameter is.
@@ -356,20 +374,22 @@ Sometimes parameter values aren't so easily interpreted as in our case here. Ano
 ~~~
 ;;;fold:
 (define biascoin-model 
-  (lambda (sequence bias-weight)
-    (enumeration-query
+  (mem (lambda (sequence bias-weight)
+         (enumeration-query
 
-     (define fair-weight 0.5)
-     (define isfair (flip))
-     (define the-weight (if isfair fair-weight bias-weight))
-     (define coin (lambda () 
-                    (flip the-weight)))
+          (define fair-weight 0.5)
+
+          (define isfair (flip))
+
+          (define the-weight (if isfair fair-weight bias-weight))
+
+          (define coin (lambda () 
+                         (flip the-weight)))
 
 
-     isfair
+          isfair
 
-     (equal? sequence 
-             (repeat 5 coin)))))
+          (equal? sequence (repeat 5 coin))))))
 
 (define experiment-data
   (list
@@ -440,16 +460,18 @@ Sometimes parameter values aren't so easily interpreted as in our case here. Ano
     (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
     (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
+; list of sequences
 (define all-seqs (first experiment-data))
+; list of responses 
+(define all-responses (second experiment-data))
 
-; takes in "dist": output from an enumeration-query
-; and "selection": the element from the posterior that you want
-; returns the probability of that selection
-(define get-probability
+
+(define get-probability-of-faircoin
   (lambda (dist selection)
-    (let ([index (list-index (first dist) selection)])
-      (list-ref (second dist) index))))
+    (define index (list-index (first dist) selection))
+      (list-ref (second dist) index)))
 
+; compute mean "fair-ness" for each sequence (human data)
 (define summarize-data 
   (lambda (dataset)
     (list (first dataset)
@@ -457,15 +479,17 @@ Sometimes parameter values aren't so easily interpreted as in our case here. Ano
            (lambda (lst) (mean (map boolean->number lst)))
            (second dataset)))))
 
+; compute mean "fair-ness" for each sequence (model predictions)
 (define summarize-model
   (lambda (modelpreds)
     (list 
      all-seqs
      (map 
       (lambda (dist) 
-        (get-probability dist #t))
+        (get-probability-of-faircoin dist #t))
       modelpreds))))
 
+; compute expected value of posterior distribution
 (define expval-from-enum-analysis-of-enum-model 
   (lambda (results)
     (map sum 
@@ -499,11 +523,10 @@ Sometimes parameter values aren't so easily interpreted as in our case here. Ano
      ; given that we've observed this data
      (factor (sum (flatten (map 
                             (lambda (data-for-one-sequence model)
-                              ; map over data points in a given sequence
                               (map (lambda (single-data-point)
-                                     (log (get-probability model single-data-point)))
+                                     (log (get-probability-of-faircoin model single-data-point)))
                                    data-for-one-sequence))       
-                            (second experiment-data)
+                            all-responses
                             cognitive-model-predictions)))))))
 
 (define results (data-analysis experiment-data))
@@ -723,7 +746,7 @@ It is simultaneously a measure of fit of your cognitive model, as well as the re
      all-seqs
      (map 
       (lambda (dist) 
-        (get-probability dist #t))
+        (get-probability-of-faircoin dist #t))
       modelpreds))))
 
 (define expval-from-enum-analysis-of-enum-model 
@@ -793,7 +816,7 @@ It is simultaneously a measure of fit of your cognitive model, as well as the re
                     (lambda (data-for-one-sequence model)
                       ; map over data points in a given sequence
                       (map (lambda (single-data-point)
-                             (log (get-probability model single-data-point)))
+                             (log (get-probability-of-faircoin model single-data-point)))
                            data-for-one-sequence))
                     (second experiment-data)
                     cognitive-plus-noise-predictions)))))))
@@ -831,7 +854,7 @@ It is simultaneously a measure of fit of your cognitive model, as well as the re
 (barplot posterior-bias "posterior on biased-weight")
 ~~~
 
-Our posterior on response noise is peaked around 0.3. Can you make this value go up? 
+Our posterior on response noise is peaked around 0.5. Does this seem high to you? Can you make this value go up? 
 
 (Hint: What would it mean for there to be a lot of guessing in our data set?)
 
@@ -840,38 +863,15 @@ What is the difference betweent the model with noise and the model without noise
 Notice that our initial problem isn't really solved by factoring in response noise (though it is useful and informative to do so).
 What is our problem again? Our model makes good predictions for most of these sequences, but is failing with the following two:
 
-THHHH
-HHHHH
+TTTTT
+TTTTH
 
-Why might this be the case? To gain an intuition, let's reexamine the bias-weight paramter value. 
-This can easily be done in the full model by using the *query statement* to return the `bias-weight` instead of, say, response-noise. 
-(This helper functions here only play nice with 2 outputs at this point in time. In principle, of course, you can query for any number of arguments, by adding them to the list).
+Why might this be the case? To gain an intuition, let's reexamine the bias-weight parameter value. 
 
-So try this query statement
+The biased-weight is probably at 0.9. What does this mean in terms of our cognitive model?
 
-~~~
-; joint query: 
-; what are the model predictions?
-; what is the biased-weight?
-(list (summarize-model cognitive-model-predictions)
-      biased-weight)
-~~~
-
-
-And change the final `barplot` to say
-
-~~~
-(barplot posterior-noise "posterior on biased-weight")
-~~~
-
-
-Of course, you can change the intermediate variable name `posterior-noise` to `posterior-weight` if you'd like.
-
-
-The biased-weight is probably below 0.5. What does this mean in terms of our cognitive model?
-
-Recall the biased-coin-model: it's comparing the sequence a fair coin would generate vs. one that a biased-coin would generate.
-The biased-coin sequence has it's own weight, which means the sequences it prefers are going to sequences with lots of Tails (since our inferred weight is < 0.5).
+Recall the biased-coin-model: it's our psychological theory that says subjects compare the sequence a fair coin would generate vs. one that a biased-coin would generate.
+The biased-coin sequence has it's own weight, which means the sequences it prefers are going to sequences with lots of Heads (since our inferred weight is = 0.9).
 
 This hints at a fundamental flaw of this model: it can only predict biased-sequences in one direction. How could we get around this issue? 
 
@@ -889,7 +889,7 @@ We now revisit our cognitive model (forgetting about the data analysis model for
 Let's examine the behavior of this model with respect to two sequences of interest.
 
 ~~~
-(define enriched-bc-model 
+(define enriched-biascoin-model 
   (lambda (sequence)
     (enumeration-query
 
@@ -912,8 +912,8 @@ Let's examine the behavior of this model with respect to two sequences of intere
 
      (equal? sequence (repeat 5 coin)))))
 
-(barplot (enriched-bc-model (list true true true true true)) "HHHHH is fair?")
-(barplot (enriched-bc-model (list false false false false false)) "TTTTT is fair?")
+(barplot (enriched-biascoin-model (list true true true true true)) "HHHHH is fair?")
+(barplot (enriched-biascoin-model (list false false false false false)) "TTTTT is fair?")
 ~~~
 
 
@@ -922,7 +922,7 @@ This model matches our intuition for the fairness of these sequences. Do you see
 To gain more insight, we could query for the biased-weight variable, just like we did before in the data analysis model previously.
 
 ~~~
-(define bc-model 
+(define enriched-biascoin-model 
   (lambda (sequence)
     (enumeration-query
 
@@ -946,8 +946,8 @@ To gain more insight, we could query for the biased-weight variable, just like w
      (equal? sequence 
              (repeat 5 coin)))))
 
-(barplot (bc-model (list true true true true true)) "what weight generated HHHHH")
-(barplot (bc-model (list false false false false false)) "what weight generated TTTTT")
+(barplot (enriched-biascoin-model (list true true true true true)) "what weight generated HHHHH")
+(barplot (enriched-biascoin-model (list false false false false false)) "what weight generated TTTTT")
 ~~~
 
 The model has the flexibility to infer different biased coin weights for different sequences. Let's now compare this to our data set.
@@ -956,8 +956,8 @@ The model has the flexibility to infer different biased coin weights for differe
 
 ~~~
 ;;;fold:
-(define bc-model 
-  (lambda (sequence)
+(define enriched-biascoin-model 
+  (mem (lambda (sequence)
     (enumeration-query
 
      (define fair-weight 0.5)
@@ -977,8 +977,7 @@ The model has the flexibility to infer different biased coin weights for differe
 
      isfair
 
-     (equal? sequence 
-             (repeat 5 coin)))))
+     (equal? sequence (repeat 5 coin))))))
 
 (define experiment-data
   (list
@@ -1050,12 +1049,9 @@ The model has the flexibility to infer different biased coin weights for differe
     (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
 (define all-seqs (first experiment-data))
+(define all-responses (second experiment-data))
 
-
-; takes in "dist": output from an enumeration-query
-; and "selection": the element from the posterior that you want
-; returns the probability of that selection
-(define get-probability
+(define get-probability-of-faircoin
   (lambda (dist selection)
     (let ([index (list-index (first dist) selection)])
       (list-ref (second dist) index))))
@@ -1073,7 +1069,7 @@ The model has the flexibility to infer different biased coin weights for differe
      all-seqs
      (map 
       (lambda (dist) 
-        (get-probability dist #t))
+        (get-probability-of-faircoin dist #t))
       modelpreds))))
 
 (define expval-from-enum-analysis-of-enum-model 
@@ -1097,7 +1093,7 @@ The model has the flexibility to infer different biased coin weights for differe
      (define cognitive-model-predictions
        (map 
         (lambda (sequence) 
-          (bc-model sequence)) 
+          (enriched-biascoin-model sequence)) 
         all-seqs))
 
 
@@ -1109,7 +1105,7 @@ The model has the flexibility to infer different biased coin weights for differe
                             (lambda (data-for-one-sequence model)
                               ; map over data points in a given sequence
                               (map (lambda (single-data-point)
-                                     (log (get-probability model single-data-point)))
+                                     (log (get-probability-of-faircoin model single-data-point)))
                                    data-for-one-sequence))       
                             (second experiment-data)
                             cognitive-model-predictions)))))))
@@ -1131,21 +1127,24 @@ The model has the flexibility to infer different biased coin weights for differe
   "data: proportion of fair responses")
 ~~~
 
-This is great. The model doesn't suffer from the same *lower-bias* flaw that it did previously.
-Note that right now, our congitive model has 0 parameters, so we're really just looking at the predictions of the model (as opposed to the posterior predictive).
 
-## v2: Theta ~ Beta (gamma, delta) [gamma,delta in data analysis]
+
+This is great. The model doesn't suffer from the same *lower-bias* flaw that it did previously.
+
+Notice that our cognitive model has 0 parameters that the data analysis model would have to infer. 
+
+## Generalized, enriched bias coin model 
 
 Are there actually 0 parameters to our model? In a sense, yes: there are no variables that take on particular values that we're uncertain about.
 At the same time, we do have an assumption about the `biased-weight' distribution that exists inside the cognitive model. 
 We have a uniform distribution over coin weights. It's conceiveable, however, that there is some global bias to detecting bias-sequences with heads or tails specifically.
 That is, sequences of predominantly H (or, T) might be more confusable with fair sequences.
 
-We can capture this idea by generalizing the uniform distribution to some distribution of coin weights, and we're unsure of the mean and variance of that distribution.
+We can capture this idea by generalizing the uniform distribution to some distribution of coin weights, whose mean and variance have uncertainty.
 
 The canonical distribution over coin weights is the Beta distribution. 
-(Coin-weights are formally Binomial parameters. 
-  This higher-order distribution is called the Beta distribution. 
+(Coin-weights are, formally, Binomial parameters. 
+  The higher-order distribution of coin-weight is called the Beta distribution. 
   You may (or may not) have heard of Beta-Binomial priors. This is it.)
 
 Note: This will take about 30 seconds to run.
@@ -1291,7 +1290,7 @@ Note: This will take about 30 seconds to run.
      all-seqs
      (map 
       (lambda (dist) 
-        (get-probability dist #t))
+        (get-probability-of-faircoin dist #t))
       modelpreds))))
 
 (define expval-from-enum-analysis-of-enum-model 
@@ -1306,7 +1305,7 @@ Note: This will take about 30 seconds to run.
                      (second results))))))
 ;;;
 
-(define bc-model 
+(define generalized-biascoin-model 
   (mem (lambda (sequence gamma delta)
          (enumeration-query
 
@@ -1344,7 +1343,7 @@ Note: This will take about 30 seconds to run.
      (define cognitive-model-predictions
        (map 
         (lambda (sequence) 
-          (bc-model sequence gamma delta)) 
+          (generalized-biascoin-model sequence gamma delta)) 
         all-seqs))
 
 
@@ -1359,7 +1358,7 @@ Note: This will take about 30 seconds to run.
                             (lambda (data-for-one-sequence model)
                               ; map over data points in a given sequence
                               (map (lambda (single-data-point)
-                                     (log (get-probability model single-data-point)))
+                                     (log (get-probability-of-faircoin model single-data-point)))
                                    data-for-one-sequence))       
                             (second experiment-data)
                             cognitive-model-predictions)))))))
@@ -1400,283 +1399,284 @@ Let's see what happens when we factor in response noise.
 
 Note: This will take about 30 seconds to run. Chrome may ask you to kill the page; power through.
 
+~~~
+;;;fold:
+(define discretize-beta 
+  (lambda (gamma delta bins)
+    (define shape_alpha (* gamma delta))
+    (define shape_beta (* (- 1 gamma) delta))
+    (define beta-pdf (lambda (x) 
+                       (*
+                        (pow x (- shape_alpha 1))
+                        (pow (- 1 x) (- shape_beta 1)))))
+    (map beta-pdf bins)))
 
-    ;;;fold:
-    (define discretize-beta 
-      (lambda (gamma delta bins)
-        (define shape_alpha (* gamma delta))
-        (define shape_beta (* (- 1 gamma) delta))
-        (define beta-pdf (lambda (x) 
-                           (*
-                            (pow x (- shape_alpha 1))
-                            (pow (- 1 x) (- shape_beta 1)))))
-        (map beta-pdf bins)))
-
-    (define bins '(0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9))
-
-
-
-
-    (define (get-indices needle haystack)
-      (define (loop rest-of-haystack index)
-        (if (null? rest-of-haystack) '()
-            (let ((rest-of-indices (loop (rest rest-of-haystack) (+ index 1))))
-              (if (equal? (first rest-of-haystack) needle)
-                  (pair index rest-of-indices)
-                  rest-of-indices))))
-      (loop haystack 1))
-
-    (define (list-map lst)
-      (if (all (map null? (map rest lst))) 
-          lst
-          (list (map first lst) (list-map (map rest lst)))))
-
-    (define (marginalize output)
-      (let ([states (first output)])
-        (map (lambda (sub-output) 
-               (let* ([probs (second output)]
-                      [unique-states (unique sub-output)]
-                      [unique-state-indices 
-                       (map 
-                        (lambda (x) (list x (get-indices x sub-output))) 
-                        unique-states)])
-
-                 (list (map first unique-state-indices)
-                       (map 
-                        (lambda (y) (sum (map 
-                                          (lambda (x) (list-elt probs x)) 
-                                          (second y)))) 
-                        unique-state-indices))))
-
-             (transpose states))))
-
-
-    (define experiment-data
-      (list
-       (list
-        (list #t #t #t #t #t) 
-        (list #t #t #t #t #f) 
-        (list #t #t #t #f #t) 
-        (list #t #t #t #f #f) 
-        (list #t #t #f #t #t) 
-        (list #t #t #f #t #f) 
-        (list #t #t #f #f #t) 
-        (list #t #t #f #f #f) 
-        (list #t #f #t #t #t) 
-        (list #t #f #t #t #f) 
-        (list #t #f #t #f #t) 
-        (list #t #f #t #f #f) 
-        (list #t #f #f #t #t) 
-        (list #t #f #f #t #f) 
-        (list #t #f #f #f #t) 
-        (list #t #f #f #f #f) 
-        (list #f #t #t #t #t) 
-        (list #f #t #t #t #f) 
-        (list #f #t #t #f #t) 
-        (list #f #t #t #f #f) 
-        (list #f #t #f #t #t) 
-        (list #f #t #f #t #f) 
-        (list #f #t #f #f #t) 
-        (list #f #t #f #f #f)
-        (list #f #f #t #t #t) 
-        (list #f #f #t #t #f) 
-        (list #f #f #t #f #t) 
-        (list #f #f #t #f #f) 
-        (list #f #f #f #t #t) 
-        (list #f #f #f #t #f) 
-        (list #f #f #f #f #t) 
-        (list #f #f #f #f #f))
-       (list 
-        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
-        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
-        (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
-        (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
-        (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
-        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
-        (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
-        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
-        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
-        (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
-        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
-        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
-
-    (define all-seqs (first experiment-data))
-
-    ; takes in "dist": output from an enumeration-query
-    ; and "selection": the element from the posterior that you want
-    ; returns the probability of that selection
-    (define get-probability
-      (lambda (dist selection)
-        (let ([index (list-index (first dist) selection)])
-          (list-ref (second dist) index))))
-
-    (define summarize-data 
-      (lambda (dataset)
-        (list (first dataset)
-              (map 
-               (lambda (lst) (mean (map boolean->number lst)))
-               (second dataset)))))
-
-    (define summarize-model
-      (lambda (modelpreds)
-        (list 
-         all-seqs
-         (map 
-          (lambda (dist) 
-            (get-probability dist #t))
-          modelpreds))))
-
-
-    (define expval-from-enum-analysis-of-enum-model 
-      (lambda (results)
-        (map sum 
-             (transpose (map 
-                         (lambda (lst prob)
-                           (map (lambda (x)
-                                  (* prob x))
-                                (second lst)))
-                         (first results)
-                         (second results))))))
-    ;;;
-
-
-    (define bc-model 
-      (mem 
-       (lambda (sequence gamma delta)
-         (enumeration-query
-
-          (define fair-weight 0.5)
-
-          (define biased-weight
-            (multinomial bins (discretize-beta gamma delta bins)))
-
-          ; (define biased-weight 
-          ;    (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
-
-          (define isfair (flip))
-
-
-          (define the-weight (if isfair 
-                                 fair-weight 
-                                 biased-weight))
-
-          (define coin (lambda () 
-                         (flip the-weight)))
-
-
-          isfair
-
-          (equal? sequence 
-                  (repeat 5 coin))))))
-
-    (define thinking-and-guessing 
-      (lambda (sequence gamma delta guessing-parameter)
-        (enumeration-query
-         (define thinking (bc-model sequence gamma delta))
-         (define guessing (list '(#t #f) '(0.5 0.5)))
-         (define response
-           (if (flip guessing-parameter)
-               guessing
-               thinking))
-
-         (apply multinomial response)
-
-         true)))
-
-    (define data-analysis 
-      (lambda (experiment-data)
-        (enumeration-query
-
-         (define gamma (uniform-draw (list 0.1 0.3 0.5 0.7 0.9)))
-         (define delta (uniform-draw (list 0.1 0.5 1 3 7 15)))
-
-         ; generate predictions for all sequences
-         (define cognitive-model-predictions
-           (map 
-            (lambda (sequence) 
-              (bc-model sequence gamma delta)) 
-            all-seqs))
-
-         (define response-noise (uniform-draw (list 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1)))
-
-
-         (define cognitive-plus-noise-predictions
-           (map 
-            (lambda (sequence)
-              (thinking-and-guessing sequence gamma delta response-noise))
-            all-seqs))
-
-
-         ; what are the model predictions?
-         (list 
-          (summarize-model cognitive-plus-noise-predictions)
-          (summarize-model cognitive-model-predictions)
-          response-noise
-          gamma
-          delta)
-
-         ; given that we've observed this data
-         (factor (sum (flatten (map 
-                                (lambda (data-for-one-sequence model)
-                                  ; map over data points in a given sequence
-                                  (map (lambda (single-data-point)
-                                         (log (get-probability model single-data-point)))
-                                       data-for-one-sequence))       
-                                (second experiment-data)
-                                cognitive-plus-noise-predictions)))))))
+(define bins '(0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9))
 
 
 
-    (define results (marginalize (data-analysis experiment-data)))
 
-    (define posterior-predictive-withNoise-results (first results))
-    (define posterior-predictive-sansNoise-results (second results))
-    (define posterior-noise (third results))
-    (define posterior-gamma (fourth results))
-    (define posterior-delta (fifth results))
+(define (get-indices needle haystack)
+  (define (loop rest-of-haystack index)
+    (if (null? rest-of-haystack) '()
+        (let ((rest-of-indices (loop (rest rest-of-haystack) (+ index 1))))
+          (if (equal? (first rest-of-haystack) needle)
+              (pair index rest-of-indices)
+              rest-of-indices))))
+  (loop haystack 1))
 
-    (define posterior-predictive-withNoise 
-      (expval-from-enum-analysis-of-enum-model posterior-predictive-withNoise-results))
+(define (list-map lst)
+  (if (all (map null? (map rest lst))) 
+      lst
+      (list (map first lst) (list-map (map rest lst)))))
 
-    (define posterior-predictive-sansNoise 
-      (expval-from-enum-analysis-of-enum-model posterior-predictive-sansNoise-results))
+(define (marginalize output)
+  (let ([states (first output)])
+    (map (lambda (sub-output) 
+           (let* ([probs (second output)]
+                  [unique-states (unique sub-output)]
+                  [unique-state-indices 
+                   (map 
+                    (lambda (x) (list x (get-indices x sub-output))) 
+                    unique-states)])
 
-    (scatter 
-     (zip 
-      posterior-predictive-withNoise
-      (second (summarize-data experiment-data)))
-     "data vs. cognitive model")
+             (list (map first unique-state-indices)
+                   (map 
+                    (lambda (y) (sum (map 
+                                      (lambda (x) (list-elt probs x)) 
+                                      (second y)))) 
+                    unique-state-indices))))
 
-    (barplot (list all-seqs posterior-predictive-withNoise) 
-      "cognitive model (with noise): probability of fair?")
-    (barplot (list all-seqs posterior-predictive-sansNoise) 
-      "cognitive model (sans noise): probability of fair?")
-    (barplot (list all-seqs (second (summarize-data experiment-data))) 
-      "data: proportion of fair responses")
+         (transpose states))))
 
-    (barplot posterior-noise "posterior on noise parameter")
-    (barplot posterior-gamma "posterior on mean biased-weight")
-    (barplot posterior-delta "posterior on varaince of biased-weight")
+
+(define experiment-data
+  (list
+   (list
+    (list #t #t #t #t #t) 
+    (list #t #t #t #t #f) 
+    (list #t #t #t #f #t) 
+    (list #t #t #t #f #f) 
+    (list #t #t #f #t #t) 
+    (list #t #t #f #t #f) 
+    (list #t #t #f #f #t) 
+    (list #t #t #f #f #f) 
+    (list #t #f #t #t #t) 
+    (list #t #f #t #t #f) 
+    (list #t #f #t #f #t) 
+    (list #t #f #t #f #f) 
+    (list #t #f #f #t #t) 
+    (list #t #f #f #t #f) 
+    (list #t #f #f #f #t) 
+    (list #t #f #f #f #f) 
+    (list #f #t #t #t #t) 
+    (list #f #t #t #t #f) 
+    (list #f #t #t #f #t) 
+    (list #f #t #t #f #f) 
+    (list #f #t #f #t #t) 
+    (list #f #t #f #t #f) 
+    (list #f #t #f #f #t) 
+    (list #f #t #f #f #f)
+    (list #f #f #t #t #t) 
+    (list #f #f #t #t #f) 
+    (list #f #f #t #f #t) 
+    (list #f #f #t #f #f) 
+    (list #f #f #f #t #t) 
+    (list #f #f #f #t #f) 
+    (list #f #f #f #f #t) 
+    (list #f #f #f #f #f))
+   (list 
+    (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
+    (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
+    (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
+    (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
+    (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+    (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
+    (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+    (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
+    (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
+    (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
+    (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
+    (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
+
+(define all-seqs (first experiment-data))
+
+; takes in "dist": output from an enumeration-query
+; and "selection": the element from the posterior that you want
+; returns the probability of that selection
+(define get-probability
+  (lambda (dist selection)
+    (let ([index (list-index (first dist) selection)])
+      (list-ref (second dist) index))))
+
+(define summarize-data 
+  (lambda (dataset)
+    (list (first dataset)
+          (map 
+           (lambda (lst) (mean (map boolean->number lst)))
+           (second dataset)))))
+
+(define summarize-model
+  (lambda (modelpreds)
+    (list 
+     all-seqs
+     (map 
+      (lambda (dist) 
+        (get-probability-of-faircoin dist #t))
+      modelpreds))))
+
+
+(define expval-from-enum-analysis-of-enum-model 
+  (lambda (results)
+    (map sum 
+         (transpose (map 
+                     (lambda (lst prob)
+                       (map (lambda (x)
+                              (* prob x))
+                            (second lst)))
+                     (first results)
+                     (second results))))))
+;;;
+
+
+(define bc-model 
+  (mem 
+   (lambda (sequence gamma delta)
+     (enumeration-query
+
+      (define fair-weight 0.5)
+
+      (define biased-weight
+        (multinomial bins (discretize-beta gamma delta bins)))
+
+      ; (define biased-weight 
+      ;    (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
+
+      (define isfair (flip))
+
+
+      (define the-weight (if isfair 
+                             fair-weight 
+                             biased-weight))
+
+      (define coin (lambda () 
+                     (flip the-weight)))
+
+
+      isfair
+
+      (equal? sequence 
+              (repeat 5 coin))))))
+
+(define thinking-and-guessing 
+  (lambda (sequence gamma delta guessing-parameter)
+    (enumeration-query
+     (define thinking (bc-model sequence gamma delta))
+     (define guessing (list '(#t #f) '(0.5 0.5)))
+     (define response
+       (if (flip guessing-parameter)
+           guessing
+           thinking))
+
+     (apply multinomial response)
+
+     true)))
+
+(define data-analysis 
+  (lambda (experiment-data)
+    (enumeration-query
+
+     (define gamma (uniform-draw (list 0.1 0.3 0.5 0.7 0.9)))
+     (define delta (uniform-draw (list 0.1 0.5 1 3 7 15)))
+
+     ; generate predictions for all sequences
+     (define cognitive-model-predictions
+       (map 
+        (lambda (sequence) 
+          (bc-model sequence gamma delta)) 
+        all-seqs))
+
+     (define response-noise (uniform-draw (list 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1)))
+
+
+     (define cognitive-plus-noise-predictions
+       (map 
+        (lambda (sequence)
+          (thinking-and-guessing sequence gamma delta response-noise))
+        all-seqs))
+
+
+     ; what are the model predictions?
+     (list 
+      (summarize-model cognitive-plus-noise-predictions)
+      (summarize-model cognitive-model-predictions)
+      response-noise
+      gamma
+      delta)
+
+     ; given that we've observed this data
+     (factor (sum (flatten (map 
+                            (lambda (data-for-one-sequence model)
+                              ; map over data points in a given sequence
+                              (map (lambda (single-data-point)
+                                     (log (get-probability-of-faircoin model single-data-point)))
+                                   data-for-one-sequence))       
+                            (second experiment-data)
+                            cognitive-plus-noise-predictions)))))))
+
+
+
+(define results (marginalize (data-analysis experiment-data)))
+
+(define posterior-predictive-withNoise-results (first results))
+(define posterior-predictive-sansNoise-results (second results))
+(define posterior-noise (third results))
+(define posterior-gamma (fourth results))
+(define posterior-delta (fifth results))
+
+(define posterior-predictive-withNoise 
+  (expval-from-enum-analysis-of-enum-model posterior-predictive-withNoise-results))
+
+(define posterior-predictive-sansNoise 
+  (expval-from-enum-analysis-of-enum-model posterior-predictive-sansNoise-results))
+
+(scatter 
+ (zip 
+  posterior-predictive-withNoise
+  (second (summarize-data experiment-data)))
+ "data vs. cognitive model")
+
+(barplot (list all-seqs posterior-predictive-withNoise) 
+         "cognitive model (with noise): probability of fair?")
+(barplot (list all-seqs posterior-predictive-sansNoise) 
+         "cognitive model (sans noise): probability of fair?")
+(barplot (list all-seqs (second (summarize-data experiment-data))) 
+         "data: proportion of fair responses")
+
+(barplot posterior-noise "posterior on noise parameter")
+(barplot posterior-gamma "posterior on mean biased-weight")
+(barplot posterior-delta "posterior on varaince of biased-weight")
+~~~
 
 # Model selection
 
@@ -1805,7 +1805,7 @@ Let's try to write this in full:
          all-seqs
          (map 
           (lambda (dist) 
-            (get-probability dist #t))
+            (get-probability-of-faircoin dist #t))
           modelpreds))))
 
     ;;;
@@ -1885,7 +1885,7 @@ Let's try to write this in full:
                                 (lambda (data-for-one-sequence model)
                                   ; map over data points in a given sequence
                                   (map (lambda (single-data-point)
-                                         (log (get-probability model single-data-point)))
+                                         (log (get-probability-of-faircoin model single-data-point)))
                                        data-for-one-sequence))       
                                 (second experiment-data)
                                 best-model)))))))
@@ -1923,98 +1923,98 @@ Try this slightly more expanded data set.
 
 1. **Bayes in the head vs. Bayes in the notebook.** We've seen in this chapter how we can precisely separate assumptions about our computational-level theory of cognition from the assumptions that go into analyzing our data (and our theory). In this exercise, we will try to go between the two ways of looking at these things: by going from a theory and analysis in words, to a theory and analysis in Church (and back).
 	
-	Consider the [reflectance and luminance model](https://probmods.org/patterns-of-inference.html#a-case-study-in-modularity-visual-perception-of-surface-lightness-and-color) from Chapter 4. This model captured the illusion of increased reflectance in terms of explaining away the observed luminance by the decreased illumination (caused by the shadow). Here is the model again
+Consider the [reflectance and luminance model](https://probmods.org/patterns-of-inference.html#a-case-study-in-modularity-visual-perception-of-surface-lightness-and-color) from Chapter 4. This model captured the illusion of increased reflectance in terms of explaining away the observed luminance by the decreased illumination (caused by the shadow). Here is the model again
 	
-	~~~
-	(define observed-luminance 3.0)
+~~~
+(define observed-luminance 3.0)
+
+(define samples
+   (mh-query
+    1000 10
+
+    (define reflectance (gaussian 1 1))
+    (define illumination (gaussian 3 0.5))
+    (define luminance (* reflectance illumination))
+
+    luminance
+
+    ;true
+    (= luminance (gaussian observed-luminance 0.1))))
+
+(display (list "Mean reflectance:" (mean samples)))
+(hist samples "Reflectance")
+~~~
 	
-	(define samples
-	   (mh-query
-	    1000 10
+Here I have included a commented `true` condition to make it easy for you to explore this model. 
 	
-	    (define reflectance (gaussian 1 1))
-	    (define illumination (gaussian 3 0.5))
-	    (define luminance (* reflectance illumination))
+A. **Warmup: What does the prior for luminance look like? How does the prior change when we condition on the observed luminance.**
 	
-	    luminance
+Just as a reminder, the illusion is observed in the model when we condition on this statement about illumination  `(condition (= illumination (gaussian 0.5  0.1)))`, which is a stand-in for the effect of the shadow from the cylinder on the scene.
 	
-	    ;true
-	    (= luminance (gaussian observed-luminance 0.1))))
+B. **How many parameters does this model of perception have?** (Hint: Go through each `define` and `condition`: Are the constituent variables of the statements (a) modeling assumptions or (b) part of the experimental setup / manipulation) **For all of the variables you've categorized as (a), which ones do you think refer to aspects of the perceptual system and which refer to aspects of the environment? What do you think these parameters represent in terms of the perceptual system or environment? (Feel free to use super general, even colloquial, terms to answer this.)**
 	
-	(display (list "Mean reflectance:" (mean samples)))
-	(hist samples "Reflectance")
-	~~~
-	
-	Here I have included a commented `true` condition to make it easy for you to explore this model. 
-	
-	A. **Warmup: What does the prior for luminance look like? How does the prior change when we condition on the observed luminance.**
-	
-		Just as a reminder, the illusion is observed in the model when we condition on this statement about illumination  `(condition (= illumination (gaussian 0.5  0.1)))`, which is a stand-in for the effect of the shadow from the cylinder on the scene.
-	
-	B. **How many parameters does this model of perception have?** (Hint: Go through each `define` and `condition`: Are the constituent variables of the statements (a) modeling assumptions or (b) part of the experimental setup / manipulation) **For all of the variables you've categorized as (a), which ones do you think refer to aspects of the perceptual system and which refer to aspects of the environment? What do you think these parameters represent in terms of the perceptual system or environment? (Feel free to use super general, even colloquial, terms to answer this.)**
-	
-	C. Replace the hard-coded parameters of this model with variables, defined outside the query. Give them the most intuitive names you can fashion. Use this starter (pseudo) code.
+C. Replace the hard-coded parameters of this model with variables, defined outside the query. Give them the most intuitive names you can fashion. Use this starter (pseudo) code.
 	
 	
-		~~~
-		(define parameter1 ...)
-		(define parameter2 ...)
-		;...
-		
-		(define observed-luminance 3.0)
-		
-		(query
-		
-		 (define reflectance (gaussian 1 1))
-		 (define illumination (gaussian 3 0.5))
-		 (define luminance (* reflectance illumination))
-		
-		 luminance
-		
-		 (= luminance (gaussian observed-luminance 0.1))))
-		~~~
+~~~
+(define parameter1 ...)
+(define parameter2 ...)
+;...
+
+(define observed-luminance 3.0)
+
+(query
+
+ (define reflectance (gaussian 1 1))
+ (define illumination (gaussian 3 0.5))
+ (define luminance (* reflectance illumination))
+
+ luminance
+
+ (= luminance (gaussian observed-luminance 0.1))))
+~~~
 	
-	D. **Are all of these parameters independent?** (If you had to specify values for them, would you have to consider values of other parameters when specifying them?) If two are not independent, can you think of a reparameterization that would be more independent? (Hint: If you have two non-independent parameters, you could keep only one of them and introduce a parameter specifying the relation between the two. E.g., two points that are linearly associated can be expressed as an one of them and the distance between them).
+D. **Are all of these parameters independent?** (If you had to specify values for them, would you have to consider values of other parameters when specifying them?) If two are not independent, can you think of a reparameterization that would be more independent? (Hint: If you have two non-independent parameters, you could keep only one of them and introduce a parameter specifying the relation between the two. E.g., two points that are linearly associated can be expressed as an one of them and the distance between them).
 	
-	E. Writing data analysis models requires specifying priors over parameters. Without much prior knowledge in a domain, we want to pick priors that make the fewest assumptions. A good place to start is to think about the possible values the parameter could take on. **For each parameter, write down what you know about the possible values it could take on. **
+E. Writing data analysis models requires specifying priors over parameters. Without much prior knowledge in a domain, we want to pick priors that make the fewest assumptions. A good place to start is to think about the possible values the parameter could take on. **For each parameter, write down what you know about the possible values it could take on. **
 	
-	F. We're now in a position to write a data analysis model. The most common distributional forms for priors are [uniform](http://en.wikipedia.org/wiki/Uniform_distribution_(continuous), [gaussian](http://en.wikipedia.org/wiki/Normal_distribution), [beta](http://en.wikipedia.org/wiki/Beta_distribution), and [exponential](http://en.wikipedia.org/wiki/Exponential_distribution). Put priors on your parameters from part C. Use this starter (pseudo) code.
+F. We're now in a position to write a data analysis model. The most common distributional forms for priors are [uniform](http://en.wikipedia.org/wiki/Uniform_distribution_(continuous), [gaussian](http://en.wikipedia.org/wiki/Normal_distribution), [beta](http://en.wikipedia.org/wiki/Beta_distribution), and [exponential](http://en.wikipedia.org/wiki/Exponential_distribution). Put priors on your parameters from part C. Use this starter (pseudo) code.
 	
-		~~~
-		(define perceptual-model
-		  (lambda (parameter1 parameter2 ...))
-		  (query
-		
-		   ; fill in, copying where appropriate from the original model specification
-		   (define reflectance ...)
-		   (define illumination ...)
-		   (define luminance (* reflectance illumination))
-		
-		   luminance
-		
-		   (= luminance ...))))
-		
-		
-		
-		(define data-analysis-model
-		  (query
-		   ; replace with parameters you specified in Part C
-		   ; put priors over parameters
-		   (define parameter1 ...)
-		   (define parameter2 ...)
-		   (define ...)
-		   (define perceptual-model-predictions 
-		     (perceptual-model parameter1 parameter2 ...))
-		    
-		   ;;; what are you going to query for?
-		   ...  
-		   
-		   (condition (= experimental-data perceptual-model-predictions))))
-		
-		
-		~~~ 
+~~~
+(define perceptual-model
+  (lambda (parameter1 parameter2 ...))
+  (query
+
+   ; fill in, copying where appropriate from the original model specification
+   (define reflectance ...)
+   (define illumination ...)
+   (define luminance (* reflectance illumination))
+
+   luminance
+
+   (= luminance ...))))
+
+
+
+(define data-analysis-model
+  (query
+   ; replace with parameters you specified in Part C
+   ; put priors over parameters
+   (define parameter1 ...)
+   (define parameter2 ...)
+   (define ...)
+   (define perceptual-model-predictions 
+     (perceptual-model parameter1 parameter2 ...))
+    
+   ;;; what are you going to query for?
+   ...  
+   
+   (condition (= experimental-data perceptual-model-predictions))))
+
+
+~~~ 
 	
-	G. What are you going to query for? Add that to your pseudocode above. What do each of things that you are querying for in the data analysis model represent?
+G. What are you going to query for? Add that to your pseudocode above. What do each of things that you are querying for in the data analysis model represent?
 
 2. **Parameter fitting vs. Parameter integration** One of the strongest motivations for using Bayesian techniques for model-data evaluation is in how "nuisance" parameters are treated. "Nuisance" parameters are parameters of no theoretical interest; their only purpose is to fill in a slot in the model. Classically, the most prominant technique (from the frequentist tradition) for dealing with these parameters is to fit them to the data, i.e., to set the value equal to whatever maximizes the model-data fit (or, equivalently, minimizes some cost function). 
 

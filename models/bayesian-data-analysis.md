@@ -219,6 +219,7 @@ Notice that there are two queries: one as part of the cognitive model ('in the h
 As written this model is very inefficient, because it *samples* each response and checks to see if all match up with the observed data. We can re-write this in a more efficient way by computing the probability of the responses directly, and adding them with a factor statement (instead of a condition statement).
 
 ~~~
+;;;fold:
 (define (biascoin-model sequence bias-weight)
   (enumeration-query
 

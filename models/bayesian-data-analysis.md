@@ -1636,11 +1636,12 @@ Note: This will also take a while. Chrome may ask you to kill the page; power th
 
 (barplot posterior-noise "posterior on noise parameter")
 (barplot posterior-gamma "posterior on mean biased-weight")
-(barplot posterior-delta "posterior on varaince of biased-weight")
+(barplot posterior-delta "posterior on variance of biased-weight")
 ~~~
 
 How much of the data must be explained as noise in this extended model?
 
+The posteriors over the mean and variance of the biased-weight are interesting. These are parameters of a [beta](http://en.wikipedia.org/wiki/Beta_distribution) distribution. The mean value tells us that the there might be a bias towards seeing more Heads as more biased.  The variance value is small, which indicates that the resulting distribution is U-shaped, with peaks at high values and low values. This should match your intuition for the underlying cognitive model. The true prior over biased-coin rates is peaked at the extremes; and we've backed that out from our data!
 
 # Model selection
 
@@ -2220,7 +2221,7 @@ Let's analyze this model with respect to some data. First, we'll put priors on t
 (scatter model-data "data vs. cognitive model")
 
 (barplot posterior-predictive "cognitive model: probability of blicket?")
-(barplot data-summary "data: proportion of 'Blicket!' responses")
+(barplot data-summary "data: proportion of 'A is a Blicket!' responses")
 ~~~
 
 Before running this program, answer the following question:
@@ -2342,7 +2343,7 @@ Examine your histograms and determine the "maximum a posteriori" (MAP) value for
 (define model-data (zip best-fit-model-predictions (second data-summary)))
 (scatter model-data "data vs. cognitive model")
 (barplot (list possible-evidence-streams best-fit-model-predictions) "cognitive model: probability of blicket?")
-(barplot data-summary "data: proportion of 'Blicket!' responses")
+(barplot data-summary "data: proportion of 'A is a Blicket!' responses")
 ~~~
 
 H. What can you conclude about the two ways of looking at parameters in this model's case? Do you think the model is relatively robust to different parameter settings?

@@ -721,16 +721,15 @@ Thus, the estimate of `guessing-parameter` can be thought of as a measure of the
     (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
     (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
+; list of sequences
 (define all-seqs (first experiment-data))
+; list of responses 
+(define all-responses (second experiment-data))
 
-
-; takes in "dist": output from an enumeration-query
-; and "selection": the element from the posterior that you want
-; returns the probability of that selection
-(define get-probability
+(define get-probability-of-faircoin
   (lambda (dist selection)
-    (let ([index (list-index (first dist) selection)])
-      (list-ref (second dist) index))))
+    (define index (list-index (first dist) selection))
+    (list-ref (second dist) index)))
 
 ; takes the mean "true" responses for each sequence
 (define summarize-data 
@@ -783,7 +782,8 @@ Thus, the estimate of `guessing-parameter` can be thought of as a measure of the
      (define biased-weight 
        (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
 
-     (define response-noise (uniform-draw (list 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1)))
+     (define response-noise 
+       (uniform-draw (list 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1)))
 
      ; generate predictions for all sequences
      (define cognitive-model-predictions
@@ -818,7 +818,7 @@ Thus, the estimate of `guessing-parameter` can be thought of as a measure of the
                       (map (lambda (single-data-point)
                              (log (get-probability-of-faircoin model single-data-point)))
                            data-for-one-sequence))
-                    (second experiment-data)
+                    all-responses
                     cognitive-plus-noise-predictions)))))))
 
 (define results (marginalize (data-analysis experiment-data)))
@@ -842,35 +842,28 @@ Thus, the estimate of `guessing-parameter` can be thought of as a measure of the
  "data vs. cognitive model (including noise)")
 
 (barplot (list all-seqs posterior-predictive-withNoise) 
-  "model (with noise): probability of fair?")
+         "model (with noise): probability of fair?")
 (barplot (list all-seqs posterior-predictive-sansNoise) 
-  "model (sans noise): probability of fair?")
+         "model (sans noise): probability of fair?")
 
 (barplot (list all-seqs (second (summarize-data experiment-data))) 
-  "data: proportion of fair responses")
+         "data: proportion of fair responses")
 
 (barplot posterior-noise "posterior on response noise")
 
 (barplot posterior-bias "posterior on biased-weight")
 ~~~
 
-Our posterior on response noise is peaked around 0.5. Does this seem high to you? Can you make this value go up? 
-
-(Hint: What would it mean for there to be a lot of guessing in our data set?)
-
+The posterior on response noise is peaked around 0.5. That is our best guess is that fifty percent of the data comes from noise---does this seem high to you? 
 What is the difference between the model with noise and the model without noise? (Theoretically, but also how do the predictions differ?)
 
-Notice that our initial problem isn't really solved by factoring in response noise (though it is useful and informative to do so).
+Notice that while the scatter plot looks a bit better, our problem isn't really solved by factoring in response noise (though it is useful and informative to do so).
 What is our problem again? Our model makes good predictions for most of these sequences, but is failing with: TTTTT, TTTTH, and so on.
-
 Why might this be the case? To gain an intuition, let's reexamine the bias-weight parameter value. 
-
-The biased-weight is probably at 0.9. What does this mean in terms of our cognitive model?
-
-Recall the biased-coin-model: it's our psychological theory that says subjects compare the sequence a fair coin would generate vs. one that a biased-coin would generate.
-The biased-coin sequence has it's own weight, which means the sequences it prefers are going to sequences with lots of Heads (since our inferred weight is = 0.9).
-
-This hints at a fundamental flaw of this model: it can only predict biased-sequences in one direction. How could we get around this issue? 
+The biased-weight is peaked at 0.9 now. What does this mean in terms of our cognitive model?
+Recall the biased-coin-model: it is a psychological theory that says subjects compare the sequence a fair coin would generate vs. one that a biased-coin would generate.
+The biased-coin sequence has it's own weight, in this case the sequences it prefers are going to sequences with lots of Heads (since our inferred weight is = 0.9).
+This hints at a fundamental flaw of this model: it can only predict biased-sequences in one direction; 'unfair coin' responses for sequences going the other way have to get attributed to random response noise! How could we get around this issue? 
 
 
 # Moving the coin-weight "into" the cognitive model 

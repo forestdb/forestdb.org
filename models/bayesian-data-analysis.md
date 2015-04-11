@@ -1236,15 +1236,15 @@ Here's a model extended to capture uncertainty about the biases of participants.
     (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
 
+; list of sequences
 (define all-seqs (first experiment-data))
+; list of responses 
+(define all-responses (second experiment-data))
 
-; takes in "dist": output from an enumeration-query
-; and "selection": the element from the posterior that you want
-; returns the probability of that selection
-(define get-probability
+(define get-probability-of-faircoin
   (lambda (dist selection)
-    (let ([index (list-index (first dist) selection)])
-      (list-ref (second dist) index))))
+    (define index (list-index (first dist) selection))
+    (list-ref (second dist) index)))
 
 (define summarize-data 
   (lambda (dataset)
@@ -1349,24 +1349,19 @@ Here's a model extended to capture uncertainty about the biases of participants.
  "data vs. cognitive model")
 
 (barplot (list all-seqs posterior-predictive) 
-  "cognitive model: probability of fair?")
+         "cognitive model: probability of fair?")
 
 (barplot (list all-seqs (second (summarize-data experiment-data))) 
-  "data: proportion of fair responses")
+         "data: proportion of fair responses")
 
 (barplot posterior-gamma "posterior on mean biased-weight")
-(barplot posterior-delta "posterior on varaince of biased-weight")
+(barplot posterior-delta "posterior on variance of biased-weight")
 ~~~
 
-
-
-Still, our model predictions look very idyllic, while our observed data is a little more messy. 
-Can we account for this with response noise?
-Let's see what happens when we factor in response noise.
-
-## Noise reduction
-
-Note: This will take about 30 seconds to run. Chrome may ask you to kill the page; power through.
+Does it appear that participants in our experiment have an overall bias toward heads or tails?
+While this model does even better at predicting the data, it is not perfect.
+Let's see what happens when we factor in response noise to determine whether thats a better explanation for some of the data.
+Note: This will also take a while. Chrome may ask you to kill the page; power through.
 
 ~~~
 ;;;fold:
@@ -1381,9 +1376,6 @@ Note: This will take about 30 seconds to run. Chrome may ask you to kill the pag
     (map beta-pdf bins)))
 
 (define bins '(0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9))
-
-
-
 
 (define (get-indices needle haystack)
   (define (loop rest-of-haystack index)
@@ -1488,15 +1480,15 @@ Note: This will take about 30 seconds to run. Chrome may ask you to kill the pag
     (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
     (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
+; list of sequences
 (define all-seqs (first experiment-data))
+; list of responses 
+(define all-responses (second experiment-data))
 
-; takes in "dist": output from an enumeration-query
-; and "selection": the element from the posterior that you want
-; returns the probability of that selection
-(define get-probability
+(define get-probability-of-faircoin
   (lambda (dist selection)
-    (let ([index (list-index (first dist) selection)])
-      (list-ref (second dist) index))))
+    (define index (list-index (first dist) selection))
+    (list-ref (second dist) index)))
 
 (define summarize-data 
   (lambda (dataset)
@@ -1610,7 +1602,7 @@ Note: This will take about 30 seconds to run. Chrome may ask you to kill the pag
                               (map (lambda (single-data-point)
                                      (log (get-probability-of-faircoin model single-data-point)))
                                    data-for-one-sequence))       
-                            (second experiment-data)
+                            all-responses
                             cognitive-plus-noise-predictions)))))))
 
 
@@ -1646,6 +1638,9 @@ Note: This will take about 30 seconds to run. Chrome may ask you to kill the pag
 (barplot posterior-gamma "posterior on mean biased-weight")
 (barplot posterior-delta "posterior on varaince of biased-weight")
 ~~~
+
+How much of the data must be explained as noise in this extended model?
+
 
 # Model selection
 

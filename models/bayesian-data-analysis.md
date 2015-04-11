@@ -1644,244 +1644,217 @@ How much of the data must be explained as noise in this extended model?
 
 # Model selection
 
-We've explored a number of different models, which vary in the quality of their predictions as well as their inherenent complexity (captured loosely by their numbers of parameters).
-
-Can we figure out which one is best?
-
-In a way, this is no different than the problems we've faced before:
-We can say, we have uncertainty about which model is the right model, 
-and whichever one, it should have a high probability of matching our model.
-
+We've explored a number of different models and seen that some seem better, explaining more of the data, though they differ in their complexity. How can we quantify which model is  better? We can set up the question like this: we, as scientists, are a priori uncertain which cognitive model actually gave rise to the data we have collected; after seeing the data, how do our beliefs about the correct model change? In a way, this is no different than the inference problems we've faced before.
 In pseudocode this might look like:
 
-    (define model-comparion
-      (query
-        (define model-1 (simple-bc-model ...))
-        (define model-2 (complex-bc-model ...))
+~~~
+(define model-comparion
+  (query
+    (define model-1 (simple-bc-model ...))
+    (define model-2 (complex-bc-model ...))
 
-        (define is-model-1? (flip 0.5))
+    (define is-model-1? (flip 0.5))
 
-        (define best-model
-            (if is-model1?
-                model-1
-                model-2))
+    (define best-model
+        (if is-model1?
+            model-1
+            model-2))
 
-        best-model
+    is-model-1?
 
-        (condition 
-          (equal? data best-model))))
-
+    (condition 
+      (equal? data (best-model)))))
+~~~
 
 
 Let's try to write this in full:
 
+~~~
+;;;fold:
+(define experiment-data
+  (list
+   (list
+    (list #t #t #t #t #t) 
+    (list #t #t #t #t #f) 
+    (list #t #t #t #f #t) 
+    (list #t #t #t #f #f) 
+    (list #t #t #f #t #t) 
+    (list #t #t #f #t #f) 
+    (list #t #t #f #f #t) 
+    (list #t #t #f #f #f) 
+    (list #t #f #t #t #t) 
+    (list #t #f #t #t #f) 
+    (list #t #f #t #f #t) 
+    (list #t #f #t #f #f) 
+    (list #t #f #f #t #t) 
+    (list #t #f #f #t #f) 
+    (list #t #f #f #f #t) 
+    (list #t #f #f #f #f) 
+    (list #f #t #t #t #t) 
+    (list #f #t #t #t #f) 
+    (list #f #t #t #f #t) 
+    (list #f #t #t #f #f) 
+    (list #f #t #f #t #t) 
+    (list #f #t #f #t #f) 
+    (list #f #t #f #f #t) 
+    (list #f #t #f #f #f)
+    (list #f #f #t #t #t) 
+    (list #f #f #t #t #f) 
+    (list #f #f #t #f #t) 
+    (list #f #f #t #f #f) 
+    (list #f #f #f #t #t) 
+    (list #f #f #f #t #f) 
+    (list #f #f #f #f #t) 
+    (list #f #f #f #f #f))
+   (list 
+    (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
+    (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
+    (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
+    (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
+    (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+    (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
+    (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
+    (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
+    (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
+    (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+    (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
+    (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
+    (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
+    (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
+    (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
 
-    ;;;fold:
-    (define experiment-data
-      (list
-       (list
-        (list #t #t #t #t #t) 
-        (list #t #t #t #t #f) 
-        (list #t #t #t #f #t) 
-        (list #t #t #t #f #f) 
-        (list #t #t #f #t #t) 
-        (list #t #t #f #t #f) 
-        (list #t #t #f #f #t) 
-        (list #t #t #f #f #f) 
-        (list #t #f #t #t #t) 
-        (list #t #f #t #t #f) 
-        (list #t #f #t #f #t) 
-        (list #t #f #t #f #f) 
-        (list #t #f #f #t #t) 
-        (list #t #f #f #t #f) 
-        (list #t #f #f #f #t) 
-        (list #t #f #f #f #f) 
-        (list #f #t #t #t #t) 
-        (list #f #t #t #t #f) 
-        (list #f #t #t #f #t) 
-        (list #f #t #t #f #f) 
-        (list #f #t #f #t #t) 
-        (list #f #t #f #t #f) 
-        (list #f #t #f #f #t) 
-        (list #f #t #f #f #f)
-        (list #f #f #t #t #t) 
-        (list #f #f #t #t #f) 
-        (list #f #f #t #f #t) 
-        (list #f #f #t #f #f) 
-        (list #f #f #f #t #t) 
-        (list #f #f #f #t #f) 
-        (list #f #f #f #f #t) 
-        (list #f #f #f #f #f))
-       (list 
-        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #t #f #f #t #f) 
-        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #f #t #f #f #t #t #f #f #f #t #f #f #f #t #f #f #t #f #f #f #t #f #t #t #f #f #f #f #t #f) 
-        (list #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #f #t) 
-        (list #t #t #t #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #f #t #f #t #f #t #t #t #t #f #t #t #t #t #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #t #f #t #f #f #f #f #f #t #f) 
-        (list #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
-        (list #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #t #t #f #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #t #t #f #f #f #t #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #t #t #t #t #t #t #f #f #t #f #t #t #f #t #f #t #t #t #t #t #f #t #t #t #t #f #f #t #f) 
-        (list #f #t #t #t #t #t #t #f #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #f) 
-        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #f #t #f #f #t #t #t #f #t #f #t #t #f #f #t #f #t #f #f #t #t #f #f #t #f #f #t #f #t #t) 
-        (list #f #t #f #t #t #t #f #f #f #t #t #t #t #f #t #f #t #t #t #f #t #t #f #t #t #t #t #f #t #f) 
-        (list #f #t #f #t #t #t #t #f #t #t #t #t #t #f #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-        (list #t #t #f #f #t #t #f #f #t #f #f #f #t #f #t #f #t #f #t #f #t #f #t #t #f #f #t #f #t #t) 
-        (list #t #t #t #t #t #t #f #f #t #t #t #t #t #t #t #f #t #f #t #t #t #t #t #t #t #t #t #f #t #f) 
-        (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
-        (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
-        (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
+; list of sequences
+(define all-seqs (first experiment-data))
+; list of responses 
+(define all-responses (second experiment-data))
 
-    (define all-seqs (first experiment-data))
+(define get-probability-of-faircoin
+  (lambda (dist selection)
+    (define index (list-index (first dist) selection))
+    (list-ref (second dist) index)))
 
-    ; takes in "dist": output from an enumeration-query
-    ; and "selection": the element from the posterior that you want
-    ; returns the probability of that selection
-    (define get-probability
-      (lambda (dist selection)
-        (let ([index (list-index (first dist) selection)])
-          (list-ref (second dist) index))))
+(define summarize-data 
+  (lambda (dataset)
+    (list (first dataset)
+          (map 
+           (lambda (lst) (mean (map boolean->number lst)))
+           (second dataset)))))
 
-    (define summarize-data 
-      (lambda (dataset)
-        (list (first dataset)
-              (map 
-               (lambda (lst) (mean (map boolean->number lst)))
-               (second dataset)))))
+(define summarize-model
+  (lambda (modelpreds)
+    (list 
+     all-seqs
+     (map 
+      (lambda (dist) 
+        (get-probability-of-faircoin dist #t))
+      modelpreds))))
 
-    (define summarize-model
-      (lambda (modelpreds)
-        (list 
-         all-seqs
-         (map 
-          (lambda (dist) 
-            (get-probability-of-faircoin dist #t))
-          modelpreds))))
+;;;
 
-    ;;;
-
-    (define complex-bc-model 
-      (mem (lambda (sequence)
-             (enumeration-query
-
-              (define fair-weight 0.5)
-              (define biased-weight 
-                (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
-
-              (define isfair (flip))
-              (define the-weight (if isfair 
-                                     fair-weight 
-                                     biased-weight))
-
-              (define coin (lambda () 
-                             (flip the-weight)))
-
-
-              isfair
-
-              (equal? sequence (repeat 5 coin))))))
-
-
-    (define simple-bc-model 
-      (mem
-       (lambda (sequence bias-weight)
+(define complex-bc-model 
+  (mem (lambda (sequence)
          (enumeration-query
 
           (define fair-weight 0.5)
+          (define biased-weight 
+            (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
+
           (define isfair (flip))
-          (define the-weight (if isfair fair-weight bias-weight))
-          (define coin (lambda () (flip the-weight)))
+          (define the-weight (if isfair 
+                                 fair-weight 
+                                 biased-weight))
+
+          (define coin (lambda () 
+                         (flip the-weight)))
+
 
           isfair
 
           (equal? sequence (repeat 5 coin))))))
 
 
+(define simple-bc-model 
+  (mem
+   (lambda (sequence bias-weight)
+     (enumeration-query
 
-    (define model-comparison 
-      (lambda (experiment-data)
-        (enumeration-query
+      (define fair-weight 0.5)
+      (define isfair (flip))
+      (define the-weight (if isfair fair-weight bias-weight))
+      (define coin (lambda () (flip the-weight)))
 
-         (define biased-weight 
-           (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
+      isfair
 
-
-
-         (define is-model1? (flip 0.5))
-
-         ; model1: generate predictions for all sequences
-         (define model1
-           (map 
-            (lambda (sequence) 
-              (simple-bc-model sequence biased-weight)) 
-            all-seqs))
-
-         ; model2: generate predictions for all sequences
-         (define model2
-           (map 
-            (lambda (sequence) 
-              (complex-bc-model sequence))
-            all-seqs))
-
-         (define best-model (if is-model1?
-                                model1
-                                model2))
-
-         ; which is the best model?
-         is-model1?
-
-         ; given that we've observed this data
-         (factor (sum (flatten (map 
-                                (lambda (data-for-one-sequence model)
-                                  ; map over data points in a given sequence
-                                  (map (lambda (single-data-point)
-                                         (log (get-probability-of-faircoin model single-data-point)))
-                                       data-for-one-sequence))       
-                                (second experiment-data)
-                                best-model)))))))
-
-    (define results (model-comparison experiment-data))
-
-    (barplot results "is model 1 the best?")
-    (barplot (list all-seqs (second (summarize-data experiment-data))) 
-      "data: proportion of fair responses")
-
-Our data slightly favors the more complex model. Remember that we only have 3 observations for each sequence.
+      (equal? sequence (repeat 5 coin))))))
 
 
-Try this slightly more expanded data set.
 
- 
-    (define experiment-data
-    (list 
-     (list 
-      (list false false false false false)
-      (list false false false false true)
-      (list false false false true true)
-      (list false false true true true) 
-      (list false true true true true)
-      (list true true true true true))
-     (list 
-      (list #f #f #f #f #f #f #f)
-      (list #f #f #t #f #f #f #t)
-      (list #f #t #t #t #t #t #t)
-      (list #t #t #t #t #t #t #f)
-      (list #f #t #t #t #f #f #f)
-      (list #f #t #t #f #f #f #f))))
+(define model-comparison 
+  (lambda (experiment-data)
+    (enumeration-query
+
+     (define biased-weight 
+       (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
+
+
+
+     (define is-model1? (flip 0.5))
+
+     ; model1: generate predictions for all sequences
+     (define model1
+       (map 
+        (lambda (sequence) 
+          (simple-bc-model sequence biased-weight)) 
+        all-seqs))
+
+     ; model2: generate predictions for all sequences
+     (define model2
+       (map 
+        (lambda (sequence) 
+          (complex-bc-model sequence))
+        all-seqs))
+
+     (define best-model (if is-model1?
+                            model1
+                            model2))
+
+     ; which is the best model?
+     is-model1?
+
+     ; given that we've observed this data
+     (factor (sum (flatten (map 
+                            (lambda (data-for-one-sequence model)
+                              ; map over data points in a given sequence
+                              (map (lambda (single-data-point)
+                                     (log (get-probability-of-faircoin model single-data-point)))
+                                   data-for-one-sequence))       
+                            (second experiment-data)
+                            best-model)))))))
+
+(define results (model-comparison experiment-data))
+
+(barplot results "is model 1 the best?")
+~~~
+
+Our data strongly favors the more complex model: we can be very confident in the more complex model being the better of the two, given our data and analysis assumptions.
+
 
 # Exercises
 

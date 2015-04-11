@@ -1859,7 +1859,9 @@ Our data strongly favors the more complex model: we can be very confident in the
 
 # Exercises
 
-**1. Bayes in the head vs. Bayes in the notebook.** We've seen in this chapter how we can precisely separate assumptions about our computational-level theory of cognition from the assumptions that go into analyzing our data (and our theory). In this exercise, we will try to go between the two ways of looking at these things: by going from a theory and analysis in words, to a theory and analysis in Church (and back).
+**1. Subjective randomness digest.** We saw in this chapter how to analyze our Bayesian models of cognition by using Bayesian statistical techniques. In the end, do you believe either the enriched biased-coin model or the generalized, enriched biased-coin model matched the data well? Why or why not? If you're unsatisfied, do you have an idea for a better model?
+
+**2. Bayes in the head vs. Bayes in the notebook.** We've seen in this chapter how we can precisely separate assumptions about our computational-level theory of cognition from the assumptions that go into analyzing our data (and our theory). In this exercise, we will try to go between the two ways of looking at these things: by going from a theory and analysis in words, to a theory and analysis in Church (and back).
 	
 Consider the [reflectance and luminance model](https://probmods.org/patterns-of-inference.html#a-case-study-in-modularity-visual-perception-of-surface-lightness-and-color) from Chapter 4. This model captured the illusion of increased reflectance in terms of explaining away the observed luminance by the decreased illumination (caused by the shadow). Here is the model again
 	
@@ -1885,13 +1887,13 @@ Consider the [reflectance and luminance model](https://probmods.org/patterns-of-
 	
 Here I have included a commented `true` condition to make it easy for you to explore this model. 
 	
-A. **Warmup: What does the prior for luminance look like? How does the prior change when we condition on the observed luminance.**
+**A. Warmup: What does the prior for luminance look like? How does the prior change when we condition on the observed luminance.**
 	
 Just as a reminder, the illusion is observed in the model when we condition on this statement about illumination  `(condition (= illumination (gaussian 0.5  0.1)))`, which is a stand-in for the effect of the shadow from the cylinder on the scene.
 	
-B. **How many parameters does this model of perception have?** (Hint: Go through each `define` and `condition`: Are the constituent variables of the statements (a) modeling assumptions or (b) part of the experimental setup / manipulation) **For all of the variables you've categorized as (a), which ones do you think refer to aspects of the perceptual system and which refer to aspects of the environment? What do you think these parameters represent in terms of the perceptual system or environment? (Feel free to use super general, even colloquial, terms to answer this.)**
+**B. How many parameters does this model of perception have?** (Hint: Go through each `define` and `condition`: Are the constituent variables of the statements (a) modeling assumptions or (b) part of the experimental setup / manipulation) **For all of the variables you've categorized as (a), which ones do you think refer to aspects of the perceptual system and which refer to aspects of the environment? What do you think these parameters represent in terms of the perceptual system or environment? (Feel free to use super general, even colloquial, terms to answer this.)**
 	
-C. Replace the hard-coded parameters of this model with variables, defined outside the query. Give them the most intuitive names you can fashion. Use this starter (pseudo) code.
+**C.** Replace the hard-coded parameters of this model with variables, defined outside the query. Give them the most intuitive names you can fashion. Use this starter (pseudo) code.
 	
 	
 ~~~
@@ -1912,11 +1914,11 @@ C. Replace the hard-coded parameters of this model with variables, defined outsi
  (= luminance (gaussian observed-luminance 0.1))))
 ~~~
 	
-D. **Are all of these parameters independent?** (If you had to specify values for them, would you have to consider values of other parameters when specifying them?) If two are not independent, can you think of a reparameterization that would be more independent? (Hint: If you have two non-independent parameters, you could keep only one of them and introduce a parameter specifying the relation between the two. E.g., two points that are linearly associated can be expressed as an one of them and the distance between them).
+**D. Are all of these parameters independent?** (If you had to specify values for them, would you have to consider values of other parameters when specifying them?) If two are not independent, can you think of a reparameterization that would be more independent? (Hint: If you have two non-independent parameters, you could keep only one of them and introduce a parameter specifying the relation between the two. E.g., two points that are linearly associated can be expressed as an one of them and the distance between them).
 	
-E. Writing data analysis models requires specifying priors over parameters. Without much prior knowledge in a domain, we want to pick priors that make the fewest assumptions. A good place to start is to think about the possible values the parameter could take on. **For each parameter, write down what you know about the possible values it could take on. **
+**E.** Writing data analysis models requires specifying priors over parameters. Without much prior knowledge in a domain, we want to pick priors that make the fewest assumptions. A good place to start is to think about the possible values the parameter could take on. **For each parameter, write down what you know about the possible values it could take on.
 	
-F. We're now in a position to write a data analysis model. The most common distributional forms for priors are [uniform](http://en.wikipedia.org/wiki/Uniform_distribution_(continuous)), [gaussian](http://en.wikipedia.org/wiki/Normal_distribution), [beta](http://en.wikipedia.org/wiki/Beta_distribution), and [exponential](http://en.wikipedia.org/wiki/Exponential_distribution). Put priors on your parameters from part C. Use this starter (pseudo) code.
+**F.** We're now in a position to write a data analysis model. The most common distributional forms for priors are [uniform](http://en.wikipedia.org/wiki/Uniform_distribution_(continuous)), [gaussian](http://en.wikipedia.org/wiki/Normal_distribution), [beta](http://en.wikipedia.org/wiki/Beta_distribution), and [exponential](http://en.wikipedia.org/wiki/Exponential_distribution). Put priors on your parameters from part C. Use this starter (pseudo) code.
 	
 ~~~
 (define perceptual-model
@@ -1952,10 +1954,10 @@ F. We're now in a position to write a data analysis model. The most common distr
 
 ~~~ 
 	
-G. What are you going to query for? Add that to your pseudocode above. What do each of things that you are querying for in the data analysis model represent?
+**G.** What are you going to query for? Add it to your pseudocode above. What do each of things that you are querying for in the data analysis model represent?
 
 
-**2. Parameter fitting vs. Parameter integration** One of the strongest motivations for using Bayesian techniques for model-data evaluation is in how "nuisance" parameters are treated. "Nuisance" parameters are parameters of no theoretical interest; their only purpose is to fill in a slot in the model. Classically, the most prominant technique (from the frequentist tradition) for dealing with these parameters is to fit them to the data, i.e., to set their value equal to whatever maximizes the model-data fit (or, equivalently, minimizes some cost function). 
+**3. Parameter fitting vs. Parameter integration** One of the strongest motivations for using Bayesian techniques for model-data evaluation is in how "nuisance" parameters are treated. "Nuisance" parameters are parameters of no theoretical interest; their only purpose is to fill in a slot in the model. Classically, the most prominant technique (from the frequentist tradition) for dealing with these parameters is to fit them to the data, i.e., to set their value equal to whatever maximizes the model-data fit (or, equivalently, minimizes some cost function). 
 
 The Bayesian approach is different. Since we have *a priori* uncertainty about the value of our parameter (as you specified in Part F of Exercise 1), we will also have *a posteriori* uncertainty (though hopefully the uncertainty will be a little less). What the Bayesian does is *integrate* over her posterior distribution of parameter values to make predictions. Intuitively, rather than taking the value corresponding to the peak of the distribution, she's considering all values with their respective probabilites.
 	
@@ -2007,7 +2009,7 @@ Here is the model, with slightly different names than the original example, and 
      
 ~~~
 
-A. What are the parameters of this model? In the plainest English you can muster, interpret the current values of the parameters. What do they mean?
+**A. What are the parameters of this model?** In the plainest English you can muster, interpret the current values of the parameters. What do they mean?
 
 Let's analyze this model with respect to some data. First, we'll put priors on these parameters, and then we'll do inference, conditioning on some data we might have collected in an experiment on 4 year olds, a la Sobel, Tenenbaum, & Gopnik (2004). [The data used in this exercise is schematic data].
 
@@ -2226,17 +2228,17 @@ Let's analyze this model with respect to some data. First, we'll put priors on t
 
 Before running this program, answer the following question:
 
-B. What does the query statement in `data-analysis` return? What does the query statement in `detecting-blickets` return? Why are there two queries in this program?
+**B.** What does the query statement in `data-analysis` return? What does the query statement in `detecting-blickets` return? Why are there two queries in this program?
 
-C. Now, run the program. [Note: This will take between 15-30 seconds to run.] Interpret each of the resulting plots.
+**C.** Now, run the program. [Note: This will take between 15-30 seconds to run.] **Interpret each of the resulting plots.**
 
-D. How do your interpretations relate to the parameter values that were set in the original program?
+**D.** How do your interpretations relate to the parameter values that were set in the original program?
 
-E. Look carefully at the priors (in the code) and the posteriors (in the plots) over `blicket-power` and `non-blicket-power`. Did we impose any *a priori* assumptions about the relationship between these parameters? Think about the experimental setup. Do you think we would be justified in imposing any assumptions? Why or why not? What do the posteriors tell you? How was the data analysis model able to arrive at this conclusion? 
+**E.** Look carefully at the priors (in the code) and the posteriors (in the plots) over `blicket-power` and `non-blicket-power`. Did we impose any *a priori* assumptions about the relationship between these parameters? Think about the experimental setup. Do you think we would be justified in imposing any assumptions? Why or why not? What do the posteriors tell you? How was the data analysis model able to arrive at this conclusion? 
 
-F. Do you notice anything about the scatter plot? How would you interpret this? Is there something we could add to the data analysis model to account for this?
+**F. Do you notice anything about the scatter plot?** How would you interpret this? Is there something we could add to the data analysis model to account for this?
 
-G. Now, we're going to examine the predictions of the model if we had done a more traditional analysis of point-estimates of parameters (i.e. fitting parameters).
+**G.** Now, we're going to examine the predictions of the model if we had done a more traditional analysis of point-estimates of parameters (i.e. fitting parameters).
 Examine your histograms and determine the "maximum a posteriori" (MAP) value for each parameter. Plug those into the code below and run it.
 
 ~~~
@@ -2346,5 +2348,5 @@ Examine your histograms and determine the "maximum a posteriori" (MAP) value for
 (barplot data-summary "data: proportion of 'A is a Blicket!' responses")
 ~~~
 
-H. What can you conclude about the two ways of looking at parameters in this model's case? Do you think the model is relatively robust to different parameter settings?
+**H.** What can you conclude about the two ways of looking at parameters in this model's case? Do you think the model is relatively robust to different parameter settings?
 

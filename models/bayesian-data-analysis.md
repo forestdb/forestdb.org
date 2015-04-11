@@ -868,14 +868,10 @@ This hints at a fundamental flaw of this model: it can only predict biased-seque
 
 # Moving the coin-weight "into" the cognitive model 
 
-To get around this issue, we're going to have to posit that this biased-weight doesn't take on just one value, but rather a distribution of possible values.
+We can posit that people don't entertain just one biased-weight value, but rather a distribution of possible values.
 (Note: this is what Griffiths & Tenenbaum (2001) did.)
-
-
-## Enriched cognitive model: Theta ~ Uniform (0 , 1)
-
-We now revisit our cognitive model (forgetting about the data analysis model for the time being). We move the `biased-weight` parameter from outside the model to inside the model.
-
+Thus, while our above data analysis model put uncertainty over the biased-weight, but assumed that people used only one weight, whatever it was, we now want to place this uncertainty *within* the cognitive model.
+Forgetting about the data analysis model for the time being, we move the `biased-weight` parameter from outside the model to inside the model.
 Let's examine the behavior of this model with respect to two sequences of interest.
 
 ~~~
@@ -906,10 +902,8 @@ Let's examine the behavior of this model with respect to two sequences of intere
 (barplot (enriched-biascoin-model (list false false false false false)) "TTTTT is fair?")
 ~~~
 
-
 This model matches our intuition for the fairness of these sequences. Do you see why?
-
-To gain more insight, we could query for the biased-weight variable, just like we did before in the data analysis model previously.
+To gain more insight, let's look at the posterior over the bias weight for different observed sequences:
 
 ~~~
 (define enriched-biascoin-model 
@@ -940,9 +934,7 @@ To gain more insight, we could query for the biased-weight variable, just like w
 (barplot (enriched-biascoin-model (list false false false false false)) "what weight generated TTTTT")
 ~~~
 
-The model has the flexibility to infer different biased coin weights for different sequences. Let's now compare this to our data set.
-
-## Bayesian data analysis of enriched cognitive model
+The model has the flexibility to infer different biased coin weights for different sequences. Let's now add back in the data analysis model to compare this to our data set.
 
 ~~~
 ;;;fold:
@@ -1117,27 +1109,14 @@ The model has the flexibility to infer different biased coin weights for differe
   "data: proportion of fair responses")
 ~~~
 
-
-
 This is great. The model doesn't suffer from the same *lower-bias* flaw that it did previously.
-
-Notice that our cognitive model has 0 parameters that the data analysis model would have to infer. 
+Notice that our cognitive model now has no parameters for the data analysis model to infer; the posterior predictive is thus the same as the 'prior predictive', that is, what we would expect before seeing any data. 
 
 ## Generalized, enriched bias coin model 
 
-Are there actually 0 parameters to our model? In a sense, yes: there are no variables that take on particular values that we're uncertain about.
-At the same time, we do have an assumption about the `biased-weight' distribution that exists inside the cognitive model. 
-We have a uniform distribution over coin weights. It's conceiveable, however, that there is some global bias to detecting bias-sequences with heads or tails specifically.
-That is, sequences of predominantly H (or, T) might be more confusable with fair sequences.
+We can further extend the above cognitive model. For instance, while it appears that people consider different weights for biased coins, do they have an overall bias to prefer heads-weighted or tails-weighted coins? We can explore this hypothesis by generalizing the uniform distribution to some distribution of coin weights, whose mean and variance have uncertainty. If the uncertain mean and variance are outside the cognitive model, then they are scientific hypotheses about the bias people bring to this problem; if they are inside, they represent the hypothesis that people reason about the mean and variance of the prior distribution.
 
-We can capture this idea by generalizing the uniform distribution to some distribution of coin weights, whose mean and variance have uncertainty.
-
-The canonical distribution over coin weights is the Beta distribution. 
-(Coin-weights are, formally, Binomial parameters. 
-  The higher-order distribution of coin-weight is called the Beta distribution. 
-  You may (or may not) have heard of Beta-Binomial priors. This is it.)
-
-Note: This will take about 30 seconds to run.
+Here's a model extended to capture uncertainty about the biases of participants. Note: This will take about 30 seconds to run.
 
 ~~~
 ;;;fold:

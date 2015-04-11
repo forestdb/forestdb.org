@@ -91,7 +91,7 @@ How can we ask more rigorously what the right value of `bias-weight` is, given t
 A standard method would be to optimize the fit (e.g. correlation) of data to model predictions, by adjusting the `bias-weight` parameter.
 Another (more Bayesian) way to approach this is to say we (as scientists) have uncertainty about the true value of `bias-weight`, but we believe the data is the result of participants behaving according  to `biascoin-model` with some parameter value (This is our psychological theory). This naturally leads to a generative model based on sampling `bias-weight` and then using `biascoin-model` to predict the distribution from which responses are sampled; conditioning on the data then lets us form our (scientific) beliefs about the parameter after seeing the data.
 
-Here is a sketch of this model:
+Here is a sketch of this model (it doesn't run efficiently---we'll fix that shortly):
 
 ~~~
 ;;;fold:
@@ -231,6 +231,7 @@ Notice that there are two queries: one as part of the cognitive model ('in the h
 As written, this model is very inefficient, because for each response, it *samples* a model prediction (by way of `(apply multinomial model)`, which produces a sample from the result of an `enumeration-query`) and checks to see if all model predictions match up with the observed data. We can re-write this in a more efficient way by computing the probability of the responses directly (using our handy `get-probability-of-faircoin` function from before), and adding them with a factor statement (instead of a condition statement).
 
 ~~~
+;;;fold:
 (define biascoin-model 
   (mem (lambda (sequence bias-weight)
          (enumeration-query
@@ -323,12 +324,12 @@ As written, this model is very inefficient, because for each response, it *sampl
     (list #t #t #f #f #t #f #f #f #t #t #f #f #f #f #f #f #t #f #f #f #t #f #f #t #f #f #f #f #t #f) 
     (list #f #t #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f) 
     (list #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t #f #f #f #f #f #f #f #f #f #f #f #t #f))))
-;;;
 
 ; list of sequences
 (define all-seqs (first experiment-data))
 ; list of responses 
 (define all-responses (second experiment-data))
+;;;
 
 (define data-analysis 
   (lambda (experiment-data)
@@ -360,7 +361,6 @@ As written, this model is very inefficient, because for each response, it *sampl
                             cognitive-model-predictions)))))))
 
 (barplot (data-analysis experiment-data) "inferred bias weight")
-
 ~~~
 
 We've taken some data, and written a cognitive model with some parameters (in this case, one parameter: bias-weight), and asked what the most likely value of that parameter is.
@@ -369,7 +369,11 @@ Our inferred parameter distribution reflects the beliefs we should have as scien
 
 # Posterior predictive
 
-Sometimes parameter values aren't so easily interpreted as in our case here. Another way to test how well your model does is to look at the predictions of the model under these "inferred" parameter settings. This is called the "posterior predictive" distribution: it is the data that the model *actually* predicts. 
+We often want to explore how well the predictions of the model match the actual data. When the model has parameters, the fit to data will depend on parameters... it is common to maximize the parameters and then look at model-data correlation. This can give a good sense of how well the model *could* do, but doesn't take into account our uncertainty (as scientists) about what values the parameters actually take on.
+Another way to explore how well a model does is to look at the predictions of the model under the "inferred" parameter settings. 
+This is called the *posterior predictive* distribution: it is the data that the model *actually* predicts, accounting for our beliefs about parameters after seeing the actual data. 
+
+Here we look at the posterior predictive of the coin flip model, summarizing both the model predictions and the data by the condition means (i.e. the percent 'yes' responses to each coin sequence).
 
 ~~~
 ;;;fold:
@@ -465,7 +469,6 @@ Sometimes parameter values aren't so easily interpreted as in our case here. Ano
 ; list of responses 
 (define all-responses (second experiment-data))
 
-
 (define get-probability-of-faircoin
   (lambda (dist selection)
     (define index (list-index (first dist) selection))
@@ -546,10 +549,10 @@ Sometimes parameter values aren't so easily interpreted as in our case here. Ano
   "data: proportion of fair responses")
 ~~~
 
-Our model provides a pretty good fit to the data set. There are some mismatches, however. 
-The model thinks HHHHH is a fair sequence, whereas our data suggest otherwise.
+Our model provides an ok explanation of the data set, but we see from the scatter plot that there are some clear mismatches: the sequences that the model thinks are most likely fair are ones that people think are not fair. 
+Looking more closely, these are sequences with many T values, such as TTTTT.
 
-Try the following data set
+To gain more intuition, explore the following data set:
 
 ~~~
 (define experiment-data
@@ -571,14 +574,12 @@ Try the following data set
     (list #f #f #f))))
 ~~~
 
-What is the posterior over the `bias weight`? How does the posterior predictive look? What can you conclude about our bias coin model (with respect to this data))?
+What is the posterior over the `bias weight`? How does the posterior predictive look? What can you conclude about our bias coin model (with respect to this data)?
 
 # Response noise
 
-You may already have an intuition for what is going wrong here. 
-Often, it's difficult to establish a feeling for why some analysis is going wrong. 
-One common culprit is *response noise*, that is, data points that you've collected that don't reflect the subject doing the task. 
-Let's call this behavior "guessing" (i.e. picking responses at random) and try to formalize this:
+Perhaps the cognitive model differs from the data in ways that aren't 'central' to the theory, that is in ways that we wouldn't want to include in the cognitive model per se, but would like to account for. A common case is *random guessing*: participants sometimes respond randomly, instead of attending to the task. 
+We can capture this *response noise* by simply extending our model with the possibility that each response came from a random guess:
 
 ~~~
 (define data-analysis
@@ -599,10 +600,9 @@ Let's call this behavior "guessing" (i.e. picking responses at random) and try t
       (equal? data (thinking-plus-guessing guessing-parameter)))))
 ~~~
 
-This pseudo-program is saying there is some probability (or, equivalently, proportion of responses) that is attributable to response noise, or guessing; 
+This pseudo-code is saying there is some probability (or, equivalently, proportion of responses) that is attributable to response noise, or guessing; 
 this probability is captured by `guessing-parameter`. It is the amount of the data that is better captured by guessing behavior than our cognitive model predictions.
-It is simultaneously a measure of fit of your cognitive model, as well as the reliability of the data.
-
+Thus, the estimate of `guessing-parameter` can be thought of as a measure of the amount of data that the model can account for.
 
 ## Data analysis model with response noise
 
@@ -858,13 +858,10 @@ Our posterior on response noise is peaked around 0.5. Does this seem high to you
 
 (Hint: What would it mean for there to be a lot of guessing in our data set?)
 
-What is the difference betweent the model with noise and the model without noise? (Theoretically, but also how do the predictions differ?)
+What is the difference between the model with noise and the model without noise? (Theoretically, but also how do the predictions differ?)
 
 Notice that our initial problem isn't really solved by factoring in response noise (though it is useful and informative to do so).
-What is our problem again? Our model makes good predictions for most of these sequences, but is failing with the following two:
-
-TTTTT
-TTTTH
+What is our problem again? Our model makes good predictions for most of these sequences, but is failing with: TTTTT, TTTTH, and so on.
 
 Why might this be the case? To gain an intuition, let's reexamine the bias-weight parameter value. 
 

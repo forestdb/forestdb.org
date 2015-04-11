@@ -2108,8 +2108,6 @@ Let's analyze this model with respect to some data. First, we'll put priors on t
       modelpreds))))
 
 ;;;
-
-
 (define detecting-blickets
   (mem 
    (lambda 
@@ -2214,7 +2212,6 @@ Let's analyze this model with respect to some data. First, we'll put priors on t
 (define model-data (zip (second posterior-predictive) (second data-summary)))
 ;;;
 
-
 (hist posterior-blicket-br "posterior on blicket base rate")
 (hist posterior-blicket-pow "posterior on blicket power")
 (hist posterior-nonblicket-pow "posterior on nonblicket power")
@@ -2234,9 +2231,11 @@ C. Now, run the program. [Note: This will take between 15-30 seconds to run.] In
 
 D. How do your interpretations relate to the parameter values that were set in the original program?
 
-E. Do you notice anything about the scatter plot? How would you interpret this? Is there something we could add to the data analysis model to account for this?
+E. Look carefully at the priors (in the code) and the posteriors (in the plots) over `blicket-power` and `non-blicket-power`. Did we impose any *a priori* assumptions about the relationship between these parameters? Think about the experimental setup. Do you think we would be justified in imposing any assumptions? Why or why not? What do the posteriors tell you? How was the data analysis model able to arrive at this conclusion? 
 
-F. Now, we're going to examine the predictions of the model if we had done a more traditional analysis of point-estimates of parameters (i.e. fitting parameters).
+F. Do you notice anything about the scatter plot? How would you interpret this? Is there something we could add to the data analysis model to account for this?
+
+G. Now, we're going to examine the predictions of the model if we had done a more traditional analysis of point-estimates of parameters (i.e. fitting parameters).
 Examine your histograms and determine the "maximum a posteriori" (MAP) value for each parameter. Plug those into the code below and run it.
 
 ~~~
@@ -2275,8 +2274,6 @@ Examine your histograms and determine the "maximum a posteriori" (MAP) value for
       modelpreds))))
 
 ;;;
-
-
 (define detecting-blickets
   (mem 
    (lambda 
@@ -2348,5 +2345,5 @@ Examine your histograms and determine the "maximum a posteriori" (MAP) value for
 (barplot data-summary "data: proportion of 'Blicket!' responses")
 ~~~
 
-G. What can you conclude about the two ways of looking at parameters in this model's case? Do you think is relatively robust to different parameter settings?
+H. What can you conclude about the two ways of looking at parameters in this model's case? Do you think the model is relatively robust to different parameter settings?
 

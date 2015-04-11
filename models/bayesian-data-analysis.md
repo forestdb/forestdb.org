@@ -2319,8 +2319,6 @@ Examine your histograms and determine the "maximum a posteriori" (MAP) value for
    (list (list 'A 'B) (list 'A 'B))
    (list '())))
 
-
-; note: always the query "is A a blicket?"
 (define data
   (list 
    (list #t #t #t #t #t #t #t #t #t #t #f) 
@@ -2329,7 +2327,7 @@ Examine your histograms and determine the "maximum a posteriori" (MAP) value for
    (list #t #t #t #t #t #t #t #t #f #f #f)
    (list #t #t #f #f #f #f #f #f #f #f #f)))
 
-; fill in with your "maximum likelihood" parameter values from Part C.
+; fill in with your "maximum a posteriori" parameter values from Part C.
 (define blicket-base-rate ...)
 (define blicket-power ...)
 (define non-blicket-power ...)
@@ -2338,18 +2336,15 @@ Examine your histograms and determine the "maximum a posteriori" (MAP) value for
 (define best-fit-model-predictions 
   (map (lambda (evidence) 
          (get-probability 
-            (detecting-blickets evidence blicket-base-rate blicket-power 
-                                non-blicket-power machine-spontaneously-goes-off) 
+          (detecting-blickets evidence blicket-base-rate blicket-power 
+                              non-blicket-power machine-spontaneously-goes-off) 
           #t))
        possible-evidence-streams))
 
-
 (define data-summary  (summarize-data (list possible-evidence-streams data)))
-(define model-data (zip (map second best-fit-model-predictions) (second data-summary)))
-
+(define model-data (zip best-fit-model-predictions (second data-summary)))
 (scatter model-data "data vs. cognitive model")
-
-(barplot posterior-predictive "cognitive model: probability of blicket?")
+(barplot (list possible-evidence-streams best-fit-model-predictions) "cognitive model: probability of blicket?")
 (barplot data-summary "data: proportion of 'Blicket!' responses")
 ~~~
 

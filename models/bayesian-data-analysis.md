@@ -854,7 +854,7 @@ Thus, the estimate of `guessing-parameter` can be thought of as a measure of the
 (barplot posterior-bias "posterior on biased-weight")
 ~~~
 
-The posterior on response noise is peaked around 0.5. That is our best guess is that fifty percent of the data comes from noise---does this seem high to you? 
+The posterior on response noise is peaked around 0.5. Our best guess is that fifty percent of the data comes from noise---does this seem high to you? 
 What is the difference between the model with noise and the model without noise? (Theoretically, but also how do the predictions differ?)
 
 Notice that while the scatter plot looks a bit better, our problem isn't really solved by factoring in response noise (though it is useful and informative to do so).
@@ -862,7 +862,7 @@ What is our problem again? Our model makes good predictions for most of these se
 Why might this be the case? To gain an intuition, let's reexamine the bias-weight parameter value. 
 The biased-weight is peaked at 0.9 now. What does this mean in terms of our cognitive model?
 Recall the biased-coin-model: it is a psychological theory that says subjects compare the sequence a fair coin would generate vs. one that a biased-coin would generate.
-The biased-coin sequence has it's own weight, in this case the sequences it prefers are going to sequences with lots of Heads (since our inferred weight is = 0.9).
+The biased-coin sequence has it's own weight, in this case the sequences it prefers are going to be sequences with lots of Heads (since our inferred weight is = 0.9).
 This hints at a fundamental flaw of this model: it can only predict biased-sequences in one direction; 'unfair coin' responses for sequences going the other way have to get attributed to random response noise! How could we get around this issue? 
 
 
@@ -1858,7 +1858,7 @@ Our data strongly favors the more complex model: we can be very confident in the
 
 # Exercises
 
-1. **Bayes in the head vs. Bayes in the notebook.** We've seen in this chapter how we can precisely separate assumptions about our computational-level theory of cognition from the assumptions that go into analyzing our data (and our theory). In this exercise, we will try to go between the two ways of looking at these things: by going from a theory and analysis in words, to a theory and analysis in Church (and back).
+**1. Bayes in the head vs. Bayes in the notebook.** We've seen in this chapter how we can precisely separate assumptions about our computational-level theory of cognition from the assumptions that go into analyzing our data (and our theory). In this exercise, we will try to go between the two ways of looking at these things: by going from a theory and analysis in words, to a theory and analysis in Church (and back).
 	
 Consider the [reflectance and luminance model](https://probmods.org/patterns-of-inference.html#a-case-study-in-modularity-visual-perception-of-surface-lightness-and-color) from Chapter 4. This model captured the illusion of increased reflectance in terms of explaining away the observed luminance by the decreased illumination (caused by the shadow). Here is the model again
 	
@@ -1915,7 +1915,7 @@ D. **Are all of these parameters independent?** (If you had to specify values fo
 	
 E. Writing data analysis models requires specifying priors over parameters. Without much prior knowledge in a domain, we want to pick priors that make the fewest assumptions. A good place to start is to think about the possible values the parameter could take on. **For each parameter, write down what you know about the possible values it could take on. **
 	
-F. We're now in a position to write a data analysis model. The most common distributional forms for priors are [uniform](http://en.wikipedia.org/wiki/Uniform_distribution_(continuous), [gaussian](http://en.wikipedia.org/wiki/Normal_distribution), [beta](http://en.wikipedia.org/wiki/Beta_distribution), and [exponential](http://en.wikipedia.org/wiki/Exponential_distribution). Put priors on your parameters from part C. Use this starter (pseudo) code.
+F. We're now in a position to write a data analysis model. The most common distributional forms for priors are [uniform](http://en.wikipedia.org/wiki/Uniform_distribution_(continuous)), [gaussian](http://en.wikipedia.org/wiki/Normal_distribution), [beta](http://en.wikipedia.org/wiki/Beta_distribution), and [exponential](http://en.wikipedia.org/wiki/Exponential_distribution). Put priors on your parameters from part C. Use this starter (pseudo) code.
 	
 ~~~
 (define perceptual-model
@@ -1953,8 +1953,9 @@ F. We're now in a position to write a data analysis model. The most common distr
 	
 G. What are you going to query for? Add that to your pseudocode above. What do each of things that you are querying for in the data analysis model represent?
 
-2. **Parameter fitting vs. Parameter integration** One of the strongest motivations for using Bayesian techniques for model-data evaluation is in how "nuisance" parameters are treated. "Nuisance" parameters are parameters of no theoretical interest; their only purpose is to fill in a slot in the model. Classically, the most prominant technique (from the frequentist tradition) for dealing with these parameters is to fit them to the data, i.e., to set the value equal to whatever maximizes the model-data fit (or, equivalently, minimizes some cost function). 
 
-	The Bayesian approach is different. Since we have *a priori* uncertainty about the value of our parameter (as you specified in Part F of Exercise 1), we will also have *a posteriori* uncertainty (though hopefully the uncertainty will be a little less). What the Bayesian does is *integrate* over her posterior distribution of parameter values to make predictions. Intuitively, rather than taking the value corresponding to the peak of the distribution, she's considering all values with their respective heights.
+**2. Parameter fitting vs. Parameter integration** One of the strongest motivations for using Bayesian techniques for model-data evaluation is in how "nuisance" parameters are treated. "Nuisance" parameters are parameters of no theoretical interest; their only purpose is to fill in a slot in the model. Classically, the most prominant technique (from the frequentist tradition) for dealing with these parameters is to fit them to the data, i.e., to set the value equal to whatever maximizes the model-data fit (or, equivalently, minimizes some cost function). 
+
+The Bayesian approach is different. Since we have *a priori* uncertainty about the value of our parameter (as you specified in Part F of Exercise 1), we will also have *a posteriori* uncertainty (though hopefully the uncertainty will be a little less). What the Bayesian does is *integrate* over her posterior distribution of parameter values to make predictions. Intuitively, rather than taking the value corresponding to the peak of the distribution, she's considering all values with their respective heights.
 	
-	Why might this be important for model assessment? 
+Why might this be important for model assessment? 

@@ -197,6 +197,7 @@ Here is a sketch of this model (it doesn't run efficiently---we'll fix that shor
   (lambda (experiment-data)
     (query
 
+    ; this is a model parameter, but we scientists don't know the right parameter value
      (define biased-weight 
        (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
 
@@ -209,7 +210,7 @@ Here is a sketch of this model (it doesn't run efficiently---we'll fix that shor
      ; query for: what is the best biased-weight?
      biased-weight
 
-     ; given that we've observed this data
+     ; given that we've observed all these data frmo our experiment
      (condition 
       (all (flatten
             ; map over sequences 
@@ -335,6 +336,7 @@ As written, this model is very inefficient, because for each response, it *sampl
   (lambda (experiment-data)
     (enumeration-query
 
+    ; this is a model parameter, but we scientists don't know the right parameter value
      (define biased-weight 
        (uniform-draw (list 0.1 0.2 0.3 0.4 0.6 0.7 0.8 0.9)))
 
@@ -345,7 +347,7 @@ As written, this model is very inefficient, because for each response, it *sampl
           (biascoin-model sequence biased-weight)) 
         all-seqs))
 
-     ; what is the best biased-weight?
+     ; query for: what is the best parameter setting?
      biased-weight
 
      ; given that we've observed this data
@@ -520,7 +522,7 @@ Here we look at the posterior predictive of the coin flip model, summarizing bot
         all-seqs))
 
 
-     ; what are the model predictions?
+     ; query for: what are the predictions of the model?
      (summarize-model cognitive-model-predictions)
 
      ; given that we've observed this data
@@ -552,7 +554,7 @@ Here we look at the posterior predictive of the coin flip model, summarizing bot
 Our model provides an ok explanation of the data set, but we see from the scatter plot that there are some clear mismatches: the sequences that the model thinks are most likely fair are ones that people think are not fair. 
 Looking more closely, these are sequences with many T values, such as TTTTT.
 
-To gain more intuition, explore the following data set:
+To gain more intuition, play with the following data set, adjusting the responses (second list) as needed:
 
 ~~~
 (define experiment-data
@@ -574,7 +576,7 @@ To gain more intuition, explore the following data set:
     (list #f #f #f))))
 ~~~
 
-What is the posterior over the `bias weight`? How does the posterior predictive look? What can you conclude about our bias coin model (with respect to this data)?
+What is the posterior over the `bias weight`? (Query for: `biased-weight` and call `barplot` and the output). How does the posterior predictive look? What can you conclude about our bias coin model (with respect to this data)?
 
 # Response noise
 
@@ -880,11 +882,12 @@ Let's examine the behavior of this model with respect to two sequences of intere
     (enumeration-query
 
      (define fair-weight 0.5)
+
+     ; the subject has only a vague notion of what the bias in this biased-coin would be
      (define biased-weight 
        (uniform-draw (list 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9)))
 
      (define isfair (flip))
-
 
      (define the-weight (if isfair 
                             fair-weight 
@@ -1110,7 +1113,7 @@ The model has the flexibility to infer different biased coin weights for differe
 ~~~
 
 This is great. The model doesn't suffer from the same *lower-bias* flaw that it did previously.
-Notice that our cognitive model now has no parameters for the data analysis model to infer; the posterior predictive is thus the same as the 'prior predictive', that is, what we would expect before seeing any data. 
+Notice that our cognitive model now has no parameters for the data analysis model to infer; the posterior predictive is thus the same as what's known as the 'prior predictive', that is, what we would expect before seeing any data. 
 
 ## Generalized, enriched bias coin model 
 
@@ -1859,7 +1862,7 @@ Our data strongly favors the more complex model: we can be very confident in the
 
 # Exercises
 
-**1. Subjective randomness digest.** We saw in this chapter how to analyze our Bayesian models of cognition by using Bayesian statistical techniques. In the end, do you believe either the enriched biased-coin model or the generalized, enriched biased-coin model matched the data well? Why or why not? If you're unsatisfied, do you have an idea for a better model?
+**1. Subjective randomness digest.** We saw in this chapter how to analyze our Bayesian models of cognition by using Bayesian statistical techniques. Pick either the enriched bias coin model or the generalized enriched bias coin model. What phenomena was it able to capture? What wasn't it able to capture? How can you tell? Do you have an idea for a better model?
 
 **2. Bayes in the head vs. Bayes in the notebook.** We've seen in this chapter how we can precisely separate assumptions about our computational-level theory of cognition from the assumptions that go into analyzing our data (and our theory). In this exercise, we will try to go between the two ways of looking at these things: by going from a theory and analysis in words, to a theory and analysis in Church (and back).
 	

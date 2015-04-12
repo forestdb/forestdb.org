@@ -1960,11 +1960,91 @@ Just as a reminder, the illusion is observed in the model when we condition on t
 **G.** What are you going to query for? Add it to your pseudocode above. What do each of things that you are querying for in the data analysis model represent?
 
 
-**3. Parameter fitting vs. Parameter integration** One of the strongest motivations for using Bayesian techniques for model-data evaluation is in how "nuisance" parameters are treated. "Nuisance" parameters are parameters of no theoretical interest; their only purpose is to fill in a slot in the model. Classically, the most prominant technique (from the frequentist tradition) for dealing with these parameters is to fit them to the data, i.e., to set their value equal to whatever maximizes the model-data fit (or, equivalently, minimizes some cost function). 
+**3. Parameter fitting vs. Parameter integration** One of the strongest motivations for using Bayesian techniques for model-data evaluation is in how "nuisance" parameters are treated. "Nuisance" parameters are parameters of no theoretical interest; their only purpose is to fill in a necessary slot in the model. Classically, the most prominant technique (from the frequentist tradition) for dealing with these parameters is to fit them to the data, i.e., to set their value equal to whatever maximizes the model-data fit (or, equivalently, minimizes some cost function). 
 
-The Bayesian approach is different. Since we have *a priori* uncertainty about the value of our parameter (as you specified in Part F of Exercise 1), we will also have *a posteriori* uncertainty (though hopefully the uncertainty will be a little less). What the Bayesian does is *integrate* over her posterior distribution of parameter values to make predictions. Intuitively, rather than taking the value corresponding to the peak of the distribution, she's considering all values with their respective probabilites.
+The Bayesian approach is different. Since we have *a priori* uncertainty about the value of our parameter (as you specified in Part F of Exercise 2), we will also have *a posteriori* uncertainty about the value (though hopefully the uncertainty will be a little less). What the Bayesian does is *integrate* over her posterior distribution of parameter values to make predictions. Intuitively, rather than taking the value corresponding to the peak of the distribution, she's considering all values with their respective probabilites.
 	
-Why might this be important for model assessment? One feature of this approach is that you can examine the posterior over parameter values. This posterior can give you an idea whether or not your model is well-behaved. In other words, do the predictoins of your model depend heavily on the exact parameter value?
+Why might this be important for model assessment? Imagine the following idealized situation. You are trying to estimate subjects' ability on a given task. You have prior beliefs about how difficult the task will be for students (or, conversely, how able the subjects are to do well on your task). You think, it's likely this is going to be very difficult for subjects (let's say it's a difficult psychophysical test requiring contrast discrimination in the periphery), but you're uncertain. It may well be that it's very easy for subjects (or, very easy for *some* subjects; this idealized example collapses across these interpretations). We're going to think about this in terms of subjects ability with respect to your task. Here is your prior.
+
+~~~
+;; Prior on subject ability is uniform on 0..0.9, with a spike on 0.1
+
+(define (subject-ability-prior)
+  (if (flip) .1 (/ (sample-integer 10) 10)))
+
+(barplot (enumeration-query (subject-ability-prior) true) 
+         "Prior on subject ability")
+~~~
+
+You could now have a structured, probabilistic model about how subjects do your task. For simplicity, we will assume the most simple model of task performance: `(define subject-perform-well? (flip subject-ability))`. This is just a proxy for a more complicated model of inference we could have. For example, you could imagine having some notion of task-difficulty for the model used in Exercise 2.
+
+Suppose there is a lot of training involved in your task, such that it's very time consuming for you to collect data. You run one subjet through your training regime and have them do the task. That subject performs well. The same day, your adviser (or funding agency) wants you to make a decision to collect more data or not (or switch up something about your paradigm). You thought beforehand that your task was too difficult. Do you still think your task is too hard? 
+
+One way to answer this is to look at the posterior over your model parameters. Here our (super simple) cognitive model `subject-perform-well` has a parameter `subject-ability` (which is the inverse of your task difficulty). How does your degree of belief in `subject-ability` change as a result of your pilot subject performing well?
+
+~~~
+;;;fold:
+(define (expectation ps vs)
+  (if (= (length ps) 0)
+      0      
+      (+ (* (first ps) (first vs))
+         (expectation (rest ps) (rest vs)))))
+
+(define (%most-probable-value vs ps best-v best-p)
+  (if (= (length ps) 0)
+      best-v
+      (if (> (first ps) best-p)
+          (%most-probable-value (rest vs) (rest ps) (first vs) (first ps))
+          (%most-probable-value (rest vs) (rest ps) best-v best-p))))
+          
+(define (most-probable-value vs ps)
+  (%most-probable-value vs ps 0 0))
+
+
+;; Prior on subject ability is uniform on 0..0.9, with a spike on 0.1
+
+(define (subject-ability-prior)
+  (if (flip) .1 (/ (sample-integer 10) 10)))
+
+;(barplot (enumeration-query (subject-ability-prior) true) 
+;         "Prior on subject ability")
+;;;
+
+;; Compute posterior after seeing one subject perform well
+
+(define subject-ability-posterior-dist
+  (enumeration-query
+   (define subject-ability (subject-ability-prior))   
+   (define subject-passes? (flip subject-ability))
+      
+   subject-ability
+   
+   (equal? subject-passes? #t)))
+
+
+;; Most likely subject ability is still .1
+
+(display "Most probable subject ability after seeing 'one subject perform well':" 
+         (apply most-probable-value subject-ability-posterior-dist))
+
+
+;; But a lot of probability mass is on higher values
+
+(barplot subject-ability-posterior-dist
+         "Posterior subject ability after observing 'one subject perform well'")
+
+
+;; Indeed, the expected subject ability is around .5
+
+(display "Expected subject ability after seeing 'one subject perform well':" 
+         (apply expectation subject-ability-posterior-dist))
+~~~
+
+**A. Would you proceed with more data collection or would you change your paradigm? Why?**
+
+**B.** In this example, we were interested in the parameter value itself. Often, we are only interested in the parameter in order to get predictions for our cognitive model. The traditional approach is to fit the parameter by taking a point estimate (here, we could take the *Maximum A Posteriori (or, MAP)* estimate, which would be 0.1). **Why might this not be a good idea?**
+
+**4**. Returning to real-world data analysis problems with complex cognitive model, one feature of the Bayesian approach is that you can examine the posterior over parameter values. This posterior can give you an idea of whether or not your model is well-behaved. In other words, do the predictoins of your model depend heavily on the exact parameter value?
 
 To help us understand how to examine posteriors over parameter settings, we're going to revisit the [example of the blicket detector](https://probmods.org/patterns-of-inference.html#example-of-blickets-and-blocking) from Chapter 4.
 

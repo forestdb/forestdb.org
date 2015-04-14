@@ -4,14 +4,34 @@ title: SAILORS teaching example
 ---
 ### Outline
 - Probability and why it's useful in a world where there is often uncertainty
-- Generative models and why they're useful for describing situations that often involve uncertainty
+- Generative models and why they're useful for describing situations that involve uncertainty
 - Bayes' rule and how it helps you infer things that are not directly observable in a generative model
 - Brainstorm: What are some things that Bayes' rule can help you figure out? Draw a generative model.
-- Concrete example with vending machine
-  * Actions (button press) generate outcomes (cookies/bagels)
-  * Given an outcome, what was the action?
-  * What if you had different prior expectations about the action?
-- Exercise: Specify your generative model in more detail (what actions/causes lead to what effects with what probability?) Make some predictions/inferences.
+- Concrete example with student performance
+  * Brainstorm variables that affect performance on a given task (current ability, effort, task difficulty, etc)
+  * Model 1 (effort -> performance)
+    * Effort is the only variable that determines performance
+    * Trying is more likely to generate good performance; not trying less likely
+    * Given uniform prior for effort, what is the probability of doing well?
+    * Given a different prior, what is the probability of doing well?
+    * Given that a student did well, how likely is it that she tried?
+    * Conditioning as utility/choice rule: given that a student wants to do well, how much should she try?
+  * Model 2 (effort, current ability -> performance)
+    * Explaining away
+    * Given high effort and good performance, what is the probability that the student has high abiltiy?
+    * Given no effort and good performance, what is the probability that the student has high ability?
+    * What might be some problems in this model?
+  * Introduce growth mindset: effort can lead to higher future ability!
+  * Model 3 (effort, current ability -> performance, making others think you have high abiltiy, future ability)
+    * Introduce "improvement": effort right now leads to very high ability in the future; no effort makes ability stay the same
+    * Introduce "evaluation": other person's inference of the student's ability given outcome and effort
+    * Given this model, what should you do given the following goals? (goals: succeeding now, making others think you have high ability, having high ability in the future)
+    * How does this change given different beliefs (priors) about your ability? (high/low/neutral)
+    * How does this change given different beliefs about improvement?
+- General discussion of mindsets
+- General discussion about why it might be useful to formalize some of these intuitions about mindsets in a model
+  * Interventions
+  * Predictions
 - Bayes' rule is used A LOT in both AI and cognitive science
   * Medical diagnosis
   * Spam detection

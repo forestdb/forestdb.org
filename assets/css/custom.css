@@ -89,6 +89,14 @@ ul p {
    margin-top: 0.3em;
 }
 
+ol ul {
+   margin-bottom: 10px;
+}
+
+blockquote {
+   font-size: 14px;
+}
+
 
 /* Code boxes */
 
@@ -105,10 +113,9 @@ button.reset {
 }
 
 li code {
-   border: 1px solid #aaa;
-   border-radius: 2px;
+   border-radius: 3px;
    padding: 1px 3px 1px 3px;
-   background-color: #dfdfdf
+   background-color: rgba(0,0,0,0.04);
 }
 
 .code-controls {

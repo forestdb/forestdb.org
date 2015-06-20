@@ -4,6 +4,7 @@ title: Event Detection
 model-status: code
 model-category: Miscellaneous
 model-tags: poisson
+model-language: church
 ---
 
 Assuming there is a behavior with a certain frequency over time, and given some data about that behavior, do you think something happened to change that behavior at some point? This formulation could apply to changes in missile attacks on Israel, but the same idea applies to changes in personal behavior. For example, suppose you usually send your friend some messages per month, but something happened and now you send more/less. When did something happen? Did something actually happen?

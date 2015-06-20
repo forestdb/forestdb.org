@@ -4,6 +4,7 @@ title: Birthday Problem
 model-status: code
 model-category: Miscellaneous
 model-tags: toy
+model-language: church
 ---
 
 What is the probability that in a room filled with 23 people, at least one pair of people has the same birthday?

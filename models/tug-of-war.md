@@ -4,6 +4,7 @@ title: Tug of War
 model-status: code
 model-category: Miscellaneous
 model-tags: hierarchical models
+model-language: church
 ---
 
 The "tug of war" model is a hierarchical model that can be used to illustrate the broad range of inferences that can be drawn from a relatively simple compositional model.

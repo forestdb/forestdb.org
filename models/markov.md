@@ -4,6 +4,7 @@ title: Markov Model
 model-status: code
 model-category: Machine Learning
 model-tags: temporal models
+model-language: church
 ---
 
 A Markov model is a model of a sequence of unobserved states. Each state depends only on the previous state.

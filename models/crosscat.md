@@ -4,6 +4,7 @@ title: CrossCat
 model-status: code
 model-category: Nonparametric Models
 model-tags: nonparametric models, categorization
+model-language: church
 ---
 
 CrossCat is a generative model that can be used for categorizing

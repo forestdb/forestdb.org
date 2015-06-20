@@ -4,6 +4,7 @@ title: 1D Ising
 model-status: code
 model-category: Undirected Constraints
 model-tags: 
+model-language: church
 ---
 
 Version 1:

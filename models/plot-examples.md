@@ -1,6 +1,7 @@
 ---
 layout: model
 title: PLoT Example Code
+model-language: church
 ---
 
 # Section 22.2

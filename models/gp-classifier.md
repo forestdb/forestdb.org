@@ -4,6 +4,7 @@ title: Gaussian Process Classifier
 model-status: code
 model-category: Nonparametric Models
 model-tags: gp, nonparametrics, classifier
+model-language: church
 ---
 
     ;;;fold: zip

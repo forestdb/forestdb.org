@@ -4,6 +4,7 @@ title: Inferring Nationality from GPA
 model-status: code
 model-category: Miscellaneous
 model-tags: discrete, continuous
+model-language: church
 ---
 
 This is an example of a mixed discrete-continuous model.

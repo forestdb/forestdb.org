@@ -1,6 +1,7 @@
 ---
 layout: model
 title: Syllogisms [equivalence] (CogSci14)
+model-language: church
 ---
 
 A model of syllogistic reasoning as communication.

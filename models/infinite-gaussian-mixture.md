@@ -4,6 +4,7 @@ title: Infinite Gaussian Mixture
 model-status: code
 model-category: Nonparametric Models
 model-tags: mem, nonparametrics, mixture, gaussian
+model-language: church
 ---
 
 Using [DPmem](/models/dpmem.html), we can create an infinite mixture model with arbitrary observation distributions. In the following model, the observation function is Gaussian:

@@ -5,6 +5,7 @@ model-status: code-fail
 model-status-verbose: The MCMC chain doesn't mix - is the variance of Gaussian proposals too small?
 model-category: Miscellaneous
 model-tags: gaussian
+model-language: church
 ---
 
 The Kalman filter (or Kalman smoother) is a Hidden Markov Model with Gaussian transition and observation functions. The model here is based on the [Kalman filter in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/examples/kalman_filter/).

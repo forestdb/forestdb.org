@@ -4,6 +4,7 @@ title: Pedagogy
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: communication, pedagogy
+model-language: church
 ---
 
 A teacher chooses examples for a learner, who tries to infer the correct hypotheses from the teacher's examples:

@@ -4,6 +4,7 @@ title: Bayesian Linear Regression
 model-status: code
 model-category: PPAML Challenge Problems
 model-tags: shred, benchmark, machine learning
+model-language: church
 ---
 
 Version 1 (based on [Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/examples/linear_regression/)):

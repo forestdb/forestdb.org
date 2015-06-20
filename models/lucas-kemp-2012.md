@@ -1,6 +1,7 @@
 ---
 layout: model
 title: Lucas & Kemp 2012
+model-language: church
 ---
 
 Using a counterfactual model from [here](http://forestdb.org/models/exogenous-counterfactuals.html) and the free parameter *s* and specifics of the model that [Lucas & Kemp (2012)](http://www.psy.cmu.edu/~ckemp/papers/lucask_aunifiedtheoryofcounterfactualreasoning.pdf) tested against people's responses in [Sloman & Lagnado's (2005)](http://onlinelibrary.wiley.com/doi/10.1207/s15516709cog2901_2/pdf) Experiments 2 and 6, we get the same results as they did for the observation-type counterfactuals (at least looking at their graph). This is unsurprising, since our implementations of counterfactuals are basically the same.

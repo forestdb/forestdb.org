@@ -4,6 +4,7 @@ title: Blame Attribution
 model-status: code
 model-category: Miscellaneous
 model-tags: counterfactuals, cognitive science
+model-language: church
 ---
 
     ;; --------------------------------------------------------------------

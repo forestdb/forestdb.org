@@ -1,5 +1,6 @@
 ---
 layout: model
+model-language: church
 ---
 
 # Functional Explanations

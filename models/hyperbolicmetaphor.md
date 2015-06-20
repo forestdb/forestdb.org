@@ -4,6 +4,7 @@ title: Hyperbolic metaphor
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics
+model-language: church
 ---
 
       ;; John could either be a giraffe or a person.

@@ -2,6 +2,7 @@
 layout: model
 title: Conditioning on the conclusion model issue
 model-status: code
+model-language: church
 ---
 
 This is a discussion relating to Rational Speech-act models. It sprang out of the [syllogism model](http://forestdb.org/models/syllogisms-cogsci14.html). 

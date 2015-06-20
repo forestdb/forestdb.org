@@ -4,6 +4,7 @@ title: Red-light Game
 model-status: code
 model-category: Miscellaneous
 model-tags: planning
+model-language: church
 ---
 
     (define (last l)

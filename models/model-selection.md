@@ -4,6 +4,7 @@ title: Model Selection
 model-status: code
 model-category: Miscellaneous
 model-tags: shred, benchmark
+model-language: church
 ---
 
     (define (zip xs1 xs2) 

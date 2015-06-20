@@ -1,6 +1,7 @@
 ---
 layout: model
 title: Explanations with 'because'
+model-language: church
 ---
 
 ### Pragmatic explainer

@@ -4,6 +4,7 @@ title: Inducing Arithmetic Functions
 model-status: code
 model-category: Concept Learning
 model-tags: concepts, program induction
+model-language: church
 ---
 
 This program induces a deterministic arithmetic function from input-output examples.

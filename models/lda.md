@@ -4,6 +4,7 @@ title: Latent Dirichlet Allocation
 model-status: code
 model-category: Machine Learning
 model-tags: language, hierarchical models, shred, benchmark, machine learning
+model-language: church
 ---
 
 LDA is a model that can be used to discover the topics of documents.

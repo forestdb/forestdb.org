@@ -1,6 +1,7 @@
 ---
 layout: model
 title: Category explanations
+model-language: church
 ---
 
 *All models on this page use [the exogenous randomness style](http://forestdb.org/models/exogenous-counterfactuals.html) of counterfactual modeling based on [the original countefactual Church model](http://forestdb.org/models/because.html) and the counterfactuals of Pearl (2000).

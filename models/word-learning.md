@@ -4,6 +4,7 @@ title: Word Learning as Bayesian Inference
 model-status: code
 model-category: Concept Learning
 model-tags: concepts 
+model-language: church
 ---
 
 This is a webchurch implementation of a model in Ref:Xu2007dt.

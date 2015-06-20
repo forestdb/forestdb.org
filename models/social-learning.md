@@ -4,6 +4,7 @@ title: Learning from Social and Direct Evidence
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: social reasoning, ToM
+model-language: church
 ---
 
 A model of learning from social and direct evidence:

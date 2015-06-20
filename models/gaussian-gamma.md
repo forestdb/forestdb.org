@@ -4,6 +4,7 @@ title: 1D Gaussian with Gaussian/Gamma Hyperparameters
 model-status: code
 model-category: Miscellaneous
 model-tags: continuous models, gaussian distribution
+model-language: church
 ---
 
 One-dimensional Gaussian distribution with mean and variance

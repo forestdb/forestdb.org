@@ -4,6 +4,7 @@ title: Blue-eyed Islanders
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: theory of mind, game theory
+model-language: church
 ---
 
 The blue-eyed islanders puzzle (also known as the *muddy children*

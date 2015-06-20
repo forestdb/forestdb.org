@@ -4,6 +4,7 @@ title: Hierarchical Dirichlet Process
 model-status: code
 model-category: Nonparametric Models
 model-tags: mem, nonparametrics, dp
+model-language: church
 ---
 
 In a Hierarchical Dirchlet Process (HDP), multiple DPs share another (top-level) DP as their base measure.

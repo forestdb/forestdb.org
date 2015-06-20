@@ -4,6 +4,7 @@ title: Bayesian Logistic Regression
 model-status: code
 model-category: Machine Learning
 model-tags: machine learning
+model-language: church
 ---
 
 Logistic regression predicts a discrete class probability based on a continuous input. The model below is based on the [Anglican implementation of logistic regression](http://www.robots.ox.ac.uk/~fwood/anglican/examples/logistic_regression/).

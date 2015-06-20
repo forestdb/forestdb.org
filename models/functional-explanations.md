@@ -1,5 +1,6 @@
 ---
 layout: model
+model-language: church
 ---
 
 Playing around with modeling teleological explanation. Teleological explanations seem to have some implicit designer who chooses an action (based on their goal), which results in the explanandum being true.

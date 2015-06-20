@@ -1,6 +1,7 @@
 ---
 layout: model
 title: Counterfactuals (archive)
+model-language: church
 ---
 
 This page collects outdated versions of models of counterfactuals and "because". For the most recent model, see [this page](forestdb.org/models/counterfactuals.html).

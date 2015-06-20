@@ -4,6 +4,7 @@ title: Hierarchical Flu/Cough Model
 model-status: code
 model-category: Miscellaneous
 model-tags: hierarchical, medicine, mem
+model-language: church
 ---
 
     (define flu-dist

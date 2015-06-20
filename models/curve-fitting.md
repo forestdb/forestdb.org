@@ -5,6 +5,7 @@ model-status: code-fail
 model-status-verbose: The MH chain does not mix.
 model-category: Miscellaneous
 model-tags: function learning, occam's razor
+model-language: church
 ---
 
 Bayesian inference can be used to simultaneously find the order of

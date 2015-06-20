@@ -5,6 +5,7 @@ model-status: code-fail
 model-status-verbose: drop-right is not implemented.
 model-category: Undirected Constraints
 model-tags: language, nested conditioning
+model-language: church
 ---
 
 A doubly-intractable HMM, meant as a toy model for speech

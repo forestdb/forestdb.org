@@ -4,6 +4,7 @@ title: Bayesian Neural Network
 model-status: code
 model-category: Machine Learning
 model-tags: neural net, continuous
+model-language: church
 ---
 
 This models is a neural network that learns the XOR function. The model is based on the [Anglican implementation of a neural net](http://www.robots.ox.ac.uk/~fwood/anglican/examples/neural_net/).

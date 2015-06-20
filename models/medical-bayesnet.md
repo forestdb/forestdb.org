@@ -4,6 +4,7 @@ title: Medical Diagnosis
 model-status: code
 model-category: PPAML Challenge Problems
 model-tags: bayesnet, medicine
+model-language: church
 ---
 
     (define samples

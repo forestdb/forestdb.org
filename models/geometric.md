@@ -4,6 +4,7 @@ title: Geometric Distribution
 model-status: code
 model-category: Miscellaneous
 model-tags: recursion
+model-language: church
 ---
 
 A simple recursively defined distribution on the integers.

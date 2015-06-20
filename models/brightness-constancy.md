@@ -4,6 +4,7 @@ title: Brightness Constancy
 model-status: code
 model-category: Miscellaneous
 model-tags: cognitive science, vision
+model-language: church
 ---
 
 How we perceive the reflectance of a visual object depends on the assumptions our visual system makes about the *illumination* of the object (as indicated e.g. by shadows falling onto the object) and on the actual *luminance* of the object (the amount of light emitted by the object).

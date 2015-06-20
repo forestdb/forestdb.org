@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Inverse Statics (Terra)
+title: Inverse Statics
 model-status: code-fail
 model-status-verbose: The code is in Terra, not Church.
 model-category: Inverse Dynamics

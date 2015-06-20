@@ -4,6 +4,7 @@ title: Burglary Bayesnet
 model-status: code
 model-category: Miscellaneous
 model-tags: bayesnet, simple
+model-language: church
 ---
 
 The Burglary Bayes net is a simple network that illustrates nodes with multiple incoming and outgoing causal links. Burglary and earthquake both cause the alarm to go off. The alarm can cause either or both of Mary and John to call.

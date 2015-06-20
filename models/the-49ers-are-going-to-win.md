@@ -1,5 +1,6 @@
 ---
 layout: model
+model-language: church
 ---
 
 # The 49ers are *going* to win

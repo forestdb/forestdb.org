@@ -4,6 +4,7 @@ title: Finite Dirichlet-Multinomial Mixture
 model-status: code
 model-category: Miscellaneous
 model-tags: mixture, multinomial, dirichlet
+model-language: church
 ---
 
 We construct a mixture distribution on draws from three bags of marbles. Each bag is associated with a discrete distribution on the three colors `blue`, `green`, and `red`. We draw marbles, with each marble drawn randomly from one of the bags.

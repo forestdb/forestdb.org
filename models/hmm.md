@@ -4,6 +4,7 @@ title: Discrete-Time Hidden Markov Model
 model-status: code
 model-category: PPAML Challenge Problems
 model-tags: temporal models
+model-language: church
 ---
 
 A model of a sequence of unobserved states, each of which depends only on the previous one, and each of which gives rise to an observation.

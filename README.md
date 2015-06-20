@@ -31,6 +31,7 @@ The following categories are available:
     Reasoning about Reasoning
     Machine Learning
     Nonparametric Models
+    Bayesian Data Analysis    
     Undirected Constraints
     Inverse Dynamics
     PPAML Challenge Problems

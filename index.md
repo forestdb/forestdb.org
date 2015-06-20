@@ -3,7 +3,7 @@ layout: default
 title: Forest - A Repository for Generative Models
 isindex: true
 all-model-statuses: [code, link, code-fail, stub]
-all-model-categories: [Concept Learning, Reasoning about Reasoning, Machine Learning, Nonparametric Models, Undirected Constraints, Inverse Dynamics, PPAML Challenge Problems, Miscellaneous]
+all-model-categories: [Concept Learning, Reasoning about Reasoning, Machine Learning, Nonparametric Models, Bayesian Data Analysis, Undirected Constraints, Inverse Dynamics, PPAML Challenge Problems, Miscellaneous]
 ---
 
 <div class="page-header">

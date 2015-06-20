@@ -112,11 +112,11 @@ button.reset {
    float: right
 }
 
-li code {
-   border-radius: 3px;
-   padding: 1px 3px 1px 3px;
-   background-color: rgba(0,0,0,0.04);
-}
+/* li code { */
+/*    border-radius: 3px; */
+/*    padding: 1px 3px 1px 3px; */
+/*    background-color: rgba(0,0,0,0.04); */
+/* } */
 
 .code-controls {
    position: absolute;

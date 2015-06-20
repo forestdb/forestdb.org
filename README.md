@@ -41,7 +41,7 @@ Tags can be arbitrary words or phrases separated by commas.
 Updating webchurch
 ------------------
 
-Forest uses [webchurch](https://github.com/probmods/webchurch) to run probabilistic programs. To update webchurch, follow these steps:
+Forest uses [webchurch](https://github.com/probmods/webchurch) and [webppl](https://github.com/probmods/webppl) to run probabilistic programs. To update webchurch, follow these steps:
 
 1. Clone and build the most recent version of the webchurch repository, following the instructions [here](https://github.com/probmods/webchurch):
 

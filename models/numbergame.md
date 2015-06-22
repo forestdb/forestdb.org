@@ -1,6 +1,6 @@
 ---
 layout: model
-title: SAILORS Teaching Example: Inductive Reasoning with a Number Game
+title: SAILORS Teaching Example
 model-language: webppl
 ---
 

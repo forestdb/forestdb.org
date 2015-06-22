@@ -10,38 +10,30 @@ AI researchers have become extremely good at designing algorithms to process and
 
 Let's make this idea of inductive reasoning a bit more concrete with an example.
 
-Suppose your friend shows you this sequence of numbers and tells you that they are "positive examples" of a category of numbers:
-
-{16, 8, 2, 64}
-
-Note: "positive examples" are examples of that category; "negative examples" are examples that are *not* of that category. 
+Suppose your friend shows you this sequence of numbers and tells you that they are "positive examples" of a category of numbers: {16, 8, 2, 64} (Note: "positive examples" are examples of that category; "negative examples" are examples that are *not* of that category.)
 
 Do you think 4 belongs to this category?
 What about 7?
 Or 10?
 
-Now, suppose someone shows you this sequence of numbers and tells you that they are "positive examples" of a different category of numbers: 
-
-{60, 80, 10, 30}
+Now, suppose someone shows you this sequence of numbers and tells you that they are "positive examples" of a different category of numbers: {60, 80, 10, 30}
 
 Do you think 4 belongs to this category?
 What about 7?
 Or 10?
 
-Why?
-
-Let's zoom in on the first sequence: {2, 8, 16, 64}.
+How did you come up with these answers?
 
 ### Hypotheses
 
-Where did these numbers come from? What are some possible hypotheses?
+Let's zoom in on the first sequence: {2, 8, 16, 64}. Where did these numbers come from? What are some possible hypotheses?
 
 #### Powers of 2: Generative Model
 
 Here is one way the numbers {2, 8, 16, 64} could have been generated:
 
 1. I'm thinking of the concept (or category) "powers of 2".
-2. I sample some numbers that are powers of 2.
+2. I ranodmly sample some numbers that are powers of 2.
 
 This is what that looks like in code:
 
@@ -252,7 +244,7 @@ You can also see graphs of this simulation. (Let's put our 4 numbers in order, s
     
     print(Enumerate(generative_model));
 
-##### Infer 
+##### Infer category given number sequence
 
     ///fold:
     var seq = function(a, b, include_end_point) {

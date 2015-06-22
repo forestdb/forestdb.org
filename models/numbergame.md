@@ -37,130 +37,100 @@ Here is one way the numbers {2, 8, 16, 64} could have been generated:
 
 This is what that looks like in code:
 
-    ///fold:
-    var seq = function(a, b, include_end_point) {
-    // if 1 argument is given, that's "end" and "start" is 0.
-    // if 2 arguments are given, the first is the "start" and the second is the "end"
-      
-      var start = b ? a : 0;
-      var end = b? b : a;
-      
-      if (end <= start) {
-        // if the end is equal to the start, return an empty list
-        return [];
-      } else {
-        // if not, recursively call "seq" on a smaller interval
-        // (move "start" closer and closer to "end", while adding
-        // each of the "start" values")
-        return [start].concat(seq(start+1, end));
-      }
-    }
-    
-    var sample_without_replacement = function(list, N) {
-      if (N <= 0) {
-        return [];
-      } else {
-        var next_sample = uniformDraw(list);
-        var new_list = remove(next_sample, list);
-        return [next_sample].concat(sample_without_replacement(new_list, N-1));
-      }
-    }
-    ///
-    
-    // first we make a list of all the powers of 2:
-    var generate_powers_of_2 = function(previous_number) {
-      
-      // first power of 2 is 2^0 = 1
-      var previous_number = previous_number ? previous_number : 1;
-      
-      // next power of 2.
-      var next_number = previous_number * 2;
-      
-      // only keep powers of 2 up to 50.
-      if (next_number > 50) {
-        return [previous_number]
-      } else {
-        return [previous_number].concat(generate_powers_of_2(next_number));
-      }
-    }
-    
-    // then we sample 4 of those powers of 2:
-    var sample_powers_of_2 = function(N) {
-      // if no N (number of samples) is given, give 4 samples
-      var N = N ? N : 4;
-      var all_powers_of_2 = generate_powers_of_2();
-      return sample_without_replacement(all_powers_of_2, N);
-    }
-    
-    sample_powers_of_2();
+~~~~
+///fold:
+// sample N items from an array, without replacement
+var drawN = function(array, N) {
+  if (N == 0) {
+    return [];
+  } else {
+    var sampled = uniformDraw(array);
+    var remaining = remove(sampled, array);
+    return [sampled].concat(drawN(remaining, N-1));
+  }
+}
+// sample 4 items from an array, without replacement
+var draw4 = function(array) {
+  return drawN(array, 4);
+}
+///
 
+// first we make a list of all the powers of 2 less than 50:
+var powers_of_2 = [1, 2, 4, 8, 16, 32];
+
+// then we sample 4 of those powers of 2:
+var get_examples = function() {return draw4(powers_of_2)};
+
+get_examples();
+~~~~
 
 You can press the "run" button above multiple times to get different samples from this category.
 
 You can also see graphs of this simulation. (Let's put our 4 numbers in order, so the graph looks nicer)
 
-    ///fold:
-    var seq = function(a, b, include_end_point) {
-      
-      // if 1 argument is given, that's "end" and "start" is 0.
-      // if 2 arguments are given, the first is the "start" and the second is the "end"
-      
-      var start = b ? a : 0;
-      var end = b? b : a;
-      
-      if (end <= start) {
-        // if the end is equal to the start, return an empty list
-        return [];
-      } else {
-        // if not, recursively call "seq" on a smaller interval
-        // (move "start" closer and closer to "end", while adding
-        // each of the "start" values")
-        return [start].concat(seq(start+1, end));
-      }
-    }
-    
-    var sample_without_replacement = function(list, N) {
-      if (N <= 0) {
-        return [];
-      } else {
-        var next_sample = uniformDraw(list);
-        var new_list = remove(next_sample, list);
-        return [next_sample].concat(sample_without_replacement(new_list, N-1));
-      }
-    }
-    
-    // first we make a list of all the powers of 2:
-    var generate_powers_of_2 = function(previous_number) {
-      
-      // first power of 2 is 2^0 = 1
-      var previous_number = previous_number ? previous_number : 1;
-      
-      // next power of 2.
-      var next_number = previous_number * 2;
-      
-      // only keep powers of 2 up to 50.
-      if (next_number > 50) {
-        return [previous_number]
-      } else {
-        return [previous_number].concat(generate_powers_of_2(next_number));
-      }
-    }
-    
-    // then we sample 4 of those powers of 2:
-    var sample_powers_of_2 = function(N) {
-      // if no N (number of samples) is given, give 4 samples
-      var N = N ? N : 4;
-      var all_powers_of_2 = generate_powers_of_2();
-      // sort the output so the graph looks nice.
-      return sort(sample_without_replacement(all_powers_of_2, N));
-    }
-    ///
-    
-    print(Enumerate(sample_powers_of_2));   
+~~~~
+///fold:
+// sample N items from an array, without replacement
+var drawN = function(array, N) {
+  if (N == 0) {
+    return [];
+  } else {
+    var sampled = uniformDraw(array);
+    var remaining = remove(sampled, array);
+    // NOTE: now we're sorting the result.
+    return sort([sampled].concat(drawN(remaining, N-1)));
+  }
+}
+// sample 4 items from an array, without replacement
+var draw4 = function(array) {
+  return drawN(array, 4);
+}
+
+// first we make a list of all the powers of 2 less than 50:
+var powers_of_2 = [1, 2, 4, 8, 16, 32];
+
+// then we sample 4 of those powers of 2:
+var get_examples = function() {return draw4(powers_of_2)};
+
+get_examples();
+///
+print(Enumerate(get_examples));
+~~~~  
 
 #### Powers of 3 or Multiples of 3?
 
 ##### Generative Model
+
+~~~~
+///fold:
+// sample N items from an array, without replacement
+var drawN = function(array, N) {
+  if (N == 0) {
+    return [];
+  } else {
+    var sampled = uniformDraw(array);
+    var remaining = remove(sampled, array);
+    // NOTE: now we're sorting the result.
+    return sort([sampled].concat(drawN(remaining, N-1)));
+  }
+}
+// sample 4 items from an array, without replacement
+var draw4 = function(array) {
+  return drawN(array, 4);
+}
+
+// first we make a list of all the powers of 2 less than 50:
+var powers_of_2 = [1, 2, 4, 8, 16, 32];
+
+// then we sample 4 of those powers of 2:
+var get_examples = function() {return draw4(powers_of_2)};
+
+get_examples();
+///
+print(Enumerate(get_examples));
+~~~~  
+
+
 
     ///fold:
     var seq = function(a, b, include_end_point) {

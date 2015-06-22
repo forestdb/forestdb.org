@@ -14,15 +14,15 @@ Suppose your friend shows you this sequence of numbers and tells you that they a
 
 (Note: "positive examples" are examples of that category; "negative examples" are examples that are *not* of that category.)
 
-*Do you think 4 belongs to this category?
-*What about 7?
-*Or 10?
+* Do you think 4 belongs to this category?
+* What about 7?
+* Or 10?
 
 Now, suppose someone shows you this sequence of numbers and tells you that they are "positive examples" of a different category of numbers: {60, 80, 10, 30}
 
-*Do you think 4 belongs to this category?
-*What about 7?
-*Or 10?
+* Do you think 4 belongs to this category?
+* What about 7?
+* Or 10?
 
 How did you come up with these answers? What do you think these number categories are?
 

@@ -150,8 +150,8 @@ var drawN = function(array, N) {
   }
 }
 // sample 2 items from an array, without replacement
-var draw2 = function(array) {
-  return drawN(array, 2);
+var draw3 = function(array) {
+  return drawN(array, 3);
 }
 
 var pick_concept = function() {
@@ -169,7 +169,7 @@ var concept_examples = {
 // in the generative model, we chose a concept, and then sample from it
 var generate_examples = function() {
   var concept = pick_concept();
-  var examples = draw2(concept_examples[concept]);
+  var examples = draw3(concept_examples[concept]);
   return examples;
 }
 
@@ -178,7 +178,7 @@ print(Enumerate(generate_examples));
 
 ### Conditioning
 
-What's the conditional probability of [4, 8] given that your friend is thinking of "multiples of 2"? what if she was thinking of "powers of 2"?
+What's the conditional probability of [2, 4, 8] given that your friend is thinking of "multiples of 2"? what if she was thinking of "powers of 2"?
 
 ~~~~
 ///fold:
@@ -194,8 +194,8 @@ var drawN = function(array, N) {
   }
 }
 // sample 2 items from an array, without replacement
-var draw2 = function(array) {
-  return drawN(array, 2);
+var draw3 = function(array) {
+  return drawN(array, 3);
 }
 
 var pick_concept = function() {
@@ -213,7 +213,7 @@ var concept_examples = {
 // in the generative model, we chose a concept, and then sample from it
 var generate_examples_with_condition = function() {
   var concept = pick_concept();
-  var examples = draw2(concept_examples[concept]);
+  var examples = draw3(concept_examples[concept]);
   condition( concept == "multiples_of_2" );
   return examples;
 }
@@ -249,8 +249,8 @@ var drawN = function(array, N) {
   }
 }
 // sample 2 items from an array, without replacement
-var draw2 = function(array) {
-  return drawN(array, 2);
+var draw3 = function(array) {
+  return drawN(array, 3);
 }
 
 var pick_concept = function() {
@@ -272,22 +272,22 @@ var concept_examples = {
 var infer_concept = function(observations) {
   return function() {
     var concept = pick_concept();
-    var examples = draw2(concept_examples[concept]);
+    var examples = draw3(concept_examples[concept]);
     condition( array_equals( examples, observations ) );
     return concept;
   }
 }
 
-print(Enumerate(infer_concept([1, 4])));
+print(Enumerate(infer_concept([1, 4, 8])));
 ~~~~
 
 #### Size principle
 
 Suppose you saw the following sequences:
 
-* [1, 4]
-* [0, 6]
-* [2, 8]
+* [1, 4, 8]
+* [0, 6, 10]
+* [2, 4, 8]
 
 What concept do you think these are examples of?
 
@@ -295,8 +295,7 @@ Does our program make the same inferences? Try plugging these observations in to
 
 Can you explain the model's inference for the observed sequence [2, 8]?
 *Hint:* How many numbers are powers of 2 and how many numbers are multiples of 2?
-What is the conditional probability of [2, 8] given each of the concepts?
-What if your friend was giving you three examples instead of 2, and she happend to pick [2, 4, 8]?
+What is the conditional probability of [2, 4, 8] given each of the concepts?
 
 This is called the "size principle": your friend could have been thinking of "multiples of 2" or "powers of 2", since both concepts are consistent with [2, 8]. But if your friend had been thinking of "multiples of 2", there are a lot more sequences she *could have chosen* than if she was thinking of "powers of 2". <!--The probability that she stumbles upon a sequence that happens to be full of powers of 3 when she was thinking of "multiples of 3" is a *lot* lower than the probability that she picks a "powers of 3" sequence that happens to be full of multiples of 3. -->
 

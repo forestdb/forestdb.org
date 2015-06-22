@@ -76,12 +76,26 @@ body div.container {
 
 /* Font and whitespace adjustments */
 
-div.page-header h1 {
+h1, h2, h3 {
    font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
    font-weight: 300;
    line-height: 1.1;
+   margin-top: 20px;
+}
+
+div.page-header h1 {
    font-size: 32px;
    margin-bottom: 0;
+}
+
+h2 {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+h3 {
+   font-size: 20px;
+   margin-bottom: 10px;
 }
 
 ul p {

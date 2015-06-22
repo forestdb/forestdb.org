@@ -4,6 +4,9 @@ title: SAILORS Teaching Example
 model-language: webppl
 ---
 
+* toc
+{:toc}
+
 ## Introduction
 
 AI researchers have become extremely good at designing algorithms to process and make sense of the huge amount of messy, unstructured data we have on the Internet. It is commonly believed that "Big Data" will revolutionalize AI and enable machines to automatically acquire rich knowledge from data in order to behave intelligently. While the sheer amount of data that the ditigal world has accumulated is undoubtedly powerful, it is often useful to take a step back and think about how humans--the most intelligent machines we have around--reason about and learn from data. Humans don't always require thousands of data points to learn concepts and draw conclusions. Often, we see a small amount of data and draw highly reasonable conclusions about it. This is sometimes called an "inductive leap:" observing small pieces of evidence, making generalizations about them, and using these generalizations to draw larger conclusions and make predictions.
@@ -26,11 +29,11 @@ Now, suppose someone shows you this sequence of numbers and tells you that they 
 
 How did you come up with these answers? What do you think these number categories are?
 
-### Hypotheses
+## Hypotheses
 
 Let's zoom in on the first sequence: {2, 8, 16, 64}. What are some hypotheses of which number category these numbers came from? Another way to think of this is, what is the process that *generated* these numbers?
 
-#### Generative Models
+### Generative Models
 
 It is often intuitive and helpful to think of data samples (such as these numbers) as being "generated" from a category. Since there are several different number categories that we consider, there are also several different ways in which these numbers were generated from those categories.
 
@@ -103,7 +106,7 @@ get_examples();
 print(Enumerate(get_examples));
 ~~~~  
 
-#### Powers of 2 or Multiples of 2?
+## Powers of 2 or Multiples of 2?
 
 Of course, there are other ways the numbers {2, 8, 16, 64} could have been generated:
 
@@ -116,7 +119,7 @@ Or even this generative process:
 2. Your friend randomly samples some numbers that are integers smaller than 50.
 
 
-##### Generative Model
+### Generative Model
 
 Let's say your friend could be thinking of either "multiples of 2" or "powers of 2", and that she'll only give you numbers less than or equal to 10.
 
@@ -173,7 +176,7 @@ var generate_examples = function() {
 print(Enumerate(generate_examples));
 ~~~~  
 
-##### Conditioning
+### Conditioning
 
 What's the conditional probability of [4, 8] given that your friend is thinking of "multiples of 2"? what if she was thinking of "powers of 2"?
 
@@ -218,7 +221,7 @@ var generate_examples_with_condition = function() {
 print(Enumerate(generate_examples_with_condition));
 ~~~~ 
 
-##### Infer category given number sequence
+### Infer category given number sequence
 
 Now that we have different hypotheses about how these numbers were generated, how do we determine which hypothesis is the most likely one given the data?
 
@@ -278,7 +281,7 @@ var infer_concept = function(observations) {
 print(Enumerate(infer_concept([1, 4])));
 ~~~~
 
-###### Size principle
+#### Size principle
 
 Suppose you saw the following sequences:
 
@@ -297,13 +300,13 @@ What if your friend was giving you three examples instead of 2, and she happend 
 
 This is called the "size principle": your friend could have been thinking of "multiples of 2" or "powers of 2", since both concepts are consistent with [2, 8]. But if your friend had been thinking of "multiples of 2", there are a lot more sequences she *could have chosen* than if she was thinking of "powers of 2". <!--The probability that she stumbles upon a sequence that happens to be full of powers of 3 when she was thinking of "multiples of 3" is a *lot* lower than the probability that she picks a "powers of 3" sequence that happens to be full of multiples of 3. -->
 
-#### Priors
+## Priors
 
 What if we change the prior probabilities of different hypotheses? 
 
 Suppose the friend who generated the number sequence {16, 8, 2, 64} is a precocious 4th-grader. You know that she has not yet learned the concept of "powers." You believe that it is quite unlikely that she would be thinking about a number category as complex as "powers of 2." How does this change your belief about what number category she is thinking of, given that she generated the number sequence {16, 8, 2, 64}?
 
-#### Sampling method
+## Sampling method
 
 Notice that there are many different ways your friend could have generated these examples. She could have sampled the numbers randomly, as we assumed in the code boxes before. Or, she could have sampled them in an intentional manner, to purposefully help you understand the number category and not confuse it with a different number category. Or, she could have sampled them in a different intentional manner--to intentionally deceive you into thinking that it is a different number category.
 
@@ -314,15 +317,17 @@ Notice that there are many different ways your friend could have generated these
 OED? If you have 2 competing hypotheses, what number should you test next?
 
 
-#### Why is this important?
+## Why is this important?
 
 
-#### Backup examples?
+## Backup examples?
 
 * word/concept learning (rational rules)
 * 
 
-#### Resources/References
+## Resources/References
 
-* 
+* dippl.org
+* probmods.org
+* http://web.mit.edu/cocosci/Papers/nips99preprint.pdf
 

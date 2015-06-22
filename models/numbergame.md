@@ -55,11 +55,13 @@ var draw4 = function(array) {
 }
 ///
 
-// first we make a list of all the powers of 2 less than 50:
+// first we make an array of all the powers of 2 less than 50:
 var powers_of_2 = [1, 2, 4, 8, 16, 32];
 
 // then we sample 4 of those powers of 2:
-var get_examples = function() {return draw4(powers_of_2)};
+var get_examples = function() {
+  return draw4(powers_of_2)
+};
 
 get_examples();
 ~~~~
@@ -86,7 +88,7 @@ var draw4 = function(array) {
   return drawN(array, 4);
 }
 
-// first we make a list of all the powers of 2 less than 50:
+// first we make an array of all the powers of 2 less than 50:
 var powers_of_2 = [1, 2, 4, 8, 16, 32];
 
 // then we sample 4 of those powers of 2:
@@ -97,9 +99,24 @@ get_examples();
 print(Enumerate(get_examples));
 ~~~~  
 
-#### Powers of 3 or Multiples of 3?
+#### Powers of 2 or Multiples of 2?
 
 ##### Generative Model
+
+Let's say your friend could be thinking of either "multiples of 2" or "powers of 2", and that she'll only give you numbers less than or equal to 10.
+
+First, she randomly samples one of those concepts:
+
+~~~~
+var pick_concept = function() {
+  var concept = uniformDraw(["powers_of_2", "multiples_of_2"]);
+  return concept;
+}
+
+print(Enumerate(pick_concept));
+~~~~  
+
+Then, whatever concept she chooses, she gives you 2 examples from that concept:
 
 ~~~~
 ///fold:
@@ -114,190 +131,150 @@ var drawN = function(array, N) {
     return sort([sampled].concat(drawN(remaining, N-1)));
   }
 }
-// sample 4 items from an array, without replacement
-var draw4 = function(array) {
-  return drawN(array, 4);
+// sample 2 items from an array, without replacement
+var draw2 = function(array) {
+  return drawN(array, 2);
 }
 
-// first we make a list of all the powers of 2 less than 50:
-var powers_of_2 = [1, 2, 4, 8, 16, 32];
-
-// then we sample 4 of those powers of 2:
-var get_examples = function() {return draw4(powers_of_2)};
-
-get_examples();
+var pick_concept = function() {
+  var concept = uniformDraw(["powers_of_2", "multiples_of_2"]);
+  return concept;
+}
 ///
-print(Enumerate(get_examples));
+
+// make arrays of all the powers and multiples of 2 up to 10:
+var concept_examples = {
+  "powers_of_2": [1, 2, 4, 8],
+  "multiples_of_2": [0, 2, 4, 6, 8, 10]
+}
+
+// in the generative model, we chose a concept, and then sample from it
+var generate_examples = function() {
+  var concept = pick_concept();
+  var examples = draw2(concept_examples[concept]);
+  return examples;
+}
+
+print(Enumerate(generate_examples));
 ~~~~  
 
+##### Conditioning
 
+What's the conditional probability of [4, 8] given that your friend is thinking of "multiples of 2"? what if she was thinking of "powers of 2"?
 
-    ///fold:
-    var seq = function(a, b, include_end_point) {
-    
-      // if 1 argument is given, that's "end" and "start" is 0.
-      // if 2 arguments are given, the first is the "start" and the second is the "end"
-    
-      var start = b ? a : 0;
-      var end = b? b : a;
-    
-      if (end <= start) {
-        // if the end is equal to the start, return an empty list
-        return [];
-      } else {
-        // if not, recursively call "seq" on a smaller interval
-        // (move "start" closer and closer to "end", while adding
-        // each of the "start" values")
-        return [start].concat(seq(start+1, end));
-      }
-    }
-    
-    var sample_without_replacement = function(list, N) {
-      if (N <= 0) {
-        return [];
-      } else {
-        var next_sample = uniformDraw(list);
-        var new_list = remove(next_sample, list);
-        return [next_sample].concat(sample_without_replacement(new_list, N-1));
-      }
-    }
-    
-    var fns = {
-      "powers_of_3": function(x) {return x * 3;},
-      "multiples_of_3": function(x) {return x + 3;}
-    }
-    
-    var first_numbers = {
-      "powers_of_3": 1,
-      "multiples_of_3": 0
-    }
-    
-    var max_number = 10;
-    
-    //I've re-written this code a bit, to be more general.
-    var generate = cache(function(concept) {
-      var accumulate = function(previous_number) {
-        // first power of 2 is 2^0 = 1
-        var previous_number = previous_number ? previous_number : first_numbers[concept];
-    
-        // next power of 2.
-        var fn = fns[concept];
-        var next_number = fn(previous_number);
-    
-        // only keep powers of 2 up to 50.
-        if (next_number > max_number) {
-          return [previous_number]
-        } else {
-          return [previous_number].concat(accumulate(next_number));
-        }
-      }
-      return accumulate();
-    })
-    
-    var sample_from_concept = function(concept, N) {
-      // if no N (number of samples) is given, give 4 samples
-      var N = N ? N : 2;
-      var all_in_concept = generate(concept);
-      return sample_without_replacement(all_in_concept, N);
-    }
-    
-    var list_eq = function(l1, l2) {
-      return all(function(x) {return x == 1;}, map2(eq, l1, l2));
-    }
-    ///
-    
-    var generative_model = function() {
-      var concept = uniformDraw(["powers_of_3", "multiples_of_3"]);
-      var samples = sample_from_concept(concept);
-      return samples;
-    }
-    
-    print(Enumerate(generative_model));
+~~~~
+///fold:
+// sample N items from an array, without replacement
+var drawN = function(array, N) {
+  if (N == 0) {
+    return [];
+  } else {
+    var sampled = uniformDraw(array);
+    var remaining = remove(sampled, array);
+    // NOTE: now we're sorting the result.
+    return sort([sampled].concat(drawN(remaining, N-1)));
+  }
+}
+// sample 2 items from an array, without replacement
+var draw2 = function(array) {
+  return drawN(array, 2);
+}
+
+var pick_concept = function() {
+  var concept = uniformDraw(["powers_of_2", "multiples_of_2"]);
+  return concept;
+}
+///
+
+// make arrays of all the powers and multiples of 2 up to 10:
+var concept_examples = {
+  "powers_of_2": [1, 2, 4, 8],
+  "multiples_of_2": [0, 2, 4, 6, 8, 10]
+}
+
+// in the generative model, we chose a concept, and then sample from it
+var generate_examples_with_condition = function() {
+  var concept = pick_concept();
+  var examples = draw2(concept_examples[concept]);
+  condition( concept == "multiples_of_2" );
+  return examples;
+}
+
+print(Enumerate(generate_examples_with_condition));
+~~~~ 
 
 ##### Infer category given number sequence
 
-    ///fold:
-    var seq = function(a, b, include_end_point) {
-    
-      // if 1 argument is given, that's "end" and "start" is 0.
-      // if 2 arguments are given, the first is the "start" and the second is the "end"
-    
-      var start = b ? a : 0;
-      var end = b? b : a;
-    
-      if (end <= start) {
-        // if the end is equal to the start, return an empty list
-        return [];
-      } else {
-        // if not, recursively call "seq" on a smaller interval
-        // (move "start" closer and closer to "end", while adding
-        // each of the "start" values")
-        return [start].concat(seq(start+1, end));
-      }
-    }
+Suppose you saw the following sequences:
 
-    var sample_without_replacement = function(list, N) {
-      if (N <= 0) {
-        return [];
-      } else {
-        var next_sample = uniformDraw(list);
-        var new_list = remove(next_sample, list);
-        return [next_sample].concat(sample_without_replacement(new_list, N-1));
-      }
-    }
-    
-    var fns = {
-      "powers_of_3": function(x) {return x * 3;},
-      "multiples_of_3": function(x) {return x + 3;}
-    }
-    
-    var first_numbers = {
-      "powers_of_3": 1,
-      "multiples_of_3": 0
-    }
-    
-    var max_number = 10;
-    
-    //I've re-written this code a bit, to be more general.
-    var generate = cache(function(concept) {
-      var accumulate = function(previous_number) {
-        // first power of 2 is 2^0 = 1
-        var previous_number = previous_number ? previous_number : first_numbers[concept];
-    
-        // next power of 2.
-        var fn = fns[concept];
-        var next_number = fn(previous_number);
-    
-        // only keep powers of 2 up to 50.
-        if (next_number > max_number) {
-          return [previous_number]
-        } else {
-          return [previous_number].concat(accumulate(next_number));
-        }
-      }
-      return accumulate();
-    })
-    
-    var sample_from_concept = function(concept, N) {
-      // if no N (number of samples) is given, give 4 samples
-      var N = N ? N : 2;
-      var all_in_concept = generate(concept);
-      return sample_without_replacement(all_in_concept, N);
-    }
-    
-    var list_eq = function(l1, l2) {
-      return all(function(x) {return x == 1;}, map2(eq, l1, l2));
-    }
-    ///
-    
-    var generative_model = function() {
-      var concept = uniformDraw(["powers_of_3", "multiples_of_3"]);
-      var samples = sample_from_concept(concept);
-      factor( list_eq(samples, [3, 9]) ? 0 : -Infinity )
-      return concept;
-    }
-    
-    print(Enumerate(generative_model));
+* [1, 4]
+* [0, 6]
+* [2, 8]
+
+What concept do you think these are examples of?
+
+Does our program make the same inferences?
+
+~~~~
+///fold:
+// a function that checks whether the elements (and order) of two arrays
+// are the same, even though technically, the *arrays themselves* are
+// stored in separate places and are not connected to each other, so they
+// not "the same thing"
+var array_equals = function(arrayA, arrayB) {
+  return JSON.stringify(arrayA) == JSON.stringify(arrayB);
+}
+
+// sample N items from an array, without replacement
+var drawN = function(array, N) {
+  if (N == 0) {
+    return [];
+  } else {
+    var sampled = uniformDraw(array);
+    var remaining = remove(sampled, array);
+    // NOTE: now we're sorting the result.
+    return sort([sampled].concat(drawN(remaining, N-1)));
+  }
+}
+// sample 2 items from an array, without replacement
+var draw2 = function(array) {
+  return drawN(array, 2);
+}
+
+var pick_concept = function() {
+  var concept = uniformDraw(["powers_of_2", "multiples_of_2"]);
+  return concept;
+}
+///
+
+// make arrays of all the powers and multiples of 2 up to 10:
+var concept_examples = {
+  "powers_of_2": [1, 2, 4, 8],
+  "multiples_of_2": [0, 2, 4, 6, 8, 10]
+}
+
+/* the inference process includes
+*     * the generative model
+*     * a condition on the observations
+*/
+var infer_concept = function(observations) {
+  return function() {
+    var concept = pick_concept();
+    var examples = draw2(concept_examples[concept]);
+    condition( array_equals( examples, observations ) );
+    return concept;
+  }
+}
+
+print(Enumerate(infer_concept([1, 4])));
+~~~~
+
+Can you explain the model's inference for the observed sequence [2, 8]?
+*Hint:* How many numbers are powers of 2 and how many numbers are multiples of 2?
+What is the conditional probability of [2, 8] given each of the concepts?
+What if your friend was giving you three examples instead of 2, and she happend to pick [2, 4, 8]?
+
+This is called the "size principle": your friend could have been thinking of "multiples of 2" or "powers of 2", since both concepts are consistent with [2, 8]. But if your friend had been thinking of "multiples of 2", there are a lot more sequences she *could have chosen* than if she was thinking of "powers of 2". <!--The probability that she stumbles upon a sequence that happens to be full of powers of 3 when she was thinking of "multiples of 3" is a *lot* lower than the probability that she picks a "powers of 3" sequence that happens to be full of multiples of 3. -->
 
 #### Generating Sequences
 

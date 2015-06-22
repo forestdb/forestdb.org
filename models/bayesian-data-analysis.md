@@ -13,7 +13,7 @@ Cognitive scientists like to confirm such intuitions, and explore the borderline
 
 In Chapter 5 we discussed several models of how people might make this judgement. First we'll recall the simplest such model, then we'll think about how to compare it to the data we have gathered.
 
-#A simple model of randomness judgements
+## A simple model of randomness judgements
 
 The simplest model assumes that the sequence comes from a fair coin (with heads probability 0.5) or a biased coin whose probability of landing Heads (the `bias-weight`) is a parameter of the model.
 
@@ -86,7 +86,7 @@ To simplify the results, we make a function `get-probability-of-faircoin` to ext
       
 We see that for lower values of `bias-weight`, we get the intuitive inference: TTTTT is not from a fair coin. The converse way of putting this is, if we imagine trying to enforce the judgement that TTTTT comes from a biased coin, we will be forced to assume the `bias-weight` is low. 
 
-# Inferring model parameters
+## Inferring model parameters
 
 How can we ask more rigorously what the right value of `bias-weight` is, given the data we have collected? 
 A standard method would be to optimize the fit (e.g. correlation) of data to model predictions, by adjusting the `bias-weight` parameter.
@@ -370,7 +370,7 @@ We've taken some data, and written a cognitive model with some parameters (in th
 Our inferred parameter distribution reflects the beliefs we should have as scientists given the data and the assumptions that go into the model. 
 
 
-# Posterior predictive
+## Posterior predictive
 
 We often want to explore how well the predictions of the model match the actual data. When the model has parameters, the fit to data will depend on parameters... it is common to maximize the parameters and then look at model-data correlation. This can give a good sense of how well the model *could* do, but doesn't take into account our uncertainty (as scientists) about what values the parameters actually take on.
 Another way to explore how well a model does is to look at the predictions of the model under the "inferred" parameter settings. 
@@ -579,7 +579,7 @@ To gain more intuition, play with the following data set, adjusting the response
 
 What is the posterior over the `bias weight`? (Query for: `biased-weight` and call `barplot` and the output). How does the posterior predictive look? What can you conclude about our bias coin model (with respect to this data)?
 
-# Response noise
+## Response noise
 
 Perhaps the cognitive model differs from the data in ways that aren't 'central' to the theory, that is in ways that we wouldn't want to include in the cognitive model per se, but would like to account for. A common case is *random guessing*: participants sometimes respond randomly, instead of attending to the task. 
 We can capture this *response noise* by simply extending our model with the possibility that each response came from a random guess:
@@ -607,7 +607,7 @@ This pseudo-code is saying there is some probability (or, equivalently, proporti
 this probability is captured by `guessing-parameter`. It is the amount of the data that is better captured by guessing behavior than our cognitive model predictions.
 Thus, the estimate of `guessing-parameter` can be thought of as a measure of the amount of data that the model can account for.
 
-## Data analysis model with response noise
+### Data analysis model with response noise
 
 ~~~
 ;;;fold:
@@ -869,7 +869,7 @@ The biased-coin sequence has it's own weight, in this case the sequences it pref
 This hints at a fundamental flaw of this model: it can only predict biased-sequences in one direction; 'unfair coin' responses for sequences going the other way have to get attributed to random response noise! How could we get around this issue? 
 
 
-# Moving the coin-weight "into" the cognitive model 
+## Moving the coin-weight "into" the cognitive model 
 
 We can posit that people don't entertain just one biased-weight value, but rather a distribution of possible values.
 (Note: this is what Griffiths & Tenenbaum (2001) did.)
@@ -1116,7 +1116,7 @@ The model has the flexibility to infer different biased coin weights for differe
 This is great. The model doesn't suffer from the same *lower-bias* flaw that it did previously.
 Notice that our cognitive model now has no parameters for the data analysis model to infer; the posterior predictive is thus the same as what's known as the 'prior predictive', that is, what we would expect before seeing any data. 
 
-## Generalized, enriched bias coin model 
+### Generalized, enriched bias coin model 
 
 We can further extend the above cognitive model. For instance, while it appears that people consider different weights for biased coins, do they have an overall bias to prefer heads-weighted or tails-weighted coins? We can explore this hypothesis by generalizing the uniform distribution to some distribution of coin weights, whose mean and variance have uncertainty. If the uncertain mean and variance are outside the cognitive model, then they are scientific hypotheses about the bias people bring to this problem; if they are inside, they represent the hypothesis that people reason about the mean and variance of the prior distribution.
 
@@ -1647,7 +1647,7 @@ How much of the data must be explained as noise in this extended model?
 
 The posteriors over the mean and variance of the biased-weight are interesting. These are parameters of a [beta](http://en.wikipedia.org/wiki/Beta_distribution) distribution. The mean value tells us that the there might be a bias towards seeing more Heads as more biased.  The variance value is small, which indicates that the resulting distribution is U-shaped, with peaks at high values and low values. This should match your intuition for the underlying cognitive model. The true prior over biased-coin rates is peaked at the extremes; and we've backed that out from our data!
 
-# Model selection
+## Model selection
 
 We've explored a number of different models and seen that some seem better, explaining more of the data, though they differ in their complexity. How can we quantify which model is  better? We can set up the question like this: we, as scientists, are a priori uncertain which cognitive model actually gave rise to the data we have collected; after seeing the data, how do our beliefs about the correct model change? In a way, this is no different than the inference problems we've faced before.
 In pseudocode this might look like:
@@ -1861,7 +1861,7 @@ Let's try to write this in full:
 Our data strongly favors the more complex model: we can be very confident in the more complex model being the better of the two, given our data and analysis assumptions.
 
 
-# Exercises
+## Exercises
 
 **1. Subjective randomness digest.** We saw in this chapter how to analyze our Bayesian models of cognition by using Bayesian statistical techniques. Pick either the enriched bias coin model or the generalized enriched bias coin model. What phenomena was it able to capture? What wasn't it able to capture? How can you tell? Do you have an idea for a better model?
 

@@ -76,7 +76,7 @@ body div.container {
 
 /* Font and whitespace adjustments */
 
-h1, h2, h3 {
+h1, h2, h3, h4, h5 {
    font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
    font-weight: 300;
    line-height: 1.1;
@@ -96,6 +96,14 @@ h2 {
 h3 {
    font-size: 20px;
    margin-bottom: 10px;
+}
+
+h4 {
+   font-size: 18px;
+}
+
+h5 {
+   font-size: 15px;
 }
 
 ul p {

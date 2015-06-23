@@ -303,7 +303,7 @@ In the previous examples, we assumed that the concepts "multiples_of_2" and "pow
 
 Suppose the friend who generated the number sequence [2, 4, 8] is a precocious 3rd-grader. You know that she has not yet learned the concept of "powers." You believe that it is quite unlikely that she would be thinking about a number category as complex as "powers of 2." How does this change your belief about what number category she is thinking of, given that she generated the number sequence [2, 4, 8]?
 
-Instead of the picking the two concepts with equal probability, this function is now much less likely to pick "powers_of_2."
+Instead of the picking the two concepts with equal probability, this function is now much less likely to pick "powers_of_2":
 
 ~~~~
 var pick_3rd_grade_concept = function() {
@@ -312,7 +312,7 @@ var pick_3rd_grade_concept = function() {
   return concept;
 }
 // this graph confirms that the "powers_of_2" is now only 10% likely to to be chosen.
-print(Enumerate(pick_concept));
+print(Enumerate(pick_3rd_grade_concept));
 ~~~~  
 
 Given these new *prior probabilities* over how likely your friend is to pick the two concepts, this program now makes different inferences about which concept generated the number sequence [2, 4, 8].
@@ -373,6 +373,9 @@ var infer_concept = function(observations) {
 print(Enumerate(infer_concept([2, 4, 8])));
 ~~~~
 
+#### Questions
+* What happens to the results when you change "prob_powers" to different values?
+* What does this tell you about how the prior probability of choosing a concept (*prior probability*) and the probability of generating certain numbers from the concept (*likelihood*) interact to produce the *inferred* probability of a concept given the observed number sequence (*posterior probability*)?
 
 ## Sampling methods
 

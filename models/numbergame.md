@@ -120,7 +120,7 @@ It can be quite tedious to calculate the probabilites by hand. Instead, we can u
 
 To write a program that does this work for us, we first need to give it some information we have about your friend and how she chooses numbers. We can do this in the form of a "**generative model**": in this case, a description of how your friend generates numbers from concepts.
 
-Let's say your friend could be thinking of either "*multiples of 2*" or "*powers of 2*". For simplicity, let's also assume that she'll only give you numbers less than or equal to 10 (otherwise there would be too many numbers to consider!).
+Let's say your friend could be thinking of either "*multiples of 2*" or "*powers of 2*". For simplicity, let's also assume that she'll only give you numbers less than or equal to 10 (otherwise there would be too many number combinations to consider!).
 
 First, she randomly samples one of those concepts:
 
@@ -184,7 +184,7 @@ print(Enumerate(generate_examples));
 
 ### Conditioning
 
-In the last section, the program generated number sequences without knowing which concept was chosen. Suppose the chosen concept was "*multiples of 2*." Given we know your friend chose this concept, what is the probability of the sequence of `[2, 4, 8]`? This is called the **conditional probability** of `[2, 4, 8]` given the concept "*multiples_of_2*."
+In the last section, the program generated number sequences without knowing which concept was chosen. Given that we know your friend chose the concept "*multiples_of_two*", what is the probability of generating the sequence of `[2, 4, 8]`? (This is called the **conditional probability** of `[2, 4, 8]` given the concept "*multiples_of_2*."
 
 ~~~~
 ///fold:
@@ -236,7 +236,9 @@ print(Enumerate(generate_examples_with_condition));
 
 ### Infer category given number sequence
 
-Now that we are bit more familiar with how your friend generates these numbers, we can tackle the actual question---given the numbers you observe (e.g. `[2, 4, 8]`), which concept is your friend most likely to be thinking of?
+Now that we are bit more familiar with how your friend generates these numbers, we can tackle the actual question---given the numbers you observe (e.g. `[2, 4, 8]`), which concept is your friend most likely to be thinking of? 
+
+Note that we are again asking for a **conditional probability**, except now it goes the other direction. Instead of asking for the probability that `[2, 4, 8]` is generated given that your friend chose the concept "*multiples_of_2*", we now ask for the probability that your friend chose the concept "*multiples_of_2*" given that `[2, 4, 8]` was generated.
 
 ~~~~
 ///fold:
@@ -383,7 +385,7 @@ print(Enumerate(infer_concept([2, 4, 8])));
   * **Likelihood**: The probability of generating certain numbers given the chosen concept
   * **Posterior probability**: The probability that your friend chose a certain cocnept, given that she generated the number sequence you observed.
 
-We can give the model certain prior knowledge and beliefs about the word (e.g., the belief that your friend is unlikey to know about the concept "*powers of 2.*"). However, given strong contradictory evidence, the model can still end up believing that your friend was thiking about the concept "*powers of 2.*" 
+We can give the model certain prior knowledge and beliefs about the word (e.g., the belief that your friend is unlikey to know about the concept "*powers of 2.*"). However, given strong contradictory evidence, the model can still end up believing that your friend was thinking about the concept "*powers of 2.*" 
 
 ## Sampling methods
 
@@ -395,9 +397,9 @@ Moreover, your friend could also label a random set of numbers between 0 and 10.
 
 ## Why is this important?
 
-An important aspect of intelligence is the ability to combine prior knowledge and new evidence to acquire a better understanding of the world. This better understanding allows us to make more accurate predictions about future events as well as more informed decisions in the face of uncertainty. Even with the simple number game example, we see that human intuitive reasoning is able to combine many different types of assumptions---the process of generating numbers, the space of hypotheses (which concepts your friend could be thinking about), the sampling strategies, etc---to figure out something  "unobserved" (e.g. the number concept that your friend is thinking about), given something "obvserved" (e.g. the number sequence she showed you). Importantly, the probabilistic programs we wrote down are able to mimic this type of human reasoning and produce results that match our intuitions. This suggests that this type of modeling approach---(1) come up with generative model that links hypotheses to data (2) infer which hypothesis is more likely given observed data---may be extremely useful for helping machines think and behave in more human-like and intelligent ways.
+An important aspect of intelligence is the ability to combine prior knowledge and new evidence to acquire a better understanding of the world. This better understanding allows us to make more accurate predictions about future events as well as more informed decisions in the face of uncertainty. Even with the simple number game example, we see that human intuitive reasoning is able to combine many different types of assumptions---the process of generating numbers, the space of hypotheses (which concepts your friend could be thinking about), the sampling strategies, etc---to figure out something  **unobserved** (e.g. the number concept that your friend is thinking about), given something **obvserved** (e.g. the number sequence she showed you). Importantly, the probabilistic programs we wrote down are able to mimic this type of human reasoning and produce results that match our intuitions. This suggests that this type of modeling approach---**(1) come up with generative model that links hypotheses to data (2) infer which hypothesis is more likely given observed data**---may be extremely useful for helping machines think and behave in more human-like and intelligent ways.
 
-## Other generative models
+## Other examples of probabilistic reasoning
 
 * Coin flips
   * You flip coin A six times and get this sequence of outcomes: `HTHTTH`. Is this a fair coin?

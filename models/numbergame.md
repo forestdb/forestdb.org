@@ -33,8 +33,6 @@ How did you come up with these answers? What are your hypotheses about which num
 
 Let's zoom in on the first sequence: {16, 8, 64}. In order to predict what other numbers might belong to this category, it can be useful to think about the process that *generated* these three numbers. Since there are several different number categories that we consider, there are also several different ways in which these numbers were generated from those categories.
 
-### Powers of 2
-
 Here is one way the numbers {16, 8, 64} could have been generated:
 
 1. Your friend was thinking of the concept (or number category): "powers of 2".
@@ -105,8 +103,6 @@ get_examples();
 ///
 print(Enumerate(get_examples));
 ~~~~  
-
-### Multiples of 2
 
 Of course, there are other ways the numbers {16, 8, 64} could have been generated:
 
@@ -180,7 +176,7 @@ print(Enumerate(generate_examples));
 ~~~~  
 
 #### Questions
-* What is the probability that [0, 4, 8] is chosen? (hint: put your mouse over the bar for [0, 4, 8])
+* What is the probability that [0, 4, 8] is chosen? (hint: put your cursor over the bar for [0, 4, 8])
 * What is the probability that [1, 4, 8] is chosen?
 * What is the probability that [2, 4, 8] is chosen?
 * Which number sequence is most likely to be chosen? (bonus: Why?)
@@ -298,17 +294,10 @@ print(Enumerate(infer_concept([2, 4, 8])));
 #### Questions
 * Which concept is most likely given the number sequence [2, 4, 8]? Does this match your intuitions?
 * Which concept is most likely given the number sequnece [1, 4, 8]? (hint: replace [2, 4, 8] in the last line with [1, 4, 8])
-* Suppose you saw the following sequences:
-- [1, 4, 8]
-- [0, 6, 10]
-- [2, 4, 8]
-
-What concept do you think these are examples of?
-
-* Does our program make the same inferences? Try plugging these observations in to the model above.
 * Can you explain the model's inference for the observed sequence [2, 4, 8]? (hint: How many numbers are powers of 2 and how many numbers are multiples of 2?)
 * What is the conditional probability of [2, 4, 8] given each of the concepts?
-* This is called the "size principle": your friend could have been thinking of "multiples of 2" or "powers of 2", since both concepts are consistent with [2, 4, 8]. But if your friend had been thinking of "multiples of 2", there are a lot more sequences she *could have chosen* than if she was thinking of "powers of 2". <!--The probability that she stumbles upon a sequence that happens to be full of powers of 2 when she was thinking of "multiples of 2" is a *lot* lower than the probability that she picks a "powers of 2" sequence that happens to be full of multiples of 2. -->
+
+An important insight that emerges is something called the "size principle": your friend could have been thinking of "multiples of 2" or "powers of 2", since both concepts are consistent with [2, 4, 8]. But if your friend had been thinking of "multiples of 2", there are a lot more sequences she *could have chosen* than if she was thinking of "powers of 2". In other words, the probability that she stumbles upon a sequence that happens to be full of powers of 2 when she was thinking of "multiples of 2" is a *lot* lower than the probability that she picks a "powers of 2" sequence that happens to be full of multiples of 2.
 
 ## Prior probabilities of hypotheses and concepts
 

@@ -234,7 +234,7 @@ print(Enumerate(generate_examples_with_condition));
 * What is the probability that `[2, 4, 8]` is chosen, given the concept "*powers_of_2*"? (hint: comment out the line for "multiples" and uncomment the line for "powers," then rerun the code and see what happens.
 * What is the probability that `[0, 4, 8]` is chosen, given the concept "*powers_of_2*?"
 
-### Infer category given number sequence
+### Infer unobserved concept given observed sequence
 
 Now that we are bit more familiar with how your friend generates these numbers, we can tackle the actual question---given the numbers you observe (e.g. `[2, 4, 8]`), which concept is your friend most likely to be thinking of? 
 
@@ -312,8 +312,10 @@ Instead of the picking the two concepts with equal probability, this function is
 
 ~~~~
 var pick_3rd_grade_concept = function() {
-  var prob_powers = 0.1; // prior probability that your friend knows about "powers" and is thinking of the concept
-  var concept = flip(prob_powers)? "powers_of_2": "multiples_of_2"; // picks "powers_of_2" with probability prob_powers
+  // prior probability that your friend knows about "powers" and is thinking of the concept
+  var prob_powers = 0.1; 
+  // picks "powers_of_2" with probability prob_powers
+  var concept = flip(prob_powers)? "powers_of_2": "multiples_of_2"; 
   return concept;
 }
 // this graph confirms that the "powers_of_2" is now only 10% likely to to be chosen.
@@ -350,8 +352,10 @@ var draw3 = function(array) {
 ///
 
 var pick_3rd_grade_concept = function() {
-  var prob_powers = 0.1; // prior probability that your friend knows about "powers" and is thinking of the concept
-  var concept = flip(prob_powers)? "powers_of_2": "multiples_of_2"; // picks "powers_of_2" with probability prob_powers
+  // prior probability that your friend knows about "powers" and is thinking of the concept
+  var prob_powers = 0.1; 
+  // picks "powers_of_2" with probability prob_powers
+  var concept = flip(prob_powers)? "powers_of_2": "multiples_of_2"; 
   return concept;
 }
 
@@ -397,9 +401,13 @@ Moreover, your friend could also label a random set of numbers between 0 and 10.
 
 ## Why is this important?
 
-An important aspect of intelligence is the ability to combine prior knowledge and new evidence to acquire a better understanding of the world. This better understanding allows us to make more accurate predictions about future events as well as more informed decisions in the face of uncertainty. Even with the simple number game example, we see that human intuitive reasoning is able to combine many different types of assumptions---the process of generating numbers, the space of hypotheses (which concepts your friend could be thinking about), the sampling strategies, etc---to figure out something  **unobserved** (e.g. the number concept that your friend is thinking about), given something **obvserved** (e.g. the number sequence she showed you). Importantly, the probabilistic programs we wrote down are able to mimic this type of human reasoning and produce results that match our intuitions. This suggests that this type of modeling approach---**(1) come up with generative model that links hypotheses to data (2) infer which hypothesis is more likely given observed data**---may be extremely useful for helping machines think and behave in more human-like and intelligent ways.
+An important aspect of intelligence is the ability to combine prior knowledge and new evidence to acquire a better understanding of the world. This better understanding allows us to make more accurate predictions about future events as well as more informed decisions in the face of uncertainty. 
 
-## Other examples of probabilistic reasoning
+Even with the simple number game example, we see that human intuitive reasoning is able to combine many different types of assumptions---the process of generating numbers, the space of hypotheses (which concepts your friend could be thinking about), the sampling strategies, etc---to figure out something  **unobserved** (e.g. the number concept that your friend is thinking about), given something **observed** (e.g. the number sequence she showed you). 
+
+Importantly, the probabilistic programs we wrote down are able to mimic this type of human reasoning and produce results that match our intuitions. This suggests that this type of modeling approach---**(1) come up with generative model that links hypotheses to data (2) infer which hypothesis is more likely given observed data**---may be extremely useful for helping machines think and behave in more human-like and intelligent ways.
+
+## Other examples
 
 * Coin flips
   * You flip coin A six times and get this sequence of outcomes: `HTHTTH`. Is this a fair coin?

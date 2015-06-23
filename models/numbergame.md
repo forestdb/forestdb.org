@@ -29,8 +29,6 @@ Now, suppose someone shows you this sequence of numbers and tells you that they 
 
 How did you come up with these answers? What are your hypotheses about which number category your friend was thinking of?
 
-## Hypotheses and generative models
-
 Let's zoom in on the first sequence: {16, 8, 64}. In order to predict what other numbers might belong to this category, it can be useful to think about the process that *generated* these three numbers. Since there are several different number categories that we consider, there are also several different ways in which these numbers were generated from those categories.
 
 Here is one way the numbers {16, 8, 64} could have been generated:
@@ -109,9 +107,9 @@ Of course, there are other ways the numbers {16, 8, 64} could have been generate
 1. Your friend was thinking of the concept (or number category): "multiples of 2".
 2. Your friend randomly samples some numbers that are multiples of 2.
 
-What is the more likely category given the numbers {16, 8, 64}: powers of 2, or multiples of 2?
+What is the more likely category given the numbers {16, 8, 64}---powers of 2, or multiples of 2?
 
-## Inductive reasoning with probabilistic programs
+## Probabilistic programs
 
 It can be quite tedious to calculate the probabilites by hand. Instead, we can use "Probabilistic Programs" (programs that have some randomness and uncertainty in them) to let the computer figure out the answer for us. That is part of the power of programming!
 
@@ -299,11 +297,25 @@ print(Enumerate(infer_concept([2, 4, 8])));
 
 An important insight that emerges is something called the "size principle": your friend could have been thinking of "multiples of 2" or "powers of 2", since both concepts are consistent with [2, 4, 8]. But if your friend had been thinking of "multiples of 2", there are a lot more sequences she *could have chosen* than if she was thinking of "powers of 2". In other words, the probability that she stumbles upon a sequence that happens to be full of powers of 2 when she was thinking of "multiples of 2" is a *lot* lower than the probability that she picks a "powers of 2" sequence that happens to be full of multiples of 2.
 
-## Prior probabilities of hypotheses and concepts
+## Prior probabilities of hypotheses
 
 In the previous examples, we assumed that the concepts "multiples_of_2" and "powers_of_2" are equally likely to be chosen. Is that always a valid assumption?
 
-Suppose the friend who generated the number sequence [2, 4, 8] is a precocious 4th-grader. You know that she has not yet learned the concept of "powers." You believe that it is quite unlikely that she would be thinking about a number category as complex as "powers of 2." How does this change your belief about what number category she is thinking of, given that she generated the number sequence [2, 4, 8]?
+Suppose the friend who generated the number sequence [2, 4, 8] is a precocious 3rd-grader. You know that she has not yet learned the concept of "powers." You believe that it is quite unlikely that she would be thinking about a number category as complex as "powers of 2." How does this change your belief about what number category she is thinking of, given that she generated the number sequence [2, 4, 8]?
+
+Instead of the picking the two concepts with equal probability, this function is now much less likely to pick "powers_of_2."
+
+~~~~
+var pick_3rd_grade_concept = function() {
+  var prob_powers = 0.1; // prior probability that your friend knows about "powers" and is thinking of the concept
+  var concept = flip(prob_powers)? "powers_of_2": "multiples_of_2"; // picks "powers_of_2" with probability prob_powers
+  return concept;
+}
+// this graph confirms that the "powers_of_2" is now only 10% likely to to be chosen.
+print(Enumerate(pick_concept));
+~~~~  
+
+Given these new *prior probabilities* over how likely your friend is to pick the two concepts, this program now makes different inferences about which concept generated the number sequence [2, 4, 8].
 
 ~~~~
 ///fold:
@@ -332,9 +344,9 @@ var draw3 = function(array) {
 }
 ///
 
-var pick_concept = function() {
-//
-  var concept = uniformDraw(["powers_of_2", "multiples_of_2"]);
+var pick_3rd_grade_concept = function() {
+  var prob_powers = 0.1; // prior probability that your friend knows about "powers" and is thinking of the concept
+  var concept = flip(prob_powers)? "powers_of_2": "multiples_of_2"; // picks "powers_of_2" with probability prob_powers
   return concept;
 }
 
@@ -351,7 +363,7 @@ var concept_examples = {
 */
 var infer_concept = function(observations) {
   return function() {
-    var concept = pick_concept();
+    var concept = pick_3rd_grade_concept();
     var examples = draw3(concept_examples[concept]);
     condition( array_equals( examples, observations ) );
     return concept;
@@ -364,19 +376,17 @@ print(Enumerate(infer_concept([2, 4, 8])));
 
 ## Sampling methods
 
-Notice that there are many different ways your friend could have generated these examples. She could have sampled the numbers randomly, as we assumed in the code boxes before. Or, she could have sampled them in an intentional manner, to purposefully help you understand the number category and not confuse it with a different number category. Or, she could have sampled them in a different intentional manner--to intentionally deceive you into thinking that it is a different number category.
+Notice that there are many different ways your friend could have generated these examples. She could have sampled the numbers randomly from the number category, as we assumed in the programs we've looked at so far. Or, she could have sampled them in an intentional manner, to purposefully help you understand the number category and not confuse it with a different number category. Or, she could have sampled them in a different intentional manner---to intentionally deceive you into thinking that it is a different number category.
 
-* positive examples
-* positive and negative examples
-* labelling things in the world
+In addition to different sampling strategies, your friend could also give you diferent types of examples. We have been assuming that your friend only shows you *positive examples* of the category, for example the numbers [2, 4, 8] for the category "powers of 2." What if your friend can also show you *negative examples*, such as stating that [0, 6, 10] are *not* in the category? Or a mix of positive and negative examples, such as stating that [2, 4] are in the category, but not 6? Which of these will make you more likely to believe that the category is "powers of 2"?
 
-OED? If you have 2 competing hypotheses, what number should you test next?
-
+Moreover, your friend could also label a random set of numbers between 0 and 10. For example, if the chosen set is [1, 5, 8] and the category is "powers of 2," the labels would be ["yes", "no", "yes"]. Is this method more or less likely to help you guess the right category?
 
 ## Why is this important?
 
 
-## Backup examples?
+
+## Other generative models
 
 * word/concept learning (rational rules)
 * 

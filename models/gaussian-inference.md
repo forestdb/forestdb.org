@@ -81,22 +81,22 @@ Thus, we want to jointly estimate the shared sigma and the three means.
 
     // Three people with three measurements each; try different values...
     var data = [[90,95,100], [105,110,115], [150,155,160]]
-  //var data = [[94, 95, 96], [109, 110,111], [154,155,156]]
+    // var data = [[94, 95, 96], [109, 110,111], [154,155,156]]
 
     var model = function() {
       // single SD for all people (corresponding to measurement error)
       var sigma = uniform(0,100)
 
       // each person has a latent IQ; there are different priors we could set here...
-    //var mus = repeat(data.length, function() {return gaussian(100, 15);})
+      // var mus = repeat(data.length, function() {return gaussian(100, 15);})
       var mus = repeat(data.length, function() {return uniform(0, 300)})
 
       var score = reduce(function(IQPair, memo) {
         var measurements = IQPair[0]
-	var mu = IQPair[1]
-	return memo + reduce(function(measurement, memo) {
-	  return memo + gaussianERP.score([mu, sigma], measurement);
-	}, 0, measurements);
+        var mu = IQPair[1]
+        return memo + reduce(function(measurement, memo) {
+          return memo + gaussianERP.score([mu, sigma], measurement);
+        }, 0, measurements);
       }, 0, _.zip(data, mus))
 
       factor(score)

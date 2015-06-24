@@ -1,6 +1,7 @@
 ---
 layout: model
 title: SFV for "some"
+model-language: church
 ---
 
 Looking at the effect of a semantic free variable that can make "some" mean (lexically) some-not-all.

@@ -5,6 +5,7 @@ model-status: code-fail
 model-status-verbose: The model times out
 model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics
+model-language: church
 ---
 
 	(define (filter pred lst)

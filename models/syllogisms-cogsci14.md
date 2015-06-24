@@ -4,6 +4,7 @@ title: Syllogisms
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: reasoning, pragmatics, QUD
+model-language: church
 ---
 
 A model of syllogistic reasoning as communication.

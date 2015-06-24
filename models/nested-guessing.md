@@ -4,6 +4,7 @@ title: Nested Number Guessing
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: theory of mind
+model-language: church
 ---
 
 Two agents play a game in which each agent needs to name a number

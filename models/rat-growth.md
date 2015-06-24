@@ -4,6 +4,7 @@ title: Rat Growth
 model-status: code
 model-category: Undirected Constraints
 model-tags: machine learning, shred, benchmark
+model-language: church
 ---
 
     (define (zip xs1 xs2) 

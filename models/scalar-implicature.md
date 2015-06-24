@@ -4,6 +4,7 @@ title: Scalar Implicature
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics, theory of mind
+model-language: church
 ---
 
 A model of pragmatic language interpretation: 

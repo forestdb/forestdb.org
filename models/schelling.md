@@ -4,6 +4,7 @@ title: Schelling Coordination Game
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: theory of mind, game theory
+model-language: church
 ---
 
 Two agents, Alice and Bob, want to meet. They choose which bar to

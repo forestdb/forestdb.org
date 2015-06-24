@@ -4,6 +4,7 @@ title: Probabilistic Context-Free Grammar
 model-status: code
 model-category: PPAML Challenge Problems
 model-tags: language
+model-language: church
 ---
 
 Direct style:

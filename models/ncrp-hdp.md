@@ -4,6 +4,7 @@ title: Nested CRP + HDP
 model-status: code
 model-category: Nonparametric Models
 model-tags: mem, nonparametrics, dp
+model-language: church
 ---
 
 We can use the [Nested Chinese-Restaurant Process](/models/nested-crp.html) to sample a hierarchy of categories, and the [Hierarchical Dirichlet Process](/models/hdp.html) to make these categories share information:

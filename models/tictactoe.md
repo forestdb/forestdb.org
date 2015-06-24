@@ -4,6 +4,7 @@ title: Tic-Tac-Toe
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: game theory, planning
+model-language: church
 ---
 
 Each player chooses actions by sampling an action, simulating the

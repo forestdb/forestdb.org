@@ -4,6 +4,7 @@ title: Infinite Mixture Model
 model-status: code
 model-category: Machine Learning
 model-tags: shred, benchmark, machine learning
+model-language: church
 ---
 
     (define (zip xs1 xs2) 

@@ -5,6 +5,7 @@ model-status: code-fail
 model-status-verbose: The code doesn't halt.
 model-category: Nonparametric Models
 model-tags: dp, nonparametrics
+model-language: church
 ---
 
 The Indian Buffet Process defines a distribution on binary matrices with a finite number of rows (e.g. objects) and an infinite number of columns (e.g. features).

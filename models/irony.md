@@ -4,6 +4,7 @@ title: Irony
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics
+model-language: church
 ---
 
     ;; There are three possible states the weather could be in: terrible, ok, or amazing

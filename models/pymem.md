@@ -5,6 +5,7 @@ model-status: code-fail
 model-status-verbose: Doesn't halt with probability 1?
 model-category: Nonparametric Models
 model-tags: dp, nonparametrics
+model-language: church
 ---
 
     (define (pick-a-stick sticks J)

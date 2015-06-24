@@ -5,6 +5,7 @@ model-status: code-fail
 model-status-verbose: Undefined primitives
 model-category: Inverse Dynamics
 model-tags: dynamics, physics
+model-language: church
 ---
 
     (define pi 3.141592653589793)

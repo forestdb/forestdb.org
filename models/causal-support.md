@@ -4,6 +4,7 @@ title: Causal Support
 model-status: code
 model-category: Concept Learning
 model-tags: concepts 
+model-language: church
 ---
 
 This is a Church implementation of a model in Ref:Griffiths2005.

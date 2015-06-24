@@ -4,6 +4,7 @@ title: Probabilistic Deterministic Infinite Automata
 model-status: code
 model-category: Nonparametric Models
 model-tags: mem, nonparametrics, hdp, sequence, automata
+model-language: church
 ---
 
 The Probabilistic Deterministic Infinite Automaton (PDIA) is a nonparametric model that defines a prior distribution over all probablistic deterministic finite automata (PDFA). Similar to a Hidden Markov Model, a PDFA sampled from the PDIA defines a prior probability over sequences. The key difference from Hidden Markov Models is that, conditioned on data, there is no uncertainty in the latent state sequence.

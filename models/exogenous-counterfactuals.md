@@ -1,6 +1,7 @@
 ---
 layout: model
 title: Exogenous counterfactuals
+model-language: church
 ---
 
 *This forest page discusses issues that arise with the [current counterfactual model](http://forestdb.org/models/because.html) and how these issues can be resolved using exogenous randomness (c.f. Pearl, 2000).*

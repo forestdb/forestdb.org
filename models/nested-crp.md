@@ -4,6 +4,7 @@ title: Nested Chinese Restaurant Process
 model-status: code
 model-category: Nonparametric Models
 model-tags: mem, nonparametrics, crp
+model-language: church
 ---
 
 In the Nested Chinese Restaurant Process (nCRP), each table refers to another restaurant that represents a lower-level category:

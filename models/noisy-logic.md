@@ -4,6 +4,7 @@ title: Noisy Logic
 model-status: code
 model-category: Miscellaneous
 model-tags: logic, library
+model-language: church
 ---
 
 The functions `noisy-and` and `noisy-or` are commonly used to model stochastic dependencies between random variables.

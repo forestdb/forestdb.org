@@ -469,97 +469,108 @@ function church_astify(tokens) {
     }
 
     function transform_equals_condition(ast) {
-	function is_equals_conditionable(ast) {
-	    if (util.is_leaf(ast)) return false;
-	    var fn = church_builtins.__annotations__[rename_map[ast.children[0].text]];
-	    return fn && fn.erp && ast.children[fn.numArgs[fn.numArgs.length-1]] == undefined;
-	}
-
-	function transform_erp(erp, conditioned_value) {
-	    erp.children.push(conditioned_value);
-	}
-
-	function try_transform(left, right) {
-	    if (left == undefined) return false;
-	    if (is_equals_conditionable(left)) {
-		transform_erp(left, right);
-		statements.splice(i, 1, left);
-		return true;
-	    } else if (util.is_leaf(left) && define_table[left.text] && is_equals_conditionable(define_table[left.text].def)) {
-		var left_entry = define_table[left.text];
-		if (!util.is_identifier(right.text) || (
-		    define_table[right.text] && left_entry.index > define_table[right.text].index)) {
-		    transform_erp(left_entry.def, right);
-		    statements.splice(i, 1);
-		    return true;
+		function is_equals_conditionable(ast) {
+		    if (util.is_leaf(ast)) return false;
+		    var fn = church_builtins.__annotations__[rename_map[ast.children[0].text]];
+		    return fn && fn.erp && ast.children[fn.numArgs[fn.numArgs.length-1]] == undefined;
 		}
-	    }
-	    return false;
-	}
 
-	var transformed;
-	if (query_fns.indexOf(ast.children[0].text) != -1) {
-	    var define_table = {};
-	    // Assumes preprocessing through dsgr_query
-	    var statements = ast.children[1].children.slice(2);
-	    var i = 0;
-	    // Iterate through each lambda statement
-	    for (var i = 0; i < statements.length; i++) {
-		if (!util.is_leaf(statements[i])) {
-		    // If statement is a define and an ERP without an existing condition, put it in a table
-		    if (statements[i].children[0].text == "define") {
-			define_table[statements[i].children[1].text] = {
-			    index: i,
-			    def: statements[i].children[2]
-			};
-			// If statement is a condition, check if it's an equality and attempt to transform
-		    } else if (statements[i].children[0].text == "condition") {
-			var condition = statements[i].children[1];
+		function transform_erp(erp, conditioned_value) {
+		    erp.children.push(conditioned_value);
+		}
+
+		function try_transform(left, right) {
+		    if (left == undefined) return false;
+		    if (is_equals_conditionable(left)) {
+				transform_erp(left, right);
+				statements.splice(i, 1, left);
+				return true;
+		    } else if (util.is_leaf(left) && define_table[left.text] && is_equals_conditionable(define_table[left.text].def)) {
+				var left_entry = define_table[left.text];
+				if (!util.is_identifier(right.text) || (
+				    define_table[right.text] && left_entry.index > define_table[right.text].index)) {
+				    transform_erp(left_entry.def, right);
+				    statements.splice(i, 1);
+				    return true;
+				}
+		    }
+		    return false;
+		}
+
+		var transformed;
+		if (query_fns.indexOf(ast.children[0].text) != -1) {
+		    var define_table = {};
+		    // Assumes preprocessing through dsgr_query
+		    var statements = ast.children[1].children.slice(2);
+		    var i = 0;
+		    // Iterate through each lambda statement
+		    for (var i = 0; i < statements.length; i++) {
+				if (!util.is_leaf(statements[i])) {
+				    // If statement is a define and an ERP without an existing condition, put it in a table
+				    if (statements[i].children[0].text == "define") {
+						define_table[statements[i].children[1].text] = {
+						    index: i,
+						    def: statements[i].children[2]
+						};
+					// If statement is a condition, check if it's an equality and attempt to transform
+				    } else if (statements[i].children[0].text == "condition") {
+						var condition = statements[i].children[1];
+						if (!util.is_leaf(condition) && ["=", "equal?"].indexOf(condition.children[0].text) != -1 && condition.children.length == 3) {
+						    var left = condition.children[1];
+						    var right = condition.children[2];
+						    if (!try_transform(left, right)) try_transform(right, left);
+						}
+				    }
+				}
+		    }
+		} else if (ast.children[0].text == "condition") {
+			function transform(left, right) {
+			    if (is_equals_conditionable(left)) {
+					transform_erp(left, right);
+					return true;
+				}
+		    }
+			var condition = ast.children[1];
 			if (!util.is_leaf(condition) && ["=", "equal?"].indexOf(condition.children[0].text) != -1 && condition.children.length == 3) {
 			    var left = condition.children[1];
 			    var right = condition.children[2];
-			    if (!try_transform(left, right)) try_transform(right, left);
+			    if (!transform(left, right)) transform(right, left);
 			}
-		    }
-
 		}
-	    }
-
-	}
-	return ast;
+		return ast;
     }
 
     function transform_repeat_equals_condition(ast) {
-	function try_transform(left, right) {
-	    if (!util.is_leaf(left) && left.children[0].text == "repeat") {
-		ast.children[1].children[i+2] = {
-		    children: [
-			{"text": "multi-equals-condition"},
-			left.children[2],
-			left.children[1],
-			right],
-		    start: ast.children[1].children[i+2].children[0].start,
-		    end: ast.children[1].children[i+2].children[0].end
-		};
-		return true;
-	    }
-	    return false;
-	}
+		function try_transform(left, right) {
+		    if (!util.is_leaf(left) && left.children[0].text == "repeat") {
+				ast.children[1].children[i+2] = {
+				    children: [
+					{"text": "multi-equals-condition"},
+					left.children[2],
+					left.children[1],
+					right],
+				    start: ast.children[1].children[i+2].children[0].start,
+				    end: ast.children[1].children[i+2].children[0].end
+			};
+			return true;
+		    }
+		    return false;
+		}
 
-	if (query_fns.indexOf(ast.children[0].text) != -1) {
-	    var statements = ast.children[1].children.slice(2);
-	    for (var i = 0; i < statements.length; i++) {
-		if (!util.is_leaf(statements[i]) && statements[i].children[0].text == "condition") {
-		    var condition = statements[i].children[1];
-		    if (!util.is_leaf(condition) && condition.children[0].text == "equal?" && condition.children.length == 3) {
-			var left = condition.children[1];
-			var right = condition.children[2];
-			if (!try_transform(left, right)) try_transform(right, left);
+		if (query_fns.indexOf(ast.children[0].text) != -1) {
+		    var statements = ast.children[1].children.slice(2);
+		    for (var i = 0; i < statements.length; i++) {
+				if (!util.is_leaf(statements[i]) && statements[i].children[0].text == "condition") {
+				    var condition = statements[i].children[1];
+				    if (!util.is_leaf(condition) && condition.children[0].text == "equal?" && condition.children.length == 3) {
+					var left = condition.children[1];
+					var right = condition.children[2];
+					if (!try_transform(left, right)) try_transform(right, left);
+				    }
+				}
 		    }
 		}
-	    }
-	}
-	return ast;
+		return ast;
     }
 
     // Break out conditions with ands into multiple condition statements
@@ -626,8 +637,10 @@ module.exports =
         church_shallow_preconditions: church_shallow_preconditions
     }
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/church_astify.js","/")
-},{"./church_builtins.js":"sy/OMr","./js_astify.js":16,"./util.js":"Y/OqMs","/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],"sy/OMr":[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/church_astify.js","/")
+},{"./church_builtins.js":"sy/OMr","./js_astify.js":16,"./util.js":"Y/OqMs","/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./church_builtins":[function(require,module,exports){
+module.exports=require('sy/OMr');
+},{}],"sy/OMr":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* global global, require, module, exports */
 
@@ -805,6 +818,14 @@ var args_to_list = module.exports.args_to_list = function (args) {
 function atLeastOne (args) {
     if (args.length < 1) {throw new Error('Needs at least one argument');};
 }
+
+var js_debug = $b({
+    name: 'js_debug',
+    desc: 'Trigger the javascript debugger',
+    fn: function() {
+        debugger;
+    }
+});
 
 var plus = $b({
     name: 'plus',
@@ -1283,7 +1304,7 @@ var first = $b({
         if (arr.length < 1) {
             throw new Error('Tried to get the first element of an empty list');
         }
-        return lst[0];
+        return arr[0];
     }
 });
 
@@ -1296,7 +1317,7 @@ var second = $b({
         if (arr.length < 2) {
             throw new Error('Tried to get the 2nd element of a list with only ' + arr.length + ' item');
         }
-        return lst[1];
+        return arr[1];
     }
 });
 
@@ -1309,7 +1330,7 @@ var third = $b({
         if (arr.length < 3) {
             throw new Error('Tried to get the 3rd element of list with only ' + arr.length + ' elements');
         }
-        return lst[2];
+        return arr[2];
     }
 });
 
@@ -1322,7 +1343,7 @@ var fourth = $b({
         if (arr.length < 4) {
             throw new Error('Tried to get the 4th element of list with only ' + arr.length + ' elements');
         }
-        return lst[3];
+        return arr[3];
     }
 });
 
@@ -1335,7 +1356,7 @@ var fifth = $b({
         if (arr.length < 5) {
             throw new Error('Tried to get the 5th element of list with only ' + arr.length + ' elements');
         }
-        return lst[4];
+        return arr[4];
     }
 });
 
@@ -1348,7 +1369,7 @@ var sixth = $b({
         if (arr.length < 6) {
             throw new Error('Tried to get the 6th element of list with only ' + arr.length + ' elements');
         }
-        return lst[5];
+        return arr[5];
     }
 });
 
@@ -1361,7 +1382,7 @@ var seventh = $b({
         if (arr.length < 7) {
             throw new Error('Tried to get the 7th element of list with only ' + arr.length + ' elements');
         }
-        return lst[6];
+        return arr[6];
     }
 });
 
@@ -1533,10 +1554,18 @@ var map_at = $b({
 var max = $b({
     name: 'max',
     desc: 'Maximum of arguments',
-    params: [{name: "[x ...]", type: "real", desc: ""}],
-    fn: function(x) {
-	var args = args_to_array(arguments);
-	return Math.max.apply(Math, args);
+    params: [{name: "[x ...]", type: "real", desc: ""}], 
+    fn: function() {
+        // we don't use Math.max.apply here because that
+        // can choke on small-ish arguments sizes (~80k suffices)
+        // because v8 is weird with nested apply calls
+        var maxVal = -Infinity;
+        for(var i = 0, n = arguments.length; i < n; i++) {
+            if (arguments[i] > maxVal) {
+                maxVal = arguments[i];
+            }
+        }
+        return maxVal;
     }
 });
 
@@ -1545,8 +1574,16 @@ var min = $b({
     desc: 'Minimum of arguments',
     params: [{name: "[x ...]", type: "real", desc: ""}],
     fn: function() {
-	var args = args_to_array(arguments);
-	return Math.min.apply(Math, args);
+        // we don't use Math.min.apply here because that
+        // can choke on small-ish arguments sizes (~80k suffices)
+        // because v8 is weird with nested apply calls 
+	      var minVal = Infinity;
+        for(var i = 0, n = arguments.length; i < n; i++) {
+            if (arguments[i] < minVal) {
+                minVal = arguments[i];
+            }
+        }
+        return minVal;
     }
 });
 
@@ -1555,9 +1592,41 @@ var mean = $b({
     desc: 'Mean of a list',
     params: [{name: "lst", type: "list<real>", desc: ""}],
     fn: function(lst) {
-        return sum(lst) / (lst.length-1);
+        var a = listToArray(lst);
+        var n = a.length;
+        var total = 0;
+        for(var i = 0; i < n; i++) {
+            total += a[i];
+        } 
+        return total / a.length; 
     }
 });
+
+var variance = $b({
+    name: 'variance',
+    alias: ['var'],
+    desc: 'Population variance',
+    params: [{name: 'lst', type: 'list<real>', desc: 'List of numbers'}],
+    fn: function(lst) {
+        var a = listToArray(lst);
+        var n = a.length;
+        var total = 0;
+        for(var i = 0 ; i < n; i++) {
+            total += a[i];
+        }
+
+        var mean = total / n;
+
+        var r = 0;
+
+        for(var i = 0; i < n; i++) {
+            r += Math.pow(a[i] - mean, 2);
+        }
+
+        return r / n; 
+    }    
+});
+
 
 var append = $b({
     name: 'append',
@@ -1923,7 +1992,7 @@ var is_equal = $b({
 
 var member = $b({
     name: 'member',
-    desc: 'Test whether x is in a list according to some optional comparator function cmp)',
+    desc: 'Test whether x is in a list according to some optional comparator function cmp',
     params: [
         {name: "x"},
         {name: "list", type: "list"},
@@ -1934,7 +2003,7 @@ var member = $b({
         var array = listToArray(lst);
 	      for (var i = 0, ii = array.length; i < ii; i++) {
 	          if (cmp(x, array[i])) {
-		            return lst;
+		            return arrayToList(array.slice(i));
 	          }
 	      }
 	      return false;
@@ -2139,7 +2208,8 @@ var wrapped_multinomial = $b({
     desc: 'Sample an element from lst with the probability specified in probs',
     numArgs: [2,3],
     params: [{name: "lst", type: "list", desc: ""},
-             {name: "probs", type: "list<real>", desc: ""}],
+             {name: "probs", type: "list<real>", desc: ""},
+             {name: "[conditionedValue]", type: "", desc: ""}],
     erp: true,
     fn: function(lst, probs, conditionedValue) {
 	if (lst.length != probs.length) {
@@ -2684,23 +2754,24 @@ var make_gensym = $b({
     name: 'make_gensym',
     desc: "Returns a gensym, which is a function that returns a new string value every time you call it (i.e., you're guaranteed to never get the same return value twice). You can specify an optional prefix for these values (default is 'g')",
     params: [{name: '[prefix]', default: 'n/a', type: 'string'}],
+    nowrap: true,
     fn: function(prefix) {
         prefix = prefix || "g";
-        var closure = (function() {
-            var counter = 0;
-            return function() {
-                return prefix + (counter++);
-            };
-        })();
-        return closure;
+        prefix += "";
+        var f = function() {
+            return prefix + (f.__gensymcounter__++);
+        };
+        f.__gensymcounter__ = 0;
+        return f;
     }
 });
 
 var gensym = $b({
     name: 'gensym',
-    desc: 'A default gensym (prefix is #g)',
+    desc: 'A default gensym (prefix is g)',
     params: [],
-    fn: make_gensym('#g')
+    nowrap: true,
+    fn: make_gensym('g')
 });
 
 // var dict = $x.dict = function() {
@@ -2817,13 +2888,17 @@ var load_url = $b({
 });
 
 
-
-// TODO: add a flag somewhere for turning on/off wrapping
 function wrapAsserts(annotation) {
 
     var fnName = annotation.name;
     var fn = annotation.fn;
+    fn.displayName = fnName;
     var paramProps = annotation.params || [];
+    var nowrap = annotation.nowrap;
+    
+    if (global.unsafe_types || nowrap) {
+        return fn;
+    }
 
     var validArgumentLengths = annotation.numArgs;
 
@@ -2907,16 +2982,15 @@ function wrapAsserts(annotation) {
         }
         return fn.apply(null, userArgs);
     };
-    wrapped.num_args = annotation.numArgs;
+
+    // set the function's displayName for debugging purposes
+    wrapped.displayName = "asserted/" + fnName;
 
     return wrapped;
-    // return fn;
 }
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/church_builtins.js","/")
-},{"./evaluate.js":"Ih4X1P","./type-utils.js":"05wbT+","./util.js":"Y/OqMs","/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"fs":18,"seedrandom":37,"underscore":48}],"./church_builtins":[function(require,module,exports){
-module.exports=require('sy/OMr');
-},{}],"G8398M":[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/church_builtins.js","/")
+},{"./evaluate.js":"Ih4X1P","./type-utils.js":"05wbT+","./util.js":"Y/OqMs","/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"fs":18,"seedrandom":31,"underscore":42}],"G8398M":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 // README: this file contains slightly modified versions of closebrackets.js
 // and matchbrackets.js from the codemirror repo (from the addon/edit folder)
@@ -3175,9 +3249,11 @@ var CodeMirror = require('codemirror');
 
 })()
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-brackets.js","/")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"codemirror":30}],"./cm-brackets":[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-brackets.js","/")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./cm-brackets":[function(require,module,exports){
 module.exports=require('G8398M');
+},{}],"./cm-church":[function(require,module,exports){
+module.exports=require('lO4o+E');
 },{}],"lO4o+E":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /**
@@ -3416,12 +3492,8 @@ CodeMirror.defineMode("scheme", function () {
 
 CodeMirror.defineMIME("text/x-scheme", "scheme");
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-church.js","/")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"codemirror":30}],"./cm-church":[function(require,module,exports){
-module.exports=require('lO4o+E');
-},{}],"./cm-comments":[function(require,module,exports){
-module.exports=require('L+quEX');
-},{}],"L+quEX":[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-church.js","/")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"L+quEX":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var CodeMirror = require('codemirror');
 
@@ -3571,9 +3643,9 @@ var CodeMirror = require('codemirror');
     });
 })();
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-comments.js","/")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"codemirror":30}],"./cm-folding":[function(require,module,exports){
-module.exports=require('s18hqF');
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-comments.js","/")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./cm-comments":[function(require,module,exports){
+module.exports=require('L+quEX');
 },{}],"s18hqF":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var CodeMirror = require('codemirror');
@@ -3728,9 +3800,9 @@ module.exports = {
     myRangeFinder: myRangeFinder
 }
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-folding.js","/")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"codemirror":30}],"./editor":[function(require,module,exports){
-module.exports=require('fqJoPW');
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/cm-folding.js","/")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"codemirror":24}],"./cm-folding":[function(require,module,exports){
+module.exports=require('s18hqF');
 },{}],"fqJoPW":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* global require, CodeMirror, $, setTimeout */
@@ -4033,9 +4105,9 @@ module.exports = {
     EditorModel: EditorModel
 };
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/editor.js","/")
-},{"./cm-brackets":"G8398M","./cm-church":"lO4o+E","./cm-comments":"L+quEX","./cm-folding":"s18hqF","./evaluate":"Ih4X1P","./viz":"mJMf/d","/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"backbone":17,"buffer":19,"codemirror":30,"d3":"Ub4Hh8","underscore":48}],"./evaluate":[function(require,module,exports){
-module.exports=require('Ih4X1P');
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/editor.js","/")
+},{"./cm-brackets":"G8398M","./cm-church":"lO4o+E","./cm-comments":"L+quEX","./cm-folding":"s18hqF","./evaluate":"Ih4X1P","./viz":"mJMf/d","/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"backbone":17,"buffer":19,"codemirror":24,"d3":"Ub4Hh8","underscore":42}],"./editor":[function(require,module,exports){
+module.exports=require('fqJoPW');
 },{}],"Ih4X1P":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* global require */
@@ -4174,7 +4246,7 @@ var churchToJs = function(churchCode, options) {
              expression: {
                  type: 'CallExpression',
                  callee: { type: 'FunctionExpression',
-                           id: null,
+                           id: {type: "Identifier", name: "churchProgram"},
                            params: [],
                            defaults: [],
                            body:
@@ -4232,6 +4304,9 @@ function evaluate(church_codestring, options) {
     // this global variable is modified in viz.js
     // and accessed in editor.js (makewebchurchrunner)
     sideEffects = [];
+    if (gensym) {
+        gensym.__gensymcounter__ = 0;
+    }
 
     if (options.compile) return jsCode;
 
@@ -4339,8 +4414,10 @@ module.exports = {
     churchToBareJs: churchToBareJs
 };
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/evaluate.js","/")
-},{"./church_astify.js":1,"./js_astify.js":16,"./precompile.js":49,"./tokenize.js":61,"./util.js":"Y/OqMs","./wctransform":68,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"escodegen":33,"escodegen/node_modules/estraverse":34,"esprima":36,"source-map":38,"underscore":48}],16:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/evaluate.js","/")
+},{"./church_astify.js":1,"./js_astify.js":16,"./precompile.js":43,"./tokenize.js":55,"./util.js":"Y/OqMs","./wctransform":62,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":27,"escodegen/node_modules/estraverse":28,"esprima":30,"source-map":32,"underscore":42}],"./evaluate":[function(require,module,exports){
+module.exports=require('Ih4X1P');
+},{}],16:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* global require */
 
@@ -4809,8 +4886,8 @@ function format_identifier(id) {
 exports.church_tree_to_esprima_ast = church_tree_to_esprima_ast;
 exports.rename_map = rename_map;
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/js_astify.js","/")
-},{"./church_builtins.js":"sy/OMr","./util.js":"Y/OqMs","/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"escodegen/node_modules/estraverse":34}],17:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/js_astify.js","/")
+},{"./church_builtins.js":"sy/OMr","./util.js":"Y/OqMs","/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen/node_modules/estraverse":28}],17:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 //     Backbone.js 1.1.2
 
@@ -6421,10 +6498,10 @@ exports.rename_map = rename_map;
 
 }));
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/backbone/backbone.js","/node_modules/backbone")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"underscore":48}],18:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/backbone/backbone.js","/node_modules/backbone")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"underscore":42}],18:[function(require,module,exports){
 
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],19:[function(require,module,exports){
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],19:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*!
  * The buffer module from node.js, for the browser.
@@ -7536,8 +7613,8 @@ function assert (test, message) {
   if (!test) throw new Error(message || 'Failed assertion')
 }
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/index.js","/node_modules/browserify/node_modules/buffer")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"base64-js":20,"buffer":19,"ieee754":21}],20:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/index.js","/node_modules/browserify/node_modules/buffer")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"base64-js":20,"buffer":19,"ieee754":21}],20:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
@@ -7660,8 +7737,8 @@ var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 	exports.fromByteArray = uint8ToBase64
 }(typeof exports === 'undefined' ? (this.base64js = {}) : exports))
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib/b64.js","/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],21:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib/b64.js","/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],21:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 exports.read = function(buffer, offset, isLE, mLen, nBytes) {
   var e, m,
@@ -7748,538 +7825,8 @@ exports.write = function(buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128;
 };
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/node_modules/ieee754/index.js","/node_modules/browserify/node_modules/buffer/node_modules/ieee754")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],22:[function(require,module,exports){
-(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
-var Buffer = require('buffer').Buffer;
-var intSize = 4;
-var zeroBuffer = new Buffer(intSize); zeroBuffer.fill(0);
-var chrsz = 8;
-
-function toArray(buf, bigEndian) {
-  if ((buf.length % intSize) !== 0) {
-    var len = buf.length + (intSize - (buf.length % intSize));
-    buf = Buffer.concat([buf, zeroBuffer], len);
-  }
-
-  var arr = [];
-  var fn = bigEndian ? buf.readInt32BE : buf.readInt32LE;
-  for (var i = 0; i < buf.length; i += intSize) {
-    arr.push(fn.call(buf, i));
-  }
-  return arr;
-}
-
-function toBuffer(arr, size, bigEndian) {
-  var buf = new Buffer(size);
-  var fn = bigEndian ? buf.writeInt32BE : buf.writeInt32LE;
-  for (var i = 0; i < arr.length; i++) {
-    fn.call(buf, arr[i], i * 4, true);
-  }
-  return buf;
-}
-
-function hash(buf, fn, hashSize, bigEndian) {
-  if (!Buffer.isBuffer(buf)) buf = new Buffer(buf);
-  var arr = fn(toArray(buf, bigEndian), buf.length * chrsz);
-  return toBuffer(arr, hashSize, bigEndian);
-}
-
-module.exports = { hash: hash };
-
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/crypto-browserify/helpers.js","/node_modules/browserify/node_modules/crypto-browserify")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],23:[function(require,module,exports){
-(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
-var Buffer = require('buffer').Buffer
-var sha = require('./sha')
-var sha256 = require('./sha256')
-var rng = require('./rng')
-var md5 = require('./md5')
-
-var algorithms = {
-  sha1: sha,
-  sha256: sha256,
-  md5: md5
-}
-
-var blocksize = 64
-var zeroBuffer = new Buffer(blocksize); zeroBuffer.fill(0)
-function hmac(fn, key, data) {
-  if(!Buffer.isBuffer(key)) key = new Buffer(key)
-  if(!Buffer.isBuffer(data)) data = new Buffer(data)
-
-  if(key.length > blocksize) {
-    key = fn(key)
-  } else if(key.length < blocksize) {
-    key = Buffer.concat([key, zeroBuffer], blocksize)
-  }
-
-  var ipad = new Buffer(blocksize), opad = new Buffer(blocksize)
-  for(var i = 0; i < blocksize; i++) {
-    ipad[i] = key[i] ^ 0x36
-    opad[i] = key[i] ^ 0x5C
-  }
-
-  var hash = fn(Buffer.concat([ipad, data]))
-  return fn(Buffer.concat([opad, hash]))
-}
-
-function hash(alg, key) {
-  alg = alg || 'sha1'
-  var fn = algorithms[alg]
-  var bufs = []
-  var length = 0
-  if(!fn) error('algorithm:', alg, 'is not yet supported')
-  return {
-    update: function (data) {
-      if(!Buffer.isBuffer(data)) data = new Buffer(data)
-        
-      bufs.push(data)
-      length += data.length
-      return this
-    },
-    digest: function (enc) {
-      var buf = Buffer.concat(bufs)
-      var r = key ? hmac(fn, key, buf) : fn(buf)
-      bufs = null
-      return enc ? r.toString(enc) : r
-    }
-  }
-}
-
-function error () {
-  var m = [].slice.call(arguments).join(' ')
-  throw new Error([
-    m,
-    'we accept pull requests',
-    'http://github.com/dominictarr/crypto-browserify'
-    ].join('\n'))
-}
-
-exports.createHash = function (alg) { return hash(alg) }
-exports.createHmac = function (alg, key) { return hash(alg, key) }
-exports.randomBytes = function(size, callback) {
-  if (callback && callback.call) {
-    try {
-      callback.call(this, undefined, new Buffer(rng(size)))
-    } catch (err) { callback(err) }
-  } else {
-    return new Buffer(rng(size))
-  }
-}
-
-function each(a, f) {
-  for(var i in a)
-    f(a[i], i)
-}
-
-// the least I can do is make error messages for the rest of the node.js/crypto api.
-each(['createCredentials'
-, 'createCipher'
-, 'createCipheriv'
-, 'createDecipher'
-, 'createDecipheriv'
-, 'createSign'
-, 'createVerify'
-, 'createDiffieHellman'
-, 'pbkdf2'], function (name) {
-  exports[name] = function () {
-    error('sorry,', name, 'is not implemented yet')
-  }
-})
-
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/crypto-browserify/index.js","/node_modules/browserify/node_modules/crypto-browserify")
-},{"./md5":24,"./rng":25,"./sha":26,"./sha256":27,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],24:[function(require,module,exports){
-(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
-/*
- * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
- * Digest Algorithm, as defined in RFC 1321.
- * Version 2.1 Copyright (C) Paul Johnston 1999 - 2002.
- * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
- * Distributed under the BSD License
- * See http://pajhome.org.uk/crypt/md5 for more info.
- */
-
-var helpers = require('./helpers');
-
-/*
- * Perform a simple self-test to see if the VM is working
- */
-function md5_vm_test()
-{
-  return hex_md5("abc") == "900150983cd24fb0d6963f7d28e17f72";
-}
-
-/*
- * Calculate the MD5 of an array of little-endian words, and a bit length
- */
-function core_md5(x, len)
-{
-  /* append padding */
-  x[len >> 5] |= 0x80 << ((len) % 32);
-  x[(((len + 64) >>> 9) << 4) + 14] = len;
-
-  var a =  1732584193;
-  var b = -271733879;
-  var c = -1732584194;
-  var d =  271733878;
-
-  for(var i = 0; i < x.length; i += 16)
-  {
-    var olda = a;
-    var oldb = b;
-    var oldc = c;
-    var oldd = d;
-
-    a = md5_ff(a, b, c, d, x[i+ 0], 7 , -680876936);
-    d = md5_ff(d, a, b, c, x[i+ 1], 12, -389564586);
-    c = md5_ff(c, d, a, b, x[i+ 2], 17,  606105819);
-    b = md5_ff(b, c, d, a, x[i+ 3], 22, -1044525330);
-    a = md5_ff(a, b, c, d, x[i+ 4], 7 , -176418897);
-    d = md5_ff(d, a, b, c, x[i+ 5], 12,  1200080426);
-    c = md5_ff(c, d, a, b, x[i+ 6], 17, -1473231341);
-    b = md5_ff(b, c, d, a, x[i+ 7], 22, -45705983);
-    a = md5_ff(a, b, c, d, x[i+ 8], 7 ,  1770035416);
-    d = md5_ff(d, a, b, c, x[i+ 9], 12, -1958414417);
-    c = md5_ff(c, d, a, b, x[i+10], 17, -42063);
-    b = md5_ff(b, c, d, a, x[i+11], 22, -1990404162);
-    a = md5_ff(a, b, c, d, x[i+12], 7 ,  1804603682);
-    d = md5_ff(d, a, b, c, x[i+13], 12, -40341101);
-    c = md5_ff(c, d, a, b, x[i+14], 17, -1502002290);
-    b = md5_ff(b, c, d, a, x[i+15], 22,  1236535329);
-
-    a = md5_gg(a, b, c, d, x[i+ 1], 5 , -165796510);
-    d = md5_gg(d, a, b, c, x[i+ 6], 9 , -1069501632);
-    c = md5_gg(c, d, a, b, x[i+11], 14,  643717713);
-    b = md5_gg(b, c, d, a, x[i+ 0], 20, -373897302);
-    a = md5_gg(a, b, c, d, x[i+ 5], 5 , -701558691);
-    d = md5_gg(d, a, b, c, x[i+10], 9 ,  38016083);
-    c = md5_gg(c, d, a, b, x[i+15], 14, -660478335);
-    b = md5_gg(b, c, d, a, x[i+ 4], 20, -405537848);
-    a = md5_gg(a, b, c, d, x[i+ 9], 5 ,  568446438);
-    d = md5_gg(d, a, b, c, x[i+14], 9 , -1019803690);
-    c = md5_gg(c, d, a, b, x[i+ 3], 14, -187363961);
-    b = md5_gg(b, c, d, a, x[i+ 8], 20,  1163531501);
-    a = md5_gg(a, b, c, d, x[i+13], 5 , -1444681467);
-    d = md5_gg(d, a, b, c, x[i+ 2], 9 , -51403784);
-    c = md5_gg(c, d, a, b, x[i+ 7], 14,  1735328473);
-    b = md5_gg(b, c, d, a, x[i+12], 20, -1926607734);
-
-    a = md5_hh(a, b, c, d, x[i+ 5], 4 , -378558);
-    d = md5_hh(d, a, b, c, x[i+ 8], 11, -2022574463);
-    c = md5_hh(c, d, a, b, x[i+11], 16,  1839030562);
-    b = md5_hh(b, c, d, a, x[i+14], 23, -35309556);
-    a = md5_hh(a, b, c, d, x[i+ 1], 4 , -1530992060);
-    d = md5_hh(d, a, b, c, x[i+ 4], 11,  1272893353);
-    c = md5_hh(c, d, a, b, x[i+ 7], 16, -155497632);
-    b = md5_hh(b, c, d, a, x[i+10], 23, -1094730640);
-    a = md5_hh(a, b, c, d, x[i+13], 4 ,  681279174);
-    d = md5_hh(d, a, b, c, x[i+ 0], 11, -358537222);
-    c = md5_hh(c, d, a, b, x[i+ 3], 16, -722521979);
-    b = md5_hh(b, c, d, a, x[i+ 6], 23,  76029189);
-    a = md5_hh(a, b, c, d, x[i+ 9], 4 , -640364487);
-    d = md5_hh(d, a, b, c, x[i+12], 11, -421815835);
-    c = md5_hh(c, d, a, b, x[i+15], 16,  530742520);
-    b = md5_hh(b, c, d, a, x[i+ 2], 23, -995338651);
-
-    a = md5_ii(a, b, c, d, x[i+ 0], 6 , -198630844);
-    d = md5_ii(d, a, b, c, x[i+ 7], 10,  1126891415);
-    c = md5_ii(c, d, a, b, x[i+14], 15, -1416354905);
-    b = md5_ii(b, c, d, a, x[i+ 5], 21, -57434055);
-    a = md5_ii(a, b, c, d, x[i+12], 6 ,  1700485571);
-    d = md5_ii(d, a, b, c, x[i+ 3], 10, -1894986606);
-    c = md5_ii(c, d, a, b, x[i+10], 15, -1051523);
-    b = md5_ii(b, c, d, a, x[i+ 1], 21, -2054922799);
-    a = md5_ii(a, b, c, d, x[i+ 8], 6 ,  1873313359);
-    d = md5_ii(d, a, b, c, x[i+15], 10, -30611744);
-    c = md5_ii(c, d, a, b, x[i+ 6], 15, -1560198380);
-    b = md5_ii(b, c, d, a, x[i+13], 21,  1309151649);
-    a = md5_ii(a, b, c, d, x[i+ 4], 6 , -145523070);
-    d = md5_ii(d, a, b, c, x[i+11], 10, -1120210379);
-    c = md5_ii(c, d, a, b, x[i+ 2], 15,  718787259);
-    b = md5_ii(b, c, d, a, x[i+ 9], 21, -343485551);
-
-    a = safe_add(a, olda);
-    b = safe_add(b, oldb);
-    c = safe_add(c, oldc);
-    d = safe_add(d, oldd);
-  }
-  return Array(a, b, c, d);
-
-}
-
-/*
- * These functions implement the four basic operations the algorithm uses.
- */
-function md5_cmn(q, a, b, x, s, t)
-{
-  return safe_add(bit_rol(safe_add(safe_add(a, q), safe_add(x, t)), s),b);
-}
-function md5_ff(a, b, c, d, x, s, t)
-{
-  return md5_cmn((b & c) | ((~b) & d), a, b, x, s, t);
-}
-function md5_gg(a, b, c, d, x, s, t)
-{
-  return md5_cmn((b & d) | (c & (~d)), a, b, x, s, t);
-}
-function md5_hh(a, b, c, d, x, s, t)
-{
-  return md5_cmn(b ^ c ^ d, a, b, x, s, t);
-}
-function md5_ii(a, b, c, d, x, s, t)
-{
-  return md5_cmn(c ^ (b | (~d)), a, b, x, s, t);
-}
-
-/*
- * Add integers, wrapping at 2^32. This uses 16-bit operations internally
- * to work around bugs in some JS interpreters.
- */
-function safe_add(x, y)
-{
-  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
-  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
-  return (msw << 16) | (lsw & 0xFFFF);
-}
-
-/*
- * Bitwise rotate a 32-bit number to the left.
- */
-function bit_rol(num, cnt)
-{
-  return (num << cnt) | (num >>> (32 - cnt));
-}
-
-module.exports = function md5(buf) {
-  return helpers.hash(buf, core_md5, 16);
-};
-
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/crypto-browserify/md5.js","/node_modules/browserify/node_modules/crypto-browserify")
-},{"./helpers":22,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],25:[function(require,module,exports){
-(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
-// Original code adapted from Robert Kieffer.
-// details at https://github.com/broofa/node-uuid
-(function() {
-  var _global = this;
-
-  var mathRNG, whatwgRNG;
-
-  // NOTE: Math.random() does not guarantee "cryptographic quality"
-  mathRNG = function(size) {
-    var bytes = new Array(size);
-    var r;
-
-    for (var i = 0, r; i < size; i++) {
-      if ((i & 0x03) == 0) r = Math.random() * 0x100000000;
-      bytes[i] = r >>> ((i & 0x03) << 3) & 0xff;
-    }
-
-    return bytes;
-  }
-
-  if (_global.crypto && crypto.getRandomValues) {
-    whatwgRNG = function(size) {
-      var bytes = new Uint8Array(size);
-      crypto.getRandomValues(bytes);
-      return bytes;
-    }
-  }
-
-  module.exports = whatwgRNG || mathRNG;
-
-}())
-
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/crypto-browserify/rng.js","/node_modules/browserify/node_modules/crypto-browserify")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],26:[function(require,module,exports){
-(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
-/*
- * A JavaScript implementation of the Secure Hash Algorithm, SHA-1, as defined
- * in FIPS PUB 180-1
- * Version 2.1a Copyright Paul Johnston 2000 - 2002.
- * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
- * Distributed under the BSD License
- * See http://pajhome.org.uk/crypt/md5 for details.
- */
-
-var helpers = require('./helpers');
-
-/*
- * Calculate the SHA-1 of an array of big-endian words, and a bit length
- */
-function core_sha1(x, len)
-{
-  /* append padding */
-  x[len >> 5] |= 0x80 << (24 - len % 32);
-  x[((len + 64 >> 9) << 4) + 15] = len;
-
-  var w = Array(80);
-  var a =  1732584193;
-  var b = -271733879;
-  var c = -1732584194;
-  var d =  271733878;
-  var e = -1009589776;
-
-  for(var i = 0; i < x.length; i += 16)
-  {
-    var olda = a;
-    var oldb = b;
-    var oldc = c;
-    var oldd = d;
-    var olde = e;
-
-    for(var j = 0; j < 80; j++)
-    {
-      if(j < 16) w[j] = x[i + j];
-      else w[j] = rol(w[j-3] ^ w[j-8] ^ w[j-14] ^ w[j-16], 1);
-      var t = safe_add(safe_add(rol(a, 5), sha1_ft(j, b, c, d)),
-                       safe_add(safe_add(e, w[j]), sha1_kt(j)));
-      e = d;
-      d = c;
-      c = rol(b, 30);
-      b = a;
-      a = t;
-    }
-
-    a = safe_add(a, olda);
-    b = safe_add(b, oldb);
-    c = safe_add(c, oldc);
-    d = safe_add(d, oldd);
-    e = safe_add(e, olde);
-  }
-  return Array(a, b, c, d, e);
-
-}
-
-/*
- * Perform the appropriate triplet combination function for the current
- * iteration
- */
-function sha1_ft(t, b, c, d)
-{
-  if(t < 20) return (b & c) | ((~b) & d);
-  if(t < 40) return b ^ c ^ d;
-  if(t < 60) return (b & c) | (b & d) | (c & d);
-  return b ^ c ^ d;
-}
-
-/*
- * Determine the appropriate additive constant for the current iteration
- */
-function sha1_kt(t)
-{
-  return (t < 20) ?  1518500249 : (t < 40) ?  1859775393 :
-         (t < 60) ? -1894007588 : -899497514;
-}
-
-/*
- * Add integers, wrapping at 2^32. This uses 16-bit operations internally
- * to work around bugs in some JS interpreters.
- */
-function safe_add(x, y)
-{
-  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
-  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
-  return (msw << 16) | (lsw & 0xFFFF);
-}
-
-/*
- * Bitwise rotate a 32-bit number to the left.
- */
-function rol(num, cnt)
-{
-  return (num << cnt) | (num >>> (32 - cnt));
-}
-
-module.exports = function sha1(buf) {
-  return helpers.hash(buf, core_sha1, 20, true);
-};
-
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/crypto-browserify/sha.js","/node_modules/browserify/node_modules/crypto-browserify")
-},{"./helpers":22,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],27:[function(require,module,exports){
-(function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
-
-/**
- * A JavaScript implementation of the Secure Hash Algorithm, SHA-256, as defined
- * in FIPS 180-2
- * Version 2.2-beta Copyright Angel Marin, Paul Johnston 2000 - 2009.
- * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
- *
- */
-
-var helpers = require('./helpers');
-
-var safe_add = function(x, y) {
-  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
-  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
-  return (msw << 16) | (lsw & 0xFFFF);
-};
-
-var S = function(X, n) {
-  return (X >>> n) | (X << (32 - n));
-};
-
-var R = function(X, n) {
-  return (X >>> n);
-};
-
-var Ch = function(x, y, z) {
-  return ((x & y) ^ ((~x) & z));
-};
-
-var Maj = function(x, y, z) {
-  return ((x & y) ^ (x & z) ^ (y & z));
-};
-
-var Sigma0256 = function(x) {
-  return (S(x, 2) ^ S(x, 13) ^ S(x, 22));
-};
-
-var Sigma1256 = function(x) {
-  return (S(x, 6) ^ S(x, 11) ^ S(x, 25));
-};
-
-var Gamma0256 = function(x) {
-  return (S(x, 7) ^ S(x, 18) ^ R(x, 3));
-};
-
-var Gamma1256 = function(x) {
-  return (S(x, 17) ^ S(x, 19) ^ R(x, 10));
-};
-
-var core_sha256 = function(m, l) {
-  var K = new Array(0x428A2F98,0x71374491,0xB5C0FBCF,0xE9B5DBA5,0x3956C25B,0x59F111F1,0x923F82A4,0xAB1C5ED5,0xD807AA98,0x12835B01,0x243185BE,0x550C7DC3,0x72BE5D74,0x80DEB1FE,0x9BDC06A7,0xC19BF174,0xE49B69C1,0xEFBE4786,0xFC19DC6,0x240CA1CC,0x2DE92C6F,0x4A7484AA,0x5CB0A9DC,0x76F988DA,0x983E5152,0xA831C66D,0xB00327C8,0xBF597FC7,0xC6E00BF3,0xD5A79147,0x6CA6351,0x14292967,0x27B70A85,0x2E1B2138,0x4D2C6DFC,0x53380D13,0x650A7354,0x766A0ABB,0x81C2C92E,0x92722C85,0xA2BFE8A1,0xA81A664B,0xC24B8B70,0xC76C51A3,0xD192E819,0xD6990624,0xF40E3585,0x106AA070,0x19A4C116,0x1E376C08,0x2748774C,0x34B0BCB5,0x391C0CB3,0x4ED8AA4A,0x5B9CCA4F,0x682E6FF3,0x748F82EE,0x78A5636F,0x84C87814,0x8CC70208,0x90BEFFFA,0xA4506CEB,0xBEF9A3F7,0xC67178F2);
-  var HASH = new Array(0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19);
-    var W = new Array(64);
-    var a, b, c, d, e, f, g, h, i, j;
-    var T1, T2;
-  /* append padding */
-  m[l >> 5] |= 0x80 << (24 - l % 32);
-  m[((l + 64 >> 9) << 4) + 15] = l;
-  for (var i = 0; i < m.length; i += 16) {
-    a = HASH[0]; b = HASH[1]; c = HASH[2]; d = HASH[3]; e = HASH[4]; f = HASH[5]; g = HASH[6]; h = HASH[7];
-    for (var j = 0; j < 64; j++) {
-      if (j < 16) {
-        W[j] = m[j + i];
-      } else {
-        W[j] = safe_add(safe_add(safe_add(Gamma1256(W[j - 2]), W[j - 7]), Gamma0256(W[j - 15])), W[j - 16]);
-      }
-      T1 = safe_add(safe_add(safe_add(safe_add(h, Sigma1256(e)), Ch(e, f, g)), K[j]), W[j]);
-      T2 = safe_add(Sigma0256(a), Maj(a, b, c));
-      h = g; g = f; f = e; e = safe_add(d, T1); d = c; c = b; b = a; a = safe_add(T1, T2);
-    }
-    HASH[0] = safe_add(a, HASH[0]); HASH[1] = safe_add(b, HASH[1]); HASH[2] = safe_add(c, HASH[2]); HASH[3] = safe_add(d, HASH[3]);
-    HASH[4] = safe_add(e, HASH[4]); HASH[5] = safe_add(f, HASH[5]); HASH[6] = safe_add(g, HASH[6]); HASH[7] = safe_add(h, HASH[7]);
-  }
-  return HASH;
-};
-
-module.exports = function sha256(buf) {
-  return helpers.hash(buf, core_sha256, 32, true);
-};
-
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/crypto-browserify/sha256.js","/node_modules/browserify/node_modules/crypto-browserify")
-},{"./helpers":22,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],28:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/buffer/node_modules/ieee754/index.js","/node_modules/browserify/node_modules/buffer/node_modules/ieee754")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],22:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 // shim for using process in browser
 
@@ -8342,8 +7889,8 @@ process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js","/node_modules/browserify/node_modules/insert-module-globals/node_modules/process")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],29:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js","/node_modules/browserify/node_modules/insert-module-globals/node_modules/process")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],23:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -8570,8 +8117,8 @@ var substr = 'ab'.substr(-1) === 'b'
     }
 ;
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/path-browserify/index.js","/node_modules/browserify/node_modules/path-browserify")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],30:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/browserify/node_modules/path-browserify/index.js","/node_modules/browserify/node_modules/path-browserify")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],24:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 // This is CodeMirror (http://codemirror.net), a code editor
 // implemented in JavaScript on top of the browser's DOM.
@@ -15913,8 +15460,8 @@ var substr = 'ab'.substr(-1) === 'b'
   return CodeMirror;
 });
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/codemirror/lib/codemirror.js","/node_modules/codemirror/lib")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],"d3":[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/codemirror/lib/codemirror.js","/node_modules/codemirror/lib")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"d3":[function(require,module,exports){
 module.exports=require('Ub4Hh8');
 },{}],"Ub4Hh8":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
@@ -25212,8 +24759,8 @@ module.exports=require('Ub4Hh8');
     this.d3 = d3;
   }
 }();
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/d3/d3.js","/node_modules/d3")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],33:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/d3/d3.js","/node_modules/d3")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],27:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
   Copyright (C) 2012-2013 Yusuke Suzuki <utatane.tea@gmail.com>
@@ -27281,8 +26828,8 @@ module.exports=require('Ub4Hh8');
 }());
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/escodegen/escodegen.js","/node_modules/escodegen")
-},{"./package.json":35,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"estraverse":34,"source-map":38}],34:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/escodegen/escodegen.js","/node_modules/escodegen")
+},{"./package.json":29,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"estraverse":28,"source-map":32}],28:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
   Copyright (C) 2012-2013 Yusuke Suzuki <utatane.tea@gmail.com>
@@ -27969,8 +27516,8 @@ module.exports=require('Ub4Hh8');
 }));
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/escodegen/node_modules/estraverse/estraverse.js","/node_modules/escodegen/node_modules/estraverse")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],35:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/escodegen/node_modules/estraverse/estraverse.js","/node_modules/escodegen/node_modules/estraverse")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],29:[function(require,module,exports){
 module.exports={
   "name": "escodegen",
   "description": "ECMAScript code generator",
@@ -28043,7 +27590,7 @@ module.exports={
   "_resolved": "https://registry.npmjs.org/escodegen/-/escodegen-0.0.26.tgz"
 }
 
-},{}],36:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
   Copyright (C) 2012 Ariya Hidayat <ariya.hidayat@gmail.com>
@@ -31954,8 +31501,8 @@ parseStatement: true, parseSourceElement: true */
 }));
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/esprima/esprima.js","/node_modules/esprima")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],37:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/esprima/esprima.js","/node_modules/esprima")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],31:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /**
 
@@ -31964,16 +31511,16 @@ seedrandom.js
 
 Seeded random number generator for Javascript.
 
-version 2.3.9
-Author: David Bau
-Date: 2014 Sep 18
+version 2.3.6<br>
+Author: David Bau<br>
+Date: 2014 May 14
 
 Can be used as a plain script, a node.js module or an AMD module.
 
 Script tag usage
 ----------------
 
-<script src=//cdnjs.cloudflare.com/ajax/libs/seedrandom/2.3.9/seedrandom.min.js>
+<script src=//cdnjs.cloudflare.com/ajax/libs/seedrandom/2.3.6/seedrandom.min.js>
 </script>
 
 // Sets Math.random to a PRNG initialized using the given explicit seed.
@@ -32032,34 +31579,16 @@ require(['seedrandom'], function(seedrandom) {
 });
 
 
-Network seeding
----------------
+Network seeding via a script tag
+--------------------------------
 
-<script src=//cdnjs.cloudflare.com/ajax/libs/seedrandom/2.3.9/seedrandom.min.js>
+<script src=//cdnjs.cloudflare.com/ajax/libs/seedrandom/2.3.6/seedrandom.min.js>
 </script>
-
 <!-- Seeds using urandom bits from a server. -->
 <script src=//jsonlib.appspot.com/urandom?callback=Math.seedrandom">
 </script>
 
-<!-- Seeds mixing in random.org bits -->
-<script>
-(function(x, u, s){
-  try {
-    // Make a synchronous request to random.org.
-    x.open('GET', u, false);
-    x.send();
-    s = unescape(x.response.trim().replace(/^|\s/g, '%'));
-  } finally {
-    // Seed with the response, or autoseed on failure.
-    Math.seedrandom(s, !!s);
-  }
-})(new XMLHttpRequest, 'https://www.random.org/integers/' +
-  '?num=256&min=0&max=255&col=1&base=16&format=plain&rnd=new');
-</script>
-
-Reseeding using user input
---------------------------
+Examples of manipulating the seed for various purposes:
 
 var seed = Math.seedrandom();        // Use prng with an automatic seed.
 document.write(Math.random());       // Pretty much unpredictable x.
@@ -32071,7 +31600,7 @@ function reseed(event, count) {      // Define a custom entropy collector.
   var t = [];
   function w(e) {
     t.push([e.pageX, e.pageY, +new Date]);
-    if (t.length &lt; count) { return; }
+    if (t.length < count) { return; }
     document.removeEventListener(event, w);
     Math.seedrandom(t, { entropy: true });
   }
@@ -32099,7 +31628,6 @@ The random number sequence is the same as version 1.0 for string seeds.
 * Version 2.3.1 adds a build environment, module packaging, and tests.
 * Version 2.3.4 fixes bugs on IE8, and switches to MIT license.
 * Version 2.3.6 adds a readable options object argument.
-* Version 2.3.9 adds support for node.js crypto (contributed by ctd1500).
 
 The standard ARC4 key scheduler cycles short keys, which means that
 seedrandom('ab') is equivalent to seedrandom('abab') and 'ababab'.
@@ -32137,7 +31665,7 @@ numbers on Opera at about 0.0005 ms per seeded Math.random().
 LICENSE (MIT)
 -------------
 
-Copyright 2014 David Bau.
+Copyright (c)2014 David Bau.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -32173,7 +31701,6 @@ var startdenom = math.pow(width, chunks),
     significance = math.pow(2, digits),
     overflow = significance * 2,
     mask = width - 1,
-    nodecrypto;
 
 //
 // seedrandom()
@@ -32262,9 +31789,8 @@ function ARC4(key) {
     }
     me.i = i; me.j = j;
     return r;
-    // For robust unpredictability, the function call below automatically
-    // discards an initial batch of values.  This is called RC4-drop[256].
-    // See http://google.com/search?q=rsa+fluhrer+response&btnI
+    // For robust unpredictability discard an initial batch of values.
+    // See http://www.rsa.com/rsalabs/node.asp?id=2009
   })(width);
 }
 
@@ -32305,12 +31831,10 @@ function autoseed(seed) {
   try {
     global.crypto.getRandomValues(seed = new Uint8Array(width));
     return tostring(seed);
-  } catch (e1) { try {
-    return tostring(nodecrypto.randomBytes(width));
-  } catch (e2) {
+  } catch (e) {
     return [+new Date, global, (seed = global.navigator) && seed.plugins,
-      global.screen, tostring(pool)];
-  } }
+            global.screen, tostring(pool)];
+  }
 }
 
 //
@@ -32324,29 +31848,21 @@ function tostring(a) {
 //
 // When seedrandom.js is loaded, we immediately mix a few bits
 // from the built-in RNG into the entropy pool.  Because we do
-// not want to interfere with deterministic PRNG state later,
+// not want to intefere with determinstic PRNG state later,
 // seedrandom will not call math.random on its own again after
 // initialization.
 //
 mixkey(math[rngname](), pool);
 
 //
-// Nodejs and AMD support: export the implementation as a module using
+// Nodejs and AMD support: export the implemenation as a module using
 // either convention.
 //
 if (module && module.exports) {
   module.exports = impl;
-  try {
-    // When in node.js, try using crypto package for autoseeding.
-    nodecrypto = require('crypto');
-  } catch (ex) {}
 } else if (define && define.amd) {
   define(function() { return impl; });
 }
-
-//
-// Node.js native crypto support.
-//
 
 // End anonymous scope, and pass initial values.
 })(
@@ -32361,8 +31877,8 @@ if (module && module.exports) {
   'random'// rngname: name for Math.random and Math.seedrandom
 );
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/seedrandom/seedrandom.js","/node_modules/seedrandom")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"crypto":23}],38:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/seedrandom/seedrandom.js","/node_modules/seedrandom")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],32:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
@@ -32373,8 +31889,8 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map.js","/node_modules/source-map/lib")
-},{"./source-map/source-map-consumer":43,"./source-map/source-map-generator":44,"./source-map/source-node":45,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],39:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map.js","/node_modules/source-map/lib")
+},{"./source-map/source-map-consumer":37,"./source-map/source-map-generator":38,"./source-map/source-node":39,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],33:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -32474,8 +31990,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/array-set.js","/node_modules/source-map/lib/source-map")
-},{"./util":46,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],40:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/array-set.js","/node_modules/source-map/lib/source-map")
+},{"./util":40,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],34:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -32622,8 +32138,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/base64-vlq.js","/node_modules/source-map/lib/source-map")
-},{"./base64":41,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],41:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/base64-vlq.js","/node_modules/source-map/lib/source-map")
+},{"./base64":35,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],35:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -32668,8 +32184,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/base64.js","/node_modules/source-map/lib/source-map")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],42:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/base64.js","/node_modules/source-map/lib/source-map")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],36:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -32753,8 +32269,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/binary-search.js","/node_modules/source-map/lib/source-map")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],43:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/binary-search.js","/node_modules/source-map/lib/source-map")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],37:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -33198,8 +32714,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-map-consumer.js","/node_modules/source-map/lib/source-map")
-},{"./array-set":39,"./base64-vlq":40,"./binary-search":42,"./util":46,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],44:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-map-consumer.js","/node_modules/source-map/lib/source-map")
+},{"./array-set":33,"./base64-vlq":34,"./binary-search":36,"./util":40,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],38:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -33582,8 +33098,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-map-generator.js","/node_modules/source-map/lib/source-map")
-},{"./array-set":39,"./base64-vlq":40,"./util":46,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],45:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-map-generator.js","/node_modules/source-map/lib/source-map")
+},{"./array-set":33,"./base64-vlq":34,"./util":40,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],39:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -33957,8 +33473,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-node.js","/node_modules/source-map/lib/source-map")
-},{"./source-map-generator":44,"./util":46,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],46:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/source-node.js","/node_modules/source-map/lib/source-map")
+},{"./source-map-generator":38,"./util":40,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],40:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
@@ -34166,8 +33682,8 @@ define(function (require, exports, module) {
 
 });
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/util.js","/node_modules/source-map/lib/source-map")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"amdefine":47,"buffer":19}],47:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/lib/source-map/util.js","/node_modules/source-map/lib/source-map")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"amdefine":41,"buffer":19}],41:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 0.1.0 Copyright (c) 2011, The Dojo Foundation All Rights Reserved.
@@ -34469,8 +33985,8 @@ function amdefine(module, requireFn) {
 
 module.exports = amdefine;
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/node_modules/amdefine/amdefine.js","/node_modules/source-map/node_modules/amdefine")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"path":29}],48:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/source-map/node_modules/amdefine/amdefine.js","/node_modules/source-map/node_modules/amdefine")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"path":23}],42:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 //     Underscore.js 1.6.0
 //     http://underscorejs.org
@@ -35816,8 +35332,8 @@ module.exports = amdefine;
   }
 }).call(this);
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/underscore/underscore.js","/node_modules/underscore")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],49:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/node_modules/underscore/underscore.js","/node_modules/underscore")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],43:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /*
   A very simple (abstract/tracing) interpreter that takes in the AST generated by js_astify.js. Inteprets only a fragment of javascript (eg does not deal with objects, loops, etc.).
@@ -36482,8 +35998,8 @@ module.exports =
         precompile: precompile
     }
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/precompile.js","/")
-},{"./church_astify.js":1,"./church_builtins":"sy/OMr","./js_astify.js":16,"./probabilistic-js":"/takZe","./tokenize.js":61,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"escodegen":33,"escodegen/node_modules/estraverse":34,"esprima":36}],50:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/precompile.js","/")
+},{"./church_astify.js":1,"./church_builtins":"sy/OMr","./js_astify.js":16,"./probabilistic-js":"/takZe","./tokenize.js":55,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":27,"escodegen/node_modules/estraverse":28,"esprima":30}],44:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var trace = require("./trace")
 var util = require("./util")
@@ -36580,8 +36096,8 @@ STKernel: STKernel
 }
 
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/STKernel.js","/probabilistic-js/probabilistic")
-},{"./trace":58,"./util":60,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],51:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/STKernel.js","/probabilistic-js/probabilistic")
+},{"./trace":52,"./util":54,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],45:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 
 // Repeat a computation n times
@@ -36619,8 +36135,8 @@ module.exports =
 	until: until,
 	repeat: repeat
 }
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/control.js","/probabilistic-js/probabilistic")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],52:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/control.js","/probabilistic-js/probabilistic")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],46:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var trace = require("./trace")
 
@@ -36815,10 +36331,12 @@ var multinomial = function multinomial(theta, isStructural, conditionedValue)
 {
 	return multinomialInst.sample(theta, isStructural, conditionedValue) + 0
 }
-
 var multinomialDraw = function multinomialDraw(items, probs, isStructural, conditionedValue)
 {
-	return items[multinomial(probs, isStructural, conditionedValue)]
+	var conditionedValueIndex = items.map(JSON.stringify).indexOf(JSON.stringify(conditionedValue))
+	conditionedValue = (conditionedValueIndex == -1) ? undefined : conditionedValueIndex
+	var result = items[multinomial(probs, isStructural, conditionedValue)]
+	return result;
 }
 
 var uniformDraw = function uniformDraw(items, isStructural, conditionedValue)
@@ -37074,7 +36592,7 @@ function binomial_sample(p,n)
     }
 
     var u;
-    for(i=0; i<n; i++)
+    for(var i=0; i<n; i++)
     {
         u = Math.random();
         if(u<p) k++;
@@ -37227,8 +36745,10 @@ function dirichlet_sample(alpha)
 		theta[i] = t
 		ssum = ssum + t
 	}
-	for (var i = 0; i < theta.length; i++)
-		theta[i] /= ssum
+	  for (var i = 0; i < theta.length; i++) {
+		    theta[i] /= ssum
+        theta[i] = Math.max(Number.MIN_VALUE, theta[i])
+  }
 	return theta
 }
 
@@ -37290,8 +36810,8 @@ module.exports =
   exponential_logprob: exponential_logprob
 }
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/erp.js","/probabilistic-js/probabilistic")
-},{"./trace":58,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],"./probabilistic-js":[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/erp.js","/probabilistic-js/probabilistic")
+},{"./trace":52,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./probabilistic-js":[function(require,module,exports){
 module.exports=require('/takZe');
 },{}],"/takZe":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
@@ -37337,8 +36857,8 @@ for (var prop in transform)
 //// b/c this makes source transformation easier.
 var util = require("./util")
 module.exports["openModule"] = util.openModule
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/index.js","/probabilistic-js/probabilistic")
-},{"./control":51,"./erp":52,"./inference":55,"./marginalize":56,"./memoize":57,"./trace":58,"./transform":59,"./util":60,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],55:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/index.js","/probabilistic-js/probabilistic")
+},{"./control":45,"./erp":46,"./inference":49,"./marginalize":50,"./memoize":51,"./trace":52,"./transform":53,"./util":54,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],49:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var trace = require("./trace")
 var util = require("./util")
@@ -37768,6 +37288,7 @@ function mcmc(computation, kernel, numsamps, lag, verbose, init)
 	var currentTrace = trace.newTrace(computation, init)
 	var samps = []
 	var iters = numsamps*lag
+	var t0 = new Date().getTime()
 	for (var i = 0; i < iters; i++)
 	{
 		currentTrace = kernel.next(currentTrace)
@@ -37775,7 +37296,12 @@ function mcmc(computation, kernel, numsamps, lag, verbose, init)
 			samps.push({sample: currentTrace.returnValue, logprob: currentTrace.logprob})
 	}
 	if (verbose)
+	{
 		kernel.stats()
+		var t1 = new Date().getTime()
+		var tsecs = (t1-t0)/1000
+		console.log("Time: ", tsecs)
+	}
 	return samps
 }
 
@@ -37891,8 +37417,8 @@ module.exports =
 	conditional: conditional
 }
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/inference.js","/probabilistic-js/probabilistic")
-},{"./STKernel":50,"./trace":58,"./util":60,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],56:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/inference.js","/probabilistic-js/probabilistic")
+},{"./STKernel":44,"./trace":52,"./util":54,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],50:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 
 //this file provides a utility for marginalizing a function.
@@ -38022,8 +37548,8 @@ marginalize: marginalize
 
 
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/marginalize.js","/probabilistic-js/probabilistic")
-},{"./erp":52,"./inference":55,"./trace":58,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],57:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/marginalize.js","/probabilistic-js/probabilistic")
+},{"./erp":46,"./inference":49,"./trace":52,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],51:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var trace = require("./trace")
 
@@ -38054,8 +37580,8 @@ module.exports =
 	mem: mem
 }
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/memoize.js","/probabilistic-js/probabilistic")
-},{"./trace":58,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],58:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/memoize.js","/probabilistic-js/probabilistic")
+},{"./trace":52,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],52:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var util = require("./util")
 
@@ -38234,7 +37760,14 @@ Run computation and update this trace accordingly
 */
 RandomExecutionTrace.prototype.traceUpdate = function traceUpdate(structureIsFixed)
 {
+
+    if (gensym) {
+        gensym.__gensymcounter__ = 0;
+    }
+    
     structureIsFixed = (structureIsFixed===undefined?false:structureIsFixed)
+
+    
     
 	var origtrace = trace
 	trace = this
@@ -38388,7 +37921,9 @@ RandomExecutionTrace.prototype.addFactor = function addFactor(num)
 // Condition the trace on the value of a boolean expression
 RandomExecutionTrace.prototype.conditionOn = function conditionOn(boolexpr)
 {
-	this.conditionsSatisfied &= boolexpr
+	// Was formerely using the assignment operator (&&), but it doesn't work
+	// if boolexpr is an array or object.
+	this.conditionsSatisfied = this.conditionsSatisfied && boolexpr
 }
 
 
@@ -38469,8 +38004,8 @@ module.exports =
 	condition: condition
 }
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/trace.js","/probabilistic-js/probabilistic")
-},{"./util":60,"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],59:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/trace.js","/probabilistic-js/probabilistic")
+},{"./util":54,"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],53:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var esprima = require("esprima")
 var escodegen = require("escodegen")
@@ -38595,8 +38130,8 @@ module.exports =
 }
 
 "var x = foo(1, bar(), 3)"
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/transform.js","/probabilistic-js/probabilistic")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"escodegen":33,"escodegen/node_modules/estraverse":34,"esprima":36}],60:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/transform.js","/probabilistic-js/probabilistic")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen":27,"escodegen/node_modules/estraverse":28,"esprima":30}],54:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 
 function openModule(mod, prefix)
@@ -38665,8 +38200,8 @@ module.exports =
 	keys: keys
 }
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/util.js","/probabilistic-js/probabilistic")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],61:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/probabilistic-js/probabilistic/util.js","/probabilistic-js/probabilistic")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],55:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var util = require('./util.js');
 
@@ -38734,8 +38269,10 @@ module.exports = {
     tokenize: tokenize
 }
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/tokenize.js","/")
-},{"./util.js":"Y/OqMs","/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],"05wbT+":[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/tokenize.js","/")
+},{"./util.js":"Y/OqMs","/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./type-utils.js":[function(require,module,exports){
+module.exports=require('05wbT+');
+},{}],"05wbT+":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 /* global module */
 
@@ -38761,10 +38298,8 @@ var arrayToList = $x.arrayToList = function(arr, mutate) {
 
 module.exports = $x;
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/type-utils.js","/")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],"./type-utils.js":[function(require,module,exports){
-module.exports=require('05wbT+');
-},{}],"./util.js":[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/type-utils.js","/")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./util.js":[function(require,module,exports){
 module.exports=require('Y/OqMs');
 },{}],"Y/OqMs":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
@@ -38823,9 +38358,11 @@ function format_result(obj) {
 	    }
 	} else if (typeof obj == "string") {
 	    return obj
-	} else if (typeof obj == "object") {
+	} else if (obj instanceof RegExp) {
+    return obj.toString();
+  } else if (typeof obj == "object") {
       return JSON.stringify(obj);
-  } else {
+  }  else {
       return obj + "";
   }
     }
@@ -38851,8 +38388,8 @@ module.exports = {
     log: log
 }
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/util.js","/")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19}],"./viz":[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/util.js","/")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19}],"./viz":[function(require,module,exports){
 module.exports=require('mJMf/d');
 },{}],"mJMf/d":[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
@@ -39349,7 +38886,7 @@ var make_plot_spec = function(data, title) {
         top: 30 + (title ? title.length * OneLineTitleOffset : 0),
         left: 45,
         bottom: 50,
-        right: 30};
+        right: 40};
     var data_values = listToArray(data).map(function(datum) {return {x: datum[0], y: datum[1]}});
     var data = [{name: "points", values: data_values}];
     var height = 300;
@@ -39377,7 +38914,154 @@ var make_plot_spec = function(data, title) {
     return make_spec(padding, width, height, data, scales, axes, marks, title);
 }
 
-scatter = function(samps, title) {
+var make_multi_spec = function(padding, width, height, data, scales, axes, marks, title, graph_legend) {
+    var spec = {padding: padding, width: width, height: height, data: data, scales: scales, axes: axes, marks: marks, legends: graph_legend};
+    if (title) {
+        for (var i = 0; i < title.length; i++){
+            spec.marks.push({
+                type: "text",
+                properties: {
+                    enter: {
+                        x: {value: spec.width * 0.5 - padding.left - padding.right},
+                        y: {value: (title.length * -OneLineTitleOffset) + OneLineTitleOffset*0.5+(i * OneLineTitleOffset)},
+                        fontSize: {value: 24},
+                        text: {value: title[i]},
+                        align: {value: "center"},
+                        baseline: {value: "bottom"},
+                        fill: {value: "#000"}
+                    }
+                }
+            });
+        }
+    }
+    return spec;
+};
+var make_multi_plot_spec = function(data, title, axis_labels) {
+    var get_color_palette = function(n) {
+        var colors = [
+            "steelblue",
+            "mediumvioletred",
+            "olivedrab",
+            "orange",
+            "mediumpurple",
+            "coral",
+            "hotpink",
+            "deepskyblue",
+            "yellowgreen",
+            "indigo",
+            "slategray"
+        ];
+        var levels = {
+            "hotpink": 0,
+            "mediumvioletred": 1,
+            "coral": 2,
+            "orange": 3,
+            "yellowgreen": 4,
+            "olivedrab": 5,
+            "deepskyblue": 6,
+            "steelblue": 7,
+            "mediumpurple": 8,
+            "indigo": 9,
+            "slategray" : 10 
+        }
+        var color_palette = colors.slice(0, n).sort(function(a, b) {
+            if (levels[a] < levels[b]) {
+                return -1;
+            }
+            if (levels[a] > levels[b]) {
+                return 1;
+            }
+            return 0;
+        });
+        return color_palette;
+    }
+
+    title = title ? lineifyTitle(title) : undefined;
+
+    var padding = {
+        top: 30 + (title ? title.length * OneLineTitleOffset : 0),
+        left: 70,
+        bottom: 50,
+        right: 30};
+    var color_palette = get_color_palette(listToArray(data).length);
+    var data_values = function(arrdata) {
+        var data_values_collector = [];
+        for (i=0; i<arrdata.length; i++) {
+            var subdata = listToArray(arrdata[i][1]);
+            for (j=0; j<subdata.length; j++) {
+                var datum = subdata[j];
+                data_values_collector.push({
+                    x: datum[0],
+                    y: datum[1],
+                    label: (color_palette.length > i) ? listToArray(arrdata[i])[0] : "other",
+                    c: (color_palette.length > i) ? color_palette[i] : "black"
+                });
+            }
+        }
+        return data_values_collector;
+    }(listToArray(data));
+    var length_of_char = 10;
+    var legend_width = length_of_char * Math.max.apply(null, data_values.map(function(x) {return x.label.length}));
+    console.log(legend_width);
+    var data = [{name: "points", values: data_values}];
+    var height = 300;
+    var width = 600 + padding.left + padding.right;
+    var scales = [
+            {name: "x", range: width - legend_width - padding.left - padding.right, nice: true, domain: {data:"points", field:"data.x"}, zero:false},
+            {name: "y", range: "height", nice: true, domain: {data:"points", field:"data.y"}},
+            {name: "y_labels", reverse: true, range: "height", nice: true, domain: {data:"points", field:"data.y"}},
+            {name: "color", type:"ordinal", range: {data: "points", field:"data.c"}, domain: {data: "points", field:"data.label"}}
+        ];
+    if (axis_labels) {
+        var axes = [
+                {type:"x", scale:"x", offset: {scale: "y_labels", value: 0}, title:axis_labels[0]},
+                {type:"y", scale:"y", offset: {scale: "x", value: {data: "points", transform: [{"type": "slice", "by": "min"}]}}, title:axis_labels[1], titleOffset:50}
+            ];
+    } else {
+        var axes = [
+                {type:"x", scale:"x", offset: {scale: "y_labels", value: 0}},
+                {type:"y", scale:"y", offset: {scale: "x", value: 0}}
+            ];
+    }
+    var marks = [{
+        type: "symbol",
+        from: {data:"points"},
+        properties: {
+            enter: {
+                x: {scale:"x", field: "data.x"},
+                y: {scale:"y", field: "data.y"},
+                size: {value: 50},
+                fill: {scale:"color", field: "data.label"},
+                fillOpacity: {value: 0.8}
+            }
+        }
+    }];
+
+    graph_legend = [{
+        "fill": "color",
+        "properties": {
+            "title": {
+                "fontSize": {"value": 14}
+            },
+            "labels": {
+                "fontSize": {"value": 12}
+            },
+            "symbols": {
+                "stroke": {"value": "transparent"}
+            },
+            "legend": {
+                "stroke": {"value": "#ccc"},
+                "strokeWidth": {"value": 1.5}
+            }
+        }
+    }];
+    return make_multi_spec(padding, width, height, data, scales, axes, marks, title, graph_legend);
+}
+multiscatter = function(samps, title, axis_labels) {
+    render_vega(make_multi_plot_spec(samps, title, axis_labels), create_and_append_result());
+}
+
+scatter = function(samps, title, axis_labels) {
     render_vega(make_plot_spec(samps, title), create_and_append_result());
 }
 
@@ -39404,8 +39088,40 @@ var make_lineplot_spec = function(data, title) {
     return spec;
 }
 
+var make_multi_lineplot_spec = function(samps, title, axis_labels) {
+    var spec = make_multi_plot_spec(samps, title, axis_labels);
+    spec.marks.push({
+        type: "group",
+        from: {
+            data: "points",
+            transform: [
+                {type: "sort", by: "data.x"},
+                {type:"facet", keys:["data.label"]}
+            ]
+        },
+        "marks" : [{
+            type: "line",
+            properties: {
+                enter: {
+                    x: {scale:"x", field: "data.x"},
+                    y: {scale:"y", field: "data.y"},
+                    stroke: {scale:"color", field: "data.label"},
+                    strokeWidth: {value: 2}
+                }
+            }
+        }]
+    });
+    // spec.axes.map(function(axis) {delete axis.offset})
+    return spec;
+}
+
 lineplot = function(samps, title) {
-    render_vega(make_plot_spec(samps, title), create_and_append_result());
+    render_vega(make_lineplot_spec(samps, title), create_and_append_result());
+}
+
+multilineplot = function(samps, title, axis_labels) {
+    // render_vega(make_multi_plot_spec(samps, title, axis_labels), create_and_append_result());
+    render_vega(make_multi_lineplot_spec(samps, title, axis_labels), create_and_append_result());
 }
 
 livelineplot = function(n, func, title) {
@@ -39511,8 +39227,8 @@ module.exports = {
     hist: hist
 }
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/viz.js","/")
-},{"./type-utils":"05wbT+","./util":"Y/OqMs","/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"underscore":48}],68:[function(require,module,exports){
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/viz.js","/")
+},{"./type-utils":"05wbT+","./util":"Y/OqMs","/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"underscore":42}],62:[function(require,module,exports){
 (function (process,global,Buffer,__argument0,__argument1,__argument2,__argument3,__filename,__dirname){
 var esprima = require("esprima")
 //var escodegen = require("escodegen")
@@ -39572,7 +39288,17 @@ var WrapIfs =
         }
     }
 
-var nextid = 0
+var nextid = 0;
+
+var idToFunctionName = {};
+
+global.humanizeAddress = function(name) {
+    var splitName = name.split("."),
+        erpStack = splitName[0].split(":"),
+        loopCounter = splitName[1];
+
+    return erpStack.map(function(name) { return idToFunctionName[name]}).join(" ") + "." + loopCounter;
+}
 
 var MoveCalls =
     {
@@ -39597,6 +39323,7 @@ var MoveCalls =
                 //replace with new identifier, add to call queue.
                 var id = nextid++
                 var idNode = {type: "Identifier", name: "call"+id}
+                idToFunctionName[id + ""] = node.callee.name;
                 var newCallBlock = templateReplace("{enterfn("+id+"); var call"+id+"=__REPLACEME__; leavefn();}",node)
                 newCallBlock.body[1].loc = node.loc //original location of new assignment is set to original call. needed because error stack inside eval doesn't give character, only line.
                 callsToMove.push(newCallBlock)
@@ -39686,8 +39413,8 @@ module.exports =
 
 "var x = foo(1, bar(), 3)"
 
-}).call(this,require("/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/wctransform.js","/")
-},{"/home/feste/git-text-clean-clones/webchurch/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":28,"buffer":19,"escodegen/node_modules/estraverse":34,"esprima":36}]},{},[])var msg = function(obj) {
+}).call(this,require("/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/wctransform.js","/")
+},{"/home/feste/cocolab/webchurch-devel/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":22,"buffer":19,"escodegen/node_modules/estraverse":28,"esprima":30}]},{},[])var msg = function(obj) {
     self.postMessage(obj);
 }
 

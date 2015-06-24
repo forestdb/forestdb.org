@@ -1,6 +1,7 @@
 ---
 layout: model
 title: TextAdventure
+model-language: church
 ---
 
 <h3>Alice is in the park.<br/>

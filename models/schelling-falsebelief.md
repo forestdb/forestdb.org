@@ -4,6 +4,7 @@ title: Schelling Coordination Game with False Belief
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: theory of mind, game theory
+model-language: church
 ---
 
 Bob believes that Alice wants to meet him, and Alice knows this,

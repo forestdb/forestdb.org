@@ -4,6 +4,7 @@ title: Rational Rules
 model-status: code
 model-category: Concept Learning
 model-tags: concepts, logic
+model-language: church
 ---
 
 Rational Rules is a model of concept learning. Concepts are represented as compositional rule formulas. The version below is a simplified version of the model used in Ref:Goodman2008ub.

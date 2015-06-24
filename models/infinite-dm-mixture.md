@@ -5,6 +5,7 @@ model-status: code-fail
 model-status-verbose: Unknown error.
 model-category: Nonparametric Models
 model-tags: mem, nonparametrics, mixture
+model-language: church
 ---
 
 We use the Dirichlet Process to construct a distribution on a potentially infinite number of bags. Each bag is associated with a discrete distribution on the three colors `blue`, `green`, and `red`. We draw marbles, with each marble drawn randomly from either a previously seen or a new bag.

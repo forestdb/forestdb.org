@@ -1,6 +1,7 @@
 ---
 layout: model
 title: Simple Causal Explanations
+model-language: church
 ---
 
 ###Explanations in a causal world with non-deterministic links

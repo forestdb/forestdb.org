@@ -4,6 +4,7 @@ title: Exhaustivity
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics
+model-language: church
 ---
 
 	(define (filter pred lst)

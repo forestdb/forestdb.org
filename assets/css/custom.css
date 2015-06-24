@@ -76,17 +76,47 @@ body div.container {
 
 /* Font and whitespace adjustments */
 
-div.page-header h1 {
+h1, h2, h3, h4, h5 {
    font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
    font-weight: 300;
    line-height: 1.1;
+   margin-top: 20px;
+}
+
+div.page-header h1 {
    font-size: 32px;
    margin-bottom: 0;
+}
+
+h2 {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+h3 {
+   font-size: 20px;
+   margin-bottom: 10px;
+}
+
+h4 {
+   font-size: 18px;
+}
+
+h5 {
+   font-size: 15px;
 }
 
 ul p {
    margin-bottom: 0.3em;
    margin-top: 0.3em;
+}
+
+ol ul {
+   margin-bottom: 10px;
+}
+
+blockquote {
+   font-size: 14px;
 }
 
 
@@ -104,12 +134,11 @@ button.reset {
    float: right
 }
 
-li code {
-   border: 1px solid #aaa;
-   border-radius: 2px;
-   padding: 1px 3px 1px 3px;
-   background-color: #dfdfdf
-}
+/* li code { */
+/*    border-radius: 3px; */
+/*    padding: 1px 3px 1px 3px; */
+/*    background-color: rgba(0,0,0,0.04); */
+/* } */
 
 .code-controls {
    position: absolute;

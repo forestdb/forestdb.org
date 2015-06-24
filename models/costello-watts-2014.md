@@ -4,6 +4,7 @@ title: Biases from Noise
 model-status: code
 model-category: Miscellaneous
 model-tags: psychology, biases
+model-language: church
 ---
 
 This sequence of models is based on Ref:costello2014surprisingly.

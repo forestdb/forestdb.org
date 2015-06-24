@@ -4,6 +4,7 @@ title: Markov Logic Network
 model-status: code
 model-category: Miscellaneous
 model-tags: mln
+model-language: church
 ---
 
 Example Markov Logic Network from Richardson, M., & Domingos, P. (2006). Markov logic networks. Machine learning, 62(1-2), 107-136.

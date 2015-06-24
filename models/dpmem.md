@@ -4,6 +4,7 @@ title: Dirichlet Process
 model-status: code
 model-category: Nonparametric Models
 model-tags: mem, nonparametrics
+model-language: church
 ---
 
 Using memoization (`mem`), we can implement the Dirichlet process:

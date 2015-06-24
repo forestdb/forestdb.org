@@ -4,6 +4,7 @@ title: Infinite Hidden Markov Model
 model-status: code
 model-category: Nonparametric Models
 model-tags: mem, nonparametrics, mixture, hmm
+model-language: church
 ---
 
 The Infinite Hidden Markov model (also known as HDP-HMM) has a potentially infinite number of latent states:

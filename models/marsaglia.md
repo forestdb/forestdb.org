@@ -4,6 +4,7 @@ title: Marsaglia
 model-status: code
 model-category: Miscellaneous
 model-tags: random-variate 
+model-language: church
 ---
 
 This model implements the rejection form of the Box-Muller for generating Gaussian random numbers given a source of uniformly distributed random numbers.

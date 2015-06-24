@@ -5,6 +5,7 @@ model-status: code-fail
 model-status-verbose: Code is only a sketch so far.
 model-category: PPAML Challenge Problems
 model-tags: benchmark, shred, machine learning
+model-language: church
 ---
 
     (define num-words 20)

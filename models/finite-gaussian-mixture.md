@@ -4,6 +4,7 @@ title: Finite Gaussian Mixture
 model-status: code
 model-category: Miscellaneous
 model-tags: mixture, gaussian, simple
+model-language: church
 ---
 
 For each class, we draw and remember a mean and variance. For each object, we draw (and remember) one of the classes, then draw from a Gaussian with the corresponding mean and variance.

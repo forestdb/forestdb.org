@@ -5,6 +5,7 @@ model-status: code-fail
 model-status-verbose: The program doesn't halt with probability 1?
 model-category: Nonparametric Models
 model-tags: dp, nonparametrics, language
+model-language: church
 ---
 
 This is a hierarchical Bayesian language model based on the Pitman-Yor process.

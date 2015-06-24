@@ -4,6 +4,7 @@ title: Simple Bayesian Networks
 model-status: code
 model-category: Miscellaneous
 model-tags: bayesnet, simple
+model-language: church
 ---
 
 A **chain** of three discrete nodes:

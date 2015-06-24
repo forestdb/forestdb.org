@@ -4,6 +4,7 @@ title: Infinite Probabilistic Context-Free Grammar
 model-status: code
 model-category: Nonparametric Models
 model-tags: language, pcfg
+model-language: church
 ---
 
     (define terms '(a b c d))

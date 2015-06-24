@@ -4,6 +4,7 @@ title: Hierarchical Urn Model
 model-status: code
 model-category: Miscellaneous
 model-tags: hierarchical models
+model-language: church
 ---
 
 This model first samples a bias, splits the bias into red and

@@ -7,13 +7,25 @@ model-language: webppl
 
 A model of content effects in syllogistic reasoning.
 
-### Under heavy development.
+Ref:tessler2014syllogisms presented a model of argument strength for syllogistic reasoning. 
+Argument strength is calculating by a generative model of idealized situations: situations are composed of objects with (Boolean) properties.
+For simplicity, properties were assumed to be *independent and identically distributed*.
+Here, we relax that assumption and measure the prior over properties empirically. 
 
+The original model also accounted for pragmatic effects in syllogistic reasoning. 
+That model uses an inference-about-inference setup to explicitly model the premises as coming from an (informative) experimenter.
+That model, written in Church, can be found here: [here](http://forestdb.org/models/syllogisms-cogsci14.html).
+
+This model doesn't include the pragmatic compoenent as of yet, focusing instead on the raw computation of argument strength.
+This model is written in WebPPL.
 
 ~~~~
-var n_objects = 4
-var priorDM = 'plausibility'
+/// model parameter: number of objects
 
+var n_objects = 4
+// var priorDM = 'plausibility'
+
+// mht's gensym
 globalStore.gensymCounter = 0
 var gensym = function(){
   globalStore.gensymCounter = globalStore.gensymCounter+1
@@ -22,37 +34,68 @@ var gensym = function(){
 
 var objects = repeat(n_objects, gensym)
 
-var mapObject = function(fn, obj){ 
-  return _.object(
-    map(
-      function(kv){
-        return [kv[0], fn(kv[0], kv[1])]
-      }, 
-      _.pairs(obj))
-  );
-}
+var empiricalPrior = { lightbulb: 
+   [ 0.24602846414362,
+     0.11758230643016374,
+     0.03002454453076707,
+     0.021605845425660415,
+     0.09246959793518443,
+     0.11613603192957513,
+     0.1264134724274912,
+     0.24973973717753792 ],
+  tomatoplant: 
+   [ 0.18614347383728444,
+     0.06674594292556965,
+     0.11079513687730845,
+     0.08840397548035497,
+     0.10099067042833954,
+     0.14302944460469302,
+     0.10284310244194857,
+     0.20104825340450147 ],
+  cracker: 
+   [ 0.13958560292608718,
+     0.18984121615975305,
+     0.16532489934289613,
+     0.1007158901785135,
+     0.1266459089369192,
+     0.07255761758737525,
+     0.15269095970967317,
+     0.052637905158782465 ],
+  strawberry: 
+   [ 0.1467538037897898,
+     0.13814401342789567,
+     0.13997190080307098,
+     0.2058429216389246,
+     0.2192599751611972,
+     0.04206648163997186,
+     0.07778468583564677,
+     0.030176217703503164 ],
+  painting: 
+   [ 0.15868429644835172,
+     0.11032846084219958,
+     0.17739637719643314,
+     0.0587054407378321,
+     0.07530371510193026,
+     0.17220187338109763,
+     0.13590947277186263,
+     0.11147036352029296 ],
+  knife: 
+   [ 0.16397053492239244,
+     0.07206225246448014,
+     0.19227967473750193,
+     0.052169702678688396,
+     0.0808569287839623,
+     0.2048175888790572,
+     0.11834816118323957,
+     0.11549515635067803 ] }
+
+
 
 var uniformDraw = function(x){
   return x[randomInteger(x.length)]
 }
 
-var makeERPfromObject = function(obj){
-     return Enumerate(function(){return _.keys(obj)[discrete(_.values(obj))]});
-    }
 
-
-var writeERP = function(myERP){
-  return map(
-          function(value){
-            value.concat(Math.exp(myERP.score([], value)))
-          },
-          myERP.support([]))
-}
-
-// load prior data
-
-
-var priorClean = utils_wppl.parsePriorData(priorDM)
 
 var propertyTuples = [[0,0,0],[0,0,1],[0,1,0],[0,1,1],
                       [1,0,0],[1,0,1],[1,1,0],[1,1,1]]
@@ -61,66 +104,6 @@ var propertyTuples = [[0,0,0],[0,0,1],[0,1,0],[0,1,1],
 var domainsSingular = ['cracker','knife','strawberry','lightbulb']
 
 
-var csvInput = utils_wppl.readReasoningData();
-
-
-
-
-var domains = _.uniq(map(function(row){return row[domainCol]}, radioData))
-var syllogisms = _.uniq(map(function(row){return row[syllCol]}, radioData))
-
-
-
-// for joint, map row into string of 1s and 0s
-var mapObject2 = function(fn, obj){  
-  return  map(function(x){return fn(x[1])}, _.pairs(obj))
-}
-
-var rowToObject = function(row){
-  return mapObject2(function(index){return row[index]}, radioIndices)
-}
-
-// for marginal, map row into "YES" conclusions
-var mapObject3 = function(fn, obj){  
-  return  map(function(x){return fn(x[1])==1 ? x[0] : ''}, _.pairs(obj))
-}
-
-var rowToConclusion = function(row){
-  return mapObject3(function(index){return row[index]}, radioIndices)
-}
-
-// organize by domain and syllogism , 
-// and then within each subject, organized into an object from conclusions --> binary
-// structuredData[domainName][syllName]
-
-var structuredDataJoint = _.object(map(function(domain){
-              return [domain, _.object(map(function(syll){
-                return [syll, map(rowToObject,filter(function(row){
-                    return (row[domainCol]==domain && row[syllCol] == syll)
-                  }, radioData))
-                ]
-              }, syllogisms))]
-            }, domains))
-
-
-// organize by domain and syllogism , 
-// and then within each subject, organized into an object from conclusions --> binary
-// structuredData[domainName][syllName]
-
-var structuredDataMarginal = _.object(map(function(domain){
-              return [domain, _.object(map(function(syll){
-                return [syll, 
-                          _.filter(
-                            _.flatten(
-                                map(rowToConclusion,
-                                    filter(function(row){
-                                      return (row[domainCol]==domain && row[syllCol] == syll)
-                           }, radioData))), Boolean)
-                       ]
-              }, syllogisms))]
-            }, domains))
-
-////
 
 var domainSingularPlural = {
   "cracker":"crackers",
@@ -146,23 +129,6 @@ var conclusionOrder = [ [["C","A"],"all"],
                         [["C","A"],"some"],
                         [["C","A"],"not all"]];
 
-var conclusionListOrder = [ [["C","A"],"all"],
-                          [["C","A"],"none"],
-                          [["C","A"],"some"],
-                          [["C","A"],"not all"],
-                          [[["C","A"],"all"],[["C","A"],"some"]],
-                          [[["C","A"],"some"],[["C","A"],"not all"]],
-                          [[["C","A"],"none"],[["C","A"],"not all"]]];
-
-
-var binarizedConclusionSet = ['1000',
-                              '0100',
-                              '0010',
-                              '0001',
-                              '1010',
-                              '0011',
-                              '0101'];
-
 
 var syllogisticSentences = _.flatten(map(function(x)
   {return map(function(y){return [y,x]} ,sentenceForms)}, quantifiers),true)
@@ -172,70 +138,12 @@ var premiseForms = {"1":[["B","A"],["C","B"]],
                   "3":[["B","A"],["B","C"]],
                   "4":[["A","B"],["B","C"]]}
 
-var scholasticDict = {"all":"A","none":"E","some":"I","not all":"O"}
-
-var premisesToScholasticCode = function(premises){
-  var figure = _.invert(premiseForms)[premises[0][0]+','+premises[1][0]]
-  var code = map(function(x){return scholasticDict[x[1]]}, premises).join('')
-  return code+figure
-}
-
-
-var scholasticCodeToPremises = function(code){
-  var invertedDict = _.invert(scholasticDict)
-  var p = premiseForms[code[2]]
-  var premise1 = [p[0], invertedDict[code[0]]]
-  var premise2 = [p[1], invertedDict[code[1]]]
-  return [premise1, premise2]
-}
-
-
-var isPremise = function(sentence,figure,premiseNo){
-  return sentence[0] == premiseForms[figure][premiseNo-1]
-}
 
 var isConclusion = function(x){
 //  return (x[0][0]=='A' || x[0][0]=='C') && (x[0][1]=='A' || x[0][1]=='C')
 //  return (x[0][0]=='A') && (x[0][1]=='C')
   return (x[0][0]=='C') && (x[0][1]=='A')
 }
-
-
-var stateToSentence = function(state){
-  return filter(function(x){return state[syllogisticSentences.indexOf(x)]
-  }, syllogisticSentences)
-}
-
-var flattenSentences = function(sentences){
-  return map(function(sentence){
-    return [sentence[0][0], sentence[0][1], sentence[1]].join()
-  },sentences)
-}
-
-
-var syllogisticPremisesNested = map(function(x)
-  {return map(function(y)
-    {return map(function(q1)
-      {return map(function(q2)
-        {return [[y,q1],[x,q2]]},
-        quantifiers)},
-      quantifiers)},
-    sentenceForms.slice(0,2))},
-  sentenceForms.slice(2,4))
-
-var syllogisticPremises = _.flatten(
-  _.flatten(
-    _.flatten(syllogisticPremisesNested,
-      true),
-    true),
-  true)
-
-
-var premiseDictionary = {"1": _.flatten(_.flatten(syllogisticPremisesNested,true)[3],true),
-                          "2": _.flatten(_.flatten(syllogisticPremisesNested,true)[2],true),
-                          "3": _.flatten(_.flatten(syllogisticPremisesNested,true)[1],true),
-                          "4": _.flatten(_.flatten(syllogisticPremisesNested,true)[0],true)}
-
 
 
 // quantifier logic and helpers
@@ -291,9 +199,6 @@ var multinomialProbabilities = function(br){
 }
 
 
-//  propertyTuples = [[0,0,0],[0,0,1],[0,1,0],[0,1,1],
-//                       [1,0,0],[1,0,1],[1,1,0],[1,1,1]]
-
 var multinomialProbabilitiesFromid = function(a,b,c){
   return [(1-a)*(1-b)*(1-c), (1-a)*(1-b)*c, (1-a)*b*(1-c), (1-a)*b*c,
           a*(1-b)*(1-c), a*(1-b)*c, a*b*(1-c), a*b*c]
@@ -302,16 +207,23 @@ var multinomialProbabilitiesFromid = function(a,b,c){
 
 var equivalentTransform = cache(function(objects, backgroundPrior){
 
-//  var backgroundPrior = [1,1,1,1,1,1,1,1]
-//  var backgroundPrior = multinomialProbabilities(0.25)
-
+    var pruneERP = function(myERP){
+      var scr = map(function(lst)
+                     {var y = myERP.score([],lst);
+                      return y},
+                     myERP.support())
+      var prnScr=filter(function(lst){return lst[0] > -Infinity}, _.zip(scr,myERP.support()))
+      var ps = map(function(x){return Math.exp(first(x))}, prnScr)
+      var vs = map(second,prnScr)
+      return Enumerate(function(){return vs[discrete(ps)]});
+    }
 
   var getProperties = function(obj) {
       var p = propertyTuples[discrete(backgroundPrior)]
       return p
     }
 
-  Enumerate(function(){
+  var prePrunedERP = Enumerate(function(){
 
     var propertiesOfObjects = _.object(_.zip(objects,map(getProperties,objects)))
 
@@ -332,103 +244,85 @@ var equivalentTransform = cache(function(objects, backgroundPrior){
                                     sentence[0][1])}, 
       syllogisticSentences)
   })
+
+  return pruneERP(prePrunedERP)
 })
 
-var pruneERP = function(myERP){
-  var scr = map(function(lst)
-                 {var y = myERP.score([],lst);
-                  return y},
-                 myERP.support())
-  
-  var prnScr=filter(function(lst){return lst[0] > -Infinity}, _.zip(scr,myERP.support()))
-  var ps = map(function(x){return Math.exp(first(x))}, prnScr)
-  var vs = map(second,prnScr)
-  return Enumerate(function(){return vs[discrete(ps)]});
-}
+
 
 
 /// helpers for sentences
 
+var stateToSentence = function(state){
+  return filter(
+    function(x){return state[syllogisticSentences.indexOf(x)]}, 
+    syllogisticSentences)
+}
+
 var flattenSentences = function(sentences){
-    return map(function(sentence){
-      return [sentence[0][0], sentence[0][1], sentence[1]].join()
-    },sentences)
-  }
-
-// var binarizeConclusionSet = function(trueConcl){
-//   return map(function(conclusion){
-//     return (flattenSentences(trueConcl).indexOf(conclusion) > -1) ? 1 : 0
-//   }, flattenSentences(conclusionOrder)).join('')
-// }
-
-
-// this considers "multiple conclusions" explicitly
-var trueLists = function(trueConcls){
-      _.flatten([map(function(x){return flattenSentences(conclusionListOrder).indexOf(x)}, 
-                    flattenSentences(trueConcls)), 
-                 flattenSentences(conclusionListOrder).indexOf(flattenSentences(trueConcls).join())])
+  return map(function(sentence){
+    return [sentence[0][0], sentence[0][1], sentence[1]].join()
+  },sentences)
 }
 
 
-// this considers "multiple conclusions" implicitly
-// var trueLists = function(trueConcls){
-//       map(function(x){return flattenSentences(conclusionListOrder).indexOf(x)}, 
-//                     flattenSentences(trueConcls))
-// }
-
-var reasoner0_independent = cache(function(premises, a, b, c, domain) {
+var argumentStrength_abstractWorld = cache(function(premises, br) {
   Enumerate(function(){
 
-    var equivalentWorlds = equivalentTransform(objects, multinomialProbabilitiesFromid(a,b,c))
+    var equivalentWorlds = equivalentTransform(objects, multinomialProbabilities(br))
 
     var state = sample(equivalentWorlds)
     var trueSentences = stateToSentence(state)
-        // this could probably be optimized
     var flattenedSentences = flattenSentences(trueSentences) 
 
-    var premisesTrue = flattenedSentences.indexOf(premises[0].join())!=-1 &&
-                        flattenedSentences.indexOf(premises[1].join())!=-1
+    var premisesTrue = flattenSentences(trueSentences).indexOf(premises[0].join())!=-1 &&
+                        flattenSentences(trueSentences).indexOf(premises[1].join())!=-1
 
     var trueConclusions = filter(isConclusion, trueSentences)
 
-    var listConclusions = trueLists(trueConclusions)
-//    var whichConclusions = binarizedConclusionSet[uniformDraw(listConclusions)]
-   var whichConclusions = uniformDraw(listConclusions)
-//    var conclusion = uniformDraw(trueConclusions)
+
+   var conclusion = uniformDraw(trueConclusions)
 
     factor(premisesTrue?0:-Infinity)
-//    return conclusion // what is the conclusion?
-    return whichConclusions // which conclusions are true?
+   return conclusion // what is the conclusion?
   })
 })
 
 
-var reasoner0_empirical = cache(function(premises, domain) {
+
+var argumentStrength_realWorld = function(premises, domain) {
   Enumerate(function(){
 
-    var backgroundPrior = priorClean[domain]
-    var equivalentWorlds = pruneERP(equivalentTransform(objects, backgroundPrior))
-    var state = sample(equivalentWorlds)
+    var prior = empiricalPrior[domain]
+    // run equivalence class transformation
+    var equivalentWorlds = equivalentTransform(objects, prior)
+    // sample a situation
+    var situation = sample(equivalentWorlds)
 
+    // which sentences are true of that situation?
+    var trueSentences = stateToSentence(situation)
 
-    var trueSentences = stateToSentence(state)
-        // this could probably be optimized
-    var flattenedSentences = flattenSentences(trueSentences) 
-
-    var premisesTrue = flattenedSentences.indexOf(premises[0].join())!=-1 &&
-                        flattenedSentences.indexOf(premises[1].join())!=-1
-
+    // are the premises included in that list of true sentences?
+    var premisesTrue = flattenSentences(trueSentences).indexOf(premises[0].join())!=-1 &&
+                        flattenSentences(trueSentences).indexOf(premises[1].join())!=-1
+    // which of the true sentences are of the conclusion form?
     var trueConclusions = filter(isConclusion, trueSentences)
 
-    var listConclusions = trueLists(trueConclusions)
-//    var whichConclusions = binarizedConclusionSet[uniformDraw(listConclusions)]
-   var whichConclusions = uniformDraw(listConclusions)
-//    var conclusion = uniformDraw(trueConclusions)
+    // sample a true conclusion
+    var conclusion = uniformDraw(trueConclusions)
 
+    // conditioning on the premises being true
     factor(premisesTrue?0:-Infinity)
-//    return conclusion // what is the conclusion?
-    return whichConclusions // which conclusions are true?
+
+   return conclusion
   })
-})
+}
+
+argumentStrength_realWorld([ [ [ 'B', 'A' ], 'some' ], [ [ 'C', 'B' ], 'all' ] ], 'lightbulb')
+//argumentStrength_abstractWorld([ [ [ 'B', 'A' ], 'some' ], [ [ 'C', 'B' ], 'all' ] ], 0.25)
 
 ~~~~
+
+References:
+
+- Cite:tessler2014syllogisms

@@ -1,6 +1,6 @@
 ---
 layout: model
-title: 	Inferences with binomials
+title: 	Inferences with Binomials
 model-category: Bayesian Data Analysis
 model-status: code
 model-language: webppl

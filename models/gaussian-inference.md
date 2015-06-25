@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Inference with Gaussians
+title: Inferences with Gaussians
 model-status: code
 model-category: Bayesian Data Analysis
 model-language: webppl

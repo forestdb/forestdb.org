@@ -20,7 +20,7 @@ We set the prior over the standard deviation to a uniform distribution over the 
 
       var score = sum(map(function(dataPoint) {
         return gaussianERP.score([mu, sigma], dataPoint);
-      }, data)
+      }, data))
 
       factor(score)
       return [mu, sigma]
@@ -52,7 +52,7 @@ Next, we consider a situation where seven scientsts take a measurement of the sa
         var dataPoint = scientistPair[0]
         var sigma = scientistPair[1]
         return gaussianERP.score([mu, sigma], dataPoint);
-      }, _.zip(data, sigmas))
+      }, _.zip(data, sigmas)))
 
   
       factor(score)

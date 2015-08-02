@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Irony with tone and common ground inference
-model-language: chuch
+model-language: church
 ---
 
 ~~~

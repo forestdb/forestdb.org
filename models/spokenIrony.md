@@ -1,19 +1,20 @@
 ---
 layout: model
-title: Irony with tone and common ground inference
+title: Spoken irony and common ground inference
+model-status: code
 model-language: church
 ---
 
 ~~~
-; Five possible weather states
+;; Five possible weather states
 (define states
   (list 'terrible 'bad 'ok 'good 'amazing))
 
-; Listener believes the weather state is most likely amazing, but plausibly good as well
+;; Listener believes the weather state is most likely amazing, but plausibly good as well
 (define (state-prior) 
   (multinomial states '(0.01 0.05 0.1 0.3 0.5)))
 
-; Probability of positive valence given each weather state
+;; Probability of positive valence given each weather state
 (define (valence-prior state)
   (if (flip (second (assoc state
                            (list (list 'terrible 0.01)
@@ -24,7 +25,7 @@ model-language: church
      'pos
      'neg))
 
-; Probability of high arousal given each weather state
+;; Probability of high arousal given each weather state
 (define (arousal-prior state)
   (if (flip (second (assoc state
                            (list (list 'terrible 0.9)
@@ -36,11 +37,11 @@ model-language: church
       'low
       ))
 
-; Probability of the speaker having each communicative goal
+;; Probability of the speaker having each communicative goal
 (define (goal-prior)
   (multinomial (list 'g-state 'g-valence 'g-arousal) '(0.1 0.1 0.1)))
 
-; Speaker's goal is satisfied if the goal dimension is communicated to listener
+;; Speaker's goal is satisfied if the goal dimension is communicated to listener
 (define (goal-satisfied? goal listener-interp speaker-world)
   (case goal
     (('g-state) (equal? (first listener-interp) (first speaker-world)))
@@ -48,23 +49,23 @@ model-language: church
     (('g-arousal) (equal? (third listener-interp) (third speaker-world)))
         ))
 
-; List of utterances the speaker can say
+;; List of utterances the speaker can say
 (define utterances states)
 
-; Cost of each utterance is the same
+;; Cost of each utterance is the same
 (define (utterance-prior) (uniform-draw utterances))
 
-; List of possible tones
+;; List of possible tones
 (define tones (list 'sarcastic 'plain))
 
-; Cost of each tone is the same
+;; Cost of each tone is the same
 (define (tone-prior) (multinomial tones '(0.5 0.5)))
 
-; Prior probability of having the same prior as speaker
+;; Prior probability of having the same prior as speaker
 (define sameness-prior 0.5)
 
-; L2 is given an utterance and a tone. L2 is uncertain whether speaker has
-; same prior as he does.
+;; L2 is given an utterance and a tone. L2 is uncertain whether speaker has
+;; same prior as he does.
 (define L2
   (mem
    (lambda (utterance tone)
@@ -78,9 +79,9 @@ model-language: church
       (list same?)
       (equal? (list utterance tone) (apply multinomial (S2 state valence arousal same?)))))))
 
-; Given a weather state and her valence and arousal towards it,
-; S2 chooses the utterance and tone such that L1 interprets
-; the utterance literally or sarcastically
+;; Given a weather state and her valence and arousal towards it,
+;; S2 chooses the utterance and tone such that L1 interprets
+;; the utterance literally or sarcastically
 (define S2
   (mem
    (lambda (state valence arousal same?)
@@ -95,10 +96,10 @@ model-language: church
           ; (Should add some noise to this)
           (literal-interpretation utterance (first interp)))))))
 
-; Given the utterance, tone, and whether S1 has the same priors,
-; L1 reasons about S1's communicative goal
-; and infers S1's state, valence, and arousal
-; such that S1 would choose the utterance. L1 does not care about tone.
+;; Given the utterance, tone, and whether S1 has the same priors,
+;; L1 reasons about S1's communicative goal
+;; and infers S1's state, valence, and arousal
+;; such that S1 would choose the utterance. L1 does not care about tone.
 (define L1
   (mem
    (lambda (utterance tone same?)
@@ -113,8 +114,8 @@ model-language: church
       (equal? utterance (apply multinomial (S1 state valence arousal goal same?)))
       ))))
 
-; Given state, valence, arousal, goal, and whether prior is shared,
-; S1 chooses utterance such that goal dimension is communicated to literal listener
+;; Given state, valence, arousal, goal, and whether prior is shared,
+;; S1 chooses utterance such that goal dimension is communicated to literal listener
 (define S1
   (mem
    (lambda (state valence arousal goal same?)
@@ -124,9 +125,9 @@ model-language: church
       utterance
           (goal-satisfied? goal lit-interp (list state valence arousal))))))
 
-; Given utterance and whether prior is shared,
-; L0 interprets utterance literally and produces speaker's valence and arousal
-; given utterance is literal
+;; Given utterance and whether prior is shared,
+;; L0 interprets utterance literally and produces speaker's valence and arousal
+;; given utterance is literal
 (define L0
   (mem
    (lambda (utterance same?)

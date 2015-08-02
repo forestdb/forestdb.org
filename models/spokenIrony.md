@@ -4,6 +4,7 @@ title: Irony with tone and common ground inference
 model-language: chuch
 ---
 
+~~~
 ; Five possible weather states
 (define states
   (list 'terrible 'bad 'ok 'good 'amazing))
@@ -142,20 +143,6 @@ model-language: chuch
 (define (literal-interpretation utterance state)
   (equal? utterance state))
 
-
-
-;(barplot (L0 'terrible 'arousal #t))
-;(barplot (S1 'amazing 'pos 'high 'g-arousal #t))
-;(barplot (L1 'terrible 'sarcastic #t))
-;(barplot (S2 'amazing 'pos 'high 'g-arousal #t))
-;(barplot (L2 'terrible 'plain))
 (barplot (L2 'terrible 'sarcastic))
 (barplot (L2 'amazing 'plain))
-;(barplot (L2 'amazing 'sarcastic))
-
-;(barplot (S2 'amazing 'pos 'high 'g-state #t))
-;(barplot (S2 'amazing 'pos 'high 'g-arousal #t))
-;(barplot (S2 'amazing 'pos 'high 'g-valence #t))
-;(barplot (S2 'amazing 'plain))
-;(barplot (S2 'amazing 'sarcastic))
-
+~~~

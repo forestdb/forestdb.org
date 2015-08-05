@@ -16,28 +16,27 @@ Let's make this idea of inductive reasoning a bit more concrete with a simple ex
 
 ### Number game
 
-Suppose your friend shows you this sequence of numbers and tells you that they are "positive examples" of a category of numbers: `[8, 16, 64]`.
+Suppose your friend shows you this sequence of numbers and tells you that they are "positive examples" of a pattern of numbers: `[2, 8, 32]`. Numbers that fit this pattern belong to the same category.
 
 (Note: **positive examples** are examples of that category; **negative examples** are examples that are *not* of that category.)
 
 * Do you think 4 belongs to this category?
 * What about 7?
-* Or 10?
+* Or 20?
 
 Now, suppose someone shows you this sequence of numbers and tells you that they are "positive examples" of a different category of numbers: `[10, 30, 40]`
 
 * Do you think 4 belongs to this category?
 * What about 7?
-* Or 10?
+* Or 20?
 
-How did you come up with these answers? What are your hypotheses about which number category your friend was thinking of?
+How did you come up with these answers? What number category do you think your friend was thinking of? This is called a "hypothesis."
 
-Let's zoom in on the first sequence: `[8, 16, 64]`. In order to predict what other numbers might belong to this category, it can be useful to think about the process that *generated* these three numbers. Since there are several different number categories that we consider, there are also several different ways in which these numbers were generated from those categories.
+Let's zoom in on the first sequence: `[2, 8, 32]`. In order to predict what other numbers might belong to this category, it can be useful to think about the process that *generated* these three numbers. Since there are several different number categories that we consider, there are also several different ways in which these numbers were generated from those categories.
 
-Here is one way the numbers `[8, 16, 64]` could have been generated:
+Here is one way the numbers `[2, 8, 32]` could have been generated:
 
-1. Your friend was thinking of the concept (or number category): "*powersOfTwo*".
-2. Your friend randomly samples some numbers that are powers of 2.
+* Your friend thinks of the concept (or number category): "*powersOfTwo*". Your friend then randomly samples some numbers that are powers of 2.
 
 This is what this **generative process** looks like in code:
 
@@ -105,22 +104,21 @@ getExamples();
 print(Enumerate(getExamples));
 ~~~~  
 
-Of course, there are other ways the numbers `[8, 16, 64]` could have been generated:
+Of course, there are other ways the numbers `[2, 8, 32]` could have been generated:
 
-1. Your friend was thinking of the concept (or number category): "*multiplesOfTwo*".
-2. Your friend randomly samples some numbers that are multiples of 2.
+* Your friend thinks of the concept (or number category): "*multiplesOfTwo*". Your friend then randomly samples some numbers that are multiples of 2.
 
-What is the more likely category given the numbers `[8, 16, 64]`---*powersOfTwo*, or *multiplesOfTwo*?
+What is the more likely category given the numbers `[2, 8, 32]`---*powersOfTwo*, or *multiplesOfTwo*?
 
 ## Probabilistic programs
 
-It can be quite tedious to calculate the probabilites by hand. Instead, we can use "**Probabilistic Programs**" (programs that have some randomness and uncertainty in them) to let the computer figure out the answer for us. That is part of the power of programming!
+It can be quite tedious to calculate the probabilites by hand. Instead, we can use "**Probabilistic Programs**" (programs that deal with probability) to let the computer figure out the answer for us. That is part of the power of programming!
 
 ### Generative Model
 
 To write a program that does this work for us, we first need to give it some information we have about your friend and how she chooses numbers. We can do this in the form of a "**generative model**": in this case, a description of how your friend generates numbers from concepts.
 
-Let's say your friend could be thinking of either "*multiplesOfTwo*" or "*powersOfTwo*". For simplicity, let's also assume that she'll only give you numbers less than or equal to 10 (otherwise there would be too many number combinations to consider!).
+Let's say your friend could be thinking of either "*multiplesOfTwo*" or "*powersOfTwo*". For simplicity, let's now also assume that she'll only give you numbers less than or equal to 10 (otherwise there would be too many number combinations to consider!).
 
 First, she randomly samples one of those concepts:
 
@@ -236,7 +234,7 @@ print(Enumerate(generateExamplesWithCondition));
 
 ### Infer unobserved concept given observed sequence
 
-Now that we are bit more familiar with how your friend generates these numbers, we can tackle the actual question---given the numbers you observe (e.g. `[2, 4, 8]`), which concept is your friend most likely to be thinking of? 
+Now that we are bit more familiar with how a computer would generate these numbers, we can tackle the actual question---given the numbers you observe (e.g. `[2, 4, 8]`), which concept is your friend most likely to be thinking of? 
 
 Note that we are again asking for a **conditional probability**, except now it goes the other direction. Instead of asking for the probability that `[2, 4, 8]` is generated given that your friend chose the concept "*multiplesOfTwo*", we now ask for the probability that your friend chose the concept "*multiplesOfTwo*" given that `[2, 4, 8]` was generated.
 

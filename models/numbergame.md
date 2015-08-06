@@ -46,15 +46,13 @@ This is what this **generative process** looks like in code:
 var drawN = function(array, N) {
   if (N == 0) {
     return [];
-  } else {
+  } else if (N <= array.length) {
     var sampled = uniformDraw(array);
     var remaining = remove(sampled, array);
     return [sampled].concat(drawN(remaining, N-1));
+  } else {
+    print("invalid input to drawN: array was [" + array + "] and N was " + N + ".");
   }
-}
-// sample 3 items from an array, without replacement
-var draw3 = function(array) {
-  return drawN(array, 3);
 }
 ///
 
@@ -65,7 +63,7 @@ var powersOfTwo = [1, 2, 4, 8, 16, 32];
 
 // then we sample 3 of those powers of 2:
 var getExamples = function() {
-  return draw3(powersOfTwo)
+  return drawN(powersOfTwo, 3)
 };
 
 getExamples();
@@ -81,23 +79,21 @@ You can also see graphs of this simulation. (Let's put our 3 numbers in order, s
 var drawN = function(array, N) {
   if (N == 0) {
     return [];
-  } else {
+  } else if (N <= array.length) {
     var sampled = uniformDraw(array);
     var remaining = remove(sampled, array);
     // NOTE: now we're sorting the result.
     return sort([sampled].concat(drawN(remaining, N-1)));
+  } else {
+    print("invalid input to drawN: array was [" + array + "] and N was " + N + ".");
   }
-}
-// sample 3 items from an array, without replacement
-var draw3 = function(array) {
-  return drawN(array, 3);
 }
 
 // first we make an array of all the powers of 2 less than 50:
 var powersOfTwo = [1, 2, 4, 8, 16, 32];
 
 // then we sample 3 of those powers of 2:
-var getExamples = function() {return draw3(powersOfTwo)};
+var getExamples = function() {return drawN(powersOfTwo, 3)};
 
 getExamples();
 ///
@@ -140,16 +136,14 @@ Then, whatever concept your friend chooses, she gives you 3 example numbers from
 var drawN = function(array, N) {
   if (N == 0) {
     return [];
-  } else {
+  } else if (N <= array.length) {
     var sampled = uniformDraw(array);
     var remaining = remove(sampled, array);
     // NOTE: now we're sorting the result.
     return sort([sampled].concat(drawN(remaining, N-1)));
+  } else {
+    print("invalid input to drawN: array was [" + array + "] and N was " + N + ".");
   }
-}
-// sample 3 items from an array, without replacement
-var draw3 = function(array) {
-  return drawN(array, 3);
 }
 
 var pickConcept = function() {
@@ -167,7 +161,7 @@ var conceptExamples = {
 // in the generative model, we chose a concept, and then sample from it
 var generateExamples = function() {
   var concept = pickConcept(); // this line picks a concept randomly
-  var examples = draw3(conceptExamples[concept]); // given the randomly chosen concept, choose 3 examples from it
+  var examples = drawN(conceptExamples[concept], 3); // given the randomly chosen concept, choose 3 examples from it
   return examples;
 }
 
@@ -190,16 +184,14 @@ In the last section, the program generated number sequences without knowing whic
 var drawN = function(array, N) {
   if (N == 0) {
     return [];
-  } else {
+  } else if (N <= array.length) {
     var sampled = uniformDraw(array);
     var remaining = remove(sampled, array);
     // NOTE: now we're sorting the result.
     return sort([sampled].concat(drawN(remaining, N-1)));
+  } else {
+    print("invalid input to drawN: array was [" + array + "] and N was " + N + ".");
   }
-}
-// sample 3 items from an array, without replacement
-var draw3 = function(array) {
-  return drawN(array, 3);
 }
 
 var pickConcept = function() {
@@ -217,7 +209,7 @@ var conceptExamples = {
 // in the generative model, we chose a concept, and then sample from it
 var generateExamplesWithCondition = function() {
   var concept = pickConcept();
-  var examples = draw3(conceptExamples[concept]);
+  var examples = drawN(conceptExamples[concept], 3);
   condition( concept == "multiplesOfTwo" ); // multiples: conditoned on the concept being "multiplesOfTwo"
   //condition( concept == "powersOfTwo" ); // powers: conditoned on the concept being "powersOfTwo"
   return examples;
@@ -252,16 +244,14 @@ var arrayEquals = function(arrayA, arrayB) {
 var drawN = function(array, N) {
   if (N == 0) {
     return [];
-  } else {
+  } else if (N <= array.length) {
     var sampled = uniformDraw(array);
     var remaining = remove(sampled, array);
     // NOTE: now we're sorting the result.
     return sort([sampled].concat(drawN(remaining, N-1)));
+  } else {
+    print("invalid input to drawN: array was [" + array + "] and N was " + N + ".");
   }
-}
-// sample 3 items from an array, without replacement
-var draw3 = function(array) {
-  return drawN(array, 3);
 }
 
 var pickConcept = function() {
@@ -283,7 +273,7 @@ var conceptExamples = {
 var inferConcept = function(observations) {
   return function() {
     var concept = pickConcept();
-    var examples = draw3(conceptExamples[concept]);
+    var examples = drawN(conceptExamples[concept], 3);
     condition( arrayEquals( examples, observations ) ); // conditioning on the observations
     return concept;
   }
@@ -336,16 +326,14 @@ var arrayEquals = function(arrayA, arrayB) {
 var drawN = function(array, N) {
   if (N == 0) {
     return [];
-  } else {
+  } else if (N <= array.length) {
     var sampled = uniformDraw(array);
     var remaining = remove(sampled, array);
     // NOTE: now we're sorting the result.
     return sort([sampled].concat(drawN(remaining, N-1)));
+  } else {
+    print("invalid input to drawN: array was [" + array + "] and N was " + N + ".");
   }
-}
-// sample 3 items from an array, without replacement
-var draw3 = function(array) {
-  return drawN(array, 3);
 }
 ///
 
@@ -371,7 +359,7 @@ var conceptExamples = {
 var inferConcept = function(observations) {
   return function() {
     var concept = pick3rdGradeConcept();
-    var examples = draw3(conceptExamples[concept]);
+    var examples = drawN(conceptExamples[concept], 3);
     condition( arrayEquals( examples, observations ) );
     return concept;
   }

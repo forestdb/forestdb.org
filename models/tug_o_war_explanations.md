@@ -174,7 +174,7 @@ vizPrint(Enumerate(inference));
 
 > Alice won because Bob was lazy.
 
-My intuition is that this sentence means that it's more likely that Bob is strong and that Alice is weak.
+My intuition is that this sentence means that it’s more likely that Bob is strong and that Alice is weak.
 
 Relative to "and", these interpretations kind of bear out...
 
@@ -274,6 +274,7 @@ vizPrint(Enumerate(inference));
 
 ### Pragmatics
 
+As we add pragmatics and increase rationality and cost of explaining, the probabitliy that Alice is weak and Bob is strong increases.
 
 ~~~
 ///fold:
@@ -303,7 +304,6 @@ var randomness = function() {
     uW: flip(0.5)
   };
 };
-///
 
 var stickiness = 0.5;
 var sticky_randomness = function(actual) {
@@ -357,6 +357,9 @@ var alice_lazy = function(world) {
 var bob_lazy = function(world) {
   return world.LB;
 }
+///
+
+var alpha = 5;
 
 // <3 eval...
 var meaning = function(utterance, actual_world, actual_randomness) {
@@ -399,7 +402,7 @@ var utterance_prior = function() {
     "bob_strong", "bob_weak"
   ];
   var costs = [
-    2, 2,
+    6, 6,
     1, 1,
     1, 1,
     1, 1,
@@ -422,7 +425,7 @@ var literalERP = cache(function(utterance) {
 var speakerERP = cache(function(world) {
   return Enumerate(function() {
     var utterance = utterance_prior();
-    factor( literalERP(utterance).score([], world) );
+    factor( alpha * literalERP(utterance).score([], world) );
     return utterance;
   });
 });
@@ -431,7 +434,7 @@ var listenerERP = function(utterance) {
   return Enumerate(function() {
     var actual_randomness = randomness();
     var actual_world = model(actual_randomness);
-    factor( speakerERP(actual_world).score([], utterance) );
+    factor( alpha * speakerERP(actual_world).score([], utterance) );
     return actual_world;
   })
 };

@@ -11,7 +11,7 @@ model-language: webppl
 * toc
 {:toc}
 
-## Generative model
+## Simplest generative model
 
 Alice and Bob are playing a game of tug-of-war. I'm starting with a very simple model to begin with.
 
@@ -127,9 +127,7 @@ var inference = function() {
 vizPrint(Enumerate(inference));
 ~~~
 
-## Add laziness
-
-### New generative model
+## Slightly more interesting generative model
 
 Now, with probability 0.3, a player might be lazy. If they're lazy, they pull at half their strength (which was 2 if strong and 1 if weak). So a strong but lazy player can be beaten by a weak but determined player.
 
@@ -170,7 +168,7 @@ var inference = function() {
 vizPrint(Enumerate(inference));
 ~~~
 
-### Explanations
+## Explanations: Take 2
 
 > Alice won because Bob was lazy.
 
@@ -272,9 +270,27 @@ var inference = function() {
 vizPrint(Enumerate(inference));
 ~~~
 
-### Pragmatics
+## Pragmatics
 
 As we add pragmatics and increase rationality and cost of explaining, the probabitliy that Alice is weak and Bob is strong increases.
+
+Our alternative utterances include a bunch of different explanations for why Alice won.  Here are the different explanations and my intuition of what they mean:
+
+> Alice won because Bob was lazy.
+
+Bob is probably strong, and Alice probably weak.
+
+> Alice won because Alice is strong.
+
+Bob probably tried.
+
+> Alice won because Alice tried.
+
+Alice and Bob have similar strengths.
+
+> Alice won because Bob was weak.
+
+Alice is probably also weak.
 
 ~~~
 ///fold:
@@ -353,20 +369,44 @@ var bob_win = function(world) {
 };
 var alice_lazy = function(world) {
   return world.LA;
-}
+};
 var bob_lazy = function(world) {
   return world.LB;
-}
+};
+var alice_not_lazy = function(world) {
+  return !world.LA;
+};
+var bob_not_lazy = function(world) {
+  return !world.LB;
+};
+var alice_weak = function(world) {
+  return world.A == "weak";
+};
+var bob_weak = function(world) {
+  return world.B == "weak";
+};
 ///
 
 var alpha = 5;
 
 // <3 eval...
 var meaning = function(utterance, actual_world, actual_randomness) {
-  if (utterance == "because") {
+  if (utterance == "because alice_strong alice_win") {
+    return because(alice_strong, alice_win, actual_world, actual_randomness); 
+  } else if (utterance == "because bob_lazy alice_win") {
     return because(bob_lazy, alice_win, actual_world, actual_randomness); 
-  } else if (utterance == "and") {
+  } else if (utterance == "and alice_strong alice_win") {
+    return and(alice_strong(actual_world), alice_win(actual_world));
+  } else if (utterance == "and bob_lazy alice_win") {
     return and(bob_lazy(actual_world), alice_win(actual_world));
+  } else if (utterance == "because alice_not_lazy alice_win") {
+    return because(alice_not_lazy, alice_win, actual_world, actual_randomness); 
+  } else if (utterance == "and alice_not_lazy alice_win") {
+    return and(alice_not_lazy(actual_world), alice_win(actual_world));
+  } else if (utterance == "because bob_weak alice_win") {
+    return because(bob_weak, alice_win, actual_world, actual_randomness); 
+  } else if (utterance == "and bob_weak alice_win") {
+    return and(bob_weak(actual_world), alice_win(actual_world));
   } else if (utterance == "alice_win") {
     return alice_win(actual_world);
   } else if (utterance == "bob_win") {
@@ -394,7 +434,14 @@ var meaning = function(utterance, actual_world, actual_randomness) {
 
 var utterance_prior = function() {
   var utterances = [
-    "because", "and",
+    "because alice_strong alice_win",
+    "and alice_strong alice_win",
+    "because bob_lazy alice_win",
+    "and bob_lazy alice_win",
+    "because alice_not_lazy alice_win",
+    "and alice_not_lazy alice_win",
+    "because bob_weak alice_win",
+    "and bob_weak alice_win",
     "alice_win", "bob_win",
     "alice_lazy", "bob_lazy",
     "alice_not_lazy", "bob_not_lazy",
@@ -402,6 +449,9 @@ var utterance_prior = function() {
     "bob_strong", "bob_weak"
   ];
   var costs = [
+    6, 6,
+    6, 6,
+    6, 6,
     6, 6,
     1, 1,
     1, 1,
@@ -439,5 +489,5 @@ var listenerERP = function(utterance) {
   })
 };
 
-vizPrint(listenerERP("because"));
+vizPrint(listenerERP("because bob_lazy alice_win"));
 ~~~

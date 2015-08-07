@@ -387,16 +387,54 @@ var meaning = function(utterance, actual_world, actual_randomness) {
   } else {
     return true;
   }
+};
+
+var utterance_prior = function() {
+  var utterances = [
+    "because", "and",
+    "alice_win", "bob_win",
+    "alice_lazy", "bob_lazy",
+    "alice_not_lazy", "bob_not_lazy",
+    "alice_strong", "alice_weak",
+    "bob_strong", "bob_weak"
+  ];
+  var costs = [
+    2, 2,
+    1, 1,
+    1, 1,
+    1, 1,
+    1, 1,
+    1, 1
+  ];
+  var probabilities = map(function(x) {return Math.exp(-x);}, costs);
+  return utterances[discrete(probabilities)];
 }
 
-var literalERP = function(utterance) {
+var literalERP = cache(function(utterance) {
   return Enumerate(function() {
     var actual_randomness = randomness();
     var actual_world = model(actual_randomness);
     condition(meaning(utterance, actual_world, actual_randomness));
     return actual_world;
   });
+});
+
+var speakerERP = cache(function(world) {
+  return Enumerate(function() {
+    var utterance = utterance_prior();
+    factor( literalERP(utterance).score([], world) );
+    return utterance;
+  });
+});
+
+var listenerERP = function(utterance) {
+  return Enumerate(function() {
+    var actual_randomness = randomness();
+    var actual_world = model(actual_randomness);
+    factor( speakerERP(actual_world).score([], utterance) );
+    return actual_world;
+  })
 };
 
-vizPrint(literalERP("because"));
+vizPrint(listenerERP("because"));
 ~~~

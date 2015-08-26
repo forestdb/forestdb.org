@@ -586,14 +586,14 @@ model-language: church
 # A pragmatic speaker that can do basic composition and takes into account predicate noise (with dynamic contexts)
 ~~~
 
-
 (define (power dist a) (list (first dist) 
                              (map (lambda (x) (pow x a)) (second dist))))
 
 ; Free parameters:
-(define color-fidelity .99) ; 1 - noise probability (color -- higher means less noise)
-(define size-fidelity .9) ; 1 - noise probability (size -- higher meanss less noise)
-(define extraword_cost 2) ; cost of producing extra word -- higher means cheaper
+(define color-fidelity .999) ; 1 - noise probability (color -- higher means less noise)
+(define size-fidelity .85) ; 1 - noise probability (size -- higher meanss less noise)
+(define extraword_cost 1.5) ; cost of producing extra word -- higher means cheaper
+(define listener-opt 1)
 
 ; A context is a list of lists, where sub-lists represent objects with a name (unique ID), a size feature and a color feature (currently only implemented for two features -- TODO: extend!)
 (define context (list (list 'o1 'big 'red)
@@ -695,7 +695,7 @@ model-language: church
           ;          (and
           (equal? obj
                   (apply multinomial
-                         (power (literal-listener utterance) 2)))
+                         (power (literal-listener utterance) listener-opt)))
           ;           (meaning utterance obj))
           ))))
 
@@ -706,6 +706,7 @@ model-language: church
           (barplot (pragmatic-speaker 'o3) (stringify (third context))))
 ;          (barplot (pragmatic-speaker 'o4) (stringify (fourth context)))
 ;          (barplot (pragmatic-speaker 'o5) (stringify (fifth context))))
+
 
 ~~~
 

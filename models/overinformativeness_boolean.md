@@ -586,6 +586,7 @@ model-language: church
 # A pragmatic speaker that can do basic composition and takes into account predicate noise (with dynamic contexts)
 ~~~
 
+
 (define (power dist a) (list (first dist) 
                              (map (lambda (x) (pow x a)) (second dist))))
 
@@ -594,17 +595,18 @@ model-language: church
 (define size-fidelity .9) ; 1 - noise probability (size -- higher meanss less noise)
 (define extraword_cost 2) ; cost of producing extra word -- higher means cheaper
 
+; A context is a list of lists, where sub-lists represent objects with a name (unique ID), a size feature and a color feature (currently only implemented for two features -- TODO: extend!)
+(define context (list (list 'o1 'big 'red)
+                      (list 'o2 'small 'red)
+                      (list 'o3 'small 'yellow)))
+;                      (list 'o4 'small 'red)
+;                      (list 'o5 'big 'yellow)))
+
 ; Extracts a list of object IDs for the objects in the context
 (define objs
   (map (lambda (obj)
          (first obj))
        context))
-
-; Generates the set of alternatives for the context by taking all feature conjunctions as utterances as well as each individual feature (currently only implemented for two-feature objects)
-(define utterances
-  (union (flatten (map (lambda (obj) 
-                         (gen-utt obj)) 
-                       pruned-context))))
 
 ; Helper function for utterances: Strips the original context of object IDs
 (define pruned-context 
@@ -615,7 +617,13 @@ model-language: church
 ; Helper function for utterances: concatenates an object's features to create a "_"-separated two-word utterance like "big_red"
 (define (gen-utt obj)
   (append obj (list (string-append (first obj) '_ (second obj)))))
-  
+
+; Generates the set of alternatives for the context by taking all feature conjunctions as utterances as well as each individual feature (currently only implemented for two-feature objects)
+(define utterances
+  (union (flatten (map (lambda (obj) 
+                         (gen-utt obj)) 
+                       pruned-context))))
+
 ; Generates a cost vector for the utterances, with a fixed cost for an extra word (free parameter defined at beginning of file). One-word utterances have cost 1.
 (define costs
   (map (lambda (utt)
@@ -624,11 +632,11 @@ model-language: church
              1))
        utterances))
 
-; Extracts all the utterance atoms (one-word utterances) from the set of contextually generated utterances
-(define utterance-atoms (first (partition is-atom? utterances)))
-
 ; Helper function for utterance-atoms: Tests whether an utterance consists of just one word (multi-word utterances are separated by "_")
 (define (is-atom? utt) (= (length (regexp-split utt '_)) 1))
+
+; Extracts all the utterance atoms (one-word utterances) from the set of contextually generated utterances
+(define utterance-atoms (first (partition is-atom? utterances)))
 
 ; The basic lexicon that encodes noisy semantics for words (ie correctly returns true/false with probability determined by fidelity parameter)
 (define (lexicon utterance obj)
@@ -691,22 +699,13 @@ model-language: church
           ;           (meaning utterance obj))
           ))))
 
-; A context is a list of lists, where sub-lists represent objects with a name (unique ID), a size feature and a color feature (currently only implemented for two features -- TODO: extend!)
-(define context (list (list 'o1 'big 'red)
-                      (list 'o2 'small 'red)
-                      (list 'o3 'small 'yellow)))
-;                      (list 'o4 'small 'red)
-;                      (list 'o5 'big 'yellow)))
+
 
 (multiviz (barplot (pragmatic-speaker 'o1) (stringify (first context)))
           (barplot (pragmatic-speaker 'o2) (stringify (second context)))
           (barplot (pragmatic-speaker 'o3) (stringify (third context))))
 ;          (barplot (pragmatic-speaker 'o4) (stringify (fourth context)))
 ;          (barplot (pragmatic-speaker 'o5) (stringify (fifth context))))
-
-
-
-
 
 ~~~
 

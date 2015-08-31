@@ -5,7 +5,7 @@ model-status: code
 model-language: church
 ---
 
-      ;; Example model for universal quantifier interpretation with potential domain restriction inference
+      ;; Universal quantifier interpretation with potential domain restriction
       
       ; There are 2 members of type A and 3 members of type B 
       ; (e.g. 2 peices of chocolate cake, 3 pieces of lemon cake)

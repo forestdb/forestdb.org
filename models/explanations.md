@@ -5,744 +5,1071 @@ model-status: code
 model-language: webppl
 ---
 
-<script src="http://web.stanford.edu/~erindb/webppl-viz/webppl.min.js"></script>  
-<link rel="stylesheet" href="http://web.stanford.edu/~erindb/webppl-viz/viz.css">
+<script src='http://web.stanford.edu/~erindb/webppl-viz/webppl.min.js'></script>  
+<link rel='stylesheet' href='http://web.stanford.edu/~erindb/webppl-viz/viz.css'>
+
+<script src='https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML'></script>
 
 * toc
 {:toc}
 
-## Model specification
+We explore the hypothesis that explanations can be thought of as counterfactual statements that are especially relevant and informative in a particular context.
+
+## Basic counterfactual model: bacon example
+
+We use Lucas and Kemp's Extended Structural Model (ESM) of counterfactuals ([Lucas & Kemp, 2015](http://philpapers.org/archive/LUCAIP.pdf)) as the underlying counterfactual reasoning for our explanations models.
+
+In their paper, Lucas & Kemp use the following example:
+
+We usually cook bacon for dinner, and when we do the smoke alarm usually goes off. Our neighbors are sometimes annoyed with us for other reasons (or for no reason at all), but they will *always* be angry if the smoke alarm goes off.
+
+Given this underlying model, suppose we know that bacon was cooked, the smoke alarm went off, and the neighbors are angry. Counterfactually, if the neighbors weren't angry, would bacon have been cooked?
 
 ~~~
-// model has rand (exogenous random variables) and
-// vars (functions of exogenous random variables)
-var baconModel = {
-  rand: function() {
-    return {
-      uB: flip(0.9),
-      uS: flip(0.9),
-      uN: flip(0.1)
-    };
-  },
-  vars: function(rVs) {
-    var bacon = rVs.uB;
-    var smokeAlarm = and(bacon, rVs.uS);
-    var neighbors = or(smokeAlarm, rVs.uN);
-    return {
-      bacon: bacon,
-      smokeAlarm: smokeAlarm,
-      neighbors: neighbors
-    };
-  }
-};
+// ======== model specification =========
 
-//more models:
-///fold:
-var andModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = and(A, rVs.uB);
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-
-var orModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = or(A, rVs.uB);
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-
-var echoModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = rVs.uB ? A : !A;
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-///
-
-// to generate worlds using these models,
-var generate = function(model) {
-  var rand = model.rand;
-  var vars = model.vars;
-  return Enumerate(function() {
-    var actualRV = rand();
-    var actualWorld = vars(actualRV);
-    return actualWorld;
-  })
-};
-
-vizPrint(generate(baconModel));
-~~~
-
-## Conditioning
-
-~~~
-// model specifications:
-///fold:
-// model has rand (exogenous random variables) and
-// vars (functions of exogenous random variables)
-var baconModel = {
-  rand: function() {
-    return {
-      uB: flip(0.9),
-      uS: flip(0.9),
-      uN: flip(0.1)
-    };
-  },
-  vars: function(rVs) {
-    var bacon = rVs.uB;
-    var smokeAlarm = and(bacon, rVs.uS);
-    var neighbors = or(smokeAlarm, rVs.uN);
-    return {
-      bacon: bacon,
-      smokeAlarm: smokeAlarm,
-      neighbors: neighbors
-    };
-  }
-};
-
-var andModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = and(A, rVs.uB);
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-
-var orModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = or(A, rVs.uB);
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-
-var echoModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = rVs.uB ? A : !A;
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-///
-
-// eval tools
-var cacheEval = cache(webpplEval);
-var getEnv = function(world) {
-  var makeDefnStatement = function(pair) {
-    var key = 0;
-    var val = 1;
-    return "var " + pair[key] + " = " + pair[val] + ";";
+// exogenous random variables
+var rand = function() {
+  return {
+    uB: flip(0.9), // bacon is a priori likely
+    uS: flip(0.9), // smoke alarm is likely, given bacon
+    uN: flip(0.1) // probability of neighbors being angry even if the smoke alarm doesn't go off is low
   };
-  var definitionStatements = map(makeDefnStatement, _.pairs(world));
-  return definitionStatements.join(" ");
-};
-var meaning = cache(function(pred, world) {
-  var environment = getEnv(world);
-  return cacheEval(environment + pred);
-});
-
-// to generate worlds using these models,
-// conditioned on the literal truth of the utterance
-var literalERP = function(utterance, model) {
-  var rand = model.rand;
-  var vars = model.vars;
-  return Enumerate(function() {
-    var actualRV = rand();
-    var actualWorld = vars(actualRV);
-    condition(meaning(utterance, actualWorld));
-    return actualWorld;
-  });
 };
 
-// condition on bacon being cooked
-vizPrint(literalERP("bacon", baconModel));
-~~~
-
-## Complex utterances
-
-~~~
-// model specifications:
-///fold:
-// model has rand (exogenous random variables) and
-// vars (functions of exogenous random variables)
-var baconModel = {
-  rand: function() {
-    return {
-      uB: flip(0.9),
-      uS: flip(0.9),
-      uN: flip(0.1)
-    };
-  },
-  vars: function(rVs) {
-    var bacon = rVs.uB;
-    var smokeAlarm = and(bacon, rVs.uS);
-    var neighbors = or(smokeAlarm, rVs.uN);
-    return {
-      bacon: bacon,
-      smokeAlarm: smokeAlarm,
-      neighbors: neighbors
-    };
-  }
-};
-
-var andModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = and(A, rVs.uB);
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-
-var orModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = or(A, rVs.uB);
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-
-var echoModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = rVs.uB ? A : !A;
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-///
-// eval tools:
-///fold:
-var cacheEval = cache(webpplEval);
-var getEnv = function(world) {
-  var makeDefnStatement = function(pair) {
-    var key = 0;
-    var val = 1;
-    return "var " + pair[key] + " = " + pair[val] + ";";
+// endogenous variables are functions of the random state
+var vars = function(rVs) {
+  var bacon = rVs.uB;
+  var smokeAlarm = and(bacon, rVs.uS); // smoke alarm will only go off if bacon is cooked, but it might not even if you do cook bacon.
+  var neighbors = or(smokeAlarm, rVs.uN); // neighbors *will get angry* if the smoke alarm goes off. they might even if it doesn't, though.
+  return {
+    bacon: bacon,
+    smokeAlarm: smokeAlarm,
+    neighbors: neighbors
   };
-  var definitionStatements = map(makeDefnStatement, _.pairs(world));
-  return definitionStatements.join(" ");
-};
-///
-
-var evalSimpleMeaning = function(pred, world) {
-  var environment = getEnv(world);
-  return cacheEval(environment + pred);
-};
-var meaning = cache(function(pred, world) {
-  if (pred == "nothing") {
-    return true;
-  } else {
-    var elements = pred.split(" ");
-    if (elements[0] == "not") {
-      var negatedPred = elements.slice(1).join(" ");
-      return !evalSimpleMeaning(negatedPred, world);
-    } else if (elements[1] == "and") {
-      // "a and b"
-      var a = elements[0];
-      var b = elements[2];
-      var aMeaning = evalSimpleMeaning(a, world);
-      var bMeaning = evalSimpleMeaning(b, world);
-      return and(aMeaning, bMeaning);
-    } else {
-      evalSimpleMeaning(pred, world);
-    }
-  }
-});
-
-// to generate worlds using these models,
-// conditioned on the literal truth of the utterance
-var literalERP = function(utterance, model) {
-  var rand = model.rand;
-  var vars = model.vars;
-  return Enumerate(function() {
-    var actualRV = rand();
-    var actualWorld = vars(actualRV);
-    condition(meaning(utterance, actualWorld));
-    return actualWorld;
-  });
 };
 
-// condition on bacon being cooked
-vizPrint(literalERP("bacon and neighbors", baconModel));
-~~~
-
-## Counterfactuals
-
-> ... we assume that B (bacon cooked), S (smoke alarm activates) and N (neighbors disturbed) are true in the real world, and that S' is false in the counterfactual world. Figure 3 shows how the extended network can be used to reason about a counterfactual observation of S'. In this case we set B, S and N to true and S' to false, then compute the resulting probability distribution on B. As described in Appendix A, this computation can be carried out using any standard algorithm for inference in Bayesian networks. When s = 0.5, the model in Figure 3a predicts that P(B = t) = 0.487. In other words, the model makes a backtracking inference and concludes that bacon was relatively unlikely to have been cooked in the counterfactual world. (Lucas & Kemp, 2015)
-
-~~~
-// model specifications:
-///fold:
-// model has rand (exogenous random variables) and
-// vars (functions of exogenous random variables)
-var baconModel = {
-  rand: function() {
-    return {
-      uB: flip(0.9),
-      uS: flip(0.9),
-      uN: flip(0.1)
-    };
-  },
-  vars: function(rVs) {
-    var bacon = rVs.uB;
-    var smokeAlarm = and(bacon, rVs.uS);
-    var neighbors = or(smokeAlarm, rVs.uN);
-    return {
-      bacon: bacon,
-      smokeAlarm: smokeAlarm,
-      neighbors: neighbors
-    };
-  }
-};
-
-var andModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = and(A, rVs.uB);
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-
-var orModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = or(A, rVs.uB);
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-
-var echoModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = rVs.uB ? A : !A;
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-///
-// eval tools:
-///fold:
-var cacheEval = cache(webpplEval);
-var getEnv = function(world) {
-  var makeDefnStatement = function(pair) {
-    var key = 0;
-    var val = 1;
-    return "var " + pair[key] + " = " + pair[val] + ";";
-  };
-  var definitionStatements = map(makeDefnStatement, _.pairs(world));
-  return definitionStatements.join(" ");
-};
-var evalSimpleMeaning = function(pred, world) {
-  var environment = getEnv(world);
-  return cacheEval(environment + pred);
-};
-///
-
-// util that will be in webppl later
-var mapObject = function(fn, obj) {
-  return _.object(
-    map(
-      function(kv) {
-        return [kv[0], fn(kv[0], kv[1])]
-      },
-      _.pairs(obj))
-  );
-};
+// ======== parameters and counterfactual functions =========
 
 // parameter for how similar counterfactual world is to actual world
 var stickiness = 0.5;
 
-var stickyRand = function(actualRVs, rand) {
+var stickyRand = function(actualRVs) {
   var freshRVs = rand();
-  return mapObject(function(key, val) {
+  return mapObj(function(val, key) {
     return flip(stickiness) ? actualRVs[key] : freshRVs[key];
   }, actualRVs);
 };
 
-var baconCounterfactual = Enumerate(function() {
-  var rand = baconModel.rand;
-  var vars = baconModel.vars;
-  var rVs = rand();
-  var actualWorld = vars(rVs);
-  var cfRVs = stickyRand(rVs, rand);
-  var cfWorld = vars(cfRVs);
-  condition(
-    and(
-      actualWorld.bacon,
-      and(
-        actualWorld.smokeAlarm,
-        and(
-          actualWorld.neighbors,
-          !cfWorld.smokeAlarm
-        )
-      )
-    )
-  );
-  return cfWorld.bacon;
+var contextualEval = cache(function(proposition, world) {
+  var context = 'var bacon = ' + JSON.stringify(world.bacon) + ';' +
+      'var smokeAlarm = ' + JSON.stringify(world.smokeAlarm) + ';' +
+      'var neighbors = ' + JSON.stringify(world.neighbors) + ';';
+  return(webpplEval(context + proposition));
 });
 
-print(baconCounterfactual);
+var counterfactualERP = function(ifA, thenB, actualRVs) {
+  return Enumerate(function() {
+    var counterfactualRVs = stickyRand(actualRVs);
+    var counterfactualWorld = vars(counterfactualRVs);
+    condition(contextualEval(ifA, counterfactualWorld));
+    return contextualEval(thenB, counterfactualWorld);
+  });
+};
+
+// ======== example =========
+
+var actualRVs = {uB: true, uS: true, uN: true};
+
+// in the counterfactual world, if the neighbors were angry, P(bacon) ~ 0.487
+print(counterfactualERP('!neighbors', 'bacon', actualRVs));
+
+// as long as the smoke alarm went off, the neighbors would *always* be angry
+//print(counterfactualERP('smokeAlarm', 'neighbors', actualRVs));
 ~~~
 
-## Counterfactual utterances
+## "Literal explanation": bacon example
+
+What if we give the explanation, "The neighbors are angry because I cooked bacon."" What can we infer from this?
+
+Intuitively, we can infer that the smoke alarm actually went off. If it hadn't, then the link between bacon and the neighbors being angry would be less strong.
+
+We treat the "literal meaning" of such an explanation as "The neighbors are angry, I cooked bacon, and if (counterfactually) I hadn't cooked bacon, the neighbors wouldn't have been angry.""
+
+If we use this literal interpretation, then a listener who hears "The neighbors are angry *because* I cooked bacon," will be *slightly* more likely to believe that the smoke alarm went off than if they heard the sentence, "The neighbors are angry *and* I cooked bacon." But the difference is small, since the probability of smoke alarm given bacon and neighbors is already basically at ceiling.
 
 ~~~
-// model specifications:
 ///fold:
-// model has rand (exogenous random variables) and
-// vars (functions of exogenous random variables)
-var baconModel = {
-  rand: function() {
-    return {
-      uB: flip(0.9),
-      uS: flip(0.9),
-      uN: flip(0.1)
-    };
-  },
-  vars: function(rVs) {
-    var bacon = rVs.uB;
-    var smokeAlarm = and(bacon, rVs.uS);
-    var neighbors = or(smokeAlarm, rVs.uN);
-    return {
-      bacon: bacon,
-      smokeAlarm: smokeAlarm,
-      neighbors: neighbors
-    };
-  }
-};
+// ======== model specification =========
 
-var andModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = and(A, rVs.uB);
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-
-var orModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = or(A, rVs.uB);
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-
-var echoModel = {
-  rand: function() {
-    return {
-      uA: flip(0.5),
-      uB: flip(0.5)
-    };
-  },
-  vars: function(rVs) {
-    var A = rVs.uA;
-    var B = rVs.uB ? A : !A;
-    return {
-      A: A,
-      B: B
-    };
-  }
-};
-///
-var models = {
-  bacon: baconModel,
-  and: andModel,
-  or: orModel,
-  echo: echoModel
-};
-// eval tools:
-///fold:
-var cacheEval = cache(webpplEval);
-var getEnv = function(world) {
-  var makeDefnStatement = function(pair) {
-    var key = 0;
-    var val = 1;
-    return "var " + pair[key] + " = " + pair[val] + ";";
+// exogenous random variables
+var rand = function() {
+  return {
+    uB: flip(0.9), // bacon is a priori likely
+    uS: flip(0.9), // smoke alarm is likely, given bacon
+    uN: flip(0.1) // probability of neighbors being angry even if the smoke alarm doesn't go off is low
   };
-  var definitionStatements = map(makeDefnStatement, _.pairs(world));
-  return definitionStatements.join(" ");
 };
-var evalSimpleMeaning = function(pred, world) {
-  var environment = getEnv(world);
-  return cacheEval(environment + pred);
-};
-///
 
-// util that will be in webppl later
-var mapObject = function(fn, obj) {
-  return _.object(
-    map(
-      function(kv) {
-        return [kv[0], fn(kv[0], kv[1])]
-      },
-      _.pairs(obj))
-  );
+// endogenous variables are functions of the random state
+var vars = function(rVs) {
+  var bacon = rVs.uB;
+  var smokeAlarm = and(bacon, rVs.uS); // smoke alarm will only go off if bacon is cooked, but it might not even if you do cook bacon.
+  var neighbors = or(smokeAlarm, rVs.uN); // neighbors *will get angry* if the smoke alarm goes off. they might even if it doesn't, though.
+  return {
+    bacon: bacon,
+    smokeAlarm: smokeAlarm,
+    neighbors: neighbors
+  };
 };
-// tool for negation
-var not = function(pred) {
-  return "!(" + pred + ")";
-};
+
+// ======== parameters and counterfactual functions =========
 
 // parameter for how similar counterfactual world is to actual world
 var stickiness = 0.5;
 
-var stickyRand = function(actualRVs, rand) {
+var stickyRand = function(actualRVs) {
   var freshRVs = rand();
-  return mapObject(function(key, val) {
+  return mapObj(function(val, key) {
     return flip(stickiness) ? actualRVs[key] : freshRVs[key];
   }, actualRVs);
 };
 
-// "if (counterfactually) cond, then concl"
-var counterfactualERP = cache(function(cond, concl, rVs, modelLabel) {
-  return Enumerate(function() {
-    var rand = (models[modelLabel]).rand;
-    var vars = (models[modelLabel]).vars;
-    var cfRVs = stickyRand(rVs, rand);
-    var cfWorld = vars(cfRVs);
-    var counterfactualConditionMeaning = evalSimpleMeaning(cond, cfWorld);
-    var counterfactualConclusionMenaing = evalSimpleMeaning(concl, cfWorld);
-    condition( counterfactualConditionMeaning ); // condition is true in counterfactual world
-    return counterfactualConclusionMenaing; // return value of conclusion in counterfactual world
-  });
+var contextualEval = cache(function(proposition, world) {
+  var context = 'var bacon = ' + JSON.stringify(world.bacon) + ';' +
+      'var smokeAlarm = ' + JSON.stringify(world.smokeAlarm) + ';' +
+      'var neighbors = ' + JSON.stringify(world.neighbors) + ';';
+  return(webpplEval(context + proposition));
 });
 
-// "if (counterfactually) cond, then concl"
-var counterfactual = function(cond, concl, rVs, modelLabel) {
-  return sample(counterfactualERP(cond, concl, rVs, modelLabel));
+var counterfactualERP = function(ifA, thenB, actualRVs) {
+  return Enumerate(function() {
+    var counterfactualRVs = stickyRand(actualRVs);
+    var counterfactualWorld = vars(counterfactualRVs);
+    condition(contextualEval(ifA, counterfactualWorld));
+    return contextualEval(thenB, counterfactualWorld);
+  });
 };
+///
+// ======== literal meaning functions =========
 
-var getWorld = function(rVs, modelLabel) {
-  var vars = (models[modelLabel]).vars;
-  return vars(rVs);
-}
+var because = function(conditionA, resultB, actualWorld, actualRVs) {
+  var actuallyA = contextualEval(conditionA, actualWorld);
+  var actuallyB = contextualEval(resultB, actualWorld);
 
-// "condition because conclusion"
-var because = function(cond, concl, rVs, modelLabel) {
-  var world = getWorld(rVs, modelLabel);
-  // if because contains "presuppositions":
-  return and(
-    // sample from ERP
-    // ("because" := "cond and concl and if not cond then not concl")
-    counterfactual( not(cond), not(concl), rVs, modelLabel ),
-    and(
-      evalSimpleMeaning(cond, world),
-      evalSimpleMeaning(concl, world)
-    )
-  );
-  // if not:
-  // ("because" := "if not cond then not concl")
-  // return counterfactual( not(cond), not(concl), rVs );
-};
+  // debugging:
+  //print(conditionA + "? " + actuallyA);
+  //print(resultB + "? " + actuallyB);
 
-var meaning = cache(function(pred, rVs, modelLabel) {
-  if (pred == "nothing") {
-    return true;
+  if (actuallyA & actuallyB) {
+    // debugging:
+    //print("both true!");
+
+    var ifNotA = "!" + conditionA;
+    var thenNotB = "!" + resultB;
+
+    // debugging:
+    //print("if " + ifNotA + " then " + thenNotB);
+
+    counterfactualERP(ifNotA, thenNotB, actualRVs).score([], true);
   } else {
-    var elements = pred.split(" ");
-    if (elements.length == 1) {
-      var world = getWorld(rVs, modelLabel);
-      evalSimpleMeaning(pred, world);
+    return -Infinity;
+  }
+};
+
+/*
+   meaning_factor is -Infinity if the utterance is completely false
+   in the world, 0 if the utterance is true, and for "because" utterances
+   it is the proportion of counterfactual worlds satisfying conditionA
+   in which resultB is also true.
+*/
+var meaning_factor = cache(function(utterance, world, rVs) {
+  if (utterance == 'nothing') {
+    return 0;
+  } else {
+    var words = utterance.split(' ');
+    if (words.length < 2 | words[1] != 'because') {
+      return contextualEval(utterance, world) ? 0 : -Infinity;
     } else {
-      if (elements[0] == "not") {
-        var world = getWorld(rVs, modelLabel);
-        var negatedPred = elements.slice(1).join(" ");
-        return !evalSimpleMeaning(negatedPred, world);
-      } else if (elements[1] == "and") {
-        var world = getWorld(rVs, modelLabel);
-        // "a and b"
-        var a = elements[0];
-        var b = elements[2];
-        var aMeaning = evalSimpleMeaning(a, world);
-        var bMeaning = evalSimpleMeaning(b, world);
-        return and(aMeaning, bMeaning);
-      } else if (elements[1] == "because") {
-        // "concl because cond"
-        var cond = elements[2];
-        var concl = elements[0];
-        return because(cond, concl, rVs, modelLabel);
-      } else {
-        print("i can't parse: '" + pred + "'");
-        return true;
-      }
+      // "resultB because conditionA"
+      var resultB = words[0];
+      var conditionA = words[2];
+
+      // debugging:
+      //print("because " + conditionA + ", " + resultB);
+
+      return because(conditionA, resultB, world, rVs);
     }
   }
 });
 
-var marginalize = function(erp, variable) {
+var literalERP = function(utterance, QUD) {
   return Enumerate(function() {
-    var result = sample(erp);
-    return result[variable];
+    var actualRVs = rand();
+    var actualWorld = vars(actualRVs);
+    factor(meaning_factor(utterance, actualWorld, actualRVs));
+    if (QUD) {
+      // take subset of world if question under discussion is specified
+      return actualWorld[QUD];
+    } else {
+      return actualWorld;
+    }
   });
 };
 
-// we might want to check counterfactuals that are impossible under the model
-var checkCondition = function(jointERP) {
-  var conditionERP = marginalize(jointERP, "condition");
-  if (conditionERP.score([], true) == -Infinity) {
-    return "impossible";
+// ======== example =========
+
+/*
+// check meaning_factor:
+var actualRVs = {uB: true, uS: true, uN: true};
+var actualWorld = vars(actualRVs);
+
+print(meaning_factor('bacon', actualWorld, actualRVs));
+print(meaning_factor('!bacon', actualWorld, actualRVs));
+print(meaning_factor('neighbors because bacon', actualWorld, actualRVs));
+*/
+
+print(literalERP('neighbors & bacon', 'smokeAlarm'));
+print(literalERP('neighbors because bacon', 'smokeAlarm'));
+~~~
+
+## Pragmatic interpretation: bacon example
+
+Adding a layer of pragmatic inference doesn't change this example much, but it does strengthen the inferences.
+
+Note: the alternatives in the speaker model here make a difference to the exact inferences that are made. A much fuller set of alternatives results in similar (albeit *much* slower) inferences for this example.
+
+~~~
+///fold:
+// ======== model specification =========
+
+// exogenous random variables
+var rand = function() {
+  return {
+    uB: flip(0.9), // bacon is a priori likely
+    uS: flip(0.9), // smoke alarm is likely, given bacon
+    uN: flip(0.1) // probability of neighbors being angry even if the smoke alarm doesn't go off is low
+  };
+};
+
+// endogenous variables are functions of the random state
+var vars = function(rVs) {
+  var bacon = rVs.uB;
+  var smokeAlarm = and(bacon, rVs.uS); // smoke alarm will only go off if bacon is cooked, but it might not even if you do cook bacon.
+  var neighbors = or(smokeAlarm, rVs.uN); // neighbors *will get angry* if the smoke alarm goes off. they might even if it doesn't, though.
+  return {
+    bacon: bacon,
+    smokeAlarm: smokeAlarm,
+    neighbors: neighbors
+  };
+};
+
+// ======== parameters and counterfactual functions =========
+
+// parameter for how similar counterfactual world is to actual world
+var stickiness = 0.5;
+
+var stickyRand = function(actualRVs) {
+  var freshRVs = rand();
+  return mapObj(function(val, key) {
+    return flip(stickiness) ? actualRVs[key] : freshRVs[key];
+  }, actualRVs);
+};
+
+var contextualEval = cache(function(proposition, world) {
+  var context = 'var bacon = ' + JSON.stringify(world.bacon) + ';' +
+      'var smokeAlarm = ' + JSON.stringify(world.smokeAlarm) + ';' +
+      'var neighbors = ' + JSON.stringify(world.neighbors) + ';';
+  return(webpplEval(context + proposition));
+});
+
+var checkPossible = function(unfactoredERP) {
+  var factorERP = Enumerate(function() {
+    return sample(unfactoredERP).factor;
+  });
+  if (factorERP.score([], -Infinity) == 0) {
+    // a sort of way of throwing errors if we try to evaluate an impossible utterance
+    return 'impossible';
   } else {
     return Enumerate(function() {
-      var result = sample(jointERP);
-      condition(result.condition);
-      return result.world;
+      var result = sample(unfactoredERP);
+      factor(result.factor);
+      return result.result;
     });
   }
 };
 
-var literalERP = function(utterance, modelLabel) {
-  var rand = (models[modelLabel]).rand;
-  var vars = (models[modelLabel]).vars;
-  return checkCondition(Enumerate(function() {
-    var actualRV = rand();
-    var actualWorld = vars(actualRV);
+var counterfactualERP = function(ifA, thenB, actualRVs) {
+  //print(ifA);
+  //print(thenB);
+  //print(actualRVs);
+  var unfactoredERP = Enumerate(function() {
+    var counterfactualRVs = stickyRand(actualRVs);
+    //print(counterfactualRVs);
+    var counterfactualWorld = vars(counterfactualRVs);
+    //print(counterfactualWorld);
     return {
-      world: actualWorld,
-      condition: meaning(utterance, actualRV, modelLabel)
-    };
-  }));
+      result: contextualEval(thenB, counterfactualWorld),
+      factor: (contextualEval(ifA, counterfactualWorld) ? 0 : -Infinity)
+    }
+  });
+  //unfactoredERP.print();
+  return checkPossible(unfactoredERP);
 };
 
-// probability of smokeAlarm if "neighbors are mad because of cooking bacon"
-var becauseERP = marginalize(
-  literalERP("neighbors because bacon", "bacon"),
-  "smokeAlarm"
-);
-// probability of smokeAlarm if "i cooked bacon and the neighbors are mad"
-var andERP = marginalize(
-  literalERP("neighbors and bacon", "bacon"),
-  "smokeAlarm"
-);
-print("probability of smokeAlarm if 'neighbors are mad because of cooking bacon': ");
-print(Math.exp(becauseERP.score([], true)));
-print("probability of smokeAlarm if 'i cooked bacon and the neighbors are mad': ");
-print(Math.exp(andERP.score([], true)));
+// ======== literal meaning functions =========
+
+var because = function(conditionA, resultB, actualWorld, actualRVs) {
+  var actuallyA = contextualEval(conditionA, actualWorld);
+  var actuallyB = contextualEval(resultB, actualWorld);
+
+  // debugging:
+  //print(conditionA + "? " + actuallyA);
+  //print(resultB + "? " + actuallyB);
+
+  if (actuallyA & actuallyB) {
+    // debugging:
+    //print("both true!");
+
+    var ifNotA = "!" + conditionA;
+    var thenNotB = "!" + resultB;
+
+    // debugging:
+    //print("if " + ifNotA + " then " + thenNotB);
+
+    var cfERP = counterfactualERP(ifNotA, thenNotB, actualRVs);
+    //print("because " + conditionA + ", " + resultB);
+    //cfERP.print();
+    return cfERP == 'impossible' ? -Infinity : cfERP.score([], true);;
+  } else {
+    return -Infinity;
+  }
+};
+
+/*
+   meaning_factor is -Infinity if the utterance is completely false
+   in the world, 0 if the utterance is true, and for "because" utterances
+   it is the proportion of counterfactual worlds satisfying conditionA
+   in which resultB is also true.
+*/
+var meaning_factor = cache(function(utterance, world, rVs) {
+  if (utterance == 'nothing') {
+    return 0;
+  } else {
+    var words = utterance.split(' ');
+    if (words.length < 2 | words[1] != 'because') {
+      return contextualEval(utterance, world) ? 0 : -Infinity;
+    } else {
+      // "resultB because conditionA"
+      var resultB = words[0];
+      var conditionA = words[2];
+
+      // debugging:
+      //print("because " + conditionA + ", " + resultB);
+
+      return because(conditionA, resultB, world, rVs);
+    }
+  }
+});
+
+var literalERP = cache(function(utterance) {
+  var unfactoredERP = Enumerate(function() {
+    var actualRVs = rand();
+    var actualWorld = vars(actualRVs);
+    //print(actualWorld);
+    return {
+      result: actualWorld,
+      factor: meaning_factor(utterance, actualWorld, actualRVs)
+    };
+  });
+  return checkPossible(unfactoredERP);
+});
+
+// a small set of alternative utterances
+var utterances = [
+  'nothing',
+  'bacon', 'smokeAlarm', 'neighbors',
+  '!bacon', '!smokeAlarm', '!neighbors',
+  'bacon & smokeAlarm', 'bacon & neighbors', 'smokeAlarm & neighbors',
+  'neighbors because bacon'
+];
+
+// full set of alternatives
+// WARNING: TAKES A COUPLE MINUTES TO RUN
+/*var utterances = [
+  'nothing',
+
+  'bacon', 'smokeAlarm', 'neighbors',
+  '!bacon', '!smokeAlarm', '!neighbors',
+
+  'bacon & smokeAlarm', 'bacon & neighbors', 'bacon & !smokeAlarm', 'bacon & !neighbors',
+  'smokeAlarm & neighbors', 'smokeAlarm & !neighbors',
+  '!bacon & smokeAlarm', '!bacon & neighbors', '!bacon & !smokeAlarm', '!bacon & !neighbors',
+  '!smokeAlarm & neighbors', '!smokeAlarm & !neighbors',
+
+  'bacon because smokeAlarm', 'bacon because neighbors', 'bacon because !smokeAlarm', 'bacon because !neighbors',
+  'smokeAlarm because neighbors', 'smokeAlarm because !neighbors',
+  '!bacon because smokeAlarm', '!bacon because neighbors', '!bacon because !smokeAlarm', '!bacon because !neighbors',
+  '!smokeAlarm because neighbors', '!smokeAlarm because !neighbors',
+
+  'smokeAlarm because bacon', 'neighbors because bacon', '!smokeAlarm because bacon', '!neighbors because bacon',
+  'neighbors because smokeAlarm', '!neighbors because smokeAlarm',
+  'smokeAlarm because !bacon', 'neighbors because !bacon', '!smokeAlarm because !bacon', '!neighbors because !bacon',
+  'neighbors because !smokeAlarm', '!neighbors because !smokeAlarm',
+
+  'bacon & smokeAlarm & neighbors', 'bacon & smokeAlarm & !neighbors',
+  'bacon & !smokeAlarm & neighbors', 'bacon & !smokeAlarm & !neighbors',
+  '!bacon & smokeAlarm & neighbors', '!bacon & smokeAlarm & !neighbors',
+  '!bacon & !smokeAlarm & neighbors', '!bacon & !smokeAlarm & !neighbors'
+];*/
+
+var alpha = 5;
+
+var costs = map(function(utterance) {
+  if (utterance == "nothing") {
+    return 0;
+  } else {
+    var words = utterance.split(" ");
+    var chars = utterance.split("");
+    var negs = filter(function(x) {return x == "!";}, chars);
+    return words.length;
+  }
+}, utterances);
+
+var utterancePrior = function() {
+  var probabilities = map(function(x) {return Math.exp(-x);}, costs);
+  return utterances[discrete(probabilities)];
+};
+
+var speakerERP = cache(function(world) {
+  var unfactoredERP = Enumerate(function() {
+    var utterance = utterancePrior();
+    //print(utterance);
+    var interpretation = literalERP(utterance);
+    return {
+      factor: interpretation == 'impossible' ? -Infinity : interpretation.score([], world) * alpha,
+      result: utterance
+    };
+  });
+  return checkPossible(unfactoredERP);
+});
+
+var listenerERP = function(utterance) {
+  return Enumerate(function() {
+    var actualRVs = rand();
+    var actualWorld = vars(actualRVs);
+    //print(actualWorld);
+    var description = speakerERP(actualWorld);
+    factor(
+      description == 'impossible' ? -Infinity : description.score([], utterance) * alpha
+    );
+    return actualWorld.smokeAlarm;
+  });
+};
+
+// ======== example =========
+
+//print(speakerERP({bacon: true, smokeAlarm: true, neighbors: true}))
+
+/*
+// check meaning_factor:
+var actualRVs = {uB: true, uS: true, uN: true};
+var actualWorld = vars(actualRVs);
+
+print(meaning_factor('bacon', actualWorld, actualRVs));
+print(meaning_factor('!bacon', actualWorld, actualRVs));
+print(meaning_factor('neighbors because bacon', actualWorld, actualRVs));
+*/
+
+print(listenerERP('bacon & neighbors'));
+print(listenerERP('neighbors because bacon'));
 ~~~
+
+## Tug-of-war
+
+Suppose Alice and Bob are playing tug-of-war with each other. Alice pulls on one end of the rope and Bob pulls on the other. Either player might be strong or weak, lazy or determined. If a strong player is lazy, they will lose around half the time to a weak but determined player. A lazy player will always lose to a player with the same strength as them who is trying hard.
+
+Think about the following sentences and the inferences we can draw from them:
+
+* "Alice won because Bob was lazy."
+  - This seems to imply that Bob is strong and Alice is weak.
+* "Alice won because Alice is strong."
+  - Bob probably tried.
+* "Alice won because Alice tried."
+  - Alice and Bob probably have similar strengths.*
+* "Alice won because Bob was weak."
+  - Alice is probably also weak.*
+
+These inferences may be sensitive to this set of alternatives in the model.
+
+~~~
+// ======== model specification =========
+
+// exogenous random variables
+var rand = function() {
+  return {
+    uAS: flip(0.5),
+    uAL: flip(0.3),
+    uBS: flip(0.5),
+    uBL: flip(0.3),
+    uAW: flip(0.5)
+  };
+};
+
+// endogenous variables are functions of the random state
+var vars = function(rVs) {
+  // strong is strength = 2; weak is strength = 1
+  var aliceStrong = rVs.uAS;
+  var aliceStrength = aliceStrong ? 2 : 1;
+  var aliceLazy = rVs.uAL;
+  var bobStrong = rVs.uBS;
+  var bobStrength = bobStrong ? 2 : 1;
+  var bobLazy = rVs.uBL;
+  // laziness decreases strength by half
+  var alicePulling = aliceLazy ? aliceStrength/2 : aliceStrength;
+  var bobPulling = bobLazy ? bobStrength/2 : bobStrength;
+  var aliceWin = (alicePulling>bobPulling)?true:(bobPulling>alicePulling)?false:rVs.uAW;
+  
+  return {
+    aliceStrong: aliceStrong,
+    aliceLazy: aliceLazy,
+    bobStrong: bobStrong,
+    bobLazy: bobLazy,
+    aliceWin: aliceWin
+  };
+};
+
+// ======== parameters and counterfactual functions =========
+
+// parameter for how similar counterfactual world is to actual world
+var stickiness = 0.5;
+
+var stickyRand = function(actualRVs) {
+  var freshRVs = rand();
+  return mapObj(function(val, key) {
+    return flip(stickiness) ? actualRVs[key] : freshRVs[key];
+  }, actualRVs);
+};
+
+var contextualEval = cache(function(proposition, world) {
+  var context = 'var aliceStrong = ' + JSON.stringify(world.aliceStrong) + ';' +
+      'var aliceLazy = ' + JSON.stringify(world.aliceLazy) + ';' +
+      'var bobStrong = ' + JSON.stringify(world.bobStrong) + ';' +
+      'var bobLazy = ' + JSON.stringify(world.bobLazy) + ';' +
+      'var aliceWin = ' + JSON.stringify(world.aliceWin) + ';';
+  //print(context + proposition);
+  return(webpplEval(context + proposition));
+});
+
+var checkPossible = function(unfactoredERP) {
+  var factorERP = Enumerate(function() {
+    return sample(unfactoredERP).factor;
+  });
+  if (factorERP.score([], -Infinity) == 0) {
+    // a sort of way of throwing errors if we try to evaluate an impossible utterance
+    return 'impossible';
+  } else {
+    return Enumerate(function() {
+      var result = sample(unfactoredERP);
+      factor(result.factor);
+      return result.result;
+    });
+  }
+};
+
+var counterfactualERP = function(ifA, thenB, actualRVs) {
+  //print(ifA);
+  //print(thenB);
+  //print(actualRVs);
+  var unfactoredERP = Enumerate(function() {
+    var counterfactualRVs = stickyRand(actualRVs);
+    //print(counterfactualRVs);
+    var counterfactualWorld = vars(counterfactualRVs);
+    //print(counterfactualWorld);
+    return {
+      result: contextualEval(thenB, counterfactualWorld),
+      factor: (contextualEval(ifA, counterfactualWorld) ? 0 : -Infinity)
+    }
+  });
+  //unfactoredERP.print();
+  return checkPossible(unfactoredERP);
+};
+
+// ======== literal meaning functions =========
+
+var because = function(conditionA, resultB, actualWorld, actualRVs) {
+  var actuallyA = contextualEval(conditionA, actualWorld);
+  var actuallyB = contextualEval(resultB, actualWorld);
+
+  // debugging:
+  //print(conditionA + "? " + actuallyA);
+  //print(resultB + "? " + actuallyB);
+
+  if (actuallyA & actuallyB) {
+    // debugging:
+    //print("both true!");
+
+    var ifNotA = "!" + conditionA;
+    var thenNotB = "!" + resultB;
+
+    // debugging:
+    //print("if " + ifNotA + " then " + thenNotB);
+
+    var cfERP = counterfactualERP(ifNotA, thenNotB, actualRVs);
+    //print("because " + conditionA + ", " + resultB);
+    //cfERP.print();
+    return cfERP == 'impossible' ? -Infinity : cfERP.score([], true);;
+  } else {
+    return -Infinity;
+  }
+};
+
+/*
+   meaning_factor is -Infinity if the utterance is completely false
+   in the world, 0 if the utterance is true, and for "because" utterances
+   it is the proportion of counterfactual worlds satisfying conditionA
+   in which resultB is also true.
+*/
+var meaning_factor = cache(function(utterance, world, rVs) {
+  if (utterance == 'nothing') {
+    return 0;
+  } else {
+    var words = utterance.split(' ');
+    if (words.length < 2 | words[1] != 'because') {
+      return contextualEval(utterance, world) ? 0 : -Infinity;
+    } else {
+      // "resultB because conditionA"
+      var resultB = words[0];
+      var conditionA = words[2];
+
+      // debugging:
+      //print("because " + conditionA + ", " + resultB);
+
+      return because(conditionA, resultB, world, rVs);
+    }
+  }
+});
+
+var literalERP = cache(function(utterance) {
+  var unfactoredERP = Enumerate(function() {
+    var actualRVs = rand();
+    var actualWorld = vars(actualRVs);
+    //print(actualWorld);
+    return {
+      result: actualWorld,
+      factor: meaning_factor(utterance, actualWorld, actualRVs)
+    };
+  });
+  return checkPossible(unfactoredERP);
+});
+
+var utterances = [
+  'nothing',
+  
+  'aliceStrong', '!aliceStrong',
+  'aliceLazy', '!aliceLazy',
+  'bobStrong', '!bobStrong',
+  'bobLazy', '!bobLazy',
+  'aliceWin', '!aliceWin',
+  
+  'aliceWin & aliceStrong',
+  'aliceWin & !aliceLazy',
+  'aliceWin & !bobStrong',
+  'aliceWin & bobLazy',
+  
+  'aliceWin because aliceStrong',
+  'aliceWin because !aliceLazy',
+  'aliceWin because !bobStrong',
+  'aliceWin because bobLazy'
+];
+
+var alpha = 5;
+
+var costs = map(function(utterance) {
+  if (utterance == "nothing") {
+    return 0;
+  } else {
+    var words = utterance.split(" ");
+    var chars = utterance.split("");
+    var negs = filter(function(x) {return x == "!";}, chars);
+    return words.length;
+  }
+}, utterances);
+
+var utterancePrior = function() {
+  var probabilities = map(function(x) {return Math.exp(-x);}, costs);
+  return utterances[discrete(probabilities)];
+};
+
+var speakerERP = cache(function(world) {
+  var unfactoredERP = Enumerate(function() {
+    var utterance = utterancePrior();
+    //print(utterance);
+    var interpretation = literalERP(utterance);
+    return {
+      factor: interpretation == 'impossible' ? -Infinity : interpretation.score([], world) * alpha,
+      result: utterance
+    };
+  });
+  return checkPossible(unfactoredERP);
+});
+
+var listenerERP = function(utterance) {
+  return Enumerate(function() {
+    var actualRVs = rand();
+    var actualWorld = vars(actualRVs);
+    //print(actualWorld);
+    var description = speakerERP(actualWorld);
+    factor(
+      description == 'impossible' ? -Infinity : description.score([], utterance) * alpha
+    );
+    return actualWorld;
+  });
+};
+
+// ======== example =========
+
+//print(Enumerate(utterancePrior));
+/*speakerERP({
+  aliceStrong: true, aliceLazy: true,
+  bobStrong: true, bobLazy: true,
+  aliceWin: true
+});*/
+
+// WARNING: this code will take a while to run
+vizPrint(literalERP('aliceWin & bobLazy'));
+vizPrint(literalERP('aliceWin because bobLazy'));
+
+// WARNING: THIS WILL TAKE A *VERY* LONG TIME TO RUN
+// the results are that alice is probably weak and bob is
+// probably strong when we say "because" whereas alice is
+// almost certainly strong and bob almost certainly weak
+// when we say "and"
+/*
+print('aliceWin & bobLazy');
+vizPrint(listenerERP('aliceWin & bobLazy'));
+print('aliceWin because bobLazy');
+vizPrint(listenerERP('aliceWin because bobLazy'));
+*/
+
+// WARNING: THIS WILL TAKE A *VERY* LONG TIME TO RUN\
+/*
+print('aliceWin because bobLazy');
+vizPrint(listenerERP('aliceWin because bobLazy'));
+print('aliceWin because aliceStrong');
+vizPrint(listenerERP('aliceWin because aliceStrong'));
+print('aliceWin because !aliceLazy');
+vizPrint(listenerERP('aliceWin because !aliceLazy'));
+print('aliceWin because !bobStrong');
+vizPrint(listenerERP('aliceWin because !bobStrong'));
+*/
+~~~
+
+<!-- ## Evaluating felicity of different explanations
+
+Going back to the bacon example, suppose that we want to get a felicity judgment for the explanation, "The neighbors are angry because I cooked bacon." How good of a thing is that to say?
+
+We can add another layer of pragmatic reasoning above the pragmatic listener, where a pragmatic speaker can either say that explanation or nothing.
+
+~~~
+///fold:
+// ======== model specification =========
+
+// exogenous random variables
+var rand = function() {
+  return {
+    uB: flip(0.9), // bacon is a priori likely
+    uS: flip(0.9), // smoke alarm is likely, given bacon
+    uN: flip(0.1) // probability of neighbors being angry even if the smoke alarm doesn't go off is low
+  };
+};
+
+// endogenous variables are functions of the random state
+var vars = function(rVs) {
+  var bacon = rVs.uB;
+  var smokeAlarm = and(bacon, rVs.uS); // smoke alarm will only go off if bacon is cooked, but it might not even if you do cook bacon.
+  var neighbors = or(smokeAlarm, rVs.uN); // neighbors *will get angry* if the smoke alarm goes off. they might even if it doesn't, though.
+  return {
+    bacon: bacon,
+    smokeAlarm: smokeAlarm,
+    neighbors: neighbors
+  };
+};
+
+// ======== parameters and counterfactual functions =========
+
+// parameter for how similar counterfactual world is to actual world
+var stickiness = 0.5;
+
+var stickyRand = function(actualRVs) {
+  var freshRVs = rand();
+  return mapObj(function(val, key) {
+    return flip(stickiness) ? actualRVs[key] : freshRVs[key];
+  }, actualRVs);
+};
+
+var contextualEval = cache(function(proposition, world) {
+  var context = 'var bacon = ' + JSON.stringify(world.bacon) + ';' +
+      'var smokeAlarm = ' + JSON.stringify(world.smokeAlarm) + ';' +
+      'var neighbors = ' + JSON.stringify(world.neighbors) + ';';
+  return(webpplEval(context + proposition));
+});
+
+var checkPossible = function(unfactoredERP) {
+  var factorERP = Enumerate(function() {
+    return sample(unfactoredERP).factor;
+  });
+  if (factorERP.score([], -Infinity) == 0) {
+    // a sort of way of throwing errors if we try to evaluate an impossible utterance
+    return 'impossible';
+  } else {
+    return Enumerate(function() {
+      var result = sample(unfactoredERP);
+      factor(result.factor);
+      return result.result;
+    });
+  }
+};
+
+var counterfactualERP = function(ifA, thenB, actualRVs) {
+  //print(ifA);
+  //print(thenB);
+  //print(actualRVs);
+  var unfactoredERP = Enumerate(function() {
+    var counterfactualRVs = stickyRand(actualRVs);
+    //print(counterfactualRVs);
+    var counterfactualWorld = vars(counterfactualRVs);
+    //print(counterfactualWorld);
+    return {
+      result: contextualEval(thenB, counterfactualWorld),
+      factor: (contextualEval(ifA, counterfactualWorld) ? 0 : -Infinity)
+    }
+  });
+  //unfactoredERP.print();
+  return checkPossible(unfactoredERP);
+};
+
+// ======== literal meaning functions =========
+
+var because = function(conditionA, resultB, actualWorld, actualRVs) {
+  var actuallyA = contextualEval(conditionA, actualWorld);
+  var actuallyB = contextualEval(resultB, actualWorld);
+
+  // debugging:
+  //print(conditionA + "? " + actuallyA);
+  //print(resultB + "? " + actuallyB);
+
+  if (actuallyA & actuallyB) {
+    // debugging:
+    //print("both true!");
+
+    var ifNotA = "!" + conditionA;
+    var thenNotB = "!" + resultB;
+
+    // debugging:
+    //print("if " + ifNotA + " then " + thenNotB);
+
+    var cfERP = counterfactualERP(ifNotA, thenNotB, actualRVs);
+    //print("because " + conditionA + ", " + resultB);
+    //cfERP.print();
+    return cfERP == 'impossible' ? -Infinity : cfERP.score([], true);;
+  } else {
+    return -Infinity;
+  }
+};
+
+/*
+   meaning_factor is -Infinity if the utterance is completely false
+   in the world, 0 if the utterance is true, and for "because" utterances
+   it is the proportion of counterfactual worlds satisfying conditionA
+   in which resultB is also true.
+*/
+var meaning_factor = cache(function(utterance, world, rVs) {
+  if (utterance == 'nothing') {
+    return 0;
+  } else {
+    var words = utterance.split(' ');
+    if (words.length < 2 | words[1] != 'because') {
+      return contextualEval(utterance, world) ? 0 : -Infinity;
+    } else {
+      // "resultB because conditionA"
+      var resultB = words[0];
+      var conditionA = words[2];
+
+      // debugging:
+      //print("because " + conditionA + ", " + resultB);
+
+      return because(conditionA, resultB, world, rVs);
+    }
+  }
+});
+
+var literalERP = cache(function(utterance) {
+  var unfactoredERP = Enumerate(function() {
+    var actualRVs = rand();
+    var actualWorld = vars(actualRVs);
+    //print(actualWorld);
+    return {
+      result: actualWorld,
+      factor: meaning_factor(utterance, actualWorld, actualRVs)
+    };
+  });
+  return checkPossible(unfactoredERP);
+});
+
+// a small set of alternative utterances
+var utterances = [
+  'nothing',
+  'bacon', 'smokeAlarm', 'neighbors',
+  '!bacon', '!smokeAlarm', '!neighbors',
+  'bacon & smokeAlarm', 'bacon & neighbors', 'smokeAlarm & neighbors',
+  'neighbors because bacon'
+];
+
+// full set of alternatives
+// WARNING: TAKES A COUPLE MINUTES TO RUN
+/*var utterances = [
+  'nothing',
+
+  'bacon', 'smokeAlarm', 'neighbors',
+  '!bacon', '!smokeAlarm', '!neighbors',
+
+  'bacon & smokeAlarm', 'bacon & neighbors', 'bacon & !smokeAlarm', 'bacon & !neighbors',
+  'smokeAlarm & neighbors', 'smokeAlarm & !neighbors',
+  '!bacon & smokeAlarm', '!bacon & neighbors', '!bacon & !smokeAlarm', '!bacon & !neighbors',
+  '!smokeAlarm & neighbors', '!smokeAlarm & !neighbors',
+
+  'bacon because smokeAlarm', 'bacon because neighbors', 'bacon because !smokeAlarm', 'bacon because !neighbors',
+  'smokeAlarm because neighbors', 'smokeAlarm because !neighbors',
+  '!bacon because smokeAlarm', '!bacon because neighbors', '!bacon because !smokeAlarm', '!bacon because !neighbors',
+  '!smokeAlarm because neighbors', '!smokeAlarm because !neighbors',
+
+  'smokeAlarm because bacon', 'neighbors because bacon', '!smokeAlarm because bacon', '!neighbors because bacon',
+  'neighbors because smokeAlarm', '!neighbors because smokeAlarm',
+  'smokeAlarm because !bacon', 'neighbors because !bacon', '!smokeAlarm because !bacon', '!neighbors because !bacon',
+  'neighbors because !smokeAlarm', '!neighbors because !smokeAlarm',
+
+  'bacon & smokeAlarm & neighbors', 'bacon & smokeAlarm & !neighbors',
+  'bacon & !smokeAlarm & neighbors', 'bacon & !smokeAlarm & !neighbors',
+  '!bacon & smokeAlarm & neighbors', '!bacon & smokeAlarm & !neighbors',
+  '!bacon & !smokeAlarm & neighbors', '!bacon & !smokeAlarm & !neighbors'
+];*/
+
+var alpha = 5;
+
+var costs = map(function(utterance) {
+  if (utterance == "nothing") {
+    return 0;
+  } else {
+    var words = utterance.split(" ");
+    var chars = utterance.split("");
+    var negs = filter(function(x) {return x == "!";}, chars);
+    return words.length;
+  }
+}, utterances);
+
+var utterancePrior = function() {
+  var probabilities = map(function(x) {return Math.exp(-x);}, costs);
+  return utterances[discrete(probabilities)];
+};
+
+var speakerERP = cache(function(world) {
+  var unfactoredERP = Enumerate(function() {
+    var utterance = utterancePrior();
+    //print(utterance);
+    var interpretation = literalERP(utterance);
+    return {
+      factor: interpretation == 'impossible' ? -Infinity : interpretation.score([], world) * alpha,
+      result: utterance
+    };
+  });
+  return checkPossible(unfactoredERP);
+});
+
+var listenerERP = function(utterance) {
+  return Enumerate(function() {
+    var actualRVs = rand();
+    var actualWorld = vars(actualRVs);
+    //print(actualWorld);
+    var description = speakerERP(actualWorld);
+    factor(
+      description == 'impossible' ? -Infinity : description.score([], utterance) * alpha
+    );
+    return actualWorld.smokeAlarm;
+  });
+};
+
+var S2ERP = cache(function(world, explanation) {
+  var unfactoredERP = Enumerate(function() {
+    var utterance = flip();
+    //print(utterance);
+    var interpretation = literalERP(utterance);
+    return {
+      factor: interpretation == 'impossible' ? -Infinity : interpretation.score([], world) * alpha,
+      result: utterance
+    };
+  });
+  return checkPossible(unfactoredERP);
+});
+
+// ======== example =========
+
+//print(speakerERP({bacon: true, smokeAlarm: true, neighbors: true}))
+
+/*
+// check meaning_factor:
+var actualRVs = {uB: true, uS: true, uN: true};
+var actualWorld = vars(actualRVs);
+
+print(meaning_factor('bacon', actualWorld, actualRVs));
+print(meaning_factor('!bacon', actualWorld, actualRVs));
+print(meaning_factor('neighbors because bacon', actualWorld, actualRVs));
+*/
+
+print(listenerERP('bacon & neighbors'));
+print(listenerERP('neighbors because bacon'));
+~~~ -->
+
+<!-- ## Inferring a causal model: simple version
+
+## Inferring a causal model: cooler version -->
+
+<!-- ## Empirical phenomena to explore -->
+
+<!--
+coherent plan for quarter!!!!!!!!!!! (last section of writeup)
+list of some phenomena that we think are predicted by these sorts of models that we could think about looking at experimentally.
+simple way to start doing experiments that still has rich phenomena
+-->
+
+<!--
+other
+
+causal vs formal might be a qud effect of whether we (want to) know the causal model or the state of the world.
+someday maybe show that causal, formal, and teleological are all representable within this framework.
+acknowledge interns
+
+check in with tobi and josh
+invite them to be authors
+modeling the pragmatics of explanation
+
+alice won because bob wanted her to win
+
+alice tried hard so that she would win
+
+alice tried hard because bob was strong
+
+teleological explanation 'agent chose A so that B' is applicable when an agent
+  chooses to do A
+  wants B
+  and believes that B because A
+-->
+
+
+## To Do
+
+* more kinds of intuitive theories, e.g. formal and functional explanations.
+  - e.g. social inference in tug-of-war. assuming others choose randomly, should you be lazy? "Alice didn't try because Bob is weak."
+* S2 model for felicity of different explanations
+* presuppositions: lifted variable background knowledge (SALT?)
+* infer causal relationships: simple and NN

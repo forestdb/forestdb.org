@@ -765,11 +765,11 @@ vizPrint(listenerERP('aliceWin because !bobStrong'));
 */
 ~~~
 
-<!-- ## Evaluating felicity of different explanations
+## Evaluating felicity of different explanations
 
 Going back to the bacon example, suppose that we want to get a felicity judgment for the explanation, "The neighbors are angry because I cooked bacon." How good of a thing is that to say?
 
-We can add another layer of pragmatic reasoning above the pragmatic listener, where a pragmatic speaker can either say that explanation or nothing.
+We can add another layer of pragmatic reasoning above the pragmatic listener, where a pragmatic speaker can either agree or disagree with that explanation.
 
 ~~~
 ///fold:
@@ -812,6 +812,7 @@ var contextualEval = cache(function(proposition, world) {
   var context = 'var bacon = ' + JSON.stringify(world.bacon) + ';' +
       'var smokeAlarm = ' + JSON.stringify(world.smokeAlarm) + ';' +
       'var neighbors = ' + JSON.stringify(world.neighbors) + ';';
+  //print(context + proposition);
   return(webpplEval(context + proposition));
 });
 
@@ -889,17 +890,24 @@ var meaning_factor = cache(function(utterance, world, rVs) {
     return 0;
   } else {
     var words = utterance.split(' ');
-    if (words.length < 2 | words[1] != 'because') {
-      return contextualEval(utterance, world) ? 0 : -Infinity;
+    var negation = words[0] == "itisnotthecasethat";
+    var doubleNegation = negation ? words[1] == "itisnotthecasethat" : false;
+    var restOfWords = doubleNegation ? words.slice(2) : negation ? words.slice(1) : words;
+    if (restOfWords.length < 2 | restOfWords[1] != 'because') {
+      var isTrue = contextualEval(utterance, world);
+      // if negation, check that negated utterance is true
+      return (doubleNegation ? isTrue : negation ? !isTrue : isTrue) ? 0 : -Infinity;
     } else {
       // "resultB because conditionA"
-      var resultB = words[0];
-      var conditionA = words[2];
+      var resultB = restOfWords[0];
+      var conditionA = restOfWords[2];
 
       // debugging:
       //print("because " + conditionA + ", " + resultB);
 
-      return because(conditionA, resultB, world, rVs);
+      var becauseIsTrue = because(conditionA, resultB, world, rVs);
+
+      return doubleNegation ? becauseIsTrue : negation ? !becauseIsTrue : becauseIsTrue;
     }
   }
 });
@@ -917,47 +925,9 @@ var literalERP = cache(function(utterance) {
   return checkPossible(unfactoredERP);
 });
 
-// a small set of alternative utterances
-var utterances = [
-  'nothing',
-  'bacon', 'smokeAlarm', 'neighbors',
-  '!bacon', '!smokeAlarm', '!neighbors',
-  'bacon & smokeAlarm', 'bacon & neighbors', 'smokeAlarm & neighbors',
-  'neighbors because bacon'
-];
-
-// full set of alternatives
-// WARNING: TAKES A COUPLE MINUTES TO RUN
-/*var utterances = [
-  'nothing',
-
-  'bacon', 'smokeAlarm', 'neighbors',
-  '!bacon', '!smokeAlarm', '!neighbors',
-
-  'bacon & smokeAlarm', 'bacon & neighbors', 'bacon & !smokeAlarm', 'bacon & !neighbors',
-  'smokeAlarm & neighbors', 'smokeAlarm & !neighbors',
-  '!bacon & smokeAlarm', '!bacon & neighbors', '!bacon & !smokeAlarm', '!bacon & !neighbors',
-  '!smokeAlarm & neighbors', '!smokeAlarm & !neighbors',
-
-  'bacon because smokeAlarm', 'bacon because neighbors', 'bacon because !smokeAlarm', 'bacon because !neighbors',
-  'smokeAlarm because neighbors', 'smokeAlarm because !neighbors',
-  '!bacon because smokeAlarm', '!bacon because neighbors', '!bacon because !smokeAlarm', '!bacon because !neighbors',
-  '!smokeAlarm because neighbors', '!smokeAlarm because !neighbors',
-
-  'smokeAlarm because bacon', 'neighbors because bacon', '!smokeAlarm because bacon', '!neighbors because bacon',
-  'neighbors because smokeAlarm', '!neighbors because smokeAlarm',
-  'smokeAlarm because !bacon', 'neighbors because !bacon', '!smokeAlarm because !bacon', '!neighbors because !bacon',
-  'neighbors because !smokeAlarm', '!neighbors because !smokeAlarm',
-
-  'bacon & smokeAlarm & neighbors', 'bacon & smokeAlarm & !neighbors',
-  'bacon & !smokeAlarm & neighbors', 'bacon & !smokeAlarm & !neighbors',
-  '!bacon & smokeAlarm & neighbors', '!bacon & smokeAlarm & !neighbors',
-  '!bacon & !smokeAlarm & neighbors', '!bacon & !smokeAlarm & !neighbors'
-];*/
-
 var alpha = 5;
 
-var costs = map(function(utterance) {
+var getCostUtterance = function(utterance) {
   if (utterance == "nothing") {
     return 0;
   } else {
@@ -966,69 +936,75 @@ var costs = map(function(utterance) {
     var negs = filter(function(x) {return x == "!";}, chars);
     return words.length;
   }
-}, utterances);
-
-var utterancePrior = function() {
-  var probabilities = map(function(x) {return Math.exp(-x);}, costs);
-  return utterances[discrete(probabilities)];
 };
 
-var speakerERP = cache(function(world) {
+var getUtterancePrior = function(utterance) {
+  var basePropositions = ['bacon', 'smokeAlarm', 'neighbors'];
+  var getAlternativeUtterances = function(utterance) {
+    var negPropositions = map(function(p) {return "!" + p;}, basePropositions);
+    var simplePropositions = negPropositions.concat(basePropositions);
+    return [utterance, "nothing", "itisnotthecasethat " + utterance].concat(
+      simplePropositions
+    );
+  };
+  var utterances = getAlternativeUtterances(utterance);
+  var costs = map(getCostUtterance, utterances);
+  return function() {
+    var probabilities = map(function(x) {return Math.exp(-x);}, costs);
+    return utterances[discrete(probabilities)];
+  };
+};
+
+var speakerERP = cache(function(world, baseUtterance) {
+  var utterancePrior = getUtterancePrior(baseUtterance);
   var unfactoredERP = Enumerate(function() {
     var utterance = utterancePrior();
     //print(utterance);
     var interpretation = literalERP(utterance);
     return {
-      factor: interpretation == 'impossible' ? -Infinity : interpretation.score([], world) * alpha,
+      factor: interpretation == 'impossible' ? -Infinity : interpretation.score([], world),
       result: utterance
     };
   });
   return checkPossible(unfactoredERP);
 });
 
-var listenerERP = function(utterance) {
+var listenerERP = cache(function(utterance) {
   return Enumerate(function() {
     var actualRVs = rand();
     var actualWorld = vars(actualRVs);
     //print(actualWorld);
-    var description = speakerERP(actualWorld);
+    var description = speakerERP(actualWorld, utterance /*give speaker utterance to generate relevant alternatives*/);
     factor(
       description == 'impossible' ? -Infinity : description.score([], utterance) * alpha
     );
-    return actualWorld.smokeAlarm;
+    return actualWorld;
+  });
+});
+///
+var speaker2ERP = function(utterance, world) {
+  var s2Utterances = [utterance, "itisnotthecasethat " + utterance];
+  var s2costs = map(getCostUtterance, s2Utterances);
+  var s2UtterancePrior = function() {
+    var probabilities = map(function(x) {return Math.exp(-x);}, s2costs);
+    return s2Utterances[discrete(probabilities)];
+  };
+  return Enumerate(function() {
+    var utt = s2UtterancePrior();
+    var interpretation = listenerERP(utt);
+    factor( interpretation.score([], world) );
+    return utt == utterance ? "yes" : "no";
   });
 };
 
-var S2ERP = cache(function(world, explanation) {
-  var unfactoredERP = Enumerate(function() {
-    var utterance = flip();
-    //print(utterance);
-    var interpretation = literalERP(utterance);
-    return {
-      factor: interpretation == 'impossible' ? -Infinity : interpretation.score([], world) * alpha,
-      result: utterance
-    };
-  });
-  return checkPossible(unfactoredERP);
-});
+// ======== examples =========
 
-// ======== example =========
+print('neighbors because bacon when smokeAlarm is true');
+print(speaker2ERP('neighbors because bacon', {bacon: true, smokeAlarm: true, neighbors: true}));
 
-//print(speakerERP({bacon: true, smokeAlarm: true, neighbors: true}))
-
-/*
-// check meaning_factor:
-var actualRVs = {uB: true, uS: true, uN: true};
-var actualWorld = vars(actualRVs);
-
-print(meaning_factor('bacon', actualWorld, actualRVs));
-print(meaning_factor('!bacon', actualWorld, actualRVs));
-print(meaning_factor('neighbors because bacon', actualWorld, actualRVs));
-*/
-
-print(listenerERP('bacon & neighbors'));
-print(listenerERP('neighbors because bacon'));
-~~~ -->
+print('neighbors because bacon when smokeAlarm is false');
+print(speaker2ERP('neighbors because bacon', {bacon: true, smokeAlarm: false, neighbors: true}));
+~~~
 
 <!-- ## Inferring a causal model: simple version
 

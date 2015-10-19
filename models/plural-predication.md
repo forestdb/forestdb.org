@@ -145,10 +145,7 @@ This is the model of ambiguity resolution in plural predication from Scontras an
 	        (define collective? (flip 0.8)) ; prior on collective interpretation
 	        (define dist-theta (dist-theta-prior))
 	        (define coll-theta (coll-theta-prior))
-	
-	       	(list collective? state)
-	        ;;collective?
-	
+	        collective?
 	        (condition (equal? utterance 
 	                           (apply multinomial 
 	                                  (topower (speaker collective? state dist-theta coll-theta speakerknows)
@@ -176,10 +173,7 @@ This is the model of ambiguity resolution in plural predication from Scontras an
 	        (define listener-dist (listener utterance collective? dist-theta coll-theta))
 	        (define speaker-dist 
 	          (max-support bstate-distribution listener-dist))
-	
-	
 	        utterance
-	
 	        (factor (- (KL speaker-dist (second listener-dist))))
 	        ))))
 	

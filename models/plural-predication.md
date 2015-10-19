@@ -7,7 +7,7 @@ model-tags: language, ambiguity, plurality, interpretation noise
 model-language: church
 ---
 
-This is the model of ambiguity resolution in plural predication from Scontras & Goodman 2015.
+This is the model of ambiguity resolution in plural predication from Scontras and Goodman 2015.
 
 	;; helper function to check list identity
 	(define (naive-list-equals? as bs)
@@ -49,23 +49,39 @@ This is the model of ambiguity resolution in plural predication from Scontras & 
 	(define (topower dist alpha) (list (first dist)
 	                                   (power (second dist) alpha)))
 	
+	;; helper for erf(x)
+	(define (t x)
+	  (/ 1 
+	     (+ 1 (* 0.3275911 x))
+	     )
+	  )
+	(define (erf x)
+	  (- 1 (* (+ (* 0.254829592 (t x))
+	             (* -0.284496736 (expt (t x) 2))
+	             (* 1.421413741 (expt (t x) 3))
+	             (* -1.453152027 (expt (t x) 4))
+	             (* 1.061405429 (expt (t x) 5)))          
+	          (exp (* -1 (expt x 2))))
+	     )
+	  )
+	
 	;; the full model starts here
 	(define (plural-predication number-of-objects
 	                            noise
 	                            knowledge
 	                            )
 	
-	  ;; possible utterance	
+	  ;; possible utterance 
 	  (define utterances (list  
 	                      'amb
 	                      'collective 
 	                      'distributive 
 	                      ))
 	
-	  ;; utterance are equally costly
-	  (define (utterance-prior) (multinomial utterances '(1 1 1)))
+	  ;; ambiguous utterance is cheaper
+	  (define (utterance-prior) (multinomial utterances '(2 1 1)))
 	
-	  ;; object come in two sizes, 3 and 4	, with equal probability
+	  ;; object come in two sizes, 3 and 4, with equal probability
 	  (define object-prior '((3 4) (1 1)))
 	
 	  ;; states are n random draws from the obejct prior where n=number-of-objects
@@ -75,37 +91,32 @@ This is the model of ambiguity resolution in plural predication from Scontras & 
 	
 	  ;; prior on thresholds
 	  (define (dist-theta-prior) (apply multinomial object-prior))
-	  (define (coll-theta-prior) (sum (state-prior)))
-	
+	  (define (coll-theta-prior) (uniform-draw '(9 10 11 12)))
 	
 	  ;; contextual noise in collective interpretation
-	  (define noise-prior (case noise
-	                            (('no)
-	                             (lambda () 1)) ;; no noise                            
-	                            (('low)
-	                             (lambda () (multinomial '(.9 1 1.1) 
-	                                                     '(1 6 1)))) ;; low
-	                            (('mid) 
-	                             (lambda () (multinomial '(.7 1 1.3) 
-	                                                     '(1 3 1)))) ;; middle
-	                            (('high)
-	                             (lambda () (multinomial '(.5 1 1.5) 
-	                                                     '(1 1 1)))) ;; high
-	                            ))
+	  (define noise-variance (case noise
+	                               (('no)
+	                                0.01) ;; no noise                            
+	                               (('low)
+	                                .75) ;; low
+	                               (('mid) 
+	                                1) ;; middle
+	                               (('high)
+	                                1.25) ;; high
+	                               ))
 	
 	  ;; interpretation semantics
 	  (define collective-interpretation 
 	    (lambda (state coll-theta collective-noise) 
-	      (if
-	       (> (* collective-noise (sum state))  coll-theta) 
-	       #t
-	       #f)))
+	      (flip ;;additive noise
+	       (- 1 (* (+ 1 (erf (/ (- (- coll-theta (sum state)) 0) 
+	                            (* collective-noise (sqrt 2))))) 
+	               0.5)))
+	      ))
 	  (define distributive-interpretation 
 	    (lambda (state dist-theta) 
 	      (if
 	       (all (map (lambda (d) (> d dist-theta)) state))
-	       ; (flip 0.99)
-	       ; (flip 0.01))))
 	       #t
 	       #f)))
 	
@@ -131,16 +142,17 @@ This is the model of ambiguity resolution in plural predication from Scontras & 
 	     (lambda (utterance speakerknows)
 	       (enumeration-query
 	        (define state (state-prior))
-	        (define collective? (flip 0.5)) ; prior on collective interpretation
+	        (define collective? (flip 0.8)) ; prior on collective interpretation
 	        (define dist-theta (dist-theta-prior))
 	        (define coll-theta (coll-theta-prior))
 	
-	        (list collective?)
+	        ;;         (list collective? state)
+	        collective?
 	
 	        (condition (equal? utterance 
 	                           (apply multinomial 
 	                                  (topower (speaker collective? state dist-theta coll-theta speakerknows)
-	                                           2)))) ;; speaker optimality
+	                                           7)))) ;; speaker optimality
 	        ))))
 	
 	  ;; speaker belief function for epistemic manipulation
@@ -176,7 +188,7 @@ This is the model of ambiguity resolution in plural predication from Scontras & 
 	    (mem
 	     (lambda (utterance collective? dist-theta coll-theta)
 	       (enumeration-query
-	        (define collective-noise (noise-prior))
+	        (define collective-noise noise-variance)
 	        (define state (state-prior))
 	        state
 	        (condition (meaning utterance state dist-theta coll-theta collective? collective-noise))
@@ -187,12 +199,12 @@ This is the model of ambiguity resolution in plural predication from Scontras & 
 	
 	  )
 	
-	;; model predictions for 4-object states
-	(barplot (plural-predication 4 'no #T) "no noise, full knowledge")
-	(barplot (plural-predication 4 'no #F) "no noise, partial knowledge")
-	(barplot (plural-predication 4 'low #T) "low noise, full knowledge")
-	(barplot (plural-predication 4 'low #F) "low noise, partial knowledge")
-	(barplot (plural-predication 4 'mid #T) "mid noise, full knowledge")
-	(barplot (plural-predication 4 'mid #F) "mid noise, partial knowledge")
-	(barplot (plural-predication 4 'high #T) "high noise, full knowledge")
-	(barplot (plural-predication 4 'high #F) "high noise, partial knowledge")
+	;; model predictions for 3-object states
+	(barplot (plural-predication 3 'no #T) "no noise, full knowledge")
+	(barplot (plural-predication 3 'no #F) "no noise, sum knowledge")
+	(barplot (plural-predication 3 'low #T) "low noise, full knowledge")
+	(barplot (plural-predication 3 'low #F) "low noise, sum knowledge")
+	(barplot (plural-predication 3 'mid #T) "mid noise, full knowledge")
+	(barplot (plural-predication 3 'mid #F) "mid noise, sum knowledge")
+	(barplot (plural-predication 3 'high #T) "high noise, full knowledge")
+	(barplot (plural-predication 3 'high #F) "high noise, sum knowledge")

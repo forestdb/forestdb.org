@@ -1607,29 +1607,34 @@ This model is specifically to explore the effect of varying color predictability
 ;   speaker-opt) "aintermediate color")
  (hist
 ;  (power 
-   (pragmatic-speaker (first (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) (stringify (first (second context_atypical))))) 
+  (pragmatic-speaker (first (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
+  (stringify (first (second context_atypical)))) 
 ;   speaker-opt) "atypical color")
  (hist
 ;  (power 
-   (pragmatic-speaker (second (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) (stringify (second (second context_atypical)))) 
+  (pragmatic-speaker (second (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
+  (stringify (second (second context_atypical)))) 
 ;   speaker-opt) "atypical color atypicality")
  (hist
 ;  (power 
-   (pragmatic-speaker (third (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) (stringify (third (second context_atypical)))) 
+  (pragmatic-speaker (third (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
+  (stringify (third (second context_atypical)))) 
 ;   speaker-opt) "aatypical color")
  (hist
 ;  (power 
-   (pragmatic-speaker (fourth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) (stringify (fourth (second context_atypical)))) 
+  (pragmatic-speaker (fourth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
+  (stringify (fourth (second context_atypical)))) 
 ;   speaker-opt) "atypical color")
  (hist
 ;  (power 
-   (pragmatic-speaker (fifth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) (stringify (fifth (second context_atypical)))) 
+  (pragmatic-speaker (fifth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
+  (stringify (fifth (second context_atypical)))) 
 ;   speaker-opt) "atypical color atypicality")
  (hist
 ;  (power 
-   (pragmatic-speaker (sixth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) (stringify (sixth (second context_atypical)))) 
+  (pragmatic-speaker (sixth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
+  (stringify (sixth (second context_atypical)))) 
 ;   speaker-opt) "aatypical color")
-
  )
 ~~~
 

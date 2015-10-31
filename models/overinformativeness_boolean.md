@@ -1308,7 +1308,328 @@ This model is specifically to explore the effect of varying color predictability
     speaker-opt) "atypical color")
   )
 
+~~~
 
-
+# Visual search model of color predictability effect
 
 ~~~
+; Created October 31 2015 by jdegen
+
+(define (power dist a) (list (first dist) 
+                             (map (lambda (x) (pow x a)) (second dist))))
+
+(define listener_n 1000) ;mh-query iterations in literal listener
+(define speaker_n 1000) ;mh-query iterations in pragmatic speaker
+; Free parameters:
+(define color_fidelity .999) ; 1 - noise probability (color -- higher means less noise -- unused in this model)
+(define size_fidelity .8) ; 1 - noise probability (size -- higher meanss less noise -- unused in this model) 
+(define type_fidelity .95) ; 1 - noise probability (size -- higher meanss less noise -- unused in this model)
+(define color_cost .1) ; lower means less costly
+(define size_cost .1) ; lower means less costly
+(define type_cost .1) ; lower means less costly
+(define speaker-opt 18) ; standard speaker optimality parameter
+; A context is a labeled list of lists, where sub-lists represent objects with a name (unique ID), a size feature and a color feature (currently only implemented for two features -- TODO: actually integrate!)
+(define context_typical
+  (list 'typical
+        (list (list 'red 'tomato)
+              (list 'red 'pumpkin)
+              (list 'green 'lemon)
+              (list 'green 'cheese)
+              (list 'yellow 'corn)
+              (list 'yellow 'broccoli)
+              )))
+
+(define context_intermediate
+  (list 'intermediate
+        (list (list 'yellow 'apple)
+              (list 'orange 'carrot)
+              (list 'red 'corn)
+              (list 'red 'banana)
+              (list 'yellow 'pineapple)
+              (list 'orange 'naranja)
+              ))) 
+
+(define context_atypical
+  (list 'atypical
+        (list (list 'blue 'pepper)
+              (list 'green 'apple)
+              (list 'blue 'lemon)
+              (list 'yellow 'pineapple)
+              (list 'yellow 'banana)
+              (list 'green 'lettuce)
+              )))
+
+(define object_typical
+  '(yellow banana)
+  )
+
+(define object_intermediate
+  '(green banana)
+  )
+
+(define object_atypical
+  '(red banana)
+  )
+
+(define listener-opt 1) ; non-standard listener optimality parameter -- leave unchanged
+
+; The literal listener infers a distribution over features of an object, given an utterance -- retrieves the color prior for a simple type utterance and perfectly retrieves that true feature combination if color is mentioned
+(define literal-listener ;; TODO: enforce that the returned object is one of the context objects
+  (mem   (lambda (utterance color_fidelity size_fidelity type_fidelity objects)       
+           ;         (enumeration-query  
+
+           (mh-query listener_n 5
+                     (define sub-utts (regexp-split utterance '_))     
+
+                     (define apple-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .8 .0001 .099 .099 .0001)))
+
+                     (define carrot-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .0001 .9 .097 .0001 .0001)))
+
+                     (define pineapple-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .0001 .0001 .9 .097 .0001)))
+
+                     (define naranja-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .0001 .9 .0001 .097 .0001)))
+
+                     (define pepper-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .6 .099 .15 .15 .0001))) 
+
+                     (define lettuce-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .0001 .0001 .0001 .996 .0001))) 
+                                    
+                     (define banana-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .0001 .0001 .9 .097 .0001)))
+
+                     (define tomato-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .9 .0001 .0001 .097 .0001)))
+
+                     (define pumpkin-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .0001 .9 .0001 .097 .0001)))
+
+                     (define lemon-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .0001 .0001 .9 .097 .0001)))
+
+                     (define cheese-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .0001 .9 .0001 .0001 .097)))
+
+                     (define broccoli-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .0001 .0001 .097 .9 .0001))) 
+
+                     (define corn-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .0001 .0001 .9 .097 .0001)))          
+
+                     (define color-prior
+                       (lambda (obj-type)
+                         (case obj-type
+                               (('apple) apple-prior)
+                               (('carrot) carrot-prior) 
+                               (('pineapple) pineapple-prior)
+                               (('naranja) naranja-prior)
+                               (('pepper) pepper-prior) 
+                               (('lettuce) lettuce-prior)                                
+                               (('banana) banana-prior)
+                               (('tomato) tomato-prior) 
+                               (('pumpkin) pumpkin-prior)
+                               (('lemon) lemon-prior)
+                               (('cheese) cheese-prior) 
+                               (('broccoli) broccoli-prior)
+                               (('corn) corn-prior)                    
+                               )))
+
+                     (define (meaning sub-utts obj-color obj-type)
+                       (if (= (length sub-utts) 2)
+                           (and (equal? (first sub-utts) obj-color) (equal? (second sub-utts) obj-type))
+                           (equal? (first sub-utts) obj-type)))      
+
+                     ; first sample color unless given
+                     (define obj-color 
+                       (if (> (list-index 
+                               '(red orange yellow green blue)
+                               (first sub-utts)) -1)
+                           (first sub-utts)
+                           (color-prior (first sub-utts))))
+
+
+                     ; then sample object depending on color 
+                     ; Helper function: check whether an object has a color and return true if it does, false otherwise
+                     (define (check-color obj color)
+                       (if (equal? (first obj) color)
+                           1
+                           0.00000001))
+
+                     ; then sample object depending on color 
+                     (define sample-compatible-object
+                       (multinomial objects
+                                    (map (lambda (o) 
+                                           (check-color o obj-color)) 
+                                         objects)
+                                    ))
+
+                     (define sampled-object sample-compatible-object)
+
+                     (define obj-type 
+                       ;;             (if (= (length sub-utts) 2)         
+                       ;;                 (second sub-utts)
+                       ;;                 (first sub-utts)))
+                       (second sampled-object))
+
+                     (define obj-color 
+                       (first sampled-object))
+
+                     (list obj-color obj-type)
+
+                     ;          (meaning sub-utts obj-color obj-type)
+                     true))))
+
+; A pragmatic speaker that infers a distribution over utterances, given an object he has in mind 
+; Maybe somewhat non-standard: softmax on literal listener (but not used because listener-opt set to 1)
+(define pragmatic-speaker 
+  (mem (lambda (obj color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost context)
+
+         ; Helper function for utterances: concatenates an object's features to create a "_"-separated two-word utterance like "big_red" and three-word utterance like "big_red_chair"
+         (define (gen-utt obj)
+           (list
+            (second obj)
+            (string-append (first obj) '_ (second obj))
+            ))	
+
+         ; Generates the set of alternatives for the object by taking all feature conjunctions as utterances as well as each individual feature (currently only implemented for two-feature objects)
+         (define utterances
+           (gen-utt obj))
+
+         ; Generates a cost vector for the utterances, with a fixed cost for an extra word (free parameter defined at beginning of file). 
+         (define (costs color_cost size_cost type_cost)
+           (map (lambda (utt)
+                  (sum (map (lambda (word) 
+                              (if (or (equal? word 'red) 
+                                      (equal? word 'orange)
+                                      (equal? word 'yellow)                                                                    
+                                      (equal? word 'green)
+                                      (equal? word 'blue))
+                                  color_cost 
+                                  (if (or (equal? word 'big)
+                                          (equal? word 'small))
+                                      size_cost
+                                      type_cost
+                                      ))) 
+                            (regexp-split utt '_))))
+                utterances))
+
+         (mh-query speaker_n 5
+                   ;         (enumeration-query        
+                   (define utterance (multinomial utterances 
+                                                  (map (lambda (c) (exp (- c))) (costs color_cost size_cost type_cost))))
+
+                   utterance
+
+                   (equal? obj
+                           ;                  (apply multinomial
+                           (uniform-draw 
+                            (literal-listener utterance color_fidelity size_fidelity type_fidelity context))))
+         )))
+
+
+;(define run-speaker 
+;  (lambda (obj color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost speaker-opt context)
+;    (define results (power 
+;                     (pragmatic-speaker obj color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context)) 
+;                     speaker-opt))
+;    (define utts (first results))
+;    (define probs (second results))
+;    (define context_label (first context))
+;    (list (flatten (list 'object 'color_fidelity 'size_fidelity 'type_fidelity 'color_cost 'size_cost 'type_cost 'speaker-opt 'context utts)) (flatten (list  obj color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost speaker-opt context_label (map (lambda (p) (/ p (sum probs))) probs))))
+;    ))	
+
+
+(multiviz
+; (hist
+;;  (power 
+;   (pragmatic-speaker (first (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical)) (stringify (second context_typical))) 
+;;   speaker-opt) "typical color")
+; (hist
+;;  (power 
+;   (pragmatic-speaker (second (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
+;;   speaker-opt) "intermediate color typicality")
+; (hist
+;;  (power 
+;   (pragmatic-speaker (third (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
+;;   speaker-opt) "atypical color")
+; (hist
+;;  (power 
+;   (pragmatic-speaker (fourth (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
+;;   speaker-opt) "typical color")
+; (hist
+;;  (power 
+;   (pragmatic-speaker (fifth (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
+;;   speaker-opt) "intermediate color typicality")
+; (hist
+;;  (power 
+;   (pragmatic-speaker (sixth (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
+;;   speaker-opt) "atypical color")
+; (hist
+;;  (power 
+;   (pragmatic-speaker (first (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate)) (stringify (second context_intermediate))) 
+;;   speaker-opt) "intermediate color")
+; (hist
+;;  (power 
+;   (pragmatic-speaker (second (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
+;;   speaker-opt) "intermediate color intermediateity")
+; (hist
+;;  (power 
+;   (pragmatic-speaker (third (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
+;;   speaker-opt) "aintermediate color")
+; (hist
+;;  (power 
+;   (pragmatic-speaker (fourth (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
+;;   speaker-opt) "intermediate color")
+; (hist
+;;  (power 
+;   (pragmatic-speaker (fifth (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
+;;   speaker-opt) "intermediate color intermediateity")
+; (hist
+;;  (power 
+;   (pragmatic-speaker (sixth (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
+;   speaker-opt) "aintermediate color")
+ (hist
+;  (power 
+   (pragmatic-speaker (first (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) (stringify (first (second context_atypical))))) 
+;   speaker-opt) "atypical color")
+ (hist
+;  (power 
+   (pragmatic-speaker (second (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) (stringify (second (second context_atypical)))) 
+;   speaker-opt) "atypical color atypicality")
+ (hist
+;  (power 
+   (pragmatic-speaker (third (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) (stringify (third (second context_atypical)))) 
+;   speaker-opt) "aatypical color")
+ (hist
+;  (power 
+   (pragmatic-speaker (fourth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) (stringify (fourth (second context_atypical)))) 
+;   speaker-opt) "atypical color")
+ (hist
+;  (power 
+   (pragmatic-speaker (fifth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) (stringify (fifth (second context_atypical)))) 
+;   speaker-opt) "atypical color atypicality")
+ (hist
+;  (power 
+   (pragmatic-speaker (sixth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) (stringify (sixth (second context_atypical)))) 
+;   speaker-opt) "aatypical color")
+
+ )
+~~~
+

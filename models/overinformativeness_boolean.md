@@ -1310,7 +1310,9 @@ This model is specifically to explore the effect of varying color predictability
 
 ~~~
 
-# Visual search model of color predictability effect
+# Color predictability effect.
+
+The pragmatic speaker tries to get the literal listener to choose the intended referent (one of six objects with a color and type feature). The literal listener samples objects depending on the object's color (either inferred from prior or explicitly given in utterance). For unpredictable colors, the probability of miscommunication is high, so the speaker is likely to mention color. But, confusing: the speaker is happy to mention color even when it's very predictable (and even when you strike the other object of the same color from the context). Why??
 
 ~~~
 ; Created October 31 2015 by jdegen
@@ -1320,15 +1322,19 @@ This model is specifically to explore the effect of varying color predictability
 
 (define listener_n 1000) ;mh-query iterations in literal listener
 (define speaker_n 1000) ;mh-query iterations in pragmatic speaker
-; Free parameters:
+
+; Free word fidelity and speaker optimality parameters (none of which are used in this model):
 (define color_fidelity .999) ; 1 - noise probability (color -- higher means less noise -- unused in this model)
 (define size_fidelity .8) ; 1 - noise probability (size -- higher meanss less noise -- unused in this model) 
 (define type_fidelity .95) ; 1 - noise probability (size -- higher meanss less noise -- unused in this model)
+(define speaker-opt 18) ; standard speaker optimality parameter
+
+; Free word cost parameters (equal costs):
 (define color_cost .1) ; lower means less costly
 (define size_cost .1) ; lower means less costly
 (define type_cost .1) ; lower means less costly
-(define speaker-opt 18) ; standard speaker optimality parameter
-; A context is a labeled list of lists, where sub-lists represent objects with a name (unique ID), a size feature and a color feature (currently only implemented for two features -- TODO: actually integrate!)
+
+; A context is a labeled list of lists, where sub-lists represent objects with a color and a type feature. The following three contexts are taken directly from Westerbeek et al. 2014. The first object in each context represents the target object for that context, in descending order of color typicality (red tomato, yellow apple, blue pepper)
 (define context_typical
   (list 'typical
         (list (list 'red 'tomato)
@@ -1359,31 +1365,21 @@ This model is specifically to explore the effect of varying color predictability
               (list 'green 'lettuce)
               )))
 
-(define object_typical
-  '(yellow banana)
-  )
 
-(define object_intermediate
-  '(green banana)
-  )
-
-(define object_atypical
-  '(red banana)
-  )
-
-(define listener-opt 1) ; non-standard listener optimality parameter -- leave unchanged
-
-; The literal listener infers a distribution over features of an object, given an utterance -- retrieves the color prior for a simple type utterance and perfectly retrieves that true feature combination if color is mentioned
-(define literal-listener ;; TODO: enforce that the returned object is one of the context objects
+; The literal listener infers a distribution over objects, given an utterance -- retrieves the color prior for a simple type utterance and perfectly retrieves that true feature combination if color is mentioned
+(define literal-listener
   (mem   (lambda (utterance color_fidelity size_fidelity type_fidelity objects)       
            ;         (enumeration-query  
 
            (mh-query listener_n 5
+
+                     ; split up the utterance into its sub-strings				           			
                      (define sub-utts (regexp-split utterance '_))     
 
+                     ; made-up color priors for the objects in the contexts
                      (define apple-prior
                        (multinomial '(red orange yellow green blue)
-                                    (list .8 .0001 .099 .099 .0001)))
+                                    (list .7 .0001 .2 .098 .0001)))
 
                      (define carrot-prior
                        (multinomial '(red orange yellow green blue)
@@ -1404,7 +1400,7 @@ This model is specifically to explore the effect of varying color predictability
                      (define lettuce-prior
                        (multinomial '(red orange yellow green blue)
                                     (list .0001 .0001 .0001 .996 .0001))) 
-                                    
+
                      (define banana-prior
                        (multinomial '(red orange yellow green blue)
                                     (list .0001 .0001 .9 .097 .0001)))
@@ -1433,6 +1429,7 @@ This model is specifically to explore the effect of varying color predictability
                        (multinomial '(red orange yellow green blue)
                                     (list .0001 .0001 .9 .097 .0001)))          
 
+                     ; helper function to get the right color prior depending on object type
                      (define color-prior
                        (lambda (obj-type)
                          (case obj-type
@@ -1451,12 +1448,14 @@ This model is specifically to explore the effect of varying color predictability
                                (('corn) corn-prior)                    
                                )))
 
+                     ; meaning function that checks the literal semantics of the utterance -- currently UNUSED because the literal listener needs to be able to get things "wrong"
                      (define (meaning sub-utts obj-color obj-type)
                        (if (= (length sub-utts) 2)
                            (and (equal? (first sub-utts) obj-color) (equal? (second sub-utts) obj-type))
                            (equal? (first sub-utts) obj-type)))      
 
-                     ; first sample color unless given
+                     ; THE MEAT.
+                     ; 1. Get the object's color -- if the utterance is a color_noun utterance, it's just the first word; otherwise, take a sample from the object's color prior
                      (define obj-color 
                        (if (> (list-index 
                                '(red orange yellow green blue)
@@ -1465,14 +1464,15 @@ This model is specifically to explore the effect of varying color predictability
                            (color-prior (first sub-utts))))
 
 
-                     ; then sample object depending on color 
+                     ; 2. Sample an object depending on the sampled color.
+
                      ; Helper function: check whether an object has a color and return true if it does, false otherwise
                      (define (check-color obj color)
                        (if (equal? (first obj) color)
                            1
                            0.00000001))
 
-                     ; then sample object depending on color 
+                     ; Sample an object from only that set of objects in context that has the sampled color.
                      (define sample-compatible-object
                        (multinomial objects
                                     (map (lambda (o) 
@@ -1480,28 +1480,20 @@ This model is specifically to explore the effect of varying color predictability
                                          objects)
                                     ))
 
-                     (define sampled-object sample-compatible-object)
+                     (define obj sample-compatible-object)
 
-                     (define obj-type 
-                       ;;             (if (= (length sub-utts) 2)         
-                       ;;                 (second sub-utts)
-                       ;;                 (first sub-utts)))
-                       (second sampled-object))
-
-                     (define obj-color 
-                       (first sampled-object))
-
-                     (list obj-color obj-type)
+                     obj
 
                      ;          (meaning sub-utts obj-color obj-type)
                      true))))
 
-; A pragmatic speaker that infers a distribution over utterances, given an object he has in mind 
-; Maybe somewhat non-standard: softmax on literal listener (but not used because listener-opt set to 1)
+
+; A pragmatic speaker that infers a distribution over utterances, given an object from a context (plus knowledge of word fidelities and costs, but those are all either not used or set to be equal to each other here)
+
 (define pragmatic-speaker 
   (mem (lambda (obj color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost context)
 
-         ; Helper function for utterances: concatenates an object's features to create a "_"-separated two-word utterance like "big_red" and three-word utterance like "big_red_chair"
+         ; Helper function for utterances: concatenates an object's features to create a "_"-separated two-word utterance like "red_apple"
          (define (gen-utt obj)
            (list
             (second obj)
@@ -1538,7 +1530,6 @@ This model is specifically to explore the effect of varying color predictability
                    utterance
 
                    (equal? obj
-                           ;                  (apply multinomial
                            (uniform-draw 
                             (literal-listener utterance color_fidelity size_fidelity type_fidelity context))))
          )))
@@ -1557,85 +1548,92 @@ This model is specifically to explore the effect of varying color predictability
 
 
 (multiviz
-; (hist
-;;  (power 
-;   (pragmatic-speaker (first (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical)) (stringify (second context_typical))) 
-;;   speaker-opt) "typical color")
-; (hist
-;;  (power 
-;   (pragmatic-speaker (second (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
-;;   speaker-opt) "intermediate color typicality")
-; (hist
-;;  (power 
-;   (pragmatic-speaker (third (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
-;;   speaker-opt) "atypical color")
-; (hist
-;;  (power 
-;   (pragmatic-speaker (fourth (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
-;;   speaker-opt) "typical color")
-; (hist
-;;  (power 
-;   (pragmatic-speaker (fifth (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
-;;   speaker-opt) "intermediate color typicality")
-; (hist
-;;  (power 
-;   (pragmatic-speaker (sixth (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
-;;   speaker-opt) "atypical color")
-; (hist
-;;  (power 
-;   (pragmatic-speaker (first (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate)) (stringify (second context_intermediate))) 
-;;   speaker-opt) "intermediate color")
-; (hist
-;;  (power 
-;   (pragmatic-speaker (second (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
-;;   speaker-opt) "intermediate color intermediateity")
-; (hist
-;;  (power 
-;   (pragmatic-speaker (third (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
-;;   speaker-opt) "aintermediate color")
-; (hist
-;;  (power 
-;   (pragmatic-speaker (fourth (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
-;;   speaker-opt) "intermediate color")
-; (hist
-;;  (power 
-;   (pragmatic-speaker (fifth (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
-;;   speaker-opt) "intermediate color intermediateity")
-; (hist
-;;  (power 
-;   (pragmatic-speaker (sixth (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
-;   speaker-opt) "aintermediate color")
  (hist
-;  (power 
-  (pragmatic-speaker (first (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
-  (stringify (first (second context_atypical)))) 
-;   speaker-opt) "atypical color")
+  ;;  (power 
+  (pragmatic-speaker 
+   (first (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical)) 
+  (stringify (second context_typical))) 
+ ;;   speaker-opt) "typical color")
+ ; (hist
+ ;;  (power 
+ ;   (pragmatic-speaker (second (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
+ ;;   speaker-opt) "intermediate color typicality")
+ ; (hist
+ ;;  (power 
+ ;   (pragmatic-speaker (third (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
+ ;;   speaker-opt) "atypical color")
+ ; (hist
+ ;;  (power 
+ ;   (pragmatic-speaker (fourth (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
+ ;;   speaker-opt) "typical color")
+ ; (hist
+ ;;  (power 
+ ;   (pragmatic-speaker (fifth (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
+ ;;   speaker-opt) "intermediate color typicality")
+ ; (hist
+ ;;  (power 
+ ;   (pragmatic-speaker (sixth (second context_typical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_typical))) 
+ ;;   speaker-opt) "atypical color")
  (hist
-;  (power 
-  (pragmatic-speaker (second (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
-  (stringify (second (second context_atypical)))) 
-;   speaker-opt) "atypical color atypicality")
+  ;;  (power 
+  (pragmatic-speaker 
+   (first (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate)) 
+  (stringify (second context_intermediate))) 
+ ;;   speaker-opt) "intermediate color")
+ ; (hist
+ ;;  (power 
+ ;   (pragmatic-speaker (second (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
+ ;;   speaker-opt) "intermediate color intermediateity")
+ ; (hist
+ ;;  (power 
+ ;   (pragmatic-speaker (third (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
+ ;;   speaker-opt) "aintermediate color")
+ ; (hist
+ ;;  (power 
+ ;   (pragmatic-speaker (fourth (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
+ ;;   speaker-opt) "intermediate color")
+ ; (hist
+ ;;  (power 
+ ;   (pragmatic-speaker (fifth (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
+ ;;   speaker-opt) "intermediate color intermediateity")
+ ; (hist
+ ;;  (power 
+ ;   (pragmatic-speaker (sixth (second context_intermediate)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_intermediate))) 
+ ;   speaker-opt) "aintermediate color")
  (hist
-;  (power 
-  (pragmatic-speaker (third (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
-  (stringify (third (second context_atypical)))) 
-;   speaker-opt) "aatypical color")
- (hist
-;  (power 
-  (pragmatic-speaker (fourth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
-  (stringify (fourth (second context_atypical)))) 
-;   speaker-opt) "atypical color")
- (hist
-;  (power 
-  (pragmatic-speaker (fifth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
-  (stringify (fifth (second context_atypical)))) 
-;   speaker-opt) "atypical color atypicality")
- (hist
-;  (power 
-  (pragmatic-speaker (sixth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
-  (stringify (sixth (second context_atypical)))) 
-;   speaker-opt) "aatypical color")
-
+  ;;  (power 
+  (pragmatic-speaker 
+   (first (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical))
+  (stringify (second context_atypical))) 
+ ;  (stringify (first (second context_atypical)))) 
+ ;;   speaker-opt) "atypical color")
+ ; (hist
+ ;;  (power 
+ ;  (pragmatic-speaker (second (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
+ ;  (stringify (second (second context_atypical)))) 
+ ;;   speaker-opt) "atypical color atypicality")
+ ; (hist
+ ;;  (power 
+ ;  (pragmatic-speaker (third (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
+ ;  (stringify (third (second context_atypical)))) 
+ ;;   speaker-opt) "aatypical color")
+ ; (hist
+ ;;  (power 
+ ;  (pragmatic-speaker (fourth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
+ ;  (stringify (fourth (second context_atypical)))) 
+ ;;   speaker-opt) "atypical color")
+ ; (hist
+ ;;  (power 
+ ;  (pragmatic-speaker (fifth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
+ ;  (stringify (fifth (second context_atypical)))) 
+ ;;   speaker-opt) "atypical color atypicality")
+ ; (hist
+ ;;  (power 
+ ;  (pragmatic-speaker (sixth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
+ ;  (stringify (sixth (second context_atypical)))) 
+ ;;   speaker-opt) "aatypical color")
+ ;
  )
+
 ~~~
 

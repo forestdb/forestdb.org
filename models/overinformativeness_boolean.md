@@ -1635,6 +1635,7 @@ This model is specifically to explore the effect of varying color predictability
   (pragmatic-speaker (sixth (second context_atypical)) color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost (second context_atypical)) 
   (stringify (sixth (second context_atypical)))) 
 ;   speaker-opt) "aatypical color")
+
  )
 ~~~
 

@@ -74,7 +74,7 @@ An attempt to make RSA more polite.
 (define (qud-fn speaker-goals)
 	;; if honest
   (if (first speaker-goals)
-      (lambda (state valence) state))
+      (lambda (state valence) state)
       (lambda (state valence) valence)))
 
 ;; words and states associated with them (non vague words)

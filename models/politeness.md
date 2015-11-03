@@ -4,9 +4,11 @@ title: Politeness
 model-language: church
 ---
 
-Draft
+An attempt to make RSA more polite.
+
 
 ~~~~
+;; helper functions
 (define (expectation dist)
   (define vs (first dist))
   (define ps (second dist))
@@ -42,12 +44,20 @@ Draft
                                       (second y)))) 
                     unique-state-indices))))
          (transpose states))))
+;; end helpers
 
-;; Define evaluative states (also, the valence of each state)
-;; terrible, bad, okay, good, amazing
+;; Define evaluative states
 (define states (list "TERRIBLE" "BAD" "OKAY" "GOOD" "AMAZING"))
+;; Prior (uniform) probability of each evaluative state
+;; -- should be determined from expt?
+(define (state-prior) (multinomial states '(1 1 1 1 1))) 
 
-;; mapping from state to p(feels good)
+;; define utterance
+(define utterances (list "terrible" "bad" "okay" "good" "amazing"))
+(define (utterance-prior) (multinomial utterances '(1 1 1 1 1)))
+
+;; (some) mapping from state to valence
+;; right now, determinisic
 (define state-to-valence (lambda (state)
                            (case state
                                  (("TERRIBLE") 0.01)
@@ -58,26 +68,25 @@ Draft
 
 (define state-value (list 0.01 0.25 0.5 0.75 0.99))
 
-;; Prior probability of each evaluative state
-(define (state-prior) (multinomial states '(1 1 1 1 1))) ;; fixme: should be determined from expt?
 
-;; QUD function
+
+;; QUD function (goals either: honest or kind)
 (define (qud-fn speaker-goals)
-  (if (first speaker-goals) ;(equal? "honest" (multinomial (list "honest" "kind" "mean") speaker-goals))
-      (if (second speaker-goals)
-          (lambda (state valence) (list state valence))
-          (lambda (state valence) state))
+	;; if honest
+  (if (first speaker-goals)
+      (lambda (state valence) state))
       (lambda (state valence) valence)))
 
-;; words and states associated with them
-(define (meaning words state)
-  (case words
-        (("terrible") (equal? state "TERRIBLE"))
-        (("bad")  (equal? state "BAD"))
-        (("okay") (equal? state "OKAY"))
-        (("good") (equal? state "GOOD"))
-        (("amazing") (equal? state "AMAZING"))))
+;; words and states associated with them (non vague words)
+; (define (meaning words state)
+;   (case words
+;         (("terrible") (equal? state "TERRIBLE"))
+;         (("bad")  (equal? state "BAD"))
+;         (("okay") (equal? state "OKAY"))
+;         (("good") (equal? state "GOOD"))
+;         (("amazing") (equal? state "AMAZING"))))
 
+;; words and states associated with them (with some flexibility in meanings)
 (define (meaning words state)
   (case words
         (("terrible") (equal? state (multinomial states '(50 10 3 2 1))))
@@ -86,20 +95,14 @@ Draft
         (("good") (equal? state (multinomial states '(1 2 5 50 10))))
         (("amazing") (equal? state (multinomial states '(1 2 3 10 50))))))
 
-;; define utterance
-(define utterances (list "terrible" "bad" "okay" "good" "amazing"))
-
-(define (utterance-prior) (multinomial utterances '(1 1 1 1 1)))
-
+;; this function samples a state according to it's value (higher value, higher probability)
+;; this is where the kindness rubber hits the road 
 (define valence-to-be-communicated 
-  (lambda (kindness meanness)
-    (if 
-      kindness
-     ; (equal? "kind" (multinomial (list "kind" "mean") (list kindness meanness)))
+  (lambda (kindness)
+    (if kindness
      (multinomial state-value state-value)
+     ;; otherwise, goal is meanness
      (multinomial state-value (reverse state-value)))))
-
-
 
 ; Literal listener: 
 ; knows the qud value
@@ -108,25 +111,24 @@ Draft
    (lambda (utterance qud)
      (enumeration-query
       (define state (state-prior))
-      (define valence (state-to-valence state))
+      (define valence (state-to-valence state)) ;; deterministic
 
       ((qud-fn qud) state valence)
-      ; state
-      ; valence
 
       (meaning utterance state)))))
 
 
-;; (literal-listener "amazing" (list 0.1 0.9))
-
+;; (literal-listener "amazing" (list true false))
+;; Speaker
+;; qud function returns either state or valence as the goal
+;; if state: pick the utterance that best matches that state
+;; if valence: pick the utterance that will (softmaximize) utility of the listener
 (define speaker
   (mem
    (lambda (state speaker-goals)
      (enumeration-query
       (define utterance (utterance-prior))
-      (define valence  (valence-to-be-communicated 
-                          (second speaker-goals) 
-                          (third speaker-goals)))
+      (define valence  (valence-to-be-communicated (second speaker-goals)))
       (define qud-val ((qud-fn speaker-goals) state valence))
 
       utterance
@@ -134,58 +136,33 @@ Draft
       (equal? qud-val (apply multinomial 
                              (literal-listener utterance speaker-goals)))))))
 
-(define results (speaker "BAD" (list false true false)))
-(display (first results))
-(display (second results))
+; (define results (speaker "BAD" (list false true)))
+; (display (first results))
+; (display (second results))
 
-; (literal-listener "bad" (list true false false))
+(define pragmatic-listener
+  (mem
+   (lambda (utterance)
+     (enumeration-query
+      (define state (state-prior))
+      (define valence (state-to-valence state))
 
-; (define pragmatic-listener
-;   (mem
-;    (lambda (utterance)
-;      (enumeration-query
-;       (define state (state-prior))
-;       (define valence (state-to-valence state))
+      (define speaker-honest (flip 0.5))
+      (define speaker-kind (flip 0.5))
+      (define speaker-goals (list speaker-honest speaker-kind))
 
-;       (define speaker-honesty (flip 0.5))
-;       (define speaker-kindness (flip 0.5))
-;       ; (define speaker-kindness (uniform-draw '(0.1 0.9)))
-;       (define speaker-meanness (not speaker-kindness)) ;;(uniform-draw '(0.3 0.5 0.7)))
-;       (define speaker-goals (list speaker-honesty speaker-kindness speaker-meanness))
+      (define qud-val ((qud-fn speaker-goals) state valence))
 
-;       (define qud-val ((qud-fn speaker-goals) state valence))
+      ;query for: speaker-goals
+      (map (lambda (x) (if x 1 0)) speaker-goals)
 
-;       (map (lambda (x) (if x 1 0)) speaker-goals)
-
-;       (and 
-;        (equal? utterance
-;                (apply multinomial (speaker state speaker-goals)))
-;        (equal? state "OKAY"))))))
+      (and 
+       (equal? utterance (apply multinomial (speaker state speaker-goals)))
+       (equal? state "OKAY"))))))
 
 
-; (define posterior (pragmatic-listener "terrible"))
-; (zip (list "honesty" "politeness" "meanness") 
-;      (map expectation (marginalize posterior)))
-
- ; (marginalize posterior)
-; ;; define speaker2, based on pragmatic-listener
-; (define speaker2
-;   (mem
-;    (lambda (state speaker-type)
-;      (enumeration-query
-;       (define utterance (utterance-prior))
-;       (define how-good-is-the-state (valence-prior state))
-
-;       utterance
-
-;       (equal? (list state how-good-is-the-state) 
-;               (apply multinomial (prag-listener utterance speaker-type)))))))
-
-
-
-; (display (prag-listener "not great") "state given 'not great'")
-; (display (prag-listener "not bad") "state given 'not bad'")
-; (display (prag-listener "great") "state given 'great'")
-; (display (prag-listener "bad") "state given 'bad'")
+(define posterior (pragmatic-listener "terrible"))
+(zip (list "honesty" "politeness") 
+     (map expectation (marginalize posterior)))
 
 ~~~~

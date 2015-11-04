@@ -4,21 +4,18 @@ title: Politeness
 model-language: church
 ---
 
-# Making RSA polite
-
-
 ## Model 1: Bernoulli, mutually-exclusive goals in S1
 
 This is a model for the QUD-inference task, where participants are given a true state of the world 
 (e.g. the report was terrible) and an utterance (e.g. "It was okay"), and asked to infer the speaker's
-goals. We model this as a pragmatic listener, who has uncertainty over the possible goals (~ flip(0.5))
-in addition to the true state (~ uniformDraw([possible states])).
+goals. We model this as a pragmatic listener, who has uncertainty over the possible goals (`~ flip(0.5)`)
+in addition to the true state (`~ uniformDraw([possible states])`).
 
 Valence here is modeled as a (determinstic) function of the state. The interpretation of this variable is
 "the speaker's perception of the quality of the work" (i.e. "what he thought about it"). For the speaker,
 he can either have the goal of honesty (in which case he chooses words that best convey the true state) or
 the goal of kindness. In the spirit of the "helper models", by being kind, the speaker adopts the utility of the listener
-w.r.t. to the desired state. In this situations, he choose utterances in proportion to their subjective value. 
+w.r.t. to the desired state. In this situations, he choose utterances in proportion to their subjective value (`state-value`). 
 
 ~~~~
 ;; helper functions
@@ -184,6 +181,12 @@ w.r.t. to the desired state. In this situations, he choose utterances in proport
 
 ## Model 2: Weights on goals.
 
+This is a very similar model to the one above. Instead of having goals being bernoulli and mutually exlusive,
+there are weights on the goals. 
+
+There is one QUD fn in which the goals are mutually exclusive (by default). 
+There is another in which multiple goals can be entertained (commented out by default).
+I believe they make similar predictions.
 
 ~~~~
 (define (expectation dist)
@@ -244,11 +247,22 @@ w.r.t. to the desired state. In this situations, he choose utterances in proport
                                  (("AMAZING") 0.99))))
 
 
-;; QUD function
+;; QUD function ;;; mutually exclusive goals
 (define (qud-fn speaker-goals)
   (if (equal? "honest" (multinomial (list "honest" "kind" "mean") speaker-goals))
       (lambda (state valence) state)
       (lambda (state valence) valence)))
+
+
+;; QUD function ;; potentially mixtures of goals
+; (define (qud-fn speaker-goals)
+;   (if (flip (first speaker-goals))
+;       (if (flip (second speaker-goals))
+;           (lambda (state valence) (list state valence)) ; if honest and kind
+;           (if (flip (third speaker-goals)) 
+;               (lambda (state valence) (list state valence)) ; if honest and not kind but mean
+;               (lambda (state valence) state))) ; if honest and not kind nor mean
+;       (lambda (state valence) valence))) ; if not honest
 
 ;; words and states associated with them (non vague words)
 ; (define (meaning words state)
@@ -292,7 +306,7 @@ w.r.t. to the desired state. In this situations, he choose utterances in proport
       (meaning utterance state)))))
 
 
-;; (literal-listener "amazing" (list 0.1 0.9))
+;; (literal-listener "amazing" (list 0.1 0.9 0.5))
 
 (define speaker
   (mem

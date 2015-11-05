@@ -18,15 +18,17 @@ This threshold --- `tau` --- is thought to be in general unknown
 (`tau~uniform(0,1)`) and must be inferred in context. 
 
 Context here takes the form of the listener and speakers shared beliefs
-about the property in question --- `statePrior`. The shape of this distribution
+about the property in question. The shape of this distribution
 affects model predictions, because the threshold must be calibrated to make utterances 
 truthful and informative. The shape of this distribution varies significantly 
 among different properties (e.g. *lays eggs*, *carries malaria*), and may 
 be the result of a deeper conceptual model of the world. For instance,
 if speakers and listeners believe that some kinds have a causal mechanism that
 could give rise to the property, while others do not, then we would expect
-`statePrior` to be structured as a mixture distribution 
-(Cf. Griffiths & Tenenbaum, 2005).
+teh prior to be structured as a mixture distribution 
+(Cf. Griffiths & Tenenbaum, 2005). 
+
+The following model `structuredPriorModel` instantiates this idea.
 
 ## Prior model
 
@@ -44,45 +46,38 @@ var discretizeBeta = function(gamma, delta){
   return map(betaPDF, bins)
 }
 
-// function returns the PDF from a webppl ERP objects
-var getProbsFromERP = function(myERP, orderedSupport){
-  return map(function(s){
-    Math.exp(myERP.score([], s))
-  }, orderedSupport)
-}
-
 var structuredPriorModel = function(params){
-    Enumerate(function(){
-      var theta = params["theta"]
-      var g = params["gamma"]
-      var d = params["delta"]
-      var propertyIsPresent = flip(theta)
-      var prevalence = propertyIsPresent ? 
-                  bins[discrete(discretizeBeta(g,d))] : 
-                  0
+  Enumerate(function(){
+    var theta = params["theta"]
+    var g = params["gamma"]
+    var d = params["delta"]
+    var propertyIsPresent = flip(theta)
+    var prevalence = propertyIsPresent ? 
+        bins[discrete(discretizeBeta(g,d))] : 
+    0
 
-      return prevalence
+    return prevalence
   })
 }
 
 // e.g. "Has Wings"
 var hasWings = structuredPriorModel({theta: 0.5,
-                      gamma: 0.99,
-                      delta: 10})
+                                     gamma: 0.99,
+                                     delta: 10})
 
 // e.g. "Lays eggs"
 var laysEggs = structuredPriorModel({theta: 0.5,
-                      gamma: 0.5,
-                      delta: 10})
+                                     gamma: 0.5,
+                                     delta: 10})
 // e.g. "Are female"
 var areFemale = structuredPriorModel({theta: 0.99,
-                      gamma: 0.5,
-                      delta: 50})
+                                      gamma: 0.5,
+                                      delta: 50})
 
 // e.g. "Carries Malaria"
 var carriesMalaria = structuredPriorModel({theta: 0.1,
-                      gamma: 0.01,
-                      delta: 2})
+                                           gamma: 0.01,
+                                           delta: 2})
 
 
 vizPrint({
@@ -91,12 +86,12 @@ vizPrint({
   "are female": areFemale,
   "carries malaria": carriesMalaria
 })
+
 ~~~~
 
 ## Generics model
 
-~~~~
-///fold:
+~~~~///fold:
 // discretized range between 0 - 1
 var bins = [0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.99]
 
@@ -111,16 +106,16 @@ var discretizeBeta = function(gamma, delta){
 }
 
 var structuredPriorModel = function(params){
-    Enumerate(function(){
-      var theta = params["theta"]
-      var g = params["gamma"]
-      var d = params["delta"]
-      var propertyIsPresent = flip(theta)
-      var prevalence = propertyIsPresent ? 
-                  bins[discrete(discretizeBeta(g,d))] : 
-                  0
+  Enumerate(function(){
+    var theta = params["theta"]
+    var g = params["gamma"]
+    var d = params["delta"]
+    var propertyIsPresent = flip(theta)
+    var prevalence = propertyIsPresent ? 
+        bins[discrete(discretizeBeta(g,d))] : 
+    0
 
-      return prevalence
+    return prevalence
   })
 }
 ///
@@ -136,29 +131,25 @@ var thresholdPrior = function() {
   return threshold
 }
 
-// var statePrior = function(prior) {
-//   var state = stateBins[discrete(prior)]
-//   return state
-// }
 
 var utterancePrior = function() {
-   // var utterances = ["generic is true",
-   //                  "generic is false"]
   var utterances = ["generic is true", "mu"]  
+  //    var utterances = ["generic is true",
+  //                 "generic is false"]
   var cost = 1      
   var cst = [1,cost]       
-  return utterances[discrete(cst)]
+  return flip(0.5) ? utterances[0] : utterances[1]
 }
 
 var meaning = function(utt,state, threshold) {
   return _.isNumber(utt) ? state == utt :
-  		   utt=="generic is true"? state>threshold :
-         utt=="generic is false"? state<=threshold :
-         utt=='mu'? true:
-         utt=='some'? state>0:
-         utt=='most'? state>= 0.5:
-         utt=='all'? state >= 0.99:
-         true
+  utt=="generic is true"? state>threshold :
+  utt=="generic is false"? state<=threshold :
+  utt=='mu'? true:
+  utt=='some'? state>0:
+  utt=='most'? state>= 0.5:
+  utt=='all'? state >= 0.99:
+  true
 }
 
 var listener0 = cache(function(utterance, threshold, prior) {
@@ -192,36 +183,63 @@ var listener1 = function(utterance, prior) {
 
 
 var speaker2 = function(prevalence, prior){
-	Enumerate(function(){
-		var utterance = utterancePrior()
-		var wL1 = listener1(utterance, prior)
-		factor(wL1.score([], prevalence))
-		return utterance
-	})
+  Enumerate(function(){
+    var utterance = utterancePrior()
+    var wL1 = listener1(utterance, prior)
+    factor(wL1.score([], prevalence))
+    return utterance
+  })
 }
 
 // example priors
 var hasWingsERP = structuredPriorModel({theta: 0.5,
-                      gamma: 0.99,
-                      delta: 10})
+                                        gamma: 0.99,
+                                        delta: 10})
 var laysEggsERP = structuredPriorModel({theta: 0.5,
-                      gamma: 0.5,
-                      delta: 10})
+                                        gamma: 0.5,
+                                        delta: 10})
 var carriesMalariaERP = structuredPriorModel({theta: 0.1,
-                      gamma: 0.01,
-                      delta: 2})
+                                              gamma: 0.01,
+                                              delta: 2})
+var areFemaleERP = structuredPriorModel({theta: 0.99,
+                                         gamma: 0.5,
+                                         delta: 50})
 
 
+var malariaPosterior = listener1("generic is true", carriesMalariaERP)
+var eggsPosterior = listener1("generic is true", laysEggsERP)
+var femalePosterior = listener1("generic is true", areFemaleERP)
 
-var listenerPosterior = listener1("generic is true", carriesMalariaERP)
-var speakerPosterior = speaker2(0.1, carriesMalariaERP)
+print("Listener interpretation of generics")
 
 vizPrint({
-  "interpretation of X carries malaria": listenerPosterior,
-  // production assumes 10% of Mosquitos carry malaria
-  "production of Mosquitos carry malaria": speakerPosterior
+  "X carries malaria": malariaPosterior,
+  "X lays eggs": eggsPosterior,
+  "X are female": femalePosterior
 })
 
+// truth judgment task assumes the subjective prevalence of 
+// F within K is known to the speaker
+// we measure these values empirically
+
+var malariaSpeaker = speaker2(0.1, carriesMalariaERP)
+var eggSpeaker = speaker2(0.6, laysEggsERP)
+var femaleSpeaker = speaker2(0.5, areFemaleERP)
+var lionSpeaker = speaker2(0.01, laysEggsERP)
+
+print("Truth judgments")
+
+print("Mosquitos carry malaria")
+print(malariaSpeaker)
+
+print("Ducks lay eggs")
+print(eggSpeaker)
+
+print("Ducks are female")
+print(femaleSpeaker)
+
+print("Lions lay eggs")
+print(lionSpeaker)
 ~~~~
 
 References:

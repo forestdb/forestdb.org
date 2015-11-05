@@ -29,6 +29,19 @@ teh prior to be structured as a mixture distribution
 (Cf. Griffiths & Tenenbaum, 2005). 
 
 The following model `structuredPriorModel` instantiates this idea.
+`theta` is the potential of a property F to be present in a kind.
+This can also be thought of the prevalence of the property at a 
+category levels (what % of kinds have this property present within the kind?).
+For example, "lays eggs" is present in ducks, swans, fish, but not kangaroos or giraffes.
+"Are female" is present in almost all kinds.
+"Carries malaria" is present in almost no kinds.
+`gamma` is the *mean prevelence when the property is present*.
+Knowing that the property is present in a kind, what % of the kind do you 
+expect to have it? 
+For example, about 50% of a kind "is female"; 100% has wings; malaria is a rare property within a kind.
+Finally, `delta` is the concentration (conceptually, the inverse variance) of that mean.
+It is high for properties that present in almost every kind in exactly the same proportion (e.g. `is female`). 
+It is lower when there is more uncertainty about exactly how many within a kind are expected to have the property.
 
 ## Prior model
 
@@ -91,7 +104,8 @@ vizPrint({
 
 ## Generics model
 
-~~~~///fold:
+~~~~
+///fold:
 // discretized range between 0 - 1
 var bins = [0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.99]
 
@@ -121,23 +135,16 @@ var structuredPriorModel = function(params){
 ///
 
 var s1optimality = 5
-
-// var stateBins = [0,0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.99]
-
 var thresholdBins = [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
-
 var thresholdPrior = function() {
   var threshold = uniformDraw(thresholdBins)
   return threshold
 }
 
-
 var utterancePrior = function() {
   var utterances = ["generic is true", "mu"]  
   //    var utterances = ["generic is true",
-  //                 "generic is false"]
-  var cost = 1      
-  var cst = [1,cost]       
+  //                 "generic is false"]  
   return flip(0.5) ? utterances[0] : utterances[1]
 }
 

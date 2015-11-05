@@ -25,6 +25,8 @@ could give rise to the property, while others do not, then we would expect
 `statePrior` to be structured as a mixture distribution 
 (Cf. Griffiths & Tenenbaum, 2005).
 
+## Prior model
+
 ~~~~
 // discretized range between 0 - 1
 var bins = [0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.99]
@@ -80,14 +82,16 @@ structuredPriorModel({theta: 0.1,
                       delta: 2})
 ~~~~
 
-
+## Generics model
 
 ~~~~
+///fold:
 var s1optimality = 5
 
 var stateBins = [0,0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.99]
 
 var thresholdBins = [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
+///
 
 var thresholdPrior = function() {
   var threshold = uniformDraw(thresholdBins)
@@ -157,6 +161,8 @@ var speaker2 = function(prevalence, prior){
 		return utterance
 	})
 }
+
+listener1("generic is true", 
 
 ~~~~
 

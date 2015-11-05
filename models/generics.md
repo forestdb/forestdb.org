@@ -110,35 +110,24 @@ var discretizeBeta = function(gamma, delta){
   return map(betaPDF, bins)
 }
 
-// function returns the PDF from a webppl ERP objects
-var getProbsFromERP = function(myERP, orderedSupport){
-  return map(function(s){
-    Math.exp(myERP.score([], s))
-  }, orderedSupport)
-}
-
 var structuredPriorModel = function(params){
-  var theta = params["theta"]
-  var g = params["gamma"]
-  var d = params["delta"]
-  var prevalencePrior = 
     Enumerate(function(){
+      var theta = params["theta"]
+      var g = params["gamma"]
+      var d = params["delta"]
       var propertyIsPresent = flip(theta)
       var prevalence = propertyIsPresent ? 
                   bins[discrete(discretizeBeta(g,d))] : 
                   0
 
       return prevalence
-    })
-  return getProbsFromERP(prevalencePrior, 
-        [0, 0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
-    )
+  })
 }
 ///
 
 var s1optimality = 5
 
-var stateBins = [0,0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.99]
+// var stateBins = [0,0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.99]
 
 var thresholdBins = [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
 
@@ -147,10 +136,10 @@ var thresholdPrior = function() {
   return threshold
 }
 
-var statePrior = function(prior) {
-  var state = stateBins[discrete(prior)]
-  return state
-}
+// var statePrior = function(prior) {
+//   var state = stateBins[discrete(prior)]
+//   return state
+// }
 
 var utterancePrior = function() {
    // var utterances = ["generic is true",
@@ -174,7 +163,7 @@ var meaning = function(utt,state, threshold) {
 
 var listener0 = cache(function(utterance, threshold, prior) {
   Enumerate(function(){
-    var state = statePrior(prior)
+    var state = sample(prior)
     var m = meaning(utterance, state, threshold)
     condition(m)
     return state
@@ -193,7 +182,7 @@ var speaker1 = cache(function(state, threshold, prior) {
 
 var listener1 = function(utterance, prior) {
   Enumerate(function(){
-    var state = statePrior(prior)
+    var state = sample(prior)
     var threshold = thresholdPrior()
     var S1 = speaker1(state, threshold, prior)
     factor(s1optimality*S1.score([],utterance))
@@ -212,19 +201,26 @@ var speaker2 = function(prevalence, prior){
 }
 
 // example priors
-var hasWings = structuredPriorModel({theta: 0.5,
+var hasWingsERP = structuredPriorModel({theta: 0.5,
                       gamma: 0.99,
                       delta: 10})
-var laysEggs = structuredPriorModel({theta: 0.5,
+var laysEggsERP = structuredPriorModel({theta: 0.5,
                       gamma: 0.5,
                       delta: 10})
-var carriesMalaria = structuredPriorModel({theta: 0.1,
+var carriesMalariaERP = structuredPriorModel({theta: 0.1,
                       gamma: 0.01,
                       delta: 2})
 
 
 
-listener1("generic is true", 
+var listenerPosterior = listener1("generic is true", carriesMalariaERP)
+var speakerPosterior = speaker2(0.1, carriesMalariaERP)
+
+vizPrint({
+  "interpretation of X carries malaria": listenerPosterior,
+  // production assumes 10% of Mosquitos carry malaria
+  "production of Mosquitos carry malaria": speakerPosterior
+})
 
 ~~~~
 

@@ -28,6 +28,8 @@ could give rise to the property, while others do not, then we would expect
 teh prior to be structured as a mixture distribution 
 (Cf. Griffiths & Tenenbaum, 2005). 
 
+## Prior model
+
 The following model `structuredPriorModel` instantiates this idea.
 `theta` is the potential of a property F to be present in a kind.
 This can also be thought of the prevalence of the property at a 
@@ -40,10 +42,10 @@ Knowing that the property is present in a kind, what % of the kind do you
 expect to have it? 
 For example, about 50% of a kind "is female"; 100% has wings; malaria is a rare property within a kind.
 Finally, `delta` is the concentration (conceptually, the inverse variance) of that mean.
-It is high for properties that present in almost every kind in exactly the same proportion (e.g. `is female`). 
+It is high for properties that present in almost every kind in exactly the same proportion (e.g. "is female"). 
 It is lower when there is more uncertainty about exactly how many within a kind are expected to have the property.
 
-## Prior model
+
 
 ~~~~
 // discretized range between 0 - 1

@@ -8,6 +8,7 @@ model-tags: language, generics, vagueness, pragmatics
 model-language: webppl
 ---
 
+This is a model of generic language used in Ref:tesslerGenerics.
 
 ~~~~
 var s1optimality = 5
@@ -33,7 +34,6 @@ var utterancePrior = function() {
   var cost = 1      
   var cst = [1,cost]       
   return utterances[discrete(cst)]
-
 }
 
 var meaning = function(utt,state, theta) {
@@ -87,3 +87,7 @@ var speaker2 = function(prevalence, prior){
 }
 
 ~~~~
+
+References:
+
+- Cite:tesslerGenerics

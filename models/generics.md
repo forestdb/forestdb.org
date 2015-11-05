@@ -52,6 +52,72 @@ var getProbsFromERP = function(myERP, orderedSupport){
 }
 
 var structuredPriorModel = function(params){
+    Enumerate(function(){
+      var theta = params["theta"]
+      var g = params["gamma"]
+      var d = params["delta"]
+      var propertyIsPresent = flip(theta)
+      var prevalence = propertyIsPresent ? 
+                  bins[discrete(discretizeBeta(g,d))] : 
+                  0
+
+      return prevalence
+  })
+}
+
+// e.g. "Has Wings"
+var hasWings = structuredPriorModel({theta: 0.5,
+                      gamma: 0.99,
+                      delta: 10})
+
+// e.g. "Lays eggs"
+var laysEggs = structuredPriorModel({theta: 0.5,
+                      gamma: 0.5,
+                      delta: 10})
+// e.g. "Are female"
+var areFemale = structuredPriorModel({theta: 0.99,
+                      gamma: 0.5,
+                      delta: 50})
+
+// e.g. "Carries Malaria"
+var carriesMalaria = structuredPriorModel({theta: 0.1,
+                      gamma: 0.01,
+                      delta: 2})
+
+
+vizPrint({
+  "has wings": hasWings,
+  "lays eggs": laysEggs,
+  "are female": areFemale,
+  "carries malaria": carriesMalaria
+})
+~~~~
+
+## Generics model
+
+~~~~
+///fold:
+// discretized range between 0 - 1
+var bins = [0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.99]
+
+// function returns a discretized beta PDF
+var discretizeBeta = function(gamma, delta){
+  var shape_alpha =  gamma * delta
+  var shape_beta = (1-gamma) * delta
+  var betaPDF = function(x){
+    return Math.pow(x,shape_alpha-1)*Math.pow((1-x),shape_beta-1)
+  }
+  return map(betaPDF, bins)
+}
+
+// function returns the PDF from a webppl ERP objects
+var getProbsFromERP = function(myERP, orderedSupport){
+  return map(function(s){
+    Math.exp(myERP.score([], s))
+  }, orderedSupport)
+}
+
+var structuredPriorModel = function(params){
   var theta = params["theta"]
   var g = params["gamma"]
   var d = params["delta"]
@@ -68,40 +134,13 @@ var structuredPriorModel = function(params){
         [0, 0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
     )
 }
+///
 
-// e.g. "Has Wings"
-var hasWings = structuredPriorModel({theta: 0.5,
-                      gamma: 0.99,
-                      delta: 10})
-
-// e.g. "Lays eggs"
-var laysEggs = structuredPriorModel({theta: 0.5,
-                      gamma: 0.5,
-                      delta: 10})
-
-// e.g. "Carries Malaria"
-var carriesMalaria = structuredPriorModel({theta: 0.1,
-                      gamma: 0.01,
-                      delta: 2})
-
-
-vizPrint({
-  "has wings": hasWings,
-  "lays eggs": laysEggs,
-  "carries malaria": carriesMalaria
-})
-~~~~
-
-## Generics model
-
-~~~~
-///fold:
 var s1optimality = 5
 
 var stateBins = [0,0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.99]
 
 var thresholdBins = [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
-///
 
 var thresholdPrior = function() {
   var threshold = uniformDraw(thresholdBins)
@@ -171,6 +210,19 @@ var speaker2 = function(prevalence, prior){
 		return utterance
 	})
 }
+
+// example priors
+var hasWings = structuredPriorModel({theta: 0.5,
+                      gamma: 0.99,
+                      delta: 10})
+var laysEggs = structuredPriorModel({theta: 0.5,
+                      gamma: 0.5,
+                      delta: 10})
+var carriesMalaria = structuredPriorModel({theta: 0.1,
+                      gamma: 0.01,
+                      delta: 2})
+
+
 
 listener1("generic is true", 
 

@@ -7,6 +7,9 @@ model-tags: language, generics, vagueness, pragmatics
 model-language: webppl
 ---
 
+<script src="http://web.stanford.edu/~erindb/webppl-viz/webppl.min.js"></script>  
+<link rel="stylesheet" href="http://web.stanford.edu/~erindb/webppl-viz/viz.css">
+
 This is a model of generic language used in Ref:tesslerGenerics.
 
 The model takes the generic [[K has F]] to mean the prevalence of 
@@ -67,19 +70,26 @@ var structuredPriorModel = function(params){
 }
 
 // e.g. "Has Wings"
-structuredPriorModel({theta: 0.5,
+var hasWings = structuredPriorModel({theta: 0.5,
                       gamma: 0.99,
                       delta: 10})
 
 // e.g. "Lays eggs"
-structuredPriorModel({theta: 0.5,
+var laysEggs = structuredPriorModel({theta: 0.5,
                       gamma: 0.5,
                       delta: 10})
 
 // e.g. "Carries Malaria"
-structuredPriorModel({theta: 0.1,
+var carriesMalaria = structuredPriorModel({theta: 0.1,
                       gamma: 0.01,
                       delta: 2})
+
+
+vizPrint({
+  "has wings": hasWings,
+  "lays eggs": laysEggs,
+  "carries malaria": carriesMalaria
+})
 ~~~~
 
 ## Generics model

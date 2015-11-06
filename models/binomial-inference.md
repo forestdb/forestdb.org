@@ -6,6 +6,9 @@ model-status: code
 model-language: webppl
 ---
 
+<script src="http://web.stanford.edu/~erindb/webppl-viz/webppl.min.js"></script>  
+<link rel="stylesheet" href="http://web.stanford.edu/~erindb/webppl-viz/viz.css">
+
 ## Lee & Wagenmakers 3.1: Inferring a rate
 
 ~~~~

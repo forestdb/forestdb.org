@@ -22,11 +22,12 @@ var model = function(){
 
 	factor(score)
 
-	return theta
+	return {"theta":theta}
 }
 
-var results = MH(model,1000)
+var results = MH(model,5000)
 
+vizPrint(results, "theta")
 print("expected value of theta is ")
 print(expectation(results))
 ~~~~
@@ -48,11 +49,12 @@ var model = function(){
 
 	factor(score)
 
-	return theta1-theta2
+	return {"difference":theta1-theta2}
 }
 
-var results = MH(model,1000)
+var results = MH(model,5000)
 
+vizPrint(results)
 print("expected value of the difference in thetas is ")
 print(expectation(results))
 ~~~~
@@ -73,11 +75,12 @@ var model = function(){
 
 	factor(score)
 
-	return theta
+	return {"theta":theta}
 }
 
-var results = MH(model,1000)
+var results = MH(model,5000)
 
+vizPrint(results)
 print("expected value of the common theta is ")
 print(expectation(results))
 ~~~~

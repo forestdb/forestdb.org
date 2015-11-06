@@ -100,12 +100,12 @@ print(expectation(results, function(v){return v["theta"]}))
 Now try changing the data (`k1`, `k2`) so that they are wildly different:
 1 and 19. What is the most likely coin weight to generate these two?
 
-Now try uncommented the alterantive return statement (and commenting the original one). 
+Now try uncommented the alternative return statement (and commenting the original one). 
 Also switch the print statements at the bottom.
 This shows you the distribution on heads (i.e., the results of flipping the coin) given
-what you've learned about the coins weights. We call this distribuion the *posterior predictive distribution*; it shows what data the model actually predicts.
+what you've learned about the coin's weight. We call this distribuion the *posterior predictive distribution*; it shows what data the model actually predicts.
 Look at the posterior distribution. Are the original data points likely under this model?
-(I.e., does the posterior predictive assign `k1` and `k2` high probability?)
+(i.e., does the posterior predictive assign `k1` and `k2` high probability?)
 Why or why not?
 
 

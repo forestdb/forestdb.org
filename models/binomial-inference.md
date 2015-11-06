@@ -27,7 +27,7 @@ var model = function(){
 	return {"theta":theta}
 }
 
-var results = MCMC(model, {samples:2500, burn: 2500})
+var results = MH(model, 5000)
 
 vizPrint(results, "theta")
 print("expected value of theta is ")
@@ -57,7 +57,7 @@ var model = function(){
 	return {"difference":theta1-theta2}
 }
 
-var results = MCMC(model, {samples:2500, burn: 2500})
+var results = MH(model, 5000)
 
 vizPrint(results)
 print("expected value of the difference in thetas is ")
@@ -87,7 +87,7 @@ var model = function(){
 	// return {"predictive": binomial(theta, 20)}
 }
 
-var results = MCMC(model, {samples:2500, burn: 2500})
+var results = MH(model, 5000)
 
 vizPrint(results)
 print("expected value of the common theta is ")

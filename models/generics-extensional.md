@@ -15,6 +15,9 @@ var subset = function(df, key, value){
         return (d[key]==value)
     },df)
 }
+var displayERP = function(erp){
+	return _.object(map(function(x){return [x, Math.exp(erp.score([],x))]}, erp.support())))
+}
 
 // discretized range between 0 - 1
 var stateBins = [0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1]

@@ -162,8 +162,28 @@ var speaker2 = function(prev, prior, k, f){
   })
 }
 
+var sayAllOfTheThings =Enumerate(function(){
 
-var sayStuff = function(){
+  var kind = uniformDraw(allKinds)
+  var property = uniformDraw(allProperties)
+  
+  var prior = prevalencePrior(property)
+  var prev = prevalence(kind, property)
+
+  var utterance = utterancePrior()
+  var wL1 = listener1(utterance, prior)
+  factor(wL1.score([], prev))
+  
+  var generic  = kind + "s have " + property
+  return utterance=="generic" ? 
+    generic :
+  "I don't think " + generic
+
+})
+
+print(sayAllOfTheThings)
+
+var saySomething = function(){
   var kind = uniformDraw(allKinds)
   var property = uniformDraw(allProperties)
   var prior = prevalencePrior(property)
@@ -172,5 +192,6 @@ var sayStuff = function(){
 }
 
 
-displayERP(sayStuff())
+var results = displayERP(saySomething())
+print(results)
 ~~~~

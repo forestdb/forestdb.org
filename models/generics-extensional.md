@@ -11,12 +11,15 @@ model-language: webppl
 
 ~~~~
 var subset = function(df, key, value){
-    return filter(function(d){
-        return (d[key]==value)
-    },df)
+  return filter(function(d){
+    return (d[key]==value)
+  },df)
 }
 var displayERP = function(erp){
-	return _.object(map(function(x){return [x, Math.exp(erp.score([],x))]}, erp.support())))
+  return _.object(map(function(x){return [x, Math.exp(erp.score([],x))]}, 
+                      erp.support()
+                     )
+                 )
 }
 
 // discretized range between 0 - 1
@@ -68,9 +71,9 @@ var hasF = function(thing, property){
 }
 
 var prevalence = function(kind, property){
-    var members = subset(world, "kind", kind)
-    var v = filter(function(x){return hasF(x, property)}, members)
-    return v.length==0 ? 0.01 : v.length / members.length
+  var members = subset(world, "kind", kind)
+  var v = filter(function(x){return hasF(x, property)}, members)
+  return v.length==0 ? 0.01 : v.length / members.length
 }
 
 // init for reduce is 0.001 so that each state has > 0 prob
@@ -154,20 +157,20 @@ var speaker2 = function(prev, prior, k, f){
     var generic  = k + "s have " + f
 
     return utterance=="generic" ?
-              generic :
-              "I don't think " + generic
+      generic :
+    "I don't think " + generic
   })
 }
 
 
 var sayStuff = function(){
-    var kind = uniformDraw(allKinds)
-    var property = uniformDraw(allProperties)
-    var prior = prevalencePrior(property)
-    var prev = prevalence(kind, property)
-    return speaker2(prev, prior, kind, property)
+  var kind = uniformDraw(allKinds)
+  var property = uniformDraw(allProperties)
+  var prior = prevalencePrior(property)
+  var prev = prevalence(kind, property)
+  return speaker2(prev, prior, kind, property)
 }
 
 
-sayStuff()
+displayERP(sayStuff())
 ~~~~

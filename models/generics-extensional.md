@@ -392,5 +392,5 @@ var speaker2 = function(k, f){
 }
 
 
-speaker2("lorch", "are tall")
+print(speaker2("lorch", "are tall"))
 ~~~~

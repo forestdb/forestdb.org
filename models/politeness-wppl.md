@@ -60,9 +60,10 @@ var beingNiceOrMean = function(nice){
 
 
 var qudFunction = function(speakerGoals){
-  return (speakerGoals.honest && speakerGoals.kind) ? function(w){return w} :
-  speakerGoals.honest ? function(w){return w.state} :
-  function(w){return w.valence}
+  return (speakerGoals.honest && speakerGoals.kind) ? 
+                               function(w){return w} :
+         speakerGoals.honest ? function(w){return w.state} :
+                               function(w){return w.valence}
 }
 
 var speakerOptimality = 10
@@ -160,5 +161,4 @@ print(marginalizeERP(posterior, "honesty"))
 
 print("expected kindness " + expectation(marginalizeERP(posterior, "kindness")))
 print(marginalizeERP(posterior, "kindness"))
-
 ~~~~

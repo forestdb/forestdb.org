@@ -66,18 +66,6 @@ var qudFunction = function(speakerGoals){
                                function(w){return w.valence}
 }
 
-var speakerOptimality = 10
-
-// parameters for discretizeBeta are mean and concentratation
-// 0.5, 2 for uniform ...
-// pseudocount parameterization 
-// alpha = gamma*delta
-// beta = (1-gamma)*delta
-var honestyPriorWeights = discretizeBeta(0.5, 2)
-var kindnessPriorWeights = discretizeBeta(0.5, 2)
-
-// easy toggle for testing out stochastic vs. deterministic word meanings
-var stochasticWords = true
 
 var meaning = stochasticWords ? 
     function(words, world){
@@ -88,9 +76,9 @@ var meaning = stochasticWords ?
       words=="amazing" ? world.state == stateValues[discrete([0.001,0.01,0.1,1,10])] :
       true
     } : 
-function(words, world){
-  return words==world.state
-}
+	function(words, world){
+	  return words==world.state
+	}
 
 var listener0 = cache(function(utterance, goals) {
   Enumerate(function(){
@@ -148,6 +136,18 @@ var listener1 = function(utterance, knowledge) {
     return speakerGoals
   })
 }
+
+// easy toggle for testing out stochastic vs. deterministic word meanings (above)
+var stochasticWords = false
+var speakerOptimality = 3
+
+// parameters for discretizeBeta are mean and concentratation
+// 0.5, 2 for uniform ...
+// pseudocount parameterization 
+// alpha = gamma*delta
+// beta = (1-gamma)*delta
+var honestyPriorWeights = discretizeBeta(0.5, 2)
+var kindnessPriorWeights = discretizeBeta(0.5, 2)
 
 
 

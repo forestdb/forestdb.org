@@ -26,7 +26,20 @@ var discretizeBeta = function(gamma, delta){
   return map(betaPDF, [0.1,0.3,0.5,0.7,0.9])
 }
 ///
+//////////////////////////////////////////////////////////
+// Model Parameters
+var speakerOptimality = 3
+// easy toggle for testing out stochastic vs. deterministic word meanings (above)
+var stochasticWords = false
 
+// parameters for discretizeBeta are mean and concentratation
+// 0.5, 2 for uniform ...
+// pseudocount parameterization 
+// alpha = gamma*delta
+// beta = (1-gamma)*delta
+var honestyPriorWeights = discretizeBeta(0.5, 2)
+var kindnessPriorWeights = discretizeBeta(0.5, 2)
+//////////////////////////////////////////////////////////
 
 // a world has both a state and a valence
 var worlds = [
@@ -136,20 +149,6 @@ var listener1 = function(utterance, knowledge) {
     return speakerGoals
   })
 }
-
-// easy toggle for testing out stochastic vs. deterministic word meanings (above)
-var stochasticWords = false
-var speakerOptimality = 3
-
-// parameters for discretizeBeta are mean and concentratation
-// 0.5, 2 for uniform ...
-// pseudocount parameterization 
-// alpha = gamma*delta
-// beta = (1-gamma)*delta
-var honestyPriorWeights = discretizeBeta(0.5, 2)
-var kindnessPriorWeights = discretizeBeta(0.5, 2)
-
-
 
 var utterance = "good"
 var knowledge = "okay"

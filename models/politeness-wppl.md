@@ -25,6 +25,10 @@ var discretizeBeta = function(gamma, delta){
   }
   return map(betaPDF, [0.1,0.3,0.5,0.7,0.9])
 }
+
+var fillArray = function(n, val){
+  return repeat(n, function(x){return val})
+}
 ///
 //////////////////////////////////////////////////////////
 // Model Parameters
@@ -66,11 +70,21 @@ var utterancePrior = function(){
 var worldValues = _.pluck(worlds, "valence")
 var meanWorldValues = _.pluck(worlds, "valence").reverse()
 
-var beingNiceOrMean = function(nice){
-  var weights = nice ? worldValues : meanWorldValues
-  return worldValues[discrete(weights)]
-}
+// var beingNiceOrMean = function(nice){
+//   var weights = nice ? worldValues : meanWorldValues
+//  return worldValues[discrete(weights)]
+// }
 
+var beingNiceOrMean = function(nice, valence){
+  var valenceValues = nice ? worldValues : meanWorldValues
+  // what is the value of the true state?
+  var i = valenceValues.indexOf(valence)
+  // maintain probabilities for values >= true state (for nice)
+  var k = nice ? valenceValues.slice(i) : valenceValues.slice(i).reverse()
+  // any value < true state gets low probability (for nice)
+  var weights = append(fillArray(i, 0.0001), k)
+  return valenceValues[discrete(weights)]
+}
 
 var qudFunction = function(speakerGoals){
   return (speakerGoals.honest && speakerGoals.kind) ? 

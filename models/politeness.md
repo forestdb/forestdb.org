@@ -19,6 +19,10 @@ w.r.t. to the desired state. In this situations, he choose utterances in proport
 
 ~~~~
 ;; helper functions
+(define (raise-to-power speaker-dist alpha)
+  (list (first speaker-dist)
+        (map (lambda (x) (pow x alpha)) (second speaker-dist))))
+
 (define (expectation dist)
   (define vs (first dist))
   (define ps (second dist))
@@ -114,6 +118,8 @@ w.r.t. to the desired state. In this situations, he choose utterances in proport
      ;; otherwise, goal is meanness
      (multinomial state-value (reverse state-value)))))
 
+(define speaker-optimality 4)
+
 ; Literal listener: 
 ; knows the qud value
 (define literal-listener
@@ -167,9 +173,9 @@ w.r.t. to the desired state. In this situations, he choose utterances in proport
       (map (lambda (x) (if x 1 0)) speaker-goals)
 
       (and 
-       (equal? utterance (apply multinomial (speaker state speaker-goals)))
+       (equal? utterance (apply multinomial 
+          (raise-to-power (speaker state speaker-goals) speaker-optimality)))
        (equal? state "OKAY"))))))
-
 
 (define posterior (pragmatic-listener "terrible"))
 (zip (list "honesty" "politeness") 
@@ -189,6 +195,11 @@ There is another in which multiple goals can be entertained (commented out by de
 I believe they make similar predictions.
 
 ~~~~
+(define (raise-to-power speaker-dist alpha)
+  (list (first speaker-dist)
+        (map (lambda (x) (pow x alpha)) (second speaker-dist))))
+
+
 (define (expectation dist)
   (define vs (first dist))
   (define ps (second dist))
@@ -291,7 +302,7 @@ I believe they make similar predictions.
      (multinomial state-value (reverse state-value)))))
 
 
-
+(define speaker-optimality 3)
 ; Literal listener: 
 ; knows the qud value
 (define literal-listener
@@ -342,8 +353,8 @@ I believe they make similar predictions.
       speaker-goals
 
       (and 
-       (equal? utterance
-               (apply multinomial (speaker state speaker-goals)))
+       (equal? utterance (apply multinomial 
+          (raise-to-power (speaker state speaker-goals) speaker-optimality)))
        (equal? state "OKAY"))))))
 
 

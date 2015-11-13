@@ -131,7 +131,8 @@ var speaker1 = cache(function(world, speakerGoals) {
     }
 
     // if goal is NOT honesty, then choose world in proportion to valence
-    var valence = goals.honest ? world.valence : beingNiceOrMean(goals.kind)
+    var valence = goals.honest ? world.valence : 
+                                 beingNiceOrMean(goals.kind, world.valence)
 
     // qud either returns true state, or valence, which may or may not be true
     var qudVal = qudFunction(goals)({"state":world.state, "valence":valence})

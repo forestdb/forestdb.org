@@ -100,6 +100,8 @@ model-language: church
         (equal? utterance state))
       
       
-      (barplot (L1 'terrible))
-      (barplot (L1 'good))
-      (barplot (L1 'amazing))
+       (barplot (L1 'terrible) "terrible")
+       (barplot (L1 'bad) "bad")
+       (barplot (L1 'ok) "ok")
+       (barplot (L1 'good) "good")
+       (barplot (L1 'amazing) "amazing")

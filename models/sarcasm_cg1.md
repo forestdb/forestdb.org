@@ -71,7 +71,7 @@ model-language: church
             (define goal (goal-prior))
             ;(list state valence arousal)
             (list state same?)
-            (equal? utterance (apply multinomial (S1 state valence arousal goal same?)))
+            (equal? utterance (apply multinomial (S1 state valence arousal goal)))
             ))))
       
       ; Given state, valence, arousal, goal, and whether prior is shared,

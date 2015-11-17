@@ -150,6 +150,6 @@ model-language: church
         (define (tone-prior) (multinomial tones (list 0.1 0.9)))
         
         (barplot (L2 'terrible 'plain) "terrible")
-        (barplot (L2 'terrible 'drawl) "terrible")
+        (barplot (L2 'terrible 'drawl) "terrible ~")
         (barplot (L2 'amazing 'plain) "amazing")
-        (barplot (L2 'amazing 'drawl) "amazing")
+        (barplot (L2 'amazing 'drawl) "amazing ~")

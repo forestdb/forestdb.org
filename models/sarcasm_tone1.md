@@ -53,9 +53,6 @@ model-language: church
       (uniform-draw utterances))
     
     (define tones (list 'drawl 'plain))
-    (define (tone-prior) (multinomial tones (list 0.1 0.9)))
-    
-    (define sameness-prior 0.5)
     
     ;; Literal interpretation "meaning" function, just check if uttered number reflects price state
     (define (literal-interpretation utterance state)
@@ -100,9 +97,11 @@ model-language: church
           (list state valence arousal)
           (literal-interpretation utterance state)))))
     
+    (define (tone-prior) (multinomial tones (list 0.1 0.9)))
+    (define sameness-prior 0.5)
     
-    (barplot (L1 'terrible 'plain) "terrible plain")
-    (barplot (L1 'terrible 'drawl) "terrible drawl")
-    (barplot (L1 'amazing 'plain) "amazing plain")
-    (barplot (L1 'amazing 'drawl) "amazing drawl")
+    (barplot (L1 'terrible 'plain) "terrible")
+    (barplot (L1 'terrible 'drawl) "terrible ~")
+    (barplot (L1 'amazing 'plain) "amazing")
+    (barplot (L1 'amazing 'drawl) "amazing ~")
 

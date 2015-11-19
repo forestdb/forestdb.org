@@ -12,7 +12,7 @@ I'm not sure what's driving this difference or what part of this example model i
 
 Here's the functional causal model of the situation:
 
-![story5.png](story5.png)
+![story5.png](../assets/img/story5.png)
 
 A, B, C, and D are all true in the actual world. Counterfactually, if C hadn't been true, then would B have been true?
 

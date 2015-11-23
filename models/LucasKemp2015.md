@@ -20,7 +20,7 @@ Lucas & Kemp 2015 find evidence that *Functional Causal Models* rather than *Cau
 
 A *Causal Bayes Net* (CBN) assumes that causal relationships can be inherently stochastic.
 
-![0.9 --> X ; X --0.9--> Y](CBN.png)
+![0.9 --> X ; X --0.9--> Y](../assets/img/CBN.png)
 
 ~~~
 var BCN = function() {
@@ -35,7 +35,7 @@ vizPrint(Enumerate(BCN));
 
 A *Functional Causal Model* (FCM) assumes that all causes are actually determinisitic, but some are unknown. Every observable variable $$X$$ is a deterministic function of its parent observable variables $$par(X)$$ and an exogenous random variable $$U_{X}$$. The randomness of the system lies in the unobserved and unobservable variables $$U_{X}$$.
 
-![0.9 --> Ux ; Ux --> X ; X --> Y ; Uy --> Y](FCM.png)
+![0.9 --> Ux ; Ux --> X ; X --> Y ; Uy --> Y](../assets/img/FCM.png)
 
 ~~~
 // the causal relationships are deterministic

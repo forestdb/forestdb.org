@@ -11,7 +11,7 @@ model-language: webppl
 ## Regular RSA, v.1
 
 ~~~~
-;;;fold:
+///fold:
 var marginalize = function(myERP, index){
   Enumerate(function(){
     var x = sample(myERP)
@@ -43,7 +43,7 @@ var meaning = function(utt,world) {
   utt=="mu"? true :
   true
 }
-;;;
+///
 var binomialMarbles = function(theta){
   return map(function(x){
     return Math.exp(binomialERP.score([theta, 15], x))
@@ -102,7 +102,7 @@ vizPrint(posterior)
 ## Regular RSA, v.2
 
 ~~~~
-;;;fold:
+///fold:
 var marginalize = function(myERP, index){
   Enumerate(function(){
     var x = sample(myERP)
@@ -134,7 +134,7 @@ var meaning = function(utt,world) {
   utt=="mu"? true :
   true
 }
-;;;
+///
 var doubleBinomialMarbles = function(theta1, theta2, mix){
   return map(
     function(x){
@@ -185,7 +185,7 @@ vizPrint(posterior)
 
 ## Wonky RSA
 ~~~~
-;;;fold:
+///fold:
 var marginalize = function(myERP, index){
   Enumerate(function(){
     var x = sample(myERP)
@@ -224,8 +224,7 @@ var binomialMarbles = function(theta){
     return Math.exp(binomialERP.score([theta, 15], x))
   },_.range(0,16))
 }
-;;;
-
+///
 var wonkyLiteralListener = cache(function(utterance, prior) {
   Enumerate(function(){
             var world = discrete(prior)

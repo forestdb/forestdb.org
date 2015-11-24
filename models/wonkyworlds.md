@@ -11,6 +11,7 @@ model-language: webppl
 ## Regular RSA, v.1
 
 ~~~~
+;;;fold:
 var marginalize = function(myERP, index){
   Enumerate(function(){
     var x = sample(myERP)
@@ -42,13 +43,12 @@ var meaning = function(utt,world) {
   utt=="mu"? true :
   true
 }
-
+;;;
 var binomialMarbles = function(theta){
   return map(function(x){
     return Math.exp(binomialERP.score([theta, 15], x))
   },_.range(0,16))
 }
-
 
 var literalListener = cache(function(utterance, priorParams) {
   Enumerate(function(){
@@ -102,6 +102,7 @@ vizPrint(posterior)
 ## Regular RSA, v.2
 
 ~~~~
+;;;fold:
 var marginalize = function(myERP, index){
   Enumerate(function(){
     var x = sample(myERP)
@@ -133,7 +134,7 @@ var meaning = function(utt,world) {
   utt=="mu"? true :
   true
 }
-
+;;;
 var doubleBinomialMarbles = function(theta1, theta2, mix){
   return map(
     function(x){
@@ -182,7 +183,92 @@ print("expected value of next world state = "+expectation(marginalize(posterior,
 vizPrint(posterior)
 ~~~~
 
-
-# Wonky RSA
+## Wonky RSA
 ~~~~
+;;;fold:
+var marginalize = function(myERP, index){
+  Enumerate(function(){
+    var x = sample(myERP)
+    return x[index]
+  })
+}
+
+var numObjs = 15
+
+var worldPrior = function() {
+  var marbles = randomInteger(numObjs+1) //15 marbles... 0-15 can sink
+  return marbles
+}
+
+var utterancePrior = function() {
+  var utterances = [
+                    "Some",
+                    "All",
+                    "None"
+                    // "mu"
+                    ]
+ return uniformDraw(utterances)
+  // return utterances[discrete([1,1,1,10])]
+}
+
+var meaning = function(utt,world) {
+  return utt=="Some"? world>0 :
+  utt=="All"? world==numObjs :
+  utt=="None"? world==0 :
+  utt=="mu"? true :
+  true
+}
+
+var binomialMarbles = function(theta){
+  return map(function(x){
+    return Math.exp(binomialERP.score([theta, 15], x))
+  },_.range(0,16))
+}
+;;;
+
+var wonkyLiteralListener = cache(function(utterance, prior) {
+  Enumerate(function(){
+            var world = discrete(prior)
+            var m = meaning(utterance, world)
+            condition(m)
+            return world
+  })
+})
+
+var wonkySpeaker = cache(function(world, prior) {
+  Enumerate(function(){
+            var utterance = utterancePrior()
+            var L = wonkyLiteralListener(utterance, prior)
+            factor(L.score([],world))
+            return utterance
+            })
+})
+
+var wonkyRSA = function(utterance,speakerOptimality, priorParams) {
+  Enumerate(function(){
+    var primary = flip(priorParams["mix"])
+    var prior =  primary ? 
+                 binomialMarbles(priorParams["theta1"]) :
+                 binomialMarbles(priorParams["theta2"])
+    var world = discrete(prior)
+
+    var S = (utterance=='mu') ? 0 : wonkySpeaker(world, prior)
+
+    var scr = (utterance!='mu')  ? 
+                  speakerOptimality*S.score([],utterance) : 
+                  0
+    factor(scr)
+    var queryStatement = {"world":world, 
+    					  "wonky":1-primary,
+    					  "nextWorld": discrete(prior)}
+    return queryStatement
+  })
+}
+
+var posterior = wonkyRSA("Some", 5, {mix: 0.9, theta1:0.99, theta2:0.5})
+
+print("expected value of world state = "+expectation(marginalize(posterior, "world")))
+print("expected value of next world state = "+expectation(marginalize(posterior, "nextWorld")))
+print("expected value of wonkiness = "+expectation(marginalize(posterior, "wonky")))
+vizPrint(posterior)
 ~~~~

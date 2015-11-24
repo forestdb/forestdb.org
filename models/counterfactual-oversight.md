@@ -41,7 +41,7 @@ var distPrior = Enumerate(function(){
     [0.005, .99, 0.005]
   ];
   var ps = uniformDraw(potentialPs);
-  return makeCategorical(['a', 'b', 'c'], ps);
+  return makeCategorical(['A', 'B', 'C'], ps);
 });
 
 var alpha = 100;
@@ -60,12 +60,12 @@ var getReportedDistForParams = function(params) {
   var predictionScore = logScore;  
   
   var eventScore = function(event) {
-    return event == 'a' ? params.eventRewardA : 0;
+    return event == 'A' ? params.eventRewardA : 0;
   }
 
   var agent = function(){
     return Infer(function(){      
-      var beliefDist = makeCategorical(['a', 'b', 'c'], [.3, .5, .2]);
+      var beliefDist = makeCategorical(['A', 'B', 'C'], [.3, .5, .2]);
       var reportDist = sample(distPrior);
       var expectedScore = Expectation(function(){        
         var othersReportDist = beliefDist;
@@ -89,7 +89,7 @@ var exploreRewardParams = function(){
       var reportDist = getReportedDistForParams({
         eventRewardA: reward
       });
-      var cheated = reportDist.score([], 'a') != Math.log(.3);
+      var cheated = reportDist.score([], 'A') != Math.log(.3);
       print([reward, cheated ? 'cheated' : 'honest']);
     },
     rewards);
@@ -137,7 +137,7 @@ var distPrior = Enumerate(function(){
     [0.005, .99, 0.005]
   ];
   var ps = uniformDraw(potentialPs);
-  return makeCategorical(['a', 'b', 'c'], ps);
+  return makeCategorical(['A', 'B', 'C'], ps);
 });
 
 var alpha = 100;
@@ -169,12 +169,12 @@ var getReportedDistForParams = function(params) {
   var predictionScore = logScore;  
   
   var eventScore = function(event) {
-    return event == 'a' ? params.eventRewardA : 0;
+    return event == 'A' ? params.eventRewardA : 0;
   }
 
   var agent = function(){
     return Infer(function(){      
-      var beliefDist = makeCategorical(['a', 'b', 'c'], [.3, .5, .2]);
+      var beliefDist = makeCategorical(['A', 'B', 'C'], [.3, .5, .2]);
       var reportDist = sample(distPrior);
       var expectedScore = Expectation(function(){        
         var othersReportDist = beliefDist;
@@ -199,7 +199,7 @@ var exploreRewardParams = function(){
       var reportDist = getReportedDistForParams({
         eventRewardA: reward
       });
-      var cheated = reportDist.score([], 'a') != Math.log(.3);
+      var cheated = reportDist.score([], 'A') != Math.log(.3);
       print([reward, cheated ? 'cheated' : 'honest']);
     },
     rewards);
@@ -247,7 +247,7 @@ var distPrior = Enumerate(function(){
     [0.005, .99, 0.005]
   ];
   var ps = uniformDraw(potentialPs);
-  return makeCategorical(['a', 'b', 'c'], ps);
+  return makeCategorical(['A', 'B', 'C'], ps);
 });
 
 var alpha = 100;
@@ -280,7 +280,7 @@ var getReportedDistForParams = function(params) {
   
   var agent = function(otherAgent, eventScore){
     return Infer(function(){      
-      var beliefDist = makeCategorical(['a', 'b', 'c'], [.3, .5, .2]);
+      var beliefDist = makeCategorical(['A', 'B', 'C'], [.3, .5, .2]);
       var reportDist = sample(distPrior);
       var expectedScore = Expectation(function(){        
         var othersReportDist = sample(otherAgent());
@@ -298,16 +298,16 @@ var getReportedDistForParams = function(params) {
     return Infer(function(){
       // to make our life harder, let's assume that this agent
       // colludes with agentPrefersA
-      return makeCategorical(['a', 'b', 'c'], [.5, .3, .2]);
+      return makeCategorical(['A', 'B', 'C'], [.5, .3, .2]);
     });
   }
 
   var eventScorePreferA = function(event) {
-    return event == 'a' ? params.eventReward : 0;
+    return event == 'A' ? params.eventReward : 0;
   }
 
   var eventScorePreferC = function(event) {
-    return event == 'c' ? params.eventReward : 0;
+    return event == 'C' ? params.eventReward : 0;
   }  
 
   var agentPrefersA = function(options){
@@ -339,7 +339,7 @@ var exploreRewardParams = function(){
       var reportDist = getReportedDistForParams({
         eventReward: reward
       });
-      var cheated = reportDist.score([], 'a') != Math.log(.3);
+      var cheated = reportDist.score([], 'A') != Math.log(.3);
       print([reward, cheated ? 'cheated' : 'honest']);
     },
     rewards);

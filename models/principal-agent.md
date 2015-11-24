@@ -4,6 +4,10 @@ title: The Principal-Agent Problem for Delegation-as-Prediction
 model-language: webppl
 ---
 
+Follow-up to:
+
+- [Scoring Rules](/models/scoring-rules.html)
+
 The agent gets reward based on which event happens. As long as the agent's prediction doesn't influence what event happens (full supervision), it will continue to make truthful predictions:
 
 ~~~~

@@ -40,7 +40,7 @@ var distPrior = Enumerate(function(){
     [0.005, .99, 0.005]
   ];
   var ps = uniformDraw(potentialPs);
-  return makeCategorical(['a', 'b', 'c'], ps);
+  return makeCategorical(['A', 'B', 'C'], ps);
 });
 
 var alpha = 100;
@@ -55,12 +55,12 @@ var getReportedDistForParams = function(params) {
   var predictionScore = logScore;  
   
   var eventScore = function(event) {
-    return event == 'a' ? params.eventRewardA : 0;
+    return event == 'A' ? params.eventRewardA : 0;
   }
 
   var agent = function(){
     return Infer(function(){
-      var beliefDist = makeCategorical(['a', 'b', 'c'], [.3, .5, .2]);
+      var beliefDist = makeCategorical(['A', 'B', 'C'], [.3, .5, .2]);
       var reportDist = sample(distPrior);
       var expectedScore = Expectation(function(){
         var event = sample(beliefDist);
@@ -75,7 +75,7 @@ var getReportedDistForParams = function(params) {
 
 };
 
-print('Reported distribution with full supervision, side-utility:');
+print('Reported distribution with full supervision, event-utility for A:');
 print(getReportedDistForParams({
   eventRewardA: 5
 }))
@@ -113,7 +113,7 @@ var distPrior = Enumerate(function(){
     [0.005, .99, 0.005]
   ];
   var ps = uniformDraw(potentialPs);
-  return makeCategorical(['a', 'b', 'c'], ps);
+  return makeCategorical(['A', 'B', 'C'], ps);
 });
 
 var alpha = 100;
@@ -128,12 +128,12 @@ var getReportedDistForParams = function(params) {
   var predictionScore = logScore;  
   
   var eventScore = function(event) {
-    return event == 'a' ? params.eventRewardA : 0;
+    return event == 'A' ? params.eventRewardA : 0;
   }
 
   var agent = function(){
     return Infer(function(){      
-      var beliefDist = makeCategorical(['a', 'b', 'c'], [.3, .5, .2]);
+      var beliefDist = makeCategorical(['A', 'B', 'C'], [.3, .5, .2]);
       var reportDist = sample(distPrior);
       var expectedScore = Expectation(function(){
         var isSupervised = flip(params.probOfSupervision);
@@ -162,34 +162,34 @@ var exploreRewardParams = function(){
         eventRewardA: reward,
         probOfSupervision: .1
       });
-      var cheated = reportDist.score([], 'a') != Math.log(.3);
+      var cheated = reportDist.score([], 'A') != Math.log(.3);
       print([reward, cheated ? 'cheated' : 'honest']);
     },
     rewards);
 };
 
 var exploreSupervisionParams = function(){  
-  var supervisionProbs = [0.01, 0.1, 1, 0.5, 1]
+  var supervisionProbs = [0.01, 0.1, 0.3, 0.5, 1]
   map(
     function(probOfSupervision){
       var reportDist = getReportedDistForParams({
         eventRewardA: .1,
         probOfSupervision: probOfSupervision
       });
-      var cheated = reportDist.score([], 'a') != Math.log(.3);
+      var cheated = reportDist.score([], 'A') != Math.log(.3);
       print([probOfSupervision, cheated ? 'cheated' : 'honest']);
     },
     supervisionProbs);
 };
 
 
-print('Reported distribution with partial supervision, side-utility:');
+print('Reported distribution with partial supervision, event-utility for A:');
 print(getReportedDistForParams({
   eventRewardA: 5,
   probOfSupervision: .1
 }))
 
-print('\nAs reward for action "a" increases, probability of cheating increases:');
+print('\nAs reward for action "A" increases, probability of cheating increases:');
 exploreRewardParams()
 
 print('\nAs probability of supervision increases, probability of cheating decreases:');

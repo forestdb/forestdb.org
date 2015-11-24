@@ -23,6 +23,12 @@ This model is specifically to explore the interaction of noise, cost, and optima
 (define (power dist a) (list (first dist) 
                              (map (lambda (x) (pow x a)) (second dist))))
 
+(define color-fidelity .999)
+(define size-fidelity .8)
+(define cost_color .1)
+(define cost_size .1)
+(define speaker-opt 17)
+
 ; Free parameters:
 (define color-fidelity .9) ; 1 - noise probability (color -- higher means less noise)
 (define size-fidelity .7) ; 1 - noise probability (size -- higher meanss less noise)
@@ -126,17 +132,15 @@ This model is specifically to explore the interaction of noise, cost, and optima
 (define pragmatic-speaker 
   (mem (lambda (obj)
          (enumeration-query        
-          (define utterance (multinomial utterances 
-                                         (map (lambda (c) (exp (- c))) costs)))
+          (define utterance 
+          			(multinomial utterances 
+                              (map (lambda (c) (exp (- c))) costs)))
 
           utterance
 
-          ;          (and
           (equal? obj
-                  (apply multinomial
-                         (power (literal-listener utterance) listener-opt)))
-          ;           (meaning utterance obj))
-          ))))
+                  (apply multinomial 
+                         (literal-listener utterance)))))))
 
 
 
@@ -1377,9 +1381,6 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
                      (define sub-utts (regexp-split utterance '_))     
 
                      ; made-up color priors for the objects in the contexts
-                     (define apple-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .7 .0001 .2 .098 .0001)))
 
                      (define carrot-prior
                        (multinomial '(red orange yellow green blue)
@@ -1393,6 +1394,14 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
                        (multinomial '(red orange yellow green blue)
                                     (list .0001 .9 .0001 .097 .0001)))
 
+                     (define tomato-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .9 .0001 .0001 .097 .0001)))
+                                    
+                     (define apple-prior
+                       (multinomial '(red orange yellow green blue)
+                                    (list .7 .0001 .2 .098 .0001)))
+                                                                        
                      (define pepper-prior
                        (multinomial '(red orange yellow green blue)
                                     (list .6 .099 .15 .15 .0001))) 
@@ -1405,9 +1414,6 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
                        (multinomial '(red orange yellow green blue)
                                     (list .0001 .0001 .9 .097 .0001)))
 
-                     (define tomato-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .9 .0001 .0001 .097 .0001)))
 
                      (define pumpkin-prior
                        (multinomial '(red orange yellow green blue)
@@ -1637,3 +1643,105 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
 
 ~~~
 
+
+# An implementation of the PRO model as reported in Gatt et al (2013, CogSci Proceedings, Figure 2). 
+
+You can vary:
+
+- x: color selection probability in the color-or-size condition (trades off with size selection probability --  color and size selection probabilities are 1 in the color-only and size-only condition, respectively)
+
+- y: overspecification eagerness 
+
+- context (lists of features)
+
+- what the target and competitors are
+
+This model is specifically to test the PRO predictions and compare with versions of RSA for the lightbulb-style contexts reported by Gatt et al 2011. They use x = .87 and y = -.05
+
+A weird thing that results from the way they set this up is that in their second selection step, they sum up the preference for the feature (a probability) and the eagerness to overspecify (supposedly also a probability) -- but with particular settings of parameters (eg color-preference 0 and negative eagerness to overspecify, given the standard "lightbulb" context, this results in a negative "probability". This is awful.
+
+~~~
+; Stuff to vary: free parameters
+(define color-preference .87) ; the "x" value from Gatt et al 2013
+(define size-preference (- 1 color-preference)) ; they "1-x" value from Gatt et al 2013
+(define eager-to-overspecify -.05) ; the "y" value from Gatt et al 2013
+
+; Stuff to vary: context
+(define context (list (list 'o1 'big 'red)
+                      (list 'o2 'small 'red)
+                      (list 'o3 'small 'yellow)))
+
+; Stuff to vary: target and competitors
+(define obj-target 'o1)
+(define obj-comp1 'o2)
+(define obj-comp2 'o3)
+
+; Extracts a list of object IDs for the objects in the context
+(define objs
+  (map (lambda (obj)
+         (first obj))
+       context))
+
+; Helper function for utterances: Strips the original context of object IDs
+(define pruned-context 
+  (map (lambda (cont) 
+         (drop cont 1))
+       context))		
+
+; Helper function for lexicon: Returns a list of an object's features
+(define (check-features obj)
+  (list-ref pruned-context (list-index objs obj)))
+
+; Helper function for pro-speaker: returns a list of two numbers that indicate whether the features of the target object are shared with other objects
+; (-2 -2) means neither feature is shared (color-or-size condition from GEA 2013)
+; (-2 0) means size is not shared, ie it's discriminating (size-only condition from GEA 2013)
+; (0 -2) means color is not shared, ie it's discriminating (color-only condition from GEA 2013)
+; (0 0) means neither feature is discriminating GEA 2013 don't talk about this)
+(define discriminating-features 
+  (map (lambda (feature obj-target)
+         (sum (list (list-index (check-features obj-comp1) feature) (list-index (check-features obj-comp2) feature))))
+       (check-features obj-target)
+       ))
+
+; Helper function for pro-speaker: returns a preference-based choice of color or size, in case both color and size are discriminating
+(define preferred-word
+  (multinomial (check-features obj-target) 
+               (list size-preference color-preference)))
+
+; A speaker with color/size preferences and a particular eagerness to over-specify
+(define pro-speaker 
+  (lambda ()
+    ; if both color and size discriminate, select one with preference probability, then select the other with sum of preference probability and eagerness to overspecify -- WARNING: THIS CAN RESULT IN NON-PROPER PROBABILITIES!! HOW CAN THEY DO THIS?
+    (if (= (sum discriminating-features) -4) ; if both properties are discriminating
+        (if (equal? preferred-word (first (check-features obj-target))) 
+            (if (or (> (+ color-preference eager-to-overspecify) 1)
+                    (< (+ color-preference eager-to-overspecify) 0))
+                'adding_color_preference_and_overspec_not_a_probability
+                (if (flip (+ color-preference eager-to-overspecify)) ; if you selected size, now flip whether you're going to also say color
+                    (string-append preferred-word '_ (second (check-features obj-target)))
+                    preferred-word))
+            (if (or (> (+ size-preference eager-to-overspecify) 1)
+                    (< (+ size-preference eager-to-overspecify) 0))
+                'adding_size_preference_and_overspec_not_a_probability            
+                (if (flip (+ size-preference eager-to-overspecify)) ; if you selected color, now flip whether you're going to also say size
+                    (string-append (first (check-features obj-target)) '_ preferred-word)
+                    preferred-word)))
+        (if (= (first discriminating-features) -2) 
+            (if (or (> (+ color-preference eager-to-overspecify) 1)
+                    (< (+ color-preference eager-to-overspecify) 0))
+                'adding_color_preference_and_overspec_not_a_probability
+                (if (flip (+ color-preference eager-to-overspecify)) ; if only size is discriminating
+                    (string-append (first (check-features obj-target)) '_ (second (check-features obj-target)))
+                    (first (check-features obj-target))))
+            (if (or (> (+ size-preference eager-to-overspecify) 1)
+                    (< (+ size-preference eager-to-overspecify) 0))  
+                'adding_size_preference_and_overspec_not_a_probability                
+                (if (flip (+ size-preference eager-to-overspecify)) ; if only color is discriminating
+                    (string-append (first (check-features obj-target)) '_ (second (check-features obj-target)))            
+                    (second (check-features obj-target))))            
+            ))
+    ))  	
+
+(hist (repeat 1000 pro-speaker))
+
+~~~

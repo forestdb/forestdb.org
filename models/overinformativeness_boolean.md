@@ -1667,7 +1667,7 @@ A weird thing that results from the way they set this up is that in their second
 (define eager-to-overspecify -.05) ; the "y" value from Gatt et al 2013
 
 ; Stuff to vary: context
-(define context (list (list 'o1 'big 'blue)
+(define context (list (list 'o1 'big 'red)
                       (list 'o2 'small 'red)
                       (list 'o3 'small 'yellow)))
 
@@ -1703,30 +1703,29 @@ A weird thing that results from the way they set this up is that in their second
        (check-features obj-target)
        ))
 
-; Helper function for pro-speaker: returns a preference-based choice of color or size, in case both color and size are discriminating
-(define preferred-word
-  (multinomial (check-features obj-target) 
-               (list size-preference color-preference)))
-
 ; A speaker with color/size preferences and a particular eagerness to over-specify
 (define pro-speaker 
   (lambda ()
+    ; Helper function for pro-speaker: returns a preference-based choice of color or size, in case both color and size are discriminating
+    (define preferred-word
+      (multinomial (check-features obj-target) 
+                   (list size-preference color-preference)))    
     ; if both color and size discriminate, select one with preference probability, then select the other with sum of preference probability and eagerness to overspecify -- WARNING: THIS CAN RESULT IN NON-PROPER PROBABILITIES!! HOW CAN THEY DO THIS?
     (if (= (sum discriminating-features) -4) ; if both properties are discriminating
         (if (equal? preferred-word (first (check-features obj-target))) 
-                (if (flip (+ color-preference eager-to-overspecify)) ; if you selected size, now flip whether you're going to also say color
-                    (string-append preferred-word '_ (second (check-features obj-target)))
-                    preferred-word)
-                (if (flip (+ size-preference eager-to-overspecify)) ; if you selected color, now flip whether you're going to also say size
-                    (string-append (first (check-features obj-target)) '_ preferred-word)
-                    preferred-word))
+            (if (flip (+ color-preference eager-to-overspecify)) ; if you selected size, now flip whether you're going to also say color
+                (string-append preferred-word '_ (second (check-features obj-target)))
+                preferred-word)
+            (if (flip (+ size-preference eager-to-overspecify)) ; if you selected color, now flip whether you're going to also say size
+                (string-append (first (check-features obj-target)) '_ preferred-word)
+                preferred-word))
         (if (= (first discriminating-features) -2) 
-                (if (flip (+ color-preference eager-to-overspecify)) ; if only size is discriminating
-                    (string-append (first (check-features obj-target)) '_ (second (check-features obj-target)))
-                    (first (check-features obj-target)))
-                (if (flip (+ size-preference eager-to-overspecify)) ; if only color is discriminating
-                    (string-append (first (check-features obj-target)) '_ (second (check-features obj-target)))            
-                    (second (check-features obj-target)))
+            (if (flip (+ color-preference eager-to-overspecify)) ; if only size is discriminating
+                (string-append (first (check-features obj-target)) '_ (second (check-features obj-target)))
+                (first (check-features obj-target)))
+            (if (flip (+ size-preference eager-to-overspecify)) ; if only color is discriminating
+                (string-append (first (check-features obj-target)) '_ (second (check-features obj-target)))            
+                (second (check-features obj-target)))
             ))
     ))  	
 

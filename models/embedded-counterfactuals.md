@@ -8,8 +8,6 @@ Should counterfactual reasoning invlove an embedded query?
 
 For the following background knowlege and counterfactual inference, these can give different counterfactual predicitons.
 
-I'm not sure what's driving this difference or what part of this example model is sufficient to show a difference.
-
 Here's the functional causal model of the situation:
 
 ![story5.png](../assets/img/story5.png)
@@ -101,3 +99,10 @@ A, B, C, and D are all true in the actual world. Counterfactually, if C hadn't b
 ~~~~
 
 Lucas & Kemp reported 0.43 as the prediction of their model in this case.
+
+## Notes/Questions
+
+* How do we deal with somehting like, "A because (B because C)" if we don't have an embedded inference?
+	- Maybe we could have `shadow-vars` *and* `shadow-shadow-vars`.
+* In what kinds of situations would there be a greater difference between the two kinds of models? What's driving this difference?
+* Which of these is a better fit to the data?

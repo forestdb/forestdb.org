@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Explanations
+title: Explanations Model in WebPPL
 model-status: code
 model-language: webppl
 ---
@@ -13,6 +13,431 @@ model-language: webppl
 * toc
 {:toc}
 
+If the literal meaning of an explanation "B because A" is "A, B, and (counterfactually) if not A then not B," the following model would be the literal interpretation.
+
+We use the counterfactual model from [Lucas & Kemp (2015)](http://philpapers.org/archive/LUCAIP.pdf), with our specific implementation details at [forestdb.org/models/lucas-kemp-2015-replication.html](http://forestdb.org/models/lucas-kemp-2015-replication.html).
+
+If we use this literal interpretation, then a listener who hears "The neighbors are angry *because* I cooked bacon," will be *slightly* more likely to believe that the smoke alarm went off than if they heard the sentence, "The neighbors are angry *and* I cooked bacon." But the difference is small, since the probability of smoke alarm given bacon and neighbors is already basically at ceiling.
+
+This model yields the following underwhelming result: In the bacon example discussed in the counterfactuals page, the literal interpretation model thinks it's a tiny bit less likely that the smoke alarm went off when the utterance is "The neighbors are angry because I cooked bacon" (which implies the two events are causally connected by the smoke alarm) than when the utterance is "The neighbors are angry and also I cooked bacon."
+
+~~~
+//parameters
+var impliesComponents = true; //if true, A and B are part of the meaning of "B because A"
+var stickiness = 0.53;
+// overall utilities
+///fold:
+var world2String = function(world) {
+  map(function(x) {
+    return x[1] ? x[0] : '-';
+  }, _.pairs(world)).join('');
+};
+var strPrint = function(erp) {
+  print(Enumerate(function() {
+    return world2String(sample(erp));
+  }));
+  return true;
+};
+var mapObject = function(fn, obj) {
+  return _.object(
+    map(
+      function(kv) {
+        return [kv[0], fn(kv[0], kv[1])]
+      },
+      _.pairs(obj))
+  );
+};
+
+// deals with erps that have no support
+// (e.g. because conditions on something impossible)
+var checkPossible = function(unfactoredERP) {
+  var factorERP = Enumerate(function() {
+    return sample(unfactoredERP).factor;
+  });
+  if (factorERP.score([], -Infinity) == 0) {
+    // a sort of way of throwing errors if we try to evaluate an impossible utterance
+    return 'impossible';
+  } else {
+    return Enumerate(function() {
+      var result = sample(unfactoredERP);
+      factor(result.factor);
+      return result.result;
+    });
+  }
+};
+
+// enumerate with an extra "check" step
+var checkEnumerate = function(thunk) {
+  return checkPossible(Enumerate(thunk));
+};
+
+// get probability of erp result "true"
+var getP = function(erp, value) {
+  var value = value ? value : true;
+  return Math.exp(erp.score([], value));
+};
+
+var containsBecause = function(utt) {
+  var words = utt.split(' ');
+  return words.length > 1 ? words[1]=='because' : false;
+};
+
+var parseBecauseStatement = function(utt) {
+  var words = utt.split(' ');
+  if (words.length != 3) {
+    print('warning 98: expected because statement, got: ' + utt);
+  };
+  return words;
+};
+
+var getConsequent = function(utt) {
+  var words = parseBecauseStatement(utt);
+  return words[0]; // **consequent** because antecedent
+};
+
+var getAntecedent = function(utt) {
+  var words = parseBecauseStatement(utt);
+  return words[2]; // consequent because **antecedent**
+};
+///
+//stories to choose from
+///fold:
+var stories = {
+  bacon: {
+    rand : function() {
+      return {
+        uB: flip(0.9),
+        uS: flip(0.9),
+        uN: flip(0.1)
+      };
+    },
+    vars: function(rVs) {
+      var B = rVs.uB;
+      var S = B & rVs.uS ? true : false;
+      var N = S | rVs.uN ? true : false;
+      return {
+        B: B,
+        S: S,
+        N: N
+      };
+    }
+  },
+  story1: {
+    rand : function() {
+      return {
+        uA: flip(0.1),
+        uB: flip(0.1)
+      };
+    },
+    vars: function(rVs) {
+      var A = rVs.uA;
+      var B = rVs.uB;
+      return {
+        A: A,
+        B: B
+      };
+    }
+  },
+  story2: {
+    rand : function() {
+      return {
+        uA: flip(0.1),
+        uAB: flip(0.75),
+        uBC: flip(0.75)
+      };
+    },
+    vars: function(rVs) {
+      var A = rVs.uA;
+      var B = A & rVs.uAB ? true : false;
+      var C = B & rVs.uBC ? true : false;
+      return {
+        A: A,
+        B: B,
+        C: C
+      };
+    }
+  },
+  story3: {
+    rand : function() {
+      return {
+        uA: flip(0.25),
+        uB: flip(0.1)
+      };
+    },
+    vars: function(rVs) {
+      var A = rVs.uA;
+      var B = rVs.uB;
+      var C = (A & !B) | (!A & B) ? true : false;
+      return {
+        A: A,
+        B: B,
+        C: C
+      };
+    }
+  },
+  story4: {
+    rand : function() {
+      return {
+        uA: flip(0.9),
+        uB: flip(0.9)
+      };
+    },
+    vars: function(rVs) {
+      var A = rVs.uA;
+      var B = rVs.uB;
+      var C = (A | B) ? true : false;
+      var D = C;
+      return {
+        A: A,
+        B: B,
+        C: C,
+        D: D
+      };
+    }
+  },
+  story5: {
+    rand : function() {
+      return {
+        uA: flip(0.75),
+        uB: flip(0.75),
+        uBC: flip(0.9)
+      };
+    },
+    vars: function(rVs) {
+      var A = rVs.uA;
+      var B = rVs.uB;
+      var C = A ? true : ((B & rVs.uBC) ? true : false);
+      var D = C;
+      return {
+        A: A,
+        B: B,
+        C: C,
+        D: D
+      };
+    }
+  },
+  story6: {
+    rand : function() {
+      return {
+        uA: flip(0.25),
+        uAB: flip(0.1),
+        uBC: flip(0.1)
+      };
+    },
+    vars: function(rVs) {
+      var A = rVs.uA;
+      var B = (A & !rVs.uAB) | (!A & rVs.uAB) ? true : false;
+      var C = (B & !rVs.uBC) | (!B & rVs.uBC) ? true : false;
+      return {
+        A: A,
+        B: B,
+        C: C
+      };
+    }
+  },
+  tugOfWar: {
+    rand: function() {
+      return {
+        uAS: flip(0.5),
+        uAL: flip(0.3),
+        uBS: flip(0.5),
+        uBL: flip(0.3),
+        uAW: flip(0.5)
+      };
+    },
+    vars: function(rVs) {
+      // strong is strength = 2; weak is strength = 1
+      var aliceStrong = rVs.uAS;
+      var aliceStrength = aliceStrong ? 2 : 1;
+      var aliceLazy = rVs.uAL;
+      var bobStrong = rVs.uBS;
+      var bobStrength = bobStrong ? 2 : 1;
+      var bobLazy = rVs.uBL;
+      // laziness decreases strength by half
+      var alicePulling = aliceLazy ? aliceStrength/2 : aliceStrength;
+      var bobPulling = bobLazy ? bobStrength/2 : bobStrength;
+      var aliceWin = (alicePulling>bobPulling)?true:(bobPulling>alicePulling)?false:rVs.uAW;
+      
+      return {
+        aliceStrong: aliceStrong,
+        aliceLazy: aliceLazy,
+        bobStrong: bobStrong,
+        bobLazy: bobLazy,
+        aliceWin: aliceWin
+      };
+    }
+  }
+};
+///
+var rand = stories.bacon.rand;
+var vars = stories.bacon.vars;
+// CF model:
+///fold:
+
+// for counterfactual simulation,
+// sometimes (with probability "stickiness") sample the actual
+// random statue variable. othertimes, sample a new one from the prior
+var stickyRand = function(actualRVs) {
+  var freshRVs = rand();
+  return mapObject(function(key, val) {
+    return flip(stickiness) ? actualRVs[key] : freshRVs[key];
+  }, actualRVs);
+};
+
+// get value of propsition in a world
+var contextualEval = cache(function(proposition, world) {
+  var context = reduce(
+    function(keyVal, acc) {
+      return acc + ' var ' + keyVal[0] + ' = ' + JSON.stringify(keyVal[1]) + ';';
+    },
+    "",
+    _.pairs(world)
+  );
+  return webpplEval(context + proposition + ';');
+});
+
+// counterfactual ERP, conditioning on actual world
+var cfERP = function(cfParams) {
+  return checkEnumerate(function() {
+    //checks to handle different usage
+    // if no cfAntecedent, condition cfERP on true
+    // if no cfConsequent, return world
+    // if no actualRVs, use actualWorld
+    // if no actualWorld and no actualRVs....sample a completely random world
+
+    if (cfParams.actualRVs & cfParams.actualWorld) {
+      print([
+        'warning 1234:',
+        '*both* RVs and world were given as input!',// for pretty printing
+        'actualRVs=',
+        JSON.stringify(cfParams.actualRVs),
+        '; actualWorld=',
+        JSON.stringify(cfParams.actualWorld)
+      ].join(' '));
+    };
+
+    // if we know the actualRVs, use 'em
+    var actualRVs = cfParams.actualRVs ? cfParams.actualRVs : rand();
+    var actualWorld = vars(actualRVs);
+
+    // if we know *some* stuff about the actualWorld, condition on that
+    var cond3 = (cfParams.actually ?
+                 contextualEval(cfParams.actually, actualWorld) :
+                 true);
+
+    // if we know the actualWorld, condition on that
+    var cond1 = (cfParams.actualWorld ?
+                 _.isEqual(cfParams.actualWorld, actualWorld) :
+                 true);
+
+    var cfRVs = stickyRand(actualRVs);
+    var cfWorld = vars(cfRVs);
+
+    // if we are given a counterfactual antecedent, condition on that
+    var cond2 = (cfParams.cfAntecedent ?
+                 contextualEval(cfParams.cfAntecedent, cfWorld) :
+                 true);
+
+    // if cfConsequent specified, return it, else return whole cfWorld
+    var result = (cfParams.cfConsequent ?
+                  contextualEval(cfParams.cfConsequent, cfWorld) :
+                  cfWorld);
+
+    return {
+      result: result,
+      factor: cond1 & cond2 & cond3 ? 0 : -Infinity
+    }
+  });
+};
+///
+
+var becauseERP = function(bcParams) {
+  // "B because A"
+  var antecedentA = bcParams.antecedentA ? bcParams.antecedentA : 'true';
+  var consequentB = bcParams.consequentB;
+
+  // convert to negation for cf ("if !A then !B")
+  var ifNotA = "!(" + antecedentA + ")";
+  var thenNotB = "!(" + consequentB + ")";
+
+  // actualRVs may or may not be defined. we pass them into the cfERP
+  var actualRVs = bcParams.actualRVs;
+
+  // actualWorld may or may not be defined. we pass it into cfERP
+  var actualWorld = bcParams.actualWorld;
+
+  return cfERP({
+    // "A because B" means if not cfA then not cfB
+    cfAntecedent: ifNotA,
+    cfConsequent: thenNotB,
+    actualRVs: actualRVs,
+    actualWorld: actualWorld,
+    // "A because B" (maybe) means that A and B are actually true.
+    actually: impliesComponents ? antecedentA + ' & ' + consequentB : 'true'
+  });
+};
+
+var meaningScore = cache(function(meaningParams) {
+  var utt = meaningParams.utt;
+  var actualWorld = meaningParams.actualWorld;
+  var actualRVs = meaningParams.actualRVs;
+  if (meaningParams.actualRVs & meaningParams.actualWorld) {
+    print([
+      'warning 435:',
+      '*both* RVs and world were given as input!',// for pretty printing
+      'actualRVs=',
+      JSON.stringify(actualRVs),
+      '; actualWorld=',
+      JSON.stringify(actualWorld)
+    ].join(' '));
+  };
+
+  if (utt == 'nothing') {
+    return 0; // saying nothing is always "true"
+  } else if (containsBecause(utt)) {
+    var antecedentA = getAntecedent(utt);
+    var consequentB = getConsequent(utt);
+    var resultERP = becauseERP({
+      antecedentA: antecedentA,
+      consequentB: consequentB,
+      actualWorld: actualWorld
+    });
+    return (resultERP=='impossible' ?
+            -Infinity :
+            // score for !cfConsequent given !cfAntecedent
+            // and actually antecedent and consequent
+            resultERP.score([], true));
+  } else {
+    return contextualEval(utt, actualWorld) ? 0 : -Infinity;
+  }
+});
+
+var literalERP = cache(function(utt) {
+  return checkEnumerate(function() {
+    var actualRVs = rand();
+    var actualWorld = vars(actualRVs);
+    var factor1 = meaningScore(
+      {utt: utt, actualWorld: actualWorld}
+    );
+    return {
+      result: actualWorld,
+      factor: factor1
+    }
+  });
+});
+
+var probabilityOfSmokeAlarm = function(utt) {
+  var interpretation = Enumerate(function() {
+    return sample(literalERP(utt)).S;
+  });
+  return getP(interpretation);
+};
+
+print(probabilityOfSmokeAlarm('N because B'));
+print(probabilityOfSmokeAlarm('N & B'));
+~~~
+
+<!-- 
 We explore the hypothesis that explanations can be thought of as counterfactual statements that are especially relevant and informative in a particular context.
 
 ## Basic counterfactual model: bacon example
@@ -95,8 +520,6 @@ What if we give the explanation, "The neighbors are angry because I cooked bacon
 Intuitively, we can infer that the smoke alarm actually went off. If it hadn't, then the link between bacon and the neighbors being angry would be less strong.
 
 We treat the "literal meaning" of such an explanation as "The neighbors are angry, I cooked bacon, and if (counterfactually) I hadn't cooked bacon, the neighbors wouldn't have been angry.""
-
-If we use this literal interpretation, then a listener who hears "The neighbors are angry *because* I cooked bacon," will be *slightly* more likely to believe that the smoke alarm went off than if they heard the sentence, "The neighbors are angry *and* I cooked bacon." But the difference is small, since the probability of smoke alarm given bacon and neighbors is already basically at ceiling.
 
 ~~~
 ///fold:
@@ -1004,7 +1427,7 @@ print(speaker2ERP('neighbors because bacon', {bacon: true, smokeAlarm: true, nei
 
 print('neighbors because bacon when smokeAlarm is false');
 print(speaker2ERP('neighbors because bacon', {bacon: true, smokeAlarm: false, neighbors: true}));
-~~~
+~~~ -->
 
 <!-- ## Inferring a causal model: simple version
 
@@ -1042,10 +1465,10 @@ teleological explanation 'agent chose A so that B' is applicable when an agent
 -->
 
 
-## To Do
+<!-- ## To Do
 
 * more kinds of intuitive theories, e.g. formal and functional explanations.
   - e.g. social inference in tug-of-war. assuming others choose randomly, should you be lazy? "Alice didn't try because Bob is weak."
 * S2 model for felicity of different explanations
 * presuppositions: lifted variable background knowledge (SALT?)
-* infer causal relationships: simple and NN
+* infer causal relationships: simple and NN -->

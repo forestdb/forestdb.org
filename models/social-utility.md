@@ -13,9 +13,14 @@ observation.
 
 ~~~~
 var restaurants = ["Taco Town", "Burger Barn", "Stirfry Shack"];
-var restaurantPrior = Enumerate(function(){
-  return uniformDraw(restaurants);
-});
+
+var restaurantPrior = map(function(restaurant) {
+  return Enumerate(function(){
+    return flip() ? "good" : "bad";
+  })
+}, restaurants);
+
+var agentPrior = _.object(restaurants, restaurantPrior);
 
 var observe = function(restaurant) {
   return flip() ? "good" : "bad";
@@ -47,7 +52,7 @@ var timeStep = function(prior, remainingIterations){
   }
 };
 
-print(timeStep(restaurantPrior, 50));
+print(timeStep(agentPrior, 50));
 ~~~~
 
 We see that after many time steps, an agent converges on a single "favorite", even though no restaurant is actually better than another. This is simply because agents are more likely to go to a place where they've had a positive experience, and by chance they'll have more initial positive experiences at one place than another.

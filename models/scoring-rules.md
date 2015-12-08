@@ -38,7 +38,7 @@ var distPrior = Enumerate(function(){
     [0.005, .99, 0.005]
   ];
   var ps = uniformDraw(potentialPs);
-  return makeCategorical(['a', 'b', 'c'], ps);
+  return makeCategorical(['A', 'B', 'C'], ps);
 });
 
 var alpha = 100;
@@ -60,7 +60,7 @@ var quadraticScore = function(dist, event) {
 
 var agent = function(scoreFn){
   return Infer(function(){
-    var beliefDist = makeCategorical(['a', 'b', 'c'], [.3, .5, .2]);
+    var beliefDist = makeCategorical(['A', 'B', 'C'], [.3, .5, .2]);
     var reportDist = sample(distPrior);
     var expectedScore = Expectation(function(){
       var event = sample(beliefDist);

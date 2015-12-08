@@ -183,6 +183,12 @@ RSA with a speaker utility that incorporates both informativeness (epistemic uti
 
 
 ~~~~
+var marginalizeERP = function(myERP, label){
+  Enumerate(function(){
+    var x = sample(myERP)
+    return x[label]
+  })
+}
 
 var states = [0,1,2,3,4]
 var utterances = ["terrible","bad","okay","good","amazing"]
@@ -209,11 +215,11 @@ var literalSemantics = {
 }
 
 var meaning = function(words, state){
-    return words=="sayNothing" ? true : flip(literalSemantics[words][i]/100)
+    return words=="sayNothing" ? true : flip(literalSemantics[words][state])
 } 
 
 
-var listener0 = cache(function(utterance, goals) {
+var listener0 = cache(function(utterance) {
   Enumerate(function(){
   var state = statePrior()
   var m = meaning(utterance, state)
@@ -223,7 +229,7 @@ var listener0 = cache(function(utterance, goals) {
 })
 
 
-var speaker1 = cache(function(world, speakerGoals) {
+var speaker1 = cache(function(state, speakerGoals) {
   Enumerate(function(){
     var utterance = utterancePrior()
 
@@ -232,7 +238,7 @@ var speaker1 = cache(function(world, speakerGoals) {
     var niceUtility = expectation(L0)
 
     var jointUtility = speakerGoals.honesty*epistemicUtility + 
-              speakerGoals.kindness*niceUtility
+                       speakerGoals.kindness*niceUtility
 
     factor(jointUtility)
 
@@ -262,7 +268,7 @@ var listener1 = function(utterance, knowledge) {
 
 var experimentalCondition = {
   utterance : "good",
-  knowledge: "okay"
+  knowledge: 1
 }
 
 var posterior = listener1(experimentalCondition.utterance, 

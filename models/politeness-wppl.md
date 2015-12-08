@@ -176,3 +176,102 @@ print(marginalizeERP(posterior, "honesty"))
 print("expected kindness " + expectation(marginalizeERP(posterior, "kindness")))
 print(marginalizeERP(posterior, "kindness"))
 ~~~~
+
+## Kind utility RSA
+
+RSA with a speaker utility that incorporates both informativeness (epistemic utility) and kindness (social utility)
+
+
+~~~~
+
+var states = [0,1,2,3,4]
+var utterances = ["terrible","bad","okay","good","amazing"]
+
+var statePrior = function(){
+  return uniformDraw(states)
+}
+
+var utterancePrior = function(){
+  return uniformDraw(utterances)
+}
+
+var speakerOptimality = 5
+
+var honestyWeights = [1,1,1,1,1]
+var kindnessWeights = [1,1,1,1,1,1,1,1,1,1]
+
+var literalSemantics = {
+  "terrible":[.95,.30,.02,.02,.02],
+  "bad":[.85,.85,.02,.02,.02],
+  "okay":[0.01,0.25,1,.65,.35],
+  "good":[.02,.05,.55,.95,.93],
+  "amazing":[.02,.02,.02,.65,1]
+}
+
+var meaning = function(words, state){
+    return words=="sayNothing" ? true : flip(literalSemantics[words][i]/100)
+} 
+
+
+var listener0 = cache(function(utterance, goals) {
+  Enumerate(function(){
+  var state = statePrior()
+  var m = meaning(utterance, state)
+  condition(m)
+  return state
+  })
+})
+
+
+var speaker1 = cache(function(world, speakerGoals) {
+  Enumerate(function(){
+    var utterance = utterancePrior()
+
+    var L0 = listener0(utterance)
+    var epistemicUtility = L0.score([],state)
+    var niceUtility = expectation(L0)
+
+    var jointUtility = speakerGoals.honesty*epistemicUtility + 
+              speakerGoals.kindness*niceUtility
+
+    factor(jointUtility)
+
+    return utterance
+  })
+})
+
+
+var listener1 = function(utterance, knowledge) {
+  Enumerate(function(){
+    var state = statePrior()
+
+    var speakerGoals = {
+      honesty: [0.1, 0.3, 0.5, 0.7, 0.9][discrete(honestyWeights)],
+      kindness: [-0.9,-0.7,-0.5,-0.3,-0.1,0.1, 0.3, 0.5, 0.7, 0.9][discrete(kindnessWeights)]
+      }
+
+    condition(knowledge ? knowledge == state : true)
+
+    var S1 = speaker1(state, speakerGoals)
+
+    factor(speakerOptimality*S1.score([],utterance))
+
+    return speakerGoals
+  })
+}
+
+var experimentalCondition = {
+  utterance : "good",
+  knowledge: "okay"
+}
+
+var posterior = listener1(experimentalCondition.utterance, 
+                        experimentalCondition.knowledge)
+
+print("expected honesty " + expectation(marginalizeERP(posterior, "honesty")))
+print("expected kindness " + expectation(marginalizeERP(posterior, "kindness")))
+
+vizPrint(posterior)
+
+~~~~
+

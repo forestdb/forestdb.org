@@ -4,58 +4,91 @@ title: Social Construction of Value
 model-language: webppl
 ---
 
-First, we set up our scenario: there are three restaurants, and each
-has an equal chance of being good or bad. An agent develops their own
-beliefs about the value of each restaurant by picking one from its
-prior, observing whether it's good or bad, and then updating their
-beliefs using a utility function solely related to their own
-observation.
+First, we set up our scenario: there are three restaurants, and each has an equal chance of being good or bad. An agent develops their own beliefs about the value of each restaurant by picking one, proportionally to their expected value in the prior, observing whether it's good or bad, and then conditioning on this observation.
 
 ~~~~
+///fold:
+
+var condition = function(x){
+  factor(x ? 0 : -Infinity);
+};
+
+var mean = function(thunk){
+  return expectation(Enumerate(thunk), function(v){return v;});
+};
+
+var uniformDraw = function (xs) {
+  return xs[randomInteger(xs.length)];
+};
+
+var normalize = function(arr) {
+  var s = reduce(function(memo, num){ return memo + num; }, 0, arr);
+  return map(function(val) {return val/s; }, arr);
+};
+///
+
 var restaurants = ["Taco Town", "Burger Barn", "Stirfry Shack"];
+var goodnessWeights = [.1,.2,.3,.4,.5,.6,.7,.8,.9];
 
 var restaurantPrior = map(function(restaurant) {
-  return Enumerate(function(){
-    return flip() ? "good" : "bad";
-  })
+  return Enumerate(function(v){
+    return uniformDraw(goodnessWeights);
+  });
 }, restaurants);
 
 var agentPrior = _.object(restaurants, restaurantPrior);
 
+// In fact, all restaurants are equally likely to be good
 var observe = function(restaurant) {
   return flip() ? "good" : "bad";
 };
 
-var calcUtility = function(possibility, event) {
-  return event.outcome === "good" ? .5 : -.5;
+// Condition on observation
+var updateBeliefs = function(prior, event) {
+  return mapObject(function(key, value) {
+    return (
+      key != event.choice ? 
+      value :
+      Enumerate(function() {
+        var possibleWeight = sample(value);
+        var possibleOutcome = flip(possibleWeight) ? "good" : "bad";
+        condition(possibleOutcome === event.outcome);
+        return possibleWeight;
+      }));
+  }, prior);
 };
 
-var updateBeliefs = function(prior, event) {
-  return Enumerate(function() {
-    var possibility = sample(prior);
-    factor(possibility === event.choice ?
-           calcUtility(possibility, event) :
-           0);
-    return possibility;
-  });
+// Pick restaurants proportionally to their mean expected payoff
+var makeChoices = function(prior) {
+  var restaurants = _.keys(agentPrior);
+  var avgOutcomes = map(function(key) { 
+    return mean(function(){
+      return sample(agentPrior[key]);
+    });
+  }, _.keys(agentPrior));
+  var choice = categorical(normalize(avgOutcomes), restaurants);
+  var outcome = observe(choice);
+  return {choice: choice, outcome : outcome};
 };
 
 var timeStep = function(prior, remainingIterations){
   if (remainingIterations == 0) {
     return prior;
   } else {
-    var choice = sample(prior);
-    var outcome = observe(choice);
-    var event = {choice : choice, outcome : outcome};
+    var event = makeChoices(prior);
+    print(event)
     var posterior = updateBeliefs(prior, event);
     return timeStep(posterior, remainingIterations - 1);
   }
 };
 
-print(timeStep(agentPrior, 50));
+var res = timeStep(agentPrior, 500);
+print(res["Taco Town"]);
+print(res["Burger Barn"]);
+print(res["Stirfry Shack"]);
 ~~~~
 
-We see that after many time steps, an agent converges on a single "favorite", even though no restaurant is actually better than another. This is simply because agents are more likely to go to a place where they've had a positive experience, and by chance they'll have more initial positive experiences at one place than another.
+We see that after many time steps, our rational agent learns the true value of each location.
 
 Next, we add social influence into our utility function. An agent has relationships with others, represented by a vector of weights $w$. If the weight $w_i$ corresponding to a particular other agent is positive, they will slightly increase the value they assign to a restaurant when that agent has a positive experience there, and slightly decrease it when that agent has a negative experience. For now, we do not allow agents to change their relationships over time. We simulate three agents simultaneously, all of whom have positive relationships with one another.
 
@@ -270,8 +303,8 @@ var updateValues = function(agentProps, info){
 var updateBeliefs = function(agents, allAgentsChoices) {
   return mapObject(function(agentName, agentProps) {
     var info = {ownObs : allAgentsChoices[agentName],
-		relationships: agentProps.relationships,
-		socialObs: _.omit(allAgentsChoices, agentName)};
+                relationships: agentProps.relationships,
+                socialObs: _.omit(allAgentsChoices, agentName)};
     var newValues = updateValues(agentProps, info);
     var newRelationships = updateRelationships(agentProps, info);
     return {values: newValues, relationships: newRelationships};

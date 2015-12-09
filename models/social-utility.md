@@ -25,6 +25,15 @@ var normalize = function(arr) {
   var s = reduce(function(memo, num){ return memo + num; }, 0, arr);
   return map(function(val) {return val/s; }, arr);
 };
+
+var expectedVals = function(agentPrior){
+  var outs = map(function(key) { 
+    return mean(function(){
+      return sample(agentPrior[key]);
+    });
+  }, _.keys(agentPrior));
+  return normalize(outs);
+};
 ///
 
 var restaurants = ["Taco Town", "Burger Barn", "Stirfry Shack"];
@@ -45,28 +54,22 @@ var observe = function(restaurant) {
 
 // Condition on observation
 var updateBeliefs = function(prior, event) {
-  return mapObject(function(key, value) {
-    return (
-      key != event.choice ? 
-      value :
-      Enumerate(function() {
-        var possibleWeight = sample(value);
-        var possibleOutcome = flip(possibleWeight) ? "good" : "bad";
-        condition(possibleOutcome === event.outcome);
-        return possibleWeight;
-      }));
+  return mapObject(function(restaurant, value) {
+    return Enumerate(function() {
+      var possibleWeight = sample(value);
+      var possibleOutcome = flip(possibleWeight) ? "good" : "bad";
+      condition(restaurant === event.choice ? 
+                possibleOutcome === event.outcome :
+                true);
+      return possibleWeight;
+    });
   }, prior);
 };
 
 // Pick restaurants proportionally to their mean expected payoff
 var makeChoices = function(prior) {
   var restaurants = _.keys(agentPrior);
-  var avgOutcomes = map(function(key) { 
-    return mean(function(){
-      return sample(agentPrior[key]);
-    });
-  }, _.keys(agentPrior));
-  var choice = categorical(normalize(avgOutcomes), restaurants);
+  var choice = categorical(expectedVals(agentPrior), restaurants);
   var outcome = observe(choice);
   return {choice: choice, outcome : outcome};
 };
@@ -76,7 +79,6 @@ var timeStep = function(prior, remainingIterations){
     return prior;
   } else {
     var event = makeChoices(prior);
-    print(event)
     var posterior = updateBeliefs(prior, event);
     return timeStep(posterior, remainingIterations - 1);
   }

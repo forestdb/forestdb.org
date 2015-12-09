@@ -95,10 +95,42 @@ We see that after many time steps, our rational agent learns the true value of e
 Next, we add social influence into our utility function. An agent has relationships with others, represented by a vector of weights $w$. If the weight $w_i$ corresponding to a particular other agent is positive, they will slightly increase the value they assign to a restaurant when that agent has a positive experience there, and slightly decrease it when that agent has a negative experience. For now, we do not allow agents to change their relationships over time. We simulate three agents simultaneously, all of whom have positive relationships with one another.
 
 ~~~~
+///fold:
+var condition = function(x){
+  factor(x ? 0 : -Infinity);
+};
+
+var mean = function(thunk){
+  return expectation(Enumerate(thunk), function(v){return v;});
+};
+
+var uniformDraw = function (xs) {
+  return xs[randomInteger(xs.length)];
+};
+
+var normalize = function(arr) {
+  var s = reduce(function(memo, num){ return memo + num; }, 0, arr);
+  return map(function(val) {return val/s; }, arr);
+};
+
+var expectedVals = function(agentPrior){
+  var outs = map(function(key) { 
+    return mean(function(){
+      return sample(agentPrior[key]);
+    });
+  }, _.keys(agentPrior));
+  return normalize(outs);
+};
+///
+
 var restaurants = ["Taco Town", "Burger Barn", "Stirfry Shack"];
-var restaurantPrior = Enumerate(function(){
-  return uniformDraw(restaurants);
-});
+var goodnessWeights = [.1,.2,.3,.4,.5,.6,.7,.8,.9];
+
+var restaurantPrior = map(function(restaurant) {
+  return Enumerate(function(v){
+    return uniformDraw(goodnessWeights);
+  });
+}, restaurants);
 
 var agentList = ["Alice", "Bob", "Carol"];
 var getOtherAgents = function(name) {
@@ -108,11 +140,12 @@ var getOtherAgents = function(name) {
 var indWeight = 1;
 var initSocWeight = .5;
 
-// initialize with uniform prior and neutral relationships ([1,1])
+// initialize with uniform prior and neutral relationships ([.5,.5])
 var createAgent = function(name) {
   var otherAgents = getOtherAgents(name);
   var relationships = _.object(otherAgents, [initSocWeight,initSocWeight]); 
-  return {values: restaurantPrior, relationships: relationships};
+  return {values: _.object(restaurants, restaurantPrior), 
+          relationships: relationships};
 };
 
 var initializeAgents = function() {
@@ -128,47 +161,47 @@ var observe = function(restaurant) {
 
 var makeChoices = function(agents) {
   return mapObject(function(agentName, agentProps) {
-    var restaurantChoice = sample(agentProps.values);
-    var outcome = observe(restaurantChoice);
-    return {choice: restaurantChoice, outcome: outcome};
+    var restaurants = _.keys(agentProps.values);
+    var choice = categorical(expectedVals(agentProps.values), restaurants);
+    var outcome = observe(choice);
+    return {choice: choice, outcome: outcome};
   }, agents);
 };
 
-var calcIndividualUtil = function(possibility, info) {
-  var weight = info.ownObs.outcome === "good" ? indWeight : -indWeight;
-  return info.ownObs.choice === possibility ? weight : 0;
-};
-
-// possibility has more utility if another agent liked it, weighted by 
-// strength of relationship to that person
-var calcSocialUtil = function(possibility, info) {
-  return sum(_.values(mapObject(function(name, obs) {
-    var relWeight = info.relationships[name];
-    var weight = obs.outcome === "good" ? relWeight : -relWeight;
-    return obs.choice === possibility ? weight : 0;
-  }, info.socialObs)));
-};
-
-// Utility can come from own observation, as well as some 
-// intrinsic benefit to doing what one's friends are doing.
-  // only get input on individual utility about the place you chose
-  var calcUtility = function(possibility, info) {
-    var indUtil = calcIndividualUtil(possibility, info);
-    var pairwiseSocialUtil = calcSocialUtil(possibility, info);
-    return indUtil + pairwiseSocialUtil;
-  };
-
-// Adjust relationships based on shared experience
+// // Adjust relationships based on shared experience
 var updateRelationships = function(agentProps, info){
   return info.relationships;
 };
 
-// Adjust values proportionally to utility of each restaurant
+// // Adjust values proportionally to utility of each restaurant
 var updateValues = function(agentProps, info){
-  return Enumerate(function() {
-    var possibility = sample(agentProps.values);
-    factor(calcUtility(possibility, info));
-    return possibility;});
+  return mapObject(function(restaurant, value) {
+    return Enumerate(function() {
+      var possibleWeight = sample(value);
+      
+      var relevantOthers = filter(function(key) {
+        return (info.socialObs[key].choice === restaurant ?
+                flip(info.relationships[key]) :
+                false);
+      }, _.keys(info.socialObs));
+      
+      var otherOutcomes = map(function(person){
+        return info.socialObs[person].outcome;
+      }, relevantOthers);
+      
+      var outcomes = (restaurant === info.ownObs.choice ? 
+                      append(otherOutcomes, info.ownObs.outcome) : 
+                      otherOutcomes);
+
+      var possibleOutcomes = repeat(outcomes.length, function(){
+        return flip(possibleWeight) ? "good" : "bad";
+      });
+     
+      condition(_.isEqual(outcomes, possibleOutcomes));
+      
+      return possibleWeight;
+    });
+  }, agentProps.values);
 };
 
 // Loop through each agent, update their values and their relationships
@@ -197,16 +230,21 @@ var timeStep = function(agents, remainingIterations){
 };
 
 var agents = initializeAgents();
-var simResults = timeStep(agents, 50);
-
+var simResults = timeStep(agents, 500);
 print("Alice's values:");
-print(simResults['Alice'].values);
+print(simResults['Alice'].values['Taco Town']);
+print(simResults['Alice'].values['Burger Barn']);
+print(simResults['Alice'].values['Stirfry Shack']);
 
 print("Bob's values:");
-print(simResults['Bob'].values);
+print(simResults['Bob'].values['Taco Town']);
+print(simResults['Bob'].values['Burger Barn']);
+print(simResults['Bob'].values['Stirfry Shack']);
 
 print("Carol's values:");
-print(simResults['Carol'].values);
+print(simResults['Carol'].values['Taco Town']);
+print(simResults['Carol'].values['Burger Barn']);
+print(simResults['Carol'].values['Stirfry Shack']);
 ~~~~
 
 We see that after enough steps, the three friends coordinate their values on the same location. If we turn the social relationship weights down to 0, we recover the phenomena we observed earlier: each agent evolves independently, and we do not see any coordination.

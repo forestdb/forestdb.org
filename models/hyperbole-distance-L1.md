@@ -164,6 +164,4 @@ model-language: church
 	  (barplot (L1 10000 'onepercent 'literal) "onepercent 10000 literal")
 	  (barplot (L1 10000 'onepercent 'hyperbolic) "onepercent 10000 hyperbolic")
 	  (barplot (L1 50 'onepercent 'literal) "onepercent 50 literal")
-
-
-
+	

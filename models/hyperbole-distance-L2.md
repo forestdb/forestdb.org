@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Hyperbole with uncertainty about speaker's priors
+title: Hyperbole with uncertainty about speaker's beliefs about listener's priors
 model-status: code
 model-language: church
 ---

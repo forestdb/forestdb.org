@@ -121,6 +121,11 @@ var expectedVals = function(agentPrior){
   }, _.keys(agentPrior));
   return normalize(outs);
 };
+
+var getOtherAgents = function(agentNames, name) {
+  return _.without(agentNames, name);
+}; 
+
 ///
 
 var restaurants = ["Taco Town", "Burger Barn", "Stirfry Shack"];
@@ -132,27 +137,20 @@ var restaurantPrior = map(function(restaurant) {
   });
 }, restaurants);
 
-var agentList = ["Alice", "Bob", "Carol"];
-var getOtherAgents = function(name) {
-  return _.without(agentList, name);
-}; 
-
-var indWeight = 1;
-var initSocWeight = .5;
-
 // initialize with uniform prior and neutral relationships ([.5,.5])
-var createAgent = function(name) {
-  var otherAgents = getOtherAgents(name);
-  var relationships = _.object(otherAgents, [initSocWeight,initSocWeight]); 
+var createAgent = function(name, agentNames) {
+  var otherAgents = getOtherAgents(name, agentNames);
+  var otherWeights = repeat(otherAgents.length, function(){return .5;});
+  var relationships = _.object(otherAgents, otherWeights);
   return {values: _.object(restaurants, restaurantPrior), 
           relationships: relationships};
 };
 
-var initializeAgents = function() {
+var initializeAgents = function(agentNames) {
   var agentProperties = map(function(agent) {
-    return createAgent(agent);
-  }, agentList);
-  return _.object(agentList, agentProperties);
+    return createAgent(agent, agentNames);
+  }, agentNames);
+  return _.object(agentNames, agentProperties);
 };
 
 var observe = function(restaurant) {
@@ -168,37 +166,39 @@ var makeChoices = function(agents) {
   }, agents);
 };
 
-// // Adjust relationships based on shared experience
+// Adjust relationships based on shared experience
 var updateRelationships = function(agentProps, info){
   return info.relationships;
 };
 
-// // Adjust values proportionally to utility of each restaurant
+// Sample outcomes of other agents propotionally to strength of 
+// relationship
+var sampleOtherOutcomes = function(restaurant, info) {
+  var relevantOthers = filter(function(key) {
+    return (info.socialObs[key].choice === restaurant ?
+            flip(info.relationships[key]) :
+            false);
+  }, _.keys(info.socialObs));
+
+  return map(function(person){
+    return info.socialObs[person].outcome;
+  }, relevantOthers);
+  
+};
+
+// Adjust values proportionally to utility of each restaurant
 var updateValues = function(agentProps, info){
   return mapObject(function(restaurant, value) {
     return Enumerate(function() {
-      var possibleWeight = sample(value);
-      
-      var relevantOthers = filter(function(key) {
-        return (info.socialObs[key].choice === restaurant ?
-                flip(info.relationships[key]) :
-                false);
-      }, _.keys(info.socialObs));
-      
-      var otherOutcomes = map(function(person){
-        return info.socialObs[person].outcome;
-      }, relevantOthers);
-      
-      var outcomes = (restaurant === info.ownObs.choice ? 
-                      append(otherOutcomes, info.ownObs.outcome) : 
-                      otherOutcomes);
-
-      var possibleOutcomes = repeat(outcomes.length, function(){
+      var possibleWeight = sample(value);    
+      var otherOutcomes = sampleOtherOutcomes(restaurant, info);      
+      var trueOutcomeSet = (restaurant === info.ownObs.choice ? 
+                          append(otherOutcomes, info.ownObs.outcome) : 
+                          otherOutcomes);
+      var simulatedOutcomeSet = repeat(trueOutcomeSet.length, function(){
         return flip(possibleWeight) ? "good" : "bad";
       });
-     
-      condition(_.isEqual(outcomes, possibleOutcomes));
-      
+      condition(_.isEqual(trueOutcomeSet, simulatedOutcomeSet));
       return possibleWeight;
     });
   }, agentProps.values);
@@ -229,7 +229,7 @@ var timeStep = function(agents, remainingIterations){
   }
 };
 
-var agents = initializeAgents();
+var agents = initializeAgents(["Alice", "Bob", "Carol"]);
 var simResults = timeStep(agents, 500);
 print("Alice's values:");
 print(simResults['Alice'].values['Taco Town']);
@@ -259,7 +259,7 @@ var restaurantPrior = Enumerate(function(){
 });
 
 var agentList = ["Alice", "Bob", "Carol"];
-var getOtherAgents = function(name) {
+var getOtherAgents = function(agentList, name) {
   return _.without(agentList, name);
 };
 
@@ -268,7 +268,7 @@ var initSocWeight = .5;
 
 // initialize with uniform prior and neutral relationships ([1,1])
 var createAgent = function(name) {
-  var otherAgents = getOtherAgents(name);
+  var otherAgents = getOtherAgents(agentList, name);
   var relationships = _.object(otherAgents, [initSocWeight,initSocWeight]);
   return {
     values: restaurantPrior,

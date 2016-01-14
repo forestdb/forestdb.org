@@ -1808,3 +1808,152 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
 ~~~
 
 
+# A color predictability model with baked in color-dependent fidelities.
+
+
+~~~
+; Created January 11 2016 by jdegen
+
+(define (power dist a) (list (first dist) 
+                             (map (lambda (x) (pow x a)) (second dist))))
+
+(define listener_n 1000) ;mh-query iterations in literal listener
+(define speaker_n 1000) ;mh-query iterations in pragmatic speaker
+(define prior-exp 5)
+
+; Free word cost parameters (equal costs):
+(define color_cost .1) ; lower means less costly
+(define size_cost .1) ; lower means less costly
+(define type_cost .1) ; lower means less costly
+
+; A context is a labeled list of lists, where sub-lists represent objects with a color and a type feature. The following three contexts are taken directly from Westerbeek et al. 2014. The first object in each context represents the target object for that context, in descending order of color typicality (red tomato, yellow apple, blue pepper)
+(define context_typical
+  (list 'typical
+        (list (list 'yellow 'banana)
+              (list 'yellow 'pumpkin)
+              (list 'green 'lemon)
+              (list 'green 'cheese)
+              (list 'red 'corn)
+              (list 'red 'apple)
+              )))
+
+(define context_atypical
+  (list 'atypical
+        (list (list 'blue 'banana)
+              (list 'blue 'pumpkin)
+              (list 'green 'lemon)
+              (list 'green 'cheese)
+              (list 'red 'corn)
+              (list 'red 'apple)
+              )))
+
+; baked in fidelities
+(define (get-fidelity utt obj)
+  (case utt
+        (('banana) (if (equal? obj '(yellow banana)) 
+                       .9 
+                       (if (equal? obj '(blue banana)) 
+                           .005
+                           .001)))
+        (('yellow_banana) (if (equal? obj '(yellow banana)) 
+                              .999 
+                              .001))
+        (('blue_banana) (if (equal? obj '(blue banana)) 
+                            .999 
+                            .001))
+        (('other) (if (or (equal? obj '(blue banana))
+                          (equal? obj '(yellow banana)))
+                      .001
+                      .99))
+        )
+  )
+
+; The literal listener infers a distribution over objects, given an utterance -- retrieves the color prior for a simple type utterance and perfectly retrieves that true feature combination if color is mentioned
+(define literal-listener
+  (mem   (lambda (utterance objects)           
+
+           ; The basic lexicon that encodes noisy semantics for words (ie correctly returns true/false with probability determined by fidelity parameter)
+           (define (lexicon utterance obj)
+             (flip (get-fidelity utterance obj)))
+
+           ; The meaning function 
+           (define (meaning utterance obj)
+             (lexicon utterance obj))
+
+           ; Infer away
+           (enumeration-query
+            (define obj (uniform-draw objects))
+
+            obj
+
+            (meaning utterance obj)))))
+
+
+; A pragmatic speaker that infers a distribution over utterances, given an object from a context plus knowledge of costs
+
+(define pragmatic-speaker 
+  (mem (lambda (obj color_cost type_cost context)
+
+         (define (banana-utterance context)
+           (if (equal? (first (first context))
+                       'yellow)
+               'yellow_banana
+               'blue_banana)
+           )
+         ; Boring hard-coded set of alternatives: banana, yellow/blue banana, other
+         (define utterances (list 'banana (banana-utterance context) 'other))         
+
+         ; Generates a cost vector for the utterances, with a fixed cost for an extra word (free parameter defined at beginning of file). 
+         (define (costs color_cost type_cost)
+           (map (lambda (utt)
+                  (sum (map (lambda (word) 
+                              (if (or (equal? word 'red) 
+                                      (equal? word 'orange)
+                                      (equal? word 'yellow)                                                                    
+                                      (equal? word 'green)
+                                      (equal? word 'blue))
+                                  color_cost 
+                                  type_cost)) 
+                            (regexp-split utt '_))))
+                utterances))
+
+
+		; Infer away
+         (enumeration-query
+          (define utterance (multinomial utterances 
+                                         (map (lambda (c) (exp (- (* 4 c)))) (costs color_cost type_cost)))) 
+
+          utterance
+
+          (equal? obj
+                  (apply multinomial
+                         (literal-listener utterance context)))
+          ))))
+
+
+;(list
+; (literal-listener 'yellow_banana (second context_typical)) 
+; '(********************************************************)
+; (literal-listener 'blue_banana (second context_atypical)) 
+; '(********************************************************)
+; (literal-listener 'banana (second context_typical)) 
+; '(********************************************************)
+; (literal-listener 'banana (second context_atypical))
+; '(********************************************************)
+; (literal-listener 'other (second context_typical)) 
+; '(********************************************************)
+; (literal-listener 'other (second context_atypical))) 
+
+(list
+ (pragmatic-speaker '(yellow banana) .1 .1 (second context_typical))
+ '(********************************************************)
+ (pragmatic-speaker '(blue banana) .1 .1 (second context_atypical))
+ '(********************************************************) 
+ (pragmatic-speaker '(yellow pumpkin) .1 .1 (second context_typical))
+ '(********************************************************) 
+ (pragmatic-speaker '(blue pumpkin) .1 .1 (second context_atypical))  
+ )	
+
+~~~
+
+

@@ -1853,17 +1853,17 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
         (('banana) (if (equal? obj '(yellow banana)) 
                        .9 
                        (if (equal? obj '(blue banana)) 
-                           .005
-                           .001)))
+                           .2
+                           .02)))
         (('yellow_banana) (if (equal? obj '(yellow banana)) 
-                              .999 
-                              .001))
+                              .99 
+                              .02))
         (('blue_banana) (if (equal? obj '(blue banana)) 
-                            .999 
-                            .001))
+                            .99 
+                            .02))
         (('other) (if (or (equal? obj '(blue banana))
                           (equal? obj '(yellow banana)))
-                      .001
+                      .02
                       .99))
         )
   )
@@ -1918,10 +1918,10 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
                 utterances))
 
 
-		; Infer away
+         ; Infer away
          (enumeration-query
           (define utterance (multinomial utterances 
-                                         (map (lambda (c) (exp (- (* 4 c)))) (costs color_cost type_cost)))) 
+                                         (map (lambda (c) (exp (- (* 2 c)))) (costs color_cost type_cost)))) 
 
           utterance
 
@@ -1931,18 +1931,18 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
           ))))
 
 
-;(list
-; (literal-listener 'yellow_banana (second context_typical)) 
-; '(********************************************************)
-; (literal-listener 'blue_banana (second context_atypical)) 
-; '(********************************************************)
-; (literal-listener 'banana (second context_typical)) 
-; '(********************************************************)
-; (literal-listener 'banana (second context_atypical))
-; '(********************************************************)
-; (literal-listener 'other (second context_typical)) 
-; '(********************************************************)
-; (literal-listener 'other (second context_atypical))) 
+;; (list
+;;  (literal-listener 'yellow_banana (second context_typical)) 
+;;  '(********************************************************)
+;;  (literal-listener 'blue_banana (second context_atypical)) 
+;;  '(********************************************************)
+;;  (literal-listener 'banana (second context_typical)) 
+;;  '(********************************************************)
+;;  (literal-listener 'banana (second context_atypical))
+;;  '(********************************************************)
+;;  (literal-listener 'other (second context_typical)) 
+;;  '(********************************************************)
+;;  (literal-listener 'other (second context_atypical))) 
 
 (list
  (pragmatic-speaker '(yellow banana) .1 .1 (second context_typical))
@@ -1953,6 +1953,7 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
  '(********************************************************) 
  (pragmatic-speaker '(blue pumpkin) .1 .1 (second context_atypical))  
  )	
+
 
 ~~~
 

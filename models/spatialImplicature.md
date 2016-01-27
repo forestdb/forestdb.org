@@ -141,7 +141,7 @@ model-language: church
        ;; Sample lily location from prior
        (define state (lily-prior))
        
-       ;; Define a near-distance prior as uniform on 10-50
+       ;; Define a near-distance prior as uniform on 10-30
        (define (dist-prior) (uniform-draw (list 10 20 30)))
        
        ;; Sample the near-distance for each region

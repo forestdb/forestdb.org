@@ -187,15 +187,15 @@ model-language: church
     
     ;; Choose the depth of the listener:
     ;;   Depth 0 => Literal listener (L0)
-    ;;   Dpeth 1 => Pragmatic listener (L1)
+    ;;   Depth 1 => Pragmatic listener (L1)
     (define depth 0)
+    ;; Choose number of samples to take and utterance heard by listener
+    (define dat (repeat 5000 (lambda () (listener 8 depth))))
+    ;; Round the results and output the data
+    (map (lambda (x) (list (round-2 (first x)) (round-2 (second x)))) dat)
 
 References:
 
 - Cite:ProbMods
 
-;; Choose number of samples to take and utterance heard by listener
-(define dat (repeat 5000 (lambda () (listener 8 depth))))
 
-;; Round the results and output the data
-(map (lambda (x) (list (round-2 (first x)) (round-2 (second x)))) dat)

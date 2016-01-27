@@ -1,9 +1,9 @@
 ---
 layout: model
-title: Inducing Arithmetic Functions
+title: Spatial Implicature
 model-status: code
-model-category: Concept Learning
-model-tags: concepts, program induction
+model-category: Reasoning about Reasoning
+model-tags: implicature, pragmatic reasoning
 model-language: church
 ---
 

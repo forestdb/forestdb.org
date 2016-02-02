@@ -128,7 +128,7 @@ var expt3 = listener1(
   goalWeights: false
 }, "goals")
 
-vizPrint(rs2)
+vizPrint(expt3)
 
 ~~~~
 

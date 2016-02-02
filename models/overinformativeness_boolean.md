@@ -1314,18 +1314,110 @@ This model is specifically to explore the effect of varying color predictability
 
 ~~~
 
-# Color predictability effect.
+# An implementation of the PRO model as reported in Gatt et al (2013, CogSci Proceedings, Figure 2). 
+
+You can vary:
+
+- x: color selection probability in the color-or-size condition (trades off with size selection probability --  color and size selection probabilities are 1 in the color-only and size-only condition, respectively)
+
+- y: overspecification eagerness 
+
+- context (lists of features)
+
+- what the target and competitors are
+
+This model is specifically to test the PRO predictions and compare with versions of RSA for the lightbulb-style contexts reported by Gatt et al 2011. They use x = .87 and y = -.05
+
+A weird thing that results from the way they set this up is that in their second selection step, they sum up the preference for the feature (a probability) and the eagerness to overspecify (supposedly also a probability) -- but with particular settings of parameters (eg color-preference 0 and negative eagerness to overspecify, given the standard "lightbulb" context, this results in a negative "probability". This is awful.
+
+~~~
+; Stuff to vary: free parameters
+(define color-preference .87) ; the "x" value from Gatt et al 2013
+(define size-preference (- 1 color-preference)) ; they "1-x" value from Gatt et al 2013
+(define eager-to-overspecify -.05) ; the "y" value from Gatt et al 2013
+
+; Stuff to vary: context
+(define context (list (list 'o1 'big 'red)
+                      (list 'o2 'small 'red)
+                      (list 'o3 'small 'yellow)))
+
+; Stuff to vary: target and competitors
+(define obj-target 'o1)
+(define obj-comp1 'o2)
+(define obj-comp2 'o3)
+
+; Extracts a list of object IDs for the objects in the context
+(define objs
+  (map (lambda (obj)
+         (first obj))
+       context))
+
+; Helper function for utterances: Strips the original context of object IDs
+(define pruned-context 
+  (map (lambda (cont) 
+         (drop cont 1))
+       context))		
+
+; Helper function for lexicon: Returns a list of an object's features
+(define (check-features obj)
+  (list-ref pruned-context (list-index objs obj)))
+
+; Helper function for pro-speaker: returns a list of two numbers that indicate whether the features of the target object are shared with other objects
+; (-2 -2) means neither feature is shared (color-or-size condition from GEA 2013)
+; (-2 0) means size is not shared, ie it's discriminating (size-only condition from GEA 2013)
+; (0 -2) means color is not shared, ie it's discriminating (color-only condition from GEA 2013)
+; (0 0) means neither feature is discriminating GEA 2013 don't talk about this)
+(define discriminating-features 
+  (map (lambda (feature obj-target)
+         (sum (list (list-index (check-features obj-comp1) feature) (list-index (check-features obj-comp2) feature))))
+       (check-features obj-target)
+       ))
+
+; A speaker with color/size preferences and a particular eagerness to over-specify
+(define pro-speaker 
+  (lambda ()
+    ; Helper function for pro-speaker: returns a preference-based choice of color or size, in case both color and size are discriminating
+    (define preferred-word
+      (multinomial (check-features obj-target) 
+                   (list size-preference color-preference)))    
+    ; if both color and size discriminate, select one with preference probability, then select the other with sum of preference probability and eagerness to overspecify -- WARNING: THIS CAN RESULT IN NON-PROPER PROBABILITIES!! HOW CAN THEY DO THIS?
+    (if (= (sum discriminating-features) -4) ; if both properties are discriminating
+        (if (equal? preferred-word (first (check-features obj-target))) 
+            (if (flip (+ color-preference eager-to-overspecify)) ; if you selected size, now flip whether you're going to also say color
+                (string-append preferred-word '_ (second (check-features obj-target)))
+                preferred-word)
+            (if (flip (+ size-preference eager-to-overspecify)) ; if you selected color, now flip whether you're going to also say size
+                (string-append (first (check-features obj-target)) '_ preferred-word)
+                preferred-word))
+        (if (= (first discriminating-features) -2) 
+            (if (flip (+ color-preference eager-to-overspecify)) ; if only size is discriminating
+                (string-append (first (check-features obj-target)) '_ (second (check-features obj-target)))
+                (first (check-features obj-target)))
+            (if (flip (+ size-preference eager-to-overspecify)) ; if only color is discriminating
+                (string-append (first (check-features obj-target)) '_ (second (check-features obj-target)))            
+                (second (check-features obj-target)))
+            ))
+    ))  	
+
+(hist (repeat 10000 pro-speaker))
+
+
+~~~
+
+# A clumsy model of the color predictability effect.
 
 The pragmatic speaker tries to get the literal listener to choose the intended referent (one of six objects with a color and type feature). The literal listener samples objects depending on the object's color (either inferred from prior or explicitly given in utterance). For unpredictable colors, the probability of miscommunication is high, so the speaker is likely to mention color. But, confusing: the speaker is happy to mention color even when it's very predictable (and even when you strike the other object of the same color from the context). Why??
 
 ~~~
 ; Created October 31 2015 by jdegen
+; Updated January 10 2016 by jdegen
 
 (define (power dist a) (list (first dist) 
                              (map (lambda (x) (pow x a)) (second dist))))
 
 (define listener_n 1000) ;mh-query iterations in literal listener
 (define speaker_n 1000) ;mh-query iterations in pragmatic speaker
+(define prior-exp 5)
 
 ; Free word fidelity and speaker optimality parameters (none of which are used in this model):
 (define color_fidelity .999) ; 1 - noise probability (color -- higher means less noise -- unused in this model)
@@ -1346,7 +1438,7 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
               (list 'green 'lemon)
               (list 'green 'cheese)
               (list 'yellow 'corn)
-              (list 'yellow 'broccoli)
+              (list 'yellow 'lettuce)
               )))
 
 (define context_intermediate
@@ -1372,68 +1464,81 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
 
 ; The literal listener infers a distribution over objects, given an utterance -- retrieves the color prior for a simple type utterance and perfectly retrieves that true feature combination if color is mentioned
 (define literal-listener
-  (mem   (lambda (utterance color_fidelity size_fidelity type_fidelity objects)       
-           ;         (enumeration-query  
-
+  (mem   (lambda (utterance color_fidelity size_fidelity type_fidelity objects)    
            (mh-query listener_n 5
+                     ; split utterance into its parts   
+                     (define sub-utts (regexp-split utterance '_))
 
-                     ; split up the utterance into its sub-strings				           			
-                     (define sub-utts (regexp-split utterance '_))     
-
-                     ; made-up color priors for the objects in the contexts
-
+                     ; color priors for the objects in the contexts, obtained by normalizing the color typicality values from Westerbeek et al 2015
                      (define carrot-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .0001 .9 .097 .0001 .0001)))
+                       (multinomial '(blue green orange red yellow)
+                                    (map (lambda (p) (pow p prior-exp)) 
+                                    (list 0.087248322 0.09395973 0.65771812 0.04026846 0.1208054))))
 
                      (define pineapple-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .0001 .0001 .9 .097 .0001)))
+                       (multinomial '(blue green orange red yellow)
+                                    (map (lambda (p) (pow p prior-exp)) 
+                                    (list 0.071005917 0.05917160 0.31952663 0.10650888 0.4437870))))
 
                      (define naranja-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .0001 .9 .0001 .097 .0001)))
+                       (multinomial '(blue green orange red yellow)
+                                    (map (lambda (p) (pow p prior-exp)) 
+                                    (list 0.072222222 0.10555556 0.50555556 0.05555556 0.2611111))))
+
+                     (define grapes-prior
+                       (multinomial '(blue green orange red yellow)
+                                    (map (lambda (p) (exp (* prior-exp p))) (list 0.078431373 0.47549020 0.08333333 0.08333333 0.2794118))))                                    
 
                      (define tomato-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .9 .0001 .0001 .097 .0001)))
-                                    
+                       (multinomial '(blue green orange red yellow)
+                                    (map (lambda (p) (pow p prior-exp)) 
+                                    (list 0.013392857 0.16964286 0.29017857 0.43303571 0.0937500))))
+
                      (define apple-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .7 .0001 .2 .098 .0001)))
-                                                                        
+                       (multinomial '(blue green orange red yellow)
+                                    (map (lambda (p) (pow p prior-exp)) 
+                                    (list 0.016233766 0.19480519 0.29870130 0.30194805 0.1883117))))
+
                      (define pepper-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .6 .099 .15 .15 .0001))) 
+                       (multinomial '(blue green orange red yellow)
+                                    (map (lambda (p) (pow p prior-exp)) 
+                                    (list 0.005649718 0.24858757 0.21468927 0.27401130 0.2570621))))
+
+                     (define pear-prior
+                       (multinomial '(blue green orange red yellow)
+                                    (map (lambda (p) (pow p prior-exp)) 
+                                    (list 0.030487805 0.41463415 0.20121951 0.10975610 0.2439024))))                                     
 
                      (define lettuce-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .0001 .0001 .0001 .996 .0001))) 
+                       (multinomial '(blue green orange red yellow)
+                                    (map (lambda (p) (pow p prior-exp)) 
+                                    (list 0.017751479 0.54437870 0.02366864 0.01775148 0.3964497)))) 
 
                      (define banana-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .0001 .0001 .9 .097 .0001)))
+                       (multinomial '(blue green orange red yellow)
+                                    (map (lambda (p) (pow p prior-exp)) 
+                                    (list 0.106741573 0.20786517 0.14044944 0.03370787 0.5112360))))
 
 
                      (define pumpkin-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .0001 .9 .0001 .097 .0001)))
+                       (multinomial '(blue green orange red yellow)
+                                    (map (lambda (p) (pow p prior-exp)) 
+                                    (list 0.011627907 0.06976744 0.56976744 0.12209302 0.2267442))))
 
                      (define lemon-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .0001 .0001 .9 .097 .0001)))
+                       (multinomial '(blue green orange red yellow)
+                                    (map (lambda (p) (pow p prior-exp)) 
+                                    (list 0.038251366 0.02732240 0.38797814 0.02732240 0.5191257))))
 
                      (define cheese-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .0001 .9 .0001 .0001 .097)))
-
-                     (define broccoli-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .0001 .0001 .097 .9 .0001))) 
+                       (multinomial '(blue green orange red yellow)
+                                    (map (lambda (p) (pow p prior-exp)) 
+                                    (list 0.018072289 0.03012048 0.30722892 0.05421687 0.5903614))))
 
                      (define corn-prior
-                       (multinomial '(red orange yellow green blue)
-                                    (list .0001 .0001 .9 .097 .0001)))          
+                       (multinomial '(blue green orange red yellow)
+                                    (map (lambda (p) (pow p prior-exp)) 
+                                    (list 0.053571429 0.11309524 0.22619048 0.02976190 0.5773810))))          
 
                      ; helper function to get the right color prior depending on object type
                      (define color-prior
@@ -1454,14 +1559,63 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
                                (('corn) corn-prior)                    
                                )))
 
-                     ; meaning function that checks the literal semantics of the utterance -- currently UNUSED because the literal listener needs to be able to get things "wrong"
-                     (define (meaning sub-utts obj-color obj-type)
-                       (if (= (length sub-utts) 2)
-                           (and (equal? (first sub-utts) obj-color) (equal? (second sub-utts) obj-type))
-                           (equal? (first sub-utts) obj-type)))      
+                     ; color typicalities for the objects in the contexts; values taken from Westerbeek et al 2015 and rescaled to fit .6-1.00 fidelity range (lower bound of .6 rather than .5 to avoid completely random choices -- ie we do want the type to have some effect, even when its color is highly atypical)
+                     (define (type_fidelities obj_type)
+                       (case obj_type
+                             (('pepper) (list '(blue 0.608) '(yellow 0.964) '(green 0.952) '(orange 0.904) '(red 0.988)))
+                             (('apple) (list '(blue 0.62) '(yellow 0.832) '(green 0.84) '(orange 0.968) '(red 0.972)))
+                             (('banana) (list '(blue 0.676) '(yellow 0.964) '(green 0.748) '(orange 0.7) '(red 0.624)))
+                             (('carrot) (list '(blue 0.652) '(yellow 0.672) '(green 0.656) '(orange 0.992) '(red 0.624)))
+                             (('cheese) (list '(blue 0.612) '(yellow 0.992) '(green 0.62) '(orange 0.804) '(red 0.636)))
+                             (('corn) (list '(blue 0.636) '(yellow 0.988) '(green 0.676) '(orange 0.752) '(red 0.62)))
+                             (('grapes) (list '(blue 0.664) '(yellow 0.828) '(green 0.988) '(orange 0.668) '(red 0.668)))                             
+                             (('lemon) (list '(blue 0.628) '(yellow 0.98) '(green 0.62) '(orange 0.884) '(red 0.62)))
+                             (('lettuce) (list '(blue 0.612) '(yellow 0.868) '(green 0.968) '(orange 0.616) '(red 0.612)))
+                             (('naranja) (list '(blue 0.652) '(yellow 0.788) '(green 0.676) '(orange 0.964) '(red 0.64)))
+                             (('pear) (list '(blue 0.62) '(yellow 0.76) '(green 0.872) '(orange 0.732) '(red 0.672)))
+                             (('pineapple) (list '(blue 0.648) '(yellow 0.9) '(green 0.64) '(orange 0.816) '(red 0.672)))
+                             (('pumpkin) (list '(blue 0.608) '(yellow 0.756) '(green 0.648) '(orange 0.992) '(red 0.684)))
+                             (('tomato) (list '(blue 0.612) '(yellow 0.684) '(green 0.752) '(orange 0.86) '(red 0.988)))))
 
-                     ; THE MEAT.
-                     ; 1. Get the object's color -- if the utterance is a color_noun utterance, it's just the first word; otherwise, take a sample from the object's color prior
+
+                     ; helper function to get a type's fidelity (ie typicality score)
+                     (define (get-fidelity utt obj)
+                       (define colors 			
+                         (map (lambda (fid)
+                                (first fid))
+                              (type_fidelities utt)))
+
+                       (define fidelities 			
+                         (map (lambda (fid)
+                                (second fid))
+                              (type_fidelities utt)))
+
+                       (if (> (list-index colors (first obj)) -1)
+                           (list-ref fidelities (list-index colors (first obj)))
+                           .6))
+
+                     ; The basic lexicon that encodes noisy semantics for words (ie correctly returns true/false with probability determined by fidelity parameter)
+                     (define (lexicon utterance obj)
+                       (if (> (list-index obj utterance) -1)
+                           (flip (get-fidelity utterance obj))
+                           (flip (- 1 (get-fidelity utterance obj)))))
+
+                     ; The meaning function 
+                     ; - if the utterance is just a color, returns true (because we don't condition on the meaning of color, we use it to sample a candidate object)
+                     ; - else check that the type meaning is true of candidate object
+                     (define (meaning utterance obj)
+                       (if (lexical-item? utterance)
+                           (if (> (list-index '(red orange yellow green blue purple black brown pink white)
+                                              utterance) -1)
+                               true
+                               (lexicon utterance obj))
+                           (lexicon (second (regexp-split utterance '_)) obj)))
+
+                     ; Helper function for meaning: Checks whether an utterance is a lexical item (i.e. an utterance that is only one word long)
+                     (define (lexical-item? utterance)
+                       (= (length (regexp-split utterance '_)) 1))
+
+                     ; Helper function to get the object's color -- if the utterance is a color_noun utterance, it's just the first word; otherwise, take a sample from the object's color prior
                      (define obj-color 
                        (if (> (list-index 
                                '(red orange yellow green blue)
@@ -1469,16 +1623,16 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
                            (first sub-utts)
                            (color-prior (first sub-utts))))
 
+                     ; Then sample an object depending on the sampled color.
 
-                     ; 2. Sample an object depending on the sampled color.
-
-                     ; Helper function: check whether an object has a color and return true if it does, false otherwise
+                     ; Helper function: check whether an object has a color and return true if it does, false otherwise (not entirely categorical but instead tiny number when object doesn't have color, to not mess up the support in sample-compatible-object)
                      (define (check-color obj color)
                        (if (equal? (first obj) color)
                            1
                            0.00000001))
 
-                     ; Sample an object from only that set of objects in context that has the sampled color.
+
+                     ; Helper function that samples an object from only that set of objects in context that has the sampled color.
                      (define sample-compatible-object
                        (multinomial objects
                                     (map (lambda (o) 
@@ -1486,52 +1640,48 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
                                          objects)
                                     ))
 
+                     ; Select candidate object (by sampling from the contextual objects compatible with the color expectation that the utterance generates)
                      (define obj sample-compatible-object)
 
                      obj
 
-                     ;          (meaning sub-utts obj-color obj-type)
-                     true))))
+                     (meaning utterance obj)))))
 
 
 ; A pragmatic speaker that infers a distribution over utterances, given an object from a context (plus knowledge of word fidelities and costs, but those are all either not used or set to be equal to each other here)
 
 (define pragmatic-speaker 
   (mem (lambda (obj color_fidelity size_fidelity type_fidelity color_cost size_cost type_cost context)
-
-         ; Helper function for utterances: concatenates an object's features to create a "_"-separated two-word utterance like "red_apple"
-         (define (gen-utt obj)
-           (list
-            (second obj)
-            (string-append (first obj) '_ (second obj))
-            ))	
-
-         ; Generates the set of alternatives for the object by taking all feature conjunctions as utterances as well as each individual feature (currently only implemented for two-feature objects)
-         (define utterances
-           (gen-utt obj))
-
-         ; Generates a cost vector for the utterances, with a fixed cost for an extra word (free parameter defined at beginning of file). 
-         (define (costs color_cost size_cost type_cost)
-           (map (lambda (utt)
-                  (sum (map (lambda (word) 
-                              (if (or (equal? word 'red) 
-                                      (equal? word 'orange)
-                                      (equal? word 'yellow)                                                                    
-                                      (equal? word 'green)
-                                      (equal? word 'blue))
-                                  color_cost 
-                                  (if (or (equal? word 'big)
-                                          (equal? word 'small))
-                                      size_cost
-                                      type_cost
-                                      ))) 
-                            (regexp-split utt '_))))
-                utterances))
-
          (mh-query speaker_n 5
-                   ;         (enumeration-query        
+                   ; Helper function for utterances: concatenates an object's features to create a "_"-separated two-word utterance like "red_apple"
+                   (define (gen-utt obj)
+                     (list
+                      (second obj)
+                      (string-append (first obj) '_ (second obj))
+                      ))	
+
+                   ; Generates the set of alternatives for the object by taking all feature conjunctions as utterances as well as each individual feature (currently only implemented for two-feature objects)
+                   (define utterances
+                     (gen-utt obj))
+
+                   ; Generates a cost vector for the utterances, with a fixed cost for an extra word (free parameter defined at beginning of file). 
+                   (define (costs color_cost type_cost)
+                     (map (lambda (utt)
+                            (sum (map (lambda (word) 
+                                        (if (or (equal? word 'red) 
+                                                (equal? word 'orange)
+                                                (equal? word 'yellow)                                                                    
+                                                (equal? word 'green)
+                                                (equal? word 'blue))
+                                            color_cost 
+                                            type_cost)) 
+                                      (regexp-split utt '_))))
+                          utterances))
+
+
+                   ; This way of formulating the cost function makes it so that you're twice as likely to choose an utterance with just one word as opposed to two (given the total number of utterances is 12, as is the case in the contexts we're looking at) -- it's worth thinking about whether we should fit a parameter (what is currently set to 6)     
                    (define utterance (multinomial utterances 
-                                                  (map (lambda (c) (exp (- c))) (costs color_cost size_cost type_cost))))
+                                                  (map (lambda (c) (exp (- (* 6 c)))) (costs color_cost size_cost type_cost)))) 
 
                    utterance
 
@@ -1641,95 +1791,170 @@ The pragmatic speaker tries to get the literal listener to choose the intended r
  ;
  )
 
-~~~
+;; (multiviz
+;;  (hist (literal-listener 'red .999 .999 .999 (second context_typical)) "red")
+;;  (hist (literal-listener 'tomato .999 .999 .999 (second context_typical)) "tomato")
+;;  (hist (literal-listener 'red_tomato .999 .999 .999 (second context_typical)) "red_tomato")
+;;  (hist (literal-listener 'yellow .999 .999 .999 (second context_intermediate)) "yellow")
+;;  (hist (literal-listener 'apple .999 .999 .999 (second context_intermediate)) "apple")
+;;  (hist (literal-listener 'yellow_apple .999 .999 .999 (second context_intermediate)) "yellow_apple") 
+;;  (hist (literal-listener 'blue .999 .999 .999 (second context_atypical)) "blue")
+;;  (hist (literal-listener 'pepper .999 .999 .999 (second context_atypical)) "pepper")
+;;  (hist (literal-listener 'blue_pepper .999 .999 .999 (second context_atypical)) "blue_pepper") 
+;;  )
 
-
-# An implementation of the PRO model as reported in Gatt et al (2013, CogSci Proceedings, Figure 2). 
-
-You can vary:
-
-- x: color selection probability in the color-or-size condition (trades off with size selection probability --  color and size selection probabilities are 1 in the color-only and size-only condition, respectively)
-
-- y: overspecification eagerness 
-
-- context (lists of features)
-
-- what the target and competitors are
-
-This model is specifically to test the PRO predictions and compare with versions of RSA for the lightbulb-style contexts reported by Gatt et al 2011. They use x = .87 and y = -.05
-
-A weird thing that results from the way they set this up is that in their second selection step, they sum up the preference for the feature (a probability) and the eagerness to overspecify (supposedly also a probability) -- but with particular settings of parameters (eg color-preference 0 and negative eagerness to overspecify, given the standard "lightbulb" context, this results in a negative "probability". This is awful.
-
-~~~
-; Stuff to vary: free parameters
-(define color-preference .87) ; the "x" value from Gatt et al 2013
-(define size-preference (- 1 color-preference)) ; they "1-x" value from Gatt et al 2013
-(define eager-to-overspecify -.05) ; the "y" value from Gatt et al 2013
-
-; Stuff to vary: context
-(define context (list (list 'o1 'big 'red)
-                      (list 'o2 'small 'red)
-                      (list 'o3 'small 'yellow)))
-
-; Stuff to vary: target and competitors
-(define obj-target 'o1)
-(define obj-comp1 'o2)
-(define obj-comp2 'o3)
-
-; Extracts a list of object IDs for the objects in the context
-(define objs
-  (map (lambda (obj)
-         (first obj))
-       context))
-
-; Helper function for utterances: Strips the original context of object IDs
-(define pruned-context 
-  (map (lambda (cont) 
-         (drop cont 1))
-       context))		
-
-; Helper function for lexicon: Returns a list of an object's features
-(define (check-features obj)
-  (list-ref pruned-context (list-index objs obj)))
-
-; Helper function for pro-speaker: returns a list of two numbers that indicate whether the features of the target object are shared with other objects
-; (-2 -2) means neither feature is shared (color-or-size condition from GEA 2013)
-; (-2 0) means size is not shared, ie it's discriminating (size-only condition from GEA 2013)
-; (0 -2) means color is not shared, ie it's discriminating (color-only condition from GEA 2013)
-; (0 0) means neither feature is discriminating GEA 2013 don't talk about this)
-(define discriminating-features 
-  (map (lambda (feature obj-target)
-         (sum (list (list-index (check-features obj-comp1) feature) (list-index (check-features obj-comp2) feature))))
-       (check-features obj-target)
-       ))
-
-; A speaker with color/size preferences and a particular eagerness to over-specify
-(define pro-speaker 
-  (lambda ()
-    ; Helper function for pro-speaker: returns a preference-based choice of color or size, in case both color and size are discriminating
-    (define preferred-word
-      (multinomial (check-features obj-target) 
-                   (list size-preference color-preference)))    
-    ; if both color and size discriminate, select one with preference probability, then select the other with sum of preference probability and eagerness to overspecify -- WARNING: THIS CAN RESULT IN NON-PROPER PROBABILITIES!! HOW CAN THEY DO THIS?
-    (if (= (sum discriminating-features) -4) ; if both properties are discriminating
-        (if (equal? preferred-word (first (check-features obj-target))) 
-            (if (flip (+ color-preference eager-to-overspecify)) ; if you selected size, now flip whether you're going to also say color
-                (string-append preferred-word '_ (second (check-features obj-target)))
-                preferred-word)
-            (if (flip (+ size-preference eager-to-overspecify)) ; if you selected color, now flip whether you're going to also say size
-                (string-append (first (check-features obj-target)) '_ preferred-word)
-                preferred-word))
-        (if (= (first discriminating-features) -2) 
-            (if (flip (+ color-preference eager-to-overspecify)) ; if only size is discriminating
-                (string-append (first (check-features obj-target)) '_ (second (check-features obj-target)))
-                (first (check-features obj-target)))
-            (if (flip (+ size-preference eager-to-overspecify)) ; if only color is discriminating
-                (string-append (first (check-features obj-target)) '_ (second (check-features obj-target)))            
-                (second (check-features obj-target)))
-            ))
-    ))  	
-
-(hist (repeat 10000 pro-speaker))
 
 
 ~~~
+
+
+# A color predictability model with baked in color-dependent fidelities.
+
+
+~~~
+; Created January 11 2016 by jdegen
+
+(define (power dist a) (list (first dist) 
+                             (map (lambda (x) (pow x a)) (second dist))))
+
+(define listener_n 1000) ;mh-query iterations in literal listener
+(define speaker_n 1000) ;mh-query iterations in pragmatic speaker
+(define prior-exp 5)
+
+; Free word cost parameters (equal costs):
+(define color_cost .1) ; lower means less costly
+(define size_cost .1) ; lower means less costly
+(define type_cost .1) ; lower means less costly
+
+; A context is a labeled list of lists, where sub-lists represent objects with a color and a type feature. The following three contexts are taken directly from Westerbeek et al. 2014. The first object in each context represents the target object for that context, in descending order of color typicality (red tomato, yellow apple, blue pepper)
+(define context_typical
+  (list 'typical
+        (list (list 'yellow 'banana)
+              (list 'yellow 'pumpkin)
+              (list 'green 'lemon)
+              (list 'green 'cheese)
+              (list 'red 'corn)
+              (list 'red 'apple)
+              )))
+
+(define context_atypical
+  (list 'atypical
+        (list (list 'blue 'banana)
+              (list 'blue 'pumpkin)
+              (list 'green 'lemon)
+              (list 'green 'cheese)
+              (list 'red 'corn)
+              (list 'red 'apple)
+              )))
+
+; baked in fidelities
+(define (get-fidelity utt obj)
+  (case utt
+        (('banana) (if (equal? obj '(yellow banana)) 
+                       .9 
+                       (if (equal? obj '(blue banana)) 
+                           .2
+                           .02)))
+        (('yellow_banana) (if (equal? obj '(yellow banana)) 
+                              .99 
+                              .02))
+        (('blue_banana) (if (equal? obj '(blue banana)) 
+                            .99 
+                            .02))
+        (('other) (if (or (equal? obj '(blue banana))
+                          (equal? obj '(yellow banana)))
+                      .02
+                      .99))
+        )
+  )
+
+; The literal listener infers a distribution over objects, given an utterance -- retrieves the color prior for a simple type utterance and perfectly retrieves that true feature combination if color is mentioned
+(define literal-listener
+  (mem   (lambda (utterance objects)           
+
+           ; The basic lexicon that encodes noisy semantics for words (ie correctly returns true/false with probability determined by fidelity parameter)
+           (define (lexicon utterance obj)
+             (flip (get-fidelity utterance obj)))
+
+           ; The meaning function 
+           (define (meaning utterance obj)
+             (lexicon utterance obj))
+
+           ; Infer away
+           (enumeration-query
+            (define obj (uniform-draw objects))
+
+            obj
+
+            (meaning utterance obj)))))
+
+
+; A pragmatic speaker that infers a distribution over utterances, given an object from a context plus knowledge of costs
+
+(define pragmatic-speaker 
+  (mem (lambda (obj color_cost type_cost context)
+
+         (define (banana-utterance context)
+           (if (equal? (first (first context))
+                       'yellow)
+               'yellow_banana
+               'blue_banana)
+           )
+         ; Boring hard-coded set of alternatives: banana, yellow/blue banana, other
+         (define utterances (list 'banana (banana-utterance context) 'other))         
+
+         ; Generates a cost vector for the utterances, with a fixed cost for an extra word (free parameter defined at beginning of file). 
+         (define (costs color_cost type_cost)
+           (map (lambda (utt)
+                  (sum (map (lambda (word) 
+                              (if (or (equal? word 'red) 
+                                      (equal? word 'orange)
+                                      (equal? word 'yellow)                                                                    
+                                      (equal? word 'green)
+                                      (equal? word 'blue))
+                                  color_cost 
+                                  type_cost)) 
+                            (regexp-split utt '_))))
+                utterances))
+
+
+         ; Infer away
+         (enumeration-query
+          (define utterance (multinomial utterances 
+                                         (map (lambda (c) (exp (- (* 2 c)))) (costs color_cost type_cost)))) 
+
+          utterance
+
+          (equal? obj
+                  (apply multinomial
+                         (literal-listener utterance context)))
+          ))))
+
+
+;; (list
+;;  (literal-listener 'yellow_banana (second context_typical)) 
+;;  '(********************************************************)
+;;  (literal-listener 'blue_banana (second context_atypical)) 
+;;  '(********************************************************)
+;;  (literal-listener 'banana (second context_typical)) 
+;;  '(********************************************************)
+;;  (literal-listener 'banana (second context_atypical))
+;;  '(********************************************************)
+;;  (literal-listener 'other (second context_typical)) 
+;;  '(********************************************************)
+;;  (literal-listener 'other (second context_atypical))) 
+
+(list
+ (pragmatic-speaker '(yellow banana) .1 .1 (second context_typical))
+ '(********************************************************)
+ (pragmatic-speaker '(blue banana) .1 .1 (second context_atypical))
+ '(********************************************************) 
+ (pragmatic-speaker '(yellow pumpkin) .1 .1 (second context_typical))
+ '(********************************************************) 
+ (pragmatic-speaker '(blue pumpkin) .1 .1 (second context_atypical))  
+ )	
+
+
+~~~
+
+

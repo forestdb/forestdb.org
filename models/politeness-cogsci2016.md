@@ -116,7 +116,8 @@ var expt2 = listener1(
         meanness: 0.1
   }
 }, "state")
-
+print("What good was the project?")
+print("Speaker says amazing, but you know she was trying to be nice.")
 print(expt2)
 
 // Experiment 3 setup
@@ -127,6 +128,8 @@ var expt3 = listener1(
   state: 3,
   goalWeights: false
 }, "goals")
+print("What were the speaker's goals?")
+print("Speaker says amazing, but you know the project only deserved a 3 out of 5.")
 
 vizPrint(expt3)
 

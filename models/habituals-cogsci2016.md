@@ -50,6 +50,19 @@ var gaussianPMF = function(mu, sigma){
   return map(function(b){return Math.exp(gaussianERP.score([mu, sigma], b))}, bins)
 }
 
+// var structuredPriorModel = function(params){
+//   repeat(1000, function(){
+//     var theta = params["theta"]
+//     var mu = params["mu"]
+//     var sigma = params["sigma"]
+//     var hasDoneAction = flip(theta)
+//     var frequency = hasDoneAction ? 
+//         gaussian(mu, sigma) : 
+//         minBin
+//     return frequency
+//   })
+// }
+
 var structuredPriorModel = function(params){
   Enumerate(function(){
     var theta = params["theta"]
@@ -59,65 +72,49 @@ var structuredPriorModel = function(params){
     var frequency = hasDoneAction ? 
         bins[discrete(gaussianPMF(mu, sigma))] : 
         minBin
-
     return frequency
   })
 }
 
-var structuredPriorModel = function(params){
-  Enumerate(function(){
-    var theta = params["theta"]
-
-    var mu = params["mu"]
-    
-    var sigma = params["sigma"]
-    var hasDoneAction = flip(theta)
-    var frequency = hasDoneAction ? 
-        bins[discrete(gaussianPMF(mu, sigma))] : 
-        minBin
-
-    return frequency
-  })
-}
-
+// numbers drawn from data in Expt. 1 
 // e.g. "runs"
 var runs = structuredPriorModel(
 {
-  theta: 0.5,
-  mu: 0.99,
-  sigma: 10
+  theta: 0.75,
+  mu: 5.5,
+  sigma: 0.5
 })
 
 // e.g. "hikes"
 var hikes = structuredPriorModel(
 {
-  theta: 0.5,
-  mu: 0.5,
-  sigma: 10
+  theta: 0.4,
+  mu: 3.3,
+  sigma: 0.5
 })
 
 // e.g. "climbs mountains"
 var climbsMountains = structuredPriorModel(
 {
-  theta: 0.99,
-  mu: 0.5,
-  sigma: 50
+  theta: 0.1,
+  mu: 1.5,
+  sigma: 1
 })
 
 // e.g. "drinks coffee"
 var drinksCoffee = structuredPriorModel(
 {
-  theta: 0.1,
-  mu: 0.01,
-  sigma: 2
+  theta: 0.85,
+  mu: 6.5,
+  sigma: 0.3
 })
 
 
 vizPrint({
-  "has wings": hasWings,
-  "lays eggs": laysEggs,
-  "are female": areFemale,
-  "carries malaria": carriesMalaria
+  "runs": runs,
+  "hikes": hikes,
+  "climbs mountains": climbsMountains,
+  "drinks coffee": drinksCoffee
 })
 
 ~~~~
@@ -125,7 +122,6 @@ vizPrint({
 ## Habituals model
 
 ~~~~
-///fold:
 var binWidth = 0.5
 var minBin = -1
 var maxBin = 8
@@ -134,7 +130,7 @@ var statebins = _.range(minBin, maxBin, binWidth)
 
 // get intermediate points (rounded to nearest 0.1)
 var thresholdBins = map(function(x){
-      return Math.round(10*(x - (bin_width / 2))) / 10 
+      return Math.round(10*(x - (binWidth / 2))) / 10 
 },statebins)
 
 var nearestPriorBin = function(x){
@@ -159,7 +155,7 @@ var logFrequency = function(rate){
 }
 
 var gaussianPMF = function(mu, sigma){
-  return map(function(b){return Math.exp(gaussianERP.score([mu, sigma], b))}, bins)
+  return map(function(b){return Math.exp(gaussianERP.score([mu, sigma], b))}, statebins)
 }
 
 var structuredPriorModel = function(params){
@@ -174,6 +170,7 @@ var structuredPriorModel = function(params){
     return frequency
   })
 }
+
 ///
 
 // "speaker optimality" parameter
@@ -228,50 +225,61 @@ var speaker2 = function(frequency, prior){
   Enumerate(function(){
     var utterance = utterancePrior()
     var wL1 = listener1(utterance, prior)
-    factor(wL1.score([], frequency))
+    factor(wL1.score([], logFrequency(frequency)))
     return utterance
   })
 }
 
-// example priors
+// numbers drawn from data in Expt. 1 
 // e.g. "runs"
-var runs = structuredPriorModel(
+var runsPrior = structuredPriorModel(
 {
-  theta: 0.5,
-  mu: ,
-  sigma: 10
+  theta: 0.75,
+  mu: 5.5,
+  sigma: 0.5
 })
 
 // e.g. "hikes"
-var hikes = structuredPriorModel(
+var hikesPrior = structuredPriorModel(
 {
   theta: 0.5,
-  mu: 0.5,
-  sigma: 10
+  mu: 3.3,
+  sigma: 0.5
 })
 
 // e.g. "climbs mountains"
-var climbsMountains = structuredPriorModel(
+var climbsMountainsPrior = structuredPriorModel(
 {
-  theta: 0.99,
-  mu: 0.5,
-  sigma: 50
+  theta: 0.1,
+  mu: 1.5,
+  sigma: 1
 })
 
 // e.g. "drinks coffee"
-var drinksCoffee = structuredPriorModel(
+var drinksCoffeePrior = structuredPriorModel(
 {
-  theta: 0.8,
+  theta: 0.85,
   mu: 7,
-  sigma: 2
+  sigma: 0.4
 })
-
 // truth judgment task
 
-var truthJudgment = speaker2({instances: 3, interval: "week"}, drinksCoffee)
-print("Truth judgments")
 
-print(truthJudgment)
+var runs = speaker2({instances: 3, interval: "year"}, runsPrior)
+print("Runs 3 times a year")
+print(runs)
+
+var hikes = speaker2({instances: 3, interval: "year"}, hikesPrior)
+print("Hikes 3 times a year")
+print(hikes)
+
+var climbs = speaker2({instances: 3, interval: "year"}, climbsMountainsPrior)
+print("Climbs mountains 3 times a year")
+print(climbs)
+
+var coffee = speaker2({instances: 7, interval: "week"}, drinksCoffeePrior)
+print("Drinks coffee 7 times a week")
+print(coffee)
 
 ~~~~
 

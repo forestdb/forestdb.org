@@ -63,8 +63,8 @@ var speaker1 = cache(function(state, speakerGoals) {
 
     var eUtility = speakerGoals.honesty*epistemicUtility 
     var sUtility = speakerGoals.kindness*socialUtility
-    var mUtility = speakerGoals.meanness*socialUtility
-    var speakerUtility = eUtility+sUtility-mUtility
+
+    var speakerUtility = eUtility+sUtility
 
     factor(speakerUtility)
 
@@ -85,9 +85,8 @@ var listener1 = function(exptCondition, queryStatement) {
     var speakerGoals = knownGoalsWeights ? knownGoalsWeights : 
       {
         honesty: uniformDraw(weightBins),
-        kindness: uniformDraw(weightBins),
-        meanness : uniformDraw(weightBins)
-       }
+        kindness: uniformDraw(weightBins)
+      }
 
     // Expt 3. trueState is known.
     condition(trueState ? trueState == state : true)
@@ -112,11 +111,11 @@ var expt2 = listener1(
   state: false,
   goalWeights: {
         honesty: 0.3,
-        kindness: 0.9,
-        meanness: 0.1
+        kindness: 0.9
   }
 }, "state")
-print("What good was the project?")
+
+print("How good was the project?")
 print("Speaker says amazing, but you know she was trying to be nice.")
 print(expt2)
 
@@ -128,6 +127,7 @@ var expt3 = listener1(
   state: 3,
   goalWeights: false
 }, "goals")
+
 print("What were the speaker's goals?")
 print("Speaker says amazing, but you know the project only deserved a 3 out of 5.")
 

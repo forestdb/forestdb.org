@@ -190,7 +190,7 @@ var marginalizeERP = function(myERP, label){
   })
 }
 
-var states = [0,1,2,3,4]
+var states = [1,2,3,4,5]
 var utterances = ["terrible","bad","okay","good","amazing"]
 
 var statePrior = function(){
@@ -204,7 +204,8 @@ var utterancePrior = function(){
 var speakerOptimality = 5
 
 var honestyWeights = [1,1,1,1,1]
-var kindnessWeights = [1,1,1,1,1,1,1,1,1,1]
+// var kindnessWeights = [1,1,1,1,1,1,1,1,1,1]
+var kindnessWeights = [1,1,1,1,1]
 
 var literalSemantics = {
   "terrible":[.95,.30,.02,.02,.02],
@@ -215,7 +216,7 @@ var literalSemantics = {
 }
 
 var meaning = function(words, state){
-    return words=="sayNothing" ? true : flip(literalSemantics[words][state])
+    return words=="sayNothing" ? true : flip(literalSemantics[words][state-1])
 } 
 
 
@@ -253,7 +254,8 @@ var listener1 = function(utterance, knowledge) {
 
     var speakerGoals = {
       honesty: [0.1, 0.3, 0.5, 0.7, 0.9][discrete(honestyWeights)],
-      kindness: [-0.9,-0.7,-0.5,-0.3,-0.1,0.1, 0.3, 0.5, 0.7, 0.9][discrete(kindnessWeights)]
+//      kindness: [-0.9,-0.7,-0.5,-0.3,-0.1,0.1, 0.3, 0.5, 0.7, 0.9][discrete(kindnessWeights)]
+      kindness: [0.1, 0.3, 0.5, 0.7, 0.9][discrete(kindnessWeights)]
       }
 
     condition(knowledge ? knowledge == state : true)
@@ -266,18 +268,31 @@ var listener1 = function(utterance, knowledge) {
   })
 }
 
-var experimentalCondition = {
-  utterance : "good",
+var experimentalCondition1 = {
+  utterance : "amazing",
   knowledge: 1
 }
 
-var posterior = listener1(experimentalCondition.utterance, 
-                        experimentalCondition.knowledge)
+var experimentalCondition2 = {
+  utterance : "amazing",
+  knowledge: 3
+}
 
-print("expected honesty " + expectation(marginalizeERP(posterior, "honesty")))
-print("expected kindness " + expectation(marginalizeERP(posterior, "kindness")))
+var posterior1 = listener1(experimentalCondition1.utterance, 
+                        experimentalCondition1.knowledge)
 
-vizPrint(posterior)
+print("expected honesty " + expectation(marginalizeERP(posterior1, "honesty")))
+print("expected kindness " + expectation(marginalizeERP(posterior1, "kindness")))
+
+vizPrint(posterior1)
+
+var posterior2 = listener1(experimentalCondition2.utterance, 
+                        experimentalCondition2.knowledge)
+
+print("expected honesty " + expectation(marginalizeERP(posterior2, "honesty")))
+print("expected kindness " + expectation(marginalizeERP(posterior2, "kindness")))
+
+vizPrint(posterior2)
 
 ~~~~
 

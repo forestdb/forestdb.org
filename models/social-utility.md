@@ -4,92 +4,106 @@ title: Social Construction of Value
 model-language: webppl
 ---
 
-First, we set up our scenario: there are three restaurants, and each has an equal chance of being good or bad. An agent develops their own beliefs about the value of each restaurant by picking one, proportionally to their expected value in the prior, observing whether it's good or bad, and then conditioning on this observation.
+Suppose there are $M$ restaurants, which generate noisy reward signals $r_j \in \{0, 1\}$. Each agent $a_i$ in the population assigns some subjective utility $u_j$ to each restaurant $j$, such that $u_j = P(r_j = 1)$. These subjective utilities are drawn from a shared normal distribution, so all agents have relatively similar utilities functions. We will model a particular agent, Alice, as she infers her own utility function. She uses two sources of information. First, Alice assumes that all other agents know their own utility and decide which restaurants to visit according to a soft-max rule. Second, when Alice chooses according to her beliefs about her own utility, she observes a noisy reward signal from her true utility function. 
 
 ~~~~
 ///fold:
-
 var condition = function(x){
   factor(x ? 0 : -Infinity);
 };
 
-var mean = function(thunk){
-  return expectation(Enumerate(thunk), function(v){return v;});
+var normalize = function(xs) {
+  var Z = sum(xs);
+  return map(function(x) {
+    return x / Z;
+  }, xs);
 };
 
-var uniformDraw = function (xs) {
-  return xs[randomInteger(xs.length)];
-};
-
-var normalize = function(arr) {
-  var s = reduce(function(memo, num){ return memo + num; }, 0, arr);
-  return map(function(val) {return val/s; }, arr);
-};
-
-var expectedVals = function(agentPrior){
-  var outs = map(function(key) { 
-    return mean(function(){
-      return sample(agentPrior[key]);
-    });
-  }, _.keys(agentPrior));
-  return normalize(outs);
+var normalizeVals = function(agentVals){
+  var arr = _.values(agentVals);
+  return normalize(arr);
 };
 ///
 
-var restaurants = ["Taco Town", "Burger Barn", "Stirfry Shack"];
-var goodnessWeights = [.1,.2,.3,.4,.5,.6,.7,.8,.9];
+// Alice doesn't know her own utilities
+var uninformedPrior = function() {
+  return {
+    "Taco Town" : uniform(0,1),
+    "Burger Barn" : uniform(0,1),
+    "Stirfry Shack" : uniform(0,1)
+  };
+};
 
-var restaurantPrior = map(function(restaurant) {
-  return Enumerate(function(v){
-    return uniformDraw(goodnessWeights);
+// All agents in the population have utilities drawn from a shared prior
+var truePrior = function() {
+  return {
+    "Taco Town" : gaussian(.5, .1),
+    "Burger Barn" : gaussian(.25, .1),
+    "Stirfry Shack" : gaussian(.75, .1)
+  };
+};
+
+// Create population of agents
+var initializeAgents = function(numAgents) {
+  return repeat(numAgents, function() {
+    return {
+      utility : truePrior()
+    };
   });
-}, restaurants);
-
-var agentPrior = _.object(restaurants, restaurantPrior);
-
-// In fact, all restaurants are equally likely to be good
-var observe = function(restaurant) {
-  return flip() ? "good" : "bad";
 };
 
-// Condition on observation
-var updateBeliefs = function(prior, event) {
-  return mapObject(function(restaurant, value) {
-    return Enumerate(function() {
-      var possibleWeight = sample(value);
-      var possibleOutcome = flip(possibleWeight) ? "good" : "bad";
-      condition(restaurant === event.choice ? 
-                possibleOutcome === event.outcome :
-                true);
-      return possibleWeight;
-    });
-  }, prior);
+// Sample noisy reward signal for r_j based on agent's utility
+var observe = function(utility, restaurant) {
+  return flip(utility[restaurant]) ? "good" : "bad";
 };
 
-// Pick restaurants proportionally to their mean expected payoff
-var makeChoices = function(prior) {
-  var restaurants = _.keys(agentPrior);
-  var choice = categorical(expectedVals(agentPrior), restaurants);
-  var outcome = observe(choice);
-  return {choice: choice, outcome : outcome};
+// Each agent soft-maxes utility
+var makeChoice = function(utility) {
+  var restaurants = _.keys(utility);
+  var choice = categorical(normalizeVals(utility), restaurants);
+  var outcome = observe(utility, choice);
+  return {choice: choice, outcome: outcome};
 };
 
-var timeStep = function(prior, remainingIterations){
-  if (remainingIterations == 0) {
-    return prior;
-  } else {
-    var event = makeChoices(prior);
-    var posterior = updateBeliefs(prior, event);
-    return timeStep(posterior, remainingIterations - 1);
-  }
+// How many agents do we want in our population?
+var numAgents = 100;
+
+// Fixed population of agents
+var agents = initializeAgents();
+
+// Fixed utility for main agent
+var trueUtility = truePrior();
+print(trueUtility);
+
+var model = function() {
+  var self = {
+    inferredUtility : uninformedPrior(),
+    utility : trueUtility
+  };
+
+  var otherChoices = map(function(a){return makeChoice(a.utility);}, agents);
+
+  // Try to minimize surprisal w.r.t. others' choices
+  var surprisals = map(function(otherChoice) {
+    Math.log(self.inferredUtility[otherChoice.choice]
+	     / sum(_.values(self.inferredUtility)));
+  }, otherChoices);
+  factor(sum(surprisals));
+
+  // Take true reward signal into account
+  var rewardSignal = observe(self.utility,
+			     makeChoice(self.inferredUtility)["choice"]);
+  factor(rewardSignal === "good" ? 0 : -Infinity);
+
+  return self.inferredUtility;
 };
 
-var res = timeStep(agentPrior, 500);
-print(res["Taco Town"]);
-print(res["Burger Barn"]);
-print(res["Stirfry Shack"]);
+var results = MCMC(model, {samples : 10000, burn : 100});
+print("done");
+vizPrint(results);
 ~~~~
 
+<--
 We see that after many time steps, our rational agent learns the true value of each location.
 
 Next, we add social influence into our utility function. An agent has relationships with others, represented by a vector of weights $w$. If the weight $w_i$ corresponding to a particular other agent is positive, they will slightly increase the value they assign to a restaurant when that agent has a positive experience there, and slightly decrease it when that agent has a negative experience. For now, we do not allow agents to change their relationships over time. We simulate three agents simultaneously, all of whom have positive relationships with one another.
@@ -383,3 +397,4 @@ print(simResults['Carol'].relationships);
 ~~~~
 
 We see that several different equilibria can form, depending on the exact sequence of early observations. The most obvious is what happened above: all three agents converge on a single restaurant, and all have strong pairwise relationships. Another possibility is two agents with mutually strong relationships who have converged on the same restaurant, while the third agent has weak social bonds and prefers a different restaurant. A third possibility is all three agents prefering different restaurants and mutually disregarding one another. 
+-->

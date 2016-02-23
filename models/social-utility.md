@@ -103,7 +103,7 @@ print("done");
 vizPrint(results);
 ~~~~
 
-<--
+<!--
 We see that after many time steps, our rational agent learns the true value of each location.
 
 Next, we add social influence into our utility function. An agent has relationships with others, represented by a vector of weights $w$. If the weight $w_i$ corresponding to a particular other agent is positive, they will slightly increase the value they assign to a restaurant when that agent has a positive experience there, and slightly decrease it when that agent has a negative experience. For now, we do not allow agents to change their relationships over time. We simulate three agents simultaneously, all of whom have positive relationships with one another.

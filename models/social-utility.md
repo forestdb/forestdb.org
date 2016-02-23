@@ -70,6 +70,7 @@ var numAgents = 100;
 
 // Fixed population of agents
 var agents = initializeAgents(numAgents);
+var otherChoices = map(function(a){return makeChoice(a.utility);}, agents);
 
 // Fixed utility for main agent
 var trueUtility = truePrior();
@@ -78,22 +79,20 @@ print(trueUtility);
 var model = function() {
   var self = {
     inferredUtility : uninformedPrior(),
-    utility : trueUtility
+    trueUtility : trueUtility
   };
 
-  var otherChoices = map(function(a){return makeChoice(a.utility);}, agents);
+  // Take true reward signal into account
+  var rewardSignal = observe(self.trueUtility,
+                             makeChoice(self.inferredUtility)["choice"]);
+  factor(rewardSignal === "good" ? 0 : -Infinity);
 
   // Try to minimize surprisal w.r.t. others' choices
   var surprisals = map(function(otherChoice) {
-    Math.log(self.inferredUtility[otherChoice.choice]
-             / sum(_.values(self.inferredUtility)));
+    return Math.log(self.inferredUtility[otherChoice.choice]
+                    / sum(_.values(self.inferredUtility)));
   }, otherChoices);
   factor(sum(surprisals));
-
-  // Take true reward signal into account
-  var rewardSignal = observe(self.utility,
-                             makeChoice(self.inferredUtility)["choice"]);
-  factor(rewardSignal === "good" ? 0 : -Infinity);
 
   return self.inferredUtility;
 };

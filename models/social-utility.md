@@ -8,10 +8,6 @@ Suppose there are $M$ restaurants, which generate noisy reward signals $r_j \in 
 
 ~~~~
 ///fold:
-var condition = function(x){
-  factor(x ? 0 : -Infinity);
-};
-
 var normalize = function(xs) {
   var Z = sum(xs);
   return map(function(x) {
@@ -73,6 +69,9 @@ var numAgents = 100;
 // Fixed population of agents, with their choices as data
 var agents = initializeAgents(numAgents);
 var otherChoices = map(function(a){return makeChoice(a.utility);}, agents);
+print("Taco: " + filter(function(a){return a === "Taco Town"}, otherChoices).length)
+print("Burger: " + filter(function(a){return a === "Burger Barn"}, otherChoices).length)
+print("Stirfry: " + filter(function(a){return a === "Stirfry Shack"}, otherChoices).length)
 
 // Alice's true utility
 var trueUtility = truePrior();
@@ -93,7 +92,7 @@ var model = function() {
   
   // Take true reward signal into account
   var rewardSignal = observe(self.trueUtility, sample(choiceERP));
-  factor(rewardSignal === "good" ? 0 : -Infinity);
+  condition(rewardSignal === "good")
 
   // Try to maximize log-likelihood of others' choices
   var otherLikelihoods = map(function(otherChoice) {

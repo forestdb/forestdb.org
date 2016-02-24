@@ -129,7 +129,7 @@ var timeStep = function(agent, remainingIterations){
   }
 };
 
-var results = Enumerate(model);
+var results = timeStep(alice, 1000);
 print("done");
 vizPrint(results);
 ~~~~

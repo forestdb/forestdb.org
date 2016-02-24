@@ -27,19 +27,15 @@ var normalizeVals = function(agentVals){
 
 // Alice doesn't know her own utilities
 var uninformedPrior = function() {
-  return {
-    "Taco Town" : uniform(0,1),
-    "Burger Barn" : uniform(0,1),
-    "Stirfry Shack" : uniform(0,1)
-  };
+  return ;
 };
 
 // All agents in the population have utilities drawn from a shared prior
 var truePrior = function() {
   return {
-    "Taco Town" : gaussian(.5, .1),
-    "Burger Barn" : gaussian(.25, .1),
-    "Stirfry Shack" : gaussian(.75, .1)
+    "Taco Town" : gaussian(.5, .01),
+    "Burger Barn" : gaussian(.25, .01),
+    "Stirfry Shack" : gaussian(.75, .01)
   };
 };
 
@@ -57,47 +53,58 @@ var observe = function(utility, restaurant) {
   return flip(utility[restaurant]) ? "good" : "bad";
 };
 
+var makeChoiceERP = function(utility) {
+  var ps = normalizeVals(utility);
+  var vs = _.keys(utility);
+  return categoricalERP(ps, vs);
+};
+
 // Each agent soft-maxes utility
+// TODO: this scheme makes a number of different utility profiles
+//       equally likely under a given set of data
 var makeChoice = function(utility) {
   var restaurants = _.keys(utility);
-  var choice = categorical(normalizeVals(utility), restaurants);
-  var outcome = observe(utility, choice);
-  return {choice: choice, outcome: outcome};
+  return categorical(normalizeVals(utility), restaurants);
 };
 
 // How many agents do we want in our population?
 var numAgents = 100;
 
-// Fixed population of agents
+// Fixed population of agents, with their choices as data
 var agents = initializeAgents(numAgents);
 var otherChoices = map(function(a){return makeChoice(a.utility);}, agents);
 
-// Fixed utility for main agent
+// Alice's true utility
 var trueUtility = truePrior();
 print(trueUtility);
 
 var model = function() {
   var self = {
-    inferredUtility : uninformedPrior(),
+    inferredUtility : {
+      "Taco Town" : uniformDraw([.1, .25, .5, .75, .9]),
+      "Burger Barn" : uniformDraw([.1, .25, .5, .75, .9]),
+      "Stirfry Shack" : uniformDraw([.1, .25, .5, .75, .9])
+    },
     trueUtility : trueUtility
   };
 
+  // Choose according to beliefs about utility
+  var choiceERP = makeChoiceERP(self.inferredUtility);
+  
   // Take true reward signal into account
-  var rewardSignal = observe(self.trueUtility,
-                             makeChoice(self.inferredUtility)["choice"]);
+  var rewardSignal = observe(self.trueUtility, sample(choiceERP));
   factor(rewardSignal === "good" ? 0 : -Infinity);
 
-  // Try to minimize surprisal w.r.t. others' choices
-  var surprisals = map(function(otherChoice) {
-    return Math.log(self.inferredUtility[otherChoice.choice]
-                    / sum(_.values(self.inferredUtility)));
+  // Try to maximize log-likelihood of others' choices
+  var otherLikelihoods = map(function(otherChoice) {
+    return choiceERP.score([], otherChoice);
   }, otherChoices);
-  factor(sum(surprisals));
+  factor(sum(otherLikelihoods));
 
   return self.inferredUtility;
 };
 
-var results = MCMC(model, {samples : 10000, burn : 100});
+var results = Enumerate(model);
 print("done");
 vizPrint(results);
 ~~~~
@@ -115,7 +122,7 @@ var condition = function(x){
 
 var mean = function(thunk){
   return expectation(Enumerate(thunk), function(v){return v;});
-};
+ };
 
 var uniformDraw = function (xs) {
   return xs[randomInteger(xs.length)];

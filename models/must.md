@@ -124,9 +124,9 @@ model-language: church
               ;;; All of the things the pragmatic listener can infer: probability that it's raining (rain?)
               ;;; The speaker's belief distribution about chances of rain (probrain)
               ;;; The speaker's evidence distribution (evidence)
-              rain?
-              ;probrain
-              ;evidence
+              rain? ;(comment this out to see model's inferences about other things)
+              ;probrain ;(uncomment to see model's inference about chance-of-rain given utterance)
+              ;evidence ;(uncomment to see model's inference about strength of evidence given utterance)
               (equal? (apply multinomial (speaker evidence probrain theta-bare  
                                                   theta-must
                                          )) utterance)))))

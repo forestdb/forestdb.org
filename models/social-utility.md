@@ -215,14 +215,16 @@ var infer = function(agent, ownChoice, otherChoices) {
 
     // Try to maximize log-likelihood of others' choices,
     // if you think they're from the same group
-    // TODO: figure out why you end up ignoring social info
+    // TODO: fix bias toward ignoring people
     var relevantOthers = map(function(v){return v[0]},
 			     filter(function(a) {return a[1];},
 				    zip(otherChoices, groupAssignments)));
     var otherLikelihoods = map(function(otherChoice) {
       return expectedChoiceERP.score([], otherChoice);
     }, relevantOthers);
-    factor(sum(otherLikelihoods));
+    factor(otherLikelihoods.length === 0 ?
+           -Infinity :
+           sum(otherLikelihoods)/otherLikelihoods.length);
 
     return {utility: utility, groupAssignments: groupAssignments};
   });
@@ -237,6 +239,7 @@ var numAgents = 5;
 
 // Fixed population of agents, with their choices as data
 var agents = initializeAgents(numAgents);
+print(agents);
 
 // Alice has some prior on her own utility, as well as a true utility
 var alice = {
@@ -250,8 +253,9 @@ var alice = {
       groupAssignments  : repeat(numAgents, function() {return flip();})
     };
   }),
-  trueUtility : truePrior(),
+  trueUtility : truePrior(true),
 };
+print(alice.trueUtility);
 
 // Advance simulation by one timeStep:
 // 1) Alice makes a choice based on current beliefs, observes reward signal

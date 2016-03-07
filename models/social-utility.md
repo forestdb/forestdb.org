@@ -15,11 +15,11 @@ var normalize = function(xs) {
   }, xs);
 };
 
-var utilityMean = function(utilityERP) {
-  var options = _.keys(sample(utilityERP));
+var utilityMean = function(knowledge) {
+  var options = _.keys(sample(knowledge).ownUtility);
   var means = map(function(key) {
-    return expectation(utilityERP, function(v){
-      return [v[key]];
+    return expectation(knowledge, function(v){
+      return [v.ownUtility[key]];
     });
   }, options);
   return _.object(options, means);
@@ -28,21 +28,6 @@ var utilityMean = function(utilityERP) {
 var normalizeVals = function(agentVals){
   var arr = _.values(agentVals);
   return normalize(arr);
-};
-///
-
-// All agents in the population have utilities drawn from a shared prior
-var truePrior = function() {
-  return {
-    "Taco Town" : gaussian(.5, .05),
-    "Burger Barn" : gaussian(.25, .05),
-    "Stirfry Shack" : gaussian(.75, .05)
-  };
-};
-
-// Create population of agents
-var initializeAgents = function(numAgents) {
-  return repeat(numAgents, function() {return {utility : truePrior()};});
 };
 
 // Sample noisy reward signal for r_j based on agent's utility
@@ -64,48 +49,93 @@ var getOtherChoices = function(agents) {
     return sample(choiceERP);
   }, agents);
 };
+///
+
+// All agents in the population have utilities drawn from a shared prior
+var trueUtility = function() {
+  return {
+    "Burger Barn" : gaussian(.75, .05),
+    "Stirfry Shack" : gaussian(.25, .05)
+  };
+};
+
+// All agents in the population have utilities drawn from a shared prior
+var sampleAgentUtility = function(groupMean, groupSD) {
+  var utility = {
+    "Burger Barn" : gaussian(groupMean["Burger Barn"], groupSD),
+    "Stirfry Shack" : gaussian(groupMean["Stirfry Shack"], groupSD)
+  };
+  return mapObject(function(key, val) {
+    return (val <= 0 ? 0.001 :
+	    val >= 1 ? 0.999 :
+	    val);
+  }, utility);
+
+};
+
+// Create population of agents
+var initializeAgents = function(numAgents) {
+  return repeat(numAgents, function() {
+    return {utility : trueUtility()};
+  });
+};
 
 // Alice updates her beliefs by conditioning on her reward signal and others
-var inferUtility = function(agent, ownChoice, otherChoices) {
+var infer = function(agent, ownChoice, otherChoices) {
+  var updatedKnowledge = SMC(function() {
+
+    // Sample a possible utility function & group assignment
+    var knowledge = sample(agent.knowledge);
+    var groupMean = knowledge.groupMean;
+    var groupSD = knowledge.groupSD;
+    var ownUtility = sampleAgentUtility(groupMean, groupSD);
+    var otherUtilities = repeat(numAgents, function() {
+      return sampleAgentUtility(groupMean, groupSD);
+    });
+
+    // Take true reward signal into account
+    factor(bernoulliERP.score([ownUtility[ownChoice.choice]],
+			      ownChoice.rewardSignal));
+
+    // Try to maximize log-likelihood of others' choices,
+    var otherLikelihoods = map2(function(otherUtility, otherChoice) {
+      var otherChoiceERP = makeChoiceERP(otherUtility);
+      return otherChoiceERP.score([], otherChoice);
+    }, otherUtilities, otherChoices);
+
+    factor(sum(otherLikelihoods));
+
+    return {groupMean: groupMean, groupSD : groupSD,
+	    ownUtility : ownUtility, otherUtilities: otherUtilities};
+  }, {particles : 1000});
+
   return {
-    trueUtility : agent.trueUtility,
-    utilityERP : Enumerate(function() {
-
-      // Sample a possible utility function
-      var utility = sample(agent.utilityERP);
-      var expectedChoiceERP = makeChoiceERP(utility);
-
-      // Take true reward signal into account
-      factor(bernoulliERP.score([utility[ownChoice.choice]],
-				ownChoice.rewardSignal));
-
-      // Try to maximize log-likelihood of others' choices
-      var otherLikelihoods = map(function(otherChoice) {
-	return expectedChoiceERP.score([], otherChoice);
-      }, otherChoices);
-      factor(sum(otherLikelihoods));
-
-      return utility;
-    })
+    knowledge : updatedKnowledge,
+    trueUtility : agent.trueUtility
   };
 };
 
 // How many agents do we want in our population?
-var numAgents = 10;
+var numAgents = 2;
 
 // Fixed population of agents, with their choices as data
 var agents = initializeAgents(numAgents);
 
 // Alice has some prior on her own utility, as well as a true utility
 var alice = {
-  utilityERP : Enumerate(function() {
+  knowledge : Rejection(function() {
+    var groupMean = {"Burger Barn" : uniform(0,1), "Stirfry Shack" : uniform(0,1)};
+    var groupSD = uniform(0, 0.1);
     return {
-      "Taco Town"     : uniformDraw([.1, .25, .5, .75, .9]),
-      "Burger Barn"   : uniformDraw([.1, .25, .5, .75, .9]),
-      "Stirfry Shack" : uniformDraw([.1, .25, .5, .75, .9])
+      groupMean: groupMean,
+      groupSD: groupSD,
+      ownUtility: sampleAgentUtility(groupMean, groupSD),
+      otherUtilities: repeat(numAgents, function() {
+	return sampleAgentUtility(groupMean, groupSD);
+      })
     };
-  }),
-  trueUtility : truePrior()
+  }, 10000),
+  trueUtility : trueUtility(),
 };
 
 // Advance simulation by one timeStep:
@@ -116,20 +146,25 @@ var timeStep = function(agent, remainingIterations){
     return agent;
   } else {
     // Use current beliefs about utility to make a choice
-    var choiceERP = makeChoiceERP(utilityMean(agent.utilityERP));
+    var choiceERP = makeChoiceERP(utilityMean(agent.knowledge));
     var choice = sample(choiceERP);
     var outcome = (observe(agent.trueUtility, choice) === "good" ? true : false);
     var ownChoice = {choice : choice, rewardSignal : outcome};
 
     // Each time step get new data from others
     var otherChoices = getOtherChoices(agents);
-    var updatedAgent = inferUtility(agent, ownChoice, otherChoices);
+    var updatedAgent = infer(agent, ownChoice, otherChoices);
     return timeStep(updatedAgent, remainingIterations - 1);
   }
 };
 
-var results = timeStep(alice, 100);
-vizPrint(results.utilityERP);
+var results = timeStep(alice, 10);
+
+vizPrint(Enumerate(function() { print(sample(results.knowledge).groupMean);
+				return sample(results.knowledge).groupMean}))
+vizPrint(Enumerate(function() { return sample(results.knowledge).ownUtility}));
+print(Enumerate(function() { return sample(results.knowledge).otherUtilities}));
+
 ~~~~
 
 We see that Alice is able to recover her true utility function from social observations and a noisy, but direct, reward signal. Of course, she would be able to do this with either source of information alone (they are not conflicting), but observing both speeds up inference quite dramatically.
@@ -282,7 +317,133 @@ vizPrint(Enumerate(function() { return sample(results.knowledge).utility}));
 print(Enumerate(function() { return sample(results.knowledge).groupAssignments}));
 ~~~~
 
-<!--
+  <!--
+
+///fold:
+var normalize = function(xs) {
+  var Z = sum(xs);
+  return map(function(x) {
+    return x / Z;
+  }, xs);
+};
+
+var utilityMean = function(utilityERP) {
+  var options = _.keys(sample(utilityERP));
+  var means = map(function(key) {
+    return expectation(utilityERP, function(v){
+      return [v[key]];
+    });
+  }, options);
+  return _.object(options, means);
+};
+
+var normalizeVals = function(agentVals){
+  var arr = _.values(agentVals);
+  return normalize(arr);
+};
+///
+
+// All agents in the population have utilities drawn from a shared prior
+var truePrior = function() {
+  return {
+    "Taco Town" : gaussian(.5, .05),
+    "Burger Barn" : gaussian(.25, .05),
+    "Stirfry Shack" : gaussian(.75, .05)
+  };
+};
+
+// Create population of agents
+var initializeAgents = function(numAgents) {
+  return repeat(numAgents, function() {return {utility : truePrior()};});
+};
+
+// Sample noisy reward signal for r_j based on agent's utility
+var observe = function(utility, restaurant) {
+  return flip(utility[restaurant]) ? "good" : "bad";
+};
+
+// Each agent soft-maxes utility
+var makeChoiceERP = function(utility) {
+  var ps = normalizeVals(utility);
+  var vs = _.keys(utility);
+  return categoricalERP(ps, vs);
+};
+
+// Sample a choice for all agents in the population
+var getOtherChoices = function(agents) {
+  return map(function(a){
+    var choiceERP = makeChoiceERP(a.utility);
+    return sample(choiceERP);
+  }, agents);
+};
+
+// Alice updates her beliefs by conditioning on her reward signal and others
+var inferUtility = function(agent, ownChoice, otherChoices) {
+  return {
+    trueUtility : agent.trueUtility,
+    utilityERP : Enumerate(function() {
+
+      // Sample a possible utility function
+      var utility = sample(agent.utilityERP);
+      var expectedChoiceERP = makeChoiceERP(utility);
+
+      // Take true reward signal into account
+      factor(bernoulliERP.score([utility[ownChoice.choice]],
+				ownChoice.rewardSignal));
+
+      // Try to maximize log-likelihood of others' choices
+      var otherLikelihoods = map(function(otherChoice) {
+	return expectedChoiceERP.score([], otherChoice);
+      }, otherChoices);
+      factor(sum(otherLikelihoods));
+
+      return utility;
+    })
+  };
+};
+
+// How many agents do we want in our population?
+var numAgents = 10;
+
+// Fixed population of agents, with their choices as data
+var agents = initializeAgents(numAgents);
+
+// Alice has some prior on her own utility, as well as a true utility
+var alice = {
+  utilityERP : Enumerate(function() {
+    return {
+      "Taco Town"     : uniformDraw([.1, .25, .5, .75, .9]),
+      "Burger Barn"   : uniformDraw([.1, .25, .5, .75, .9]),
+      "Stirfry Shack" : uniformDraw([.1, .25, .5, .75, .9])
+    };
+  }),
+  trueUtility : truePrior()
+};
+
+// Advance simulation by one timeStep:
+// 1) Alice makes a choice based on current beliefs, observes reward signal
+// 2) Alice observes other agents' choices
+var timeStep = function(agent, remainingIterations){
+  if (remainingIterations == 0) {
+    return agent;
+  } else {
+    // Use current beliefs about utility to make a choice
+    var choiceERP = makeChoiceERP(utilityMean(agent.utilityERP));
+    var choice = sample(choiceERP);
+    var outcome = (observe(agent.trueUtility, choice) === "good" ? true : false);
+    var ownChoice = {choice : choice, rewardSignal : outcome};
+
+    // Each time step get new data from others
+    var otherChoices = getOtherChoices(agents);
+    var updatedAgent = inferUtility(agent, ownChoice, otherChoices);
+    return timeStep(updatedAgent, remainingIterations - 1);
+  }
+};
+
+var results = timeStep(alice, 100);
+vizPrint(results.utilityERP);
+
+
 We see that after many time steps, our rational agent learns the true value of each location.
 
 Next, we add social influence into our utility function. An agent has relationships with others, represented by a vector of weights $w$. If the weight $w_i$ corresponding to a particular other agent is positive, they will slightly increase the value they assign to a restaurant when that agent has a positive experience there, and slightly decrease it when that agent has a negative experience. For now, we do not allow agents to change their relationships over time. We simulate three agents simultaneously, all of whom have positive relationships with one another.

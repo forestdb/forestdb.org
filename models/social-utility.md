@@ -7,7 +7,12 @@ model-language: webppl
 Suppose there are $M$ restaurants, which generate noisy reward signals $r_j \in \{0, 1\}$. Each agent $a_i$ in the population assigns some subjective utility $u_j$ to each restaurant $j$, such that $u_j = P(r_j = 1)$. These subjective utilities are drawn from a shared normal distribution, so all agents have relatively similar utilities functions. We will model a particular agent, Alice, as she infers her own utility function. She uses two sources of information. First, Alice assumes that all other agents know their own utility and decide which restaurants to visit according to a soft-max rule. Second, when Alice chooses according to her beliefs about her own utility, she observes a noisy reward signal from her true utility function. For each time step, then, Alice makes a choice according to her best guess at her utility function, then updates her beliefs based on the reward signal of this choice and her observations of the choices that others made on that time step. 
 
 ~~~~
+
 ///fold:
+var butLast = function(xs) {
+  return xs.slice(0, xs.length - 1);
+};
+
 var normalize = function(xs) {
   var Z = sum(xs);
   return map(function(x) {
@@ -15,24 +20,9 @@ var normalize = function(xs) {
   }, xs);
 };
 
-var utilityMean = function(knowledge) {
-  var options = _.keys(sample(knowledge).ownUtility);
-  var means = map(function(key) {
-    return expectation(knowledge, function(v){
-      return [v.ownUtility[key]];
-    });
-  }, options);
-  return _.object(options, means);
-};
-
 var normalizeVals = function(agentVals){
   var arr = _.values(agentVals);
   return normalize(arr);
-};
-
-// Sample noisy reward signal for r_j based on agent's utility
-var observe = function(utility, restaurant) {
-  return flip(utility[restaurant]) ? "good" : "bad";
 };
 
 // Each agent soft-maxes utility
@@ -42,24 +32,19 @@ var makeChoiceERP = function(utility) {
   return categoricalERP(ps, vs);
 };
 
-// Sample a choice for all agents in the population
-var getOtherChoices = function(agents) {
-  return map(function(a){
-    var choiceERP = makeChoiceERP(a.utility);
-    return sample(choiceERP);
-  }, agents);
-};
-///
-
-// All agents in the population have utilities drawn from a shared prior
-var trueUtility = function() {
-  return {
-    "Burger Barn" : gaussian(.75, .05),
-    "Stirfry Shack" : gaussian(.25, .05)
-  };
+var choiceLikelihood = function(beliefs, choice) {
+  var choiceERP = makeChoiceERP(beliefs);
+  return choiceERP.score([], choice);
 };
 
-// All agents in the population have utilities drawn from a shared prior
+var otherLikelihoods = function(otherUtilities, otherChoices) {
+  var likelihoods = map2(function(otherUtility, otherChoice) {
+    var otherChoiceERP = makeChoiceERP(otherUtility);
+    return otherChoiceERP.score([], otherChoice);
+  }, otherUtilities, otherChoices);
+  return sum(likelihoods);
+};
+
 var sampleAgentUtility = function(groupMean, groupSD) {
   var utility = {
     "Burger Barn" : gaussian(groupMean["Burger Barn"], groupSD),
@@ -73,98 +58,55 @@ var sampleAgentUtility = function(groupMean, groupSD) {
 
 };
 
-// Create population of agents
-var initializeAgents = function(numAgents) {
-  return repeat(numAgents, function() {
-    return {utility : trueUtility()};
-  });
-};
+var numAgents = 2;
 
-// Alice updates her beliefs by conditioning on her reward signal and others
-var infer = function(agent, ownChoice, otherChoices) {
-  var updatedKnowledge = SMC(function() {
-
-    // Sample a possible utility function & group assignment
-    var knowledge = sample(agent.knowledge);
-    var groupMean = knowledge.groupMean;
-    var groupSD = knowledge.groupSD;
-    var ownUtility = sampleAgentUtility(groupMean, groupSD);
-    var otherUtilities = repeat(numAgents, function() {
-      return sampleAgentUtility(groupMean, groupSD);
-    });
-
-    // Take true reward signal into account
-    factor(bernoulliERP.score([ownUtility[ownChoice.choice]],
-			      ownChoice.rewardSignal));
-
-    // Try to maximize log-likelihood of others' choices,
-    var otherLikelihoods = map2(function(otherUtility, otherChoice) {
-      var otherChoiceERP = makeChoiceERP(otherUtility);
-      return otherChoiceERP.score([], otherChoice);
-    }, otherUtilities, otherChoices);
-
-    factor(sum(otherLikelihoods));
-
-    return {groupMean: groupMean, groupSD : groupSD,
-	    ownUtility : ownUtility, otherUtilities: otherUtilities};
-  }, {particles : 1000});
-
+var beliefPrior = function() {
+  var groupMean = {"Burger Barn" : uniform(0,1),
+		   "Stirfry Shack" : uniform(0,1)};
+  var groupSD = uniform(0, 0.1);
   return {
-    knowledge : updatedKnowledge,
-    trueUtility : agent.trueUtility
+    groupMean: groupMean,
+    groupSD: groupSD,
+    ownUtility: sampleAgentUtility(groupMean, groupSD),
+    otherUtilities: repeat(numAgents, function() {
+      return sampleAgentUtility(groupMean, groupSD);
+    })
   };
 };
 
-// How many agents do we want in our population?
-var numAgents = 2;
+///
 
-// Fixed population of agents, with their choices as data
-var agents = initializeAgents(numAgents);
-
-// Alice has some prior on her own utility, as well as a true utility
-var alice = {
-  knowledge : Rejection(function() {
-    var groupMean = {"Burger Barn" : uniform(0,1), "Stirfry Shack" : uniform(0,1)};
-    var groupSD = uniform(0, 0.1);
-    return {
-      groupMean: groupMean,
-      groupSD: groupSD,
-      ownUtility: sampleAgentUtility(groupMean, groupSD),
-      otherUtilities: repeat(numAgents, function() {
-	return sampleAgentUtility(groupMean, groupSD);
-      })
-    };
-  }, 10000),
-  trueUtility : trueUtility(),
-};
-
-// Advance simulation by one timeStep:
-// 1) Alice makes a choice based on current beliefs, observes reward signal
-// 2) Alice observes other agents' choices
-var timeStep = function(agent, remainingIterations){
-  if (remainingIterations == 0) {
-    return agent;
+var infer = function(evidence) {
+  if(evidence.length === 0) {
+    return beliefPrior(); // Take a sample from prior
   } else {
-    // Use current beliefs about utility to make a choice
-    var choiceERP = makeChoiceERP(utilityMean(agent.knowledge));
-    var choice = sample(choiceERP);
-    var outcome = (observe(agent.trueUtility, choice) === "good" ? true : false);
-    var ownChoice = {choice : choice, rewardSignal : outcome};
+    var newEvidence = last(evidence);
 
-    // Each time step get new data from others
-    var otherChoices = getOtherChoices(agents);
-    var updatedAgent = infer(agent, ownChoice, otherChoices);
-    return timeStep(updatedAgent, remainingIterations - 1);
+    // Recursively reason about what I would have believed last time step
+    var beliefs = infer(butLast(evidence));
+
+    // What beliefs would make this new choice most likely?
+    factor(choiceLikelihood(beliefs.ownUtility, newEvidence.self.choice));
+
+    // What beliefs would make this reward signal most likely?
+    factor(bernoulliERP.score([beliefs.ownUtility[newEvidence.self.choice]],
+			      newEvidence.self.rewardSignal));
+
+    // What beliefs would make my friend's choices most likely?
+    factor(otherLikelihoods(beliefs.otherUtilities, newEvidence.others));
+    return beliefs;
   }
 };
 
-var results = timeStep(alice, 10);
+var results = SMC(function() {
+  var evidence = [{self: {choice : "Burger Barn", rewardSignal : false},
+		   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+		  {self: {choice : "Stirfry Shack", rewardSignal : true},
+		   others : ["Burger Barn", "Stirfry Shack", "Stirfry Shack"]}];
+  return infer(evidence);
+}, {particles : 10000});
 
-vizPrint(Enumerate(function() { print(sample(results.knowledge).groupMean);
-				return sample(results.knowledge).groupMean}))
-vizPrint(Enumerate(function() { return sample(results.knowledge).ownUtility}));
-print(Enumerate(function() { return sample(results.knowledge).otherUtilities}));
-
+vizPrint(Enumerate(function() { return sample(results).ownUtility}));
 ~~~~
 
 We see that Alice is able to recover her true utility function from social observations and a noisy, but direct, reward signal. Of course, she would be able to do this with either source of information alone (they are not conflicting), but observing both speeds up inference quite dramatically.
@@ -318,6 +260,106 @@ print(Enumerate(function() { return sample(results.knowledge).groupAssignments})
 ~~~~
 
   <!--
+// timeStep version
+
+var butLast = function(xs) {
+  return xs.slice(0, xs.length - 1);
+};
+
+var normalize = function(xs) {
+  var Z = sum(xs);
+  return map(function(x) {
+    return x / Z;
+  }, xs);
+};
+
+var normalizeVals = function(agentVals){
+  var arr = _.values(agentVals);
+  return normalize(arr);
+};
+
+// Each agent soft-maxes utility
+var makeChoiceERP = function(utility) {
+  var ps = normalizeVals(utility);
+  var vs = _.keys(utility);
+  return categoricalERP(ps, vs);
+};
+
+var choiceLikelihood = function(beliefs, choice) {
+  var choiceERP = makeChoiceERP(beliefs);
+  return choiceERP.score([], choice);
+};
+
+var otherLikelihoods = function(otherUtilities, otherChoices) {
+  var likelihoods = map2(function(otherUtility, otherChoice) {
+    var otherChoiceERP = makeChoiceERP(otherUtility);
+    return otherChoiceERP.score([], otherChoice);
+  }, otherUtilities, otherChoices);
+  return sum(likelihoods);
+};
+
+var sampleAgentUtility = function(groupMean, groupSD) {
+  var utility = {
+    "Burger Barn" : gaussian(groupMean["Burger Barn"], groupSD),
+    "Stirfry Shack" : gaussian(groupMean["Stirfry Shack"], groupSD)
+  };
+  return mapObject(function(key, val) {
+    return (val <= 0 ? 0.001 :
+	    val >= 1 ? 0.999 :
+	    val);
+  }, utility);
+
+};
+
+var numAgents = 2;
+
+var beliefPrior = function() {
+  var groupMean = {"Burger Barn" : uniform(0,1),
+		   "Stirfry Shack" : uniform(0,1)};
+  var groupSD = uniform(0, 0.1);
+  return {
+    groupMean: groupMean,
+    groupSD: groupSD,
+    ownUtility: sampleAgentUtility(groupMean, groupSD),
+    otherUtilities: repeat(numAgents, function() {
+      return sampleAgentUtility(groupMean, groupSD);
+    })
+  };
+};
+
+var infer = function(evidence) {
+  if(evidence.length === 0) {
+    return beliefPrior(); // Take a sample from prior
+  } else {
+    var newEvidence = last(evidence);
+
+    // Recursively reason about what I would have believed last time step
+    var beliefs = infer(butLast(evidence));
+
+    // What beliefs would make this new choice most likely?
+    factor(choiceLikelihood(beliefs.ownUtility, newEvidence.self.choice));
+
+    // What beliefs would make this reward signal most likely?
+    factor(bernoulliERP.score([beliefs.ownUtility[newEvidence.self.choice]],
+			      newEvidence.self.rewardSignal));
+
+    // What beliefs would make my friend's choices most likely?
+    factor(otherLikelihoods(beliefs.otherUtilities, newEvidence.others));
+    return beliefs;
+  }
+};
+
+var results = SMC(function() {
+  return infer([{self: {choice : "Burger Barn", rewardSignal : false},
+		 others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+		{self: {choice : "Stirfry Shack", rewardSignal : true},
+		 others : ["Burger Barn", "Stirfry Shack", "Stirfry Shack"]}]);
+}, {particles : 10000});
+
+vizPrint(Enumerate(function() { return sample(results).ownUtility}));
+
+
+// Discrete version
 
 ///fold:
 var normalize = function(xs) {

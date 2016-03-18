@@ -52,8 +52,8 @@ var sampleAgentUtility = function(groupMean, groupSD) {
   };
   return mapObject(function(key, val) {
     return (val <= 0 ? 0.001 :
-	    val >= 1 ? 0.999 :
-	    val);
+            val >= 1 ? 0.999 :
+            val);
   }, utility);
 
 };
@@ -62,7 +62,7 @@ var numAgents = 2;
 
 var beliefPrior = function() {
   var groupMean = {"Burger Barn" : uniform(0,1),
-		   "Stirfry Shack" : uniform(0,1)};
+                   "Stirfry Shack" : uniform(0,1)};
   var groupSD = uniform(0, 0.1);
   return {
     groupMean: groupMean,
@@ -90,7 +90,7 @@ var infer = function(evidence) {
 
     // What beliefs would make this reward signal most likely?
     factor(bernoulliERP.score([beliefs.ownUtility[newEvidence.self.choice]],
-			      newEvidence.self.rewardSignal));
+                              newEvidence.self.rewardSignal));
 
     // What beliefs would make my friend's choices most likely?
     factor(otherLikelihoods(beliefs.otherUtilities, newEvidence.others));
@@ -100,9 +100,9 @@ var infer = function(evidence) {
 
 var results = SMC(function() {
   var evidence = [{self: {choice : "Burger Barn", rewardSignal : false},
-		   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
-		  {self: {choice : "Stirfry Shack", rewardSignal : true},
-		   others : ["Burger Barn", "Stirfry Shack", "Stirfry Shack"]}];
+                   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+                  {self: {choice : "Stirfry Shack", rewardSignal : true},
+                   others : ["Burger Barn", "Stirfry Shack", "Stirfry Shack"]}];
   return infer(evidence);
 }, {particles : 10000});
 
@@ -188,14 +188,14 @@ var infer = function(agent, ownChoice, otherChoices) {
 
     // Take true reward signal into account
     factor(bernoulliERP.score([utility[ownChoice.choice]],
-			      ownChoice.rewardSignal));
+                              ownChoice.rewardSignal));
 
     // Try to maximize log-likelihood of others' choices,
     // if you think they're from the same group
     // TODO: fix bias toward ignoring people
     var relevantOthers = map(function(v){return v[0]},
-			     filter(function(a) {return a[1];},
-				    zip(otherChoices, groupAssignments)));
+                             filter(function(a) {return a[1];},
+                                    zip(otherChoices, groupAssignments)));
     var otherLikelihoods = map(function(otherChoice) {
       return expectedChoiceERP.score([], otherChoice);
     }, relevantOthers);
@@ -223,9 +223,9 @@ var alice = {
   knowledge : Enumerate(function() {
     return {
       utility : {
-	"Taco Town"     : uniformDraw([.1, .25, .5, .75, .9]),
-	"Burger Barn"   : uniformDraw([.1, .25, .5, .75, .9]),
-	"Stirfry Shack" : uniformDraw([.1, .25, .5, .75, .9])
+        "Taco Town"     : uniformDraw([.1, .25, .5, .75, .9]),
+        "Burger Barn"   : uniformDraw([.1, .25, .5, .75, .9]),
+        "Stirfry Shack" : uniformDraw([.1, .25, .5, .75, .9])
       },
       groupAssignments  : repeat(numAgents, function() {return flip();})
     };
@@ -260,104 +260,6 @@ print(Enumerate(function() { return sample(results.knowledge).groupAssignments})
 ~~~~
 
   <!--
-// timeStep version
-
-var butLast = function(xs) {
-  return xs.slice(0, xs.length - 1);
-};
-
-var normalize = function(xs) {
-  var Z = sum(xs);
-  return map(function(x) {
-    return x / Z;
-  }, xs);
-};
-
-var normalizeVals = function(agentVals){
-  var arr = _.values(agentVals);
-  return normalize(arr);
-};
-
-// Each agent soft-maxes utility
-var makeChoiceERP = function(utility) {
-  var ps = normalizeVals(utility);
-  var vs = _.keys(utility);
-  return categoricalERP(ps, vs);
-};
-
-var choiceLikelihood = function(beliefs, choice) {
-  var choiceERP = makeChoiceERP(beliefs);
-  return choiceERP.score([], choice);
-};
-
-var otherLikelihoods = function(otherUtilities, otherChoices) {
-  var likelihoods = map2(function(otherUtility, otherChoice) {
-    var otherChoiceERP = makeChoiceERP(otherUtility);
-    return otherChoiceERP.score([], otherChoice);
-  }, otherUtilities, otherChoices);
-  return sum(likelihoods);
-};
-
-var sampleAgentUtility = function(groupMean, groupSD) {
-  var utility = {
-    "Burger Barn" : gaussian(groupMean["Burger Barn"], groupSD),
-    "Stirfry Shack" : gaussian(groupMean["Stirfry Shack"], groupSD)
-  };
-  return mapObject(function(key, val) {
-    return (val <= 0 ? 0.001 :
-	    val >= 1 ? 0.999 :
-	    val);
-  }, utility);
-
-};
-
-var numAgents = 2;
-
-var beliefPrior = function() {
-  var groupMean = {"Burger Barn" : uniform(0,1),
-		   "Stirfry Shack" : uniform(0,1)};
-  var groupSD = uniform(0, 0.1);
-  return {
-    groupMean: groupMean,
-    groupSD: groupSD,
-    ownUtility: sampleAgentUtility(groupMean, groupSD),
-    otherUtilities: repeat(numAgents, function() {
-      return sampleAgentUtility(groupMean, groupSD);
-    })
-  };
-};
-
-var infer = function(evidence) {
-  if(evidence.length === 0) {
-    return beliefPrior(); // Take a sample from prior
-  } else {
-    var newEvidence = last(evidence);
-
-    // Recursively reason about what I would have believed last time step
-    var beliefs = infer(butLast(evidence));
-
-    // What beliefs would make this new choice most likely?
-    factor(choiceLikelihood(beliefs.ownUtility, newEvidence.self.choice));
-
-    // What beliefs would make this reward signal most likely?
-    factor(bernoulliERP.score([beliefs.ownUtility[newEvidence.self.choice]],
-			      newEvidence.self.rewardSignal));
-
-    // What beliefs would make my friend's choices most likely?
-    factor(otherLikelihoods(beliefs.otherUtilities, newEvidence.others));
-    return beliefs;
-  }
-};
-
-var results = SMC(function() {
-  return infer([{self: {choice : "Burger Barn", rewardSignal : false},
-		 others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
-		{self: {choice : "Stirfry Shack", rewardSignal : true},
-		 others : ["Burger Barn", "Stirfry Shack", "Stirfry Shack"]}]);
-}, {particles : 10000});
-
-vizPrint(Enumerate(function() { return sample(results).ownUtility}));
-
 
 // Discrete version
 
@@ -431,11 +333,11 @@ var inferUtility = function(agent, ownChoice, otherChoices) {
 
       // Take true reward signal into account
       factor(bernoulliERP.score([utility[ownChoice.choice]],
-				ownChoice.rewardSignal));
+                                ownChoice.rewardSignal));
 
       // Try to maximize log-likelihood of others' choices
       var otherLikelihoods = map(function(otherChoice) {
-	return expectedChoiceERP.score([], otherChoice);
+        return expectedChoiceERP.score([], otherChoice);
       }, otherChoices);
       factor(sum(otherLikelihoods));
 

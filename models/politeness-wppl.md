@@ -296,3 +296,124 @@ vizPrint(posterior2)
 
 ~~~~
 
+
+# Speaker models
+
+### Speaker who communicates his goals and the state
+
+Here, communicating goals can be thought of as trying to appear as the kind of speaker who would say such a thing.
+
+~~~~
+var marginalizeERP = function(myERP, label){
+  Enumerate(function(){
+    var x = sample(myERP)
+    return x[label]
+  })
+}
+
+var states = [1,2,3]
+var utterances = ["terrible","okay","amazing",
+                  "not terrible", "not okay","not amazing"]
+
+var statePrior = function(){
+  return uniformDraw(states)
+}
+
+var utterancePrior = function(){
+  return uniformDraw(utterances)
+}
+
+var speakerOptimality = 5
+
+var honestyWeights = [1,1,1,1,1]
+// var kindnessWeights = [1,1,1,1,1,1,1,1,1,1]
+var kindnessWeights = [1,1,1,1,1]
+
+var literalSemantics = {
+  "terrible":    [0.95,0.02,0.02],
+  "okay":        [0.02,0.95,0.02],
+  "amazing":     [0.02,0.02,0.95],
+  "not terrible":[0.02,0.95,0.95],
+  // "not okay":[0.95,0.02,0.95], // "i can't say enough good things about this person"
+  "not okay":    [0.95,0.02,0.02],
+  "not amazing": [0.95,0.95,0.02]
+}
+
+var meaning = function(words, state){
+    return words=="sayNothing" ? true : flip(literalSemantics[words][state-1])
+} 
+
+var alpha = 1.25
+
+var listener0 = cache(function(utterance) {
+  Enumerate(function(){
+  var state = statePrior()
+  var m = meaning(utterance, state)
+  condition(m)
+  return state
+  })
+})
+
+
+var speaker1 = cache(function(state, speakerGoals) {
+  Enumerate(function(){
+    var utterance = utterancePrior()
+
+    var L0 = listener0(utterance)
+    var epistemicUtility = L0.score([],state)
+    var niceUtility = expectation(L0, function(s){return alpha*s})
+
+    var jointUtility = speakerGoals.honesty*epistemicUtility + 
+                       speakerGoals.kindness*niceUtility
+
+    factor(jointUtility)
+
+    return utterance
+  })
+})
+
+
+var listener1 = function(utterance) {
+  Enumerate(function(){
+    var state = statePrior()
+
+    var speakerGoals = {
+      honesty: [0.1, 0.3, 0.5, 0.7, 0.9][discrete(honestyWeights)],
+//      kindness: [-0.9,-0.7,-0.5,-0.3,-0.1,0.1, 0.3, 0.5, 0.7, 0.9][discrete(kindnessWeights)]
+      kindness: [0.1, 0.3, 0.5, 0.7, 0.9][discrete(kindnessWeights)]
+      }
+
+    var S1 = speaker1(state, speakerGoals)
+
+    factor(speakerOptimality*S1.score([],utterance))
+
+    return {
+      state: state,
+      goals: speakerGoals
+    }
+  })
+}
+
+
+var speaker2 = function(state, intendedGoals) {
+  Enumerate(function(){
+
+    var utterance = utterancePrior()
+
+    var L1 = listener1(utterance)
+
+    factor(L1.score([], {"state":state, "goals":intendedGoals}))
+
+    return utterance
+
+  })
+}
+
+print(speaker2(1, {honesty:0.9, kindness: 0.9}))
+
+~~~~
+
+#### Open questions 
+
++ Is there a difference between communicating the goal to be honest vs. being honest?
+++ Right now, honesty in both cases is informativity. Maybe it should be just truth-functional.

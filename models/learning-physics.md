@@ -53,6 +53,8 @@ The implementation of this computational model requires [Ikarus scheme](https://
 
 The inference results are written to `inference/world1/world1_1`.
 
+A note on runtime: A forward-step of simulating physics is on the order of a second. However, depending on your setup and the number of theories being inferred, the inference step may take several hours. 
+
 References:
 
 - Cite:ullman2014learning

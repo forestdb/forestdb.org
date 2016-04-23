@@ -104,22 +104,62 @@ function replace_html(source, target) {
 }
 
 function format_citation(citation) {
-    var s = "";
-    if (citation["URL"]) {
-        s += "<a href='" + citation["URL"] + "'>" + citation["TITLE"] + "</a>. ";
-    } else {
-        s += citation["TITLE"] + ". ";
-    };
-    s += citation["AUTHOR"] + " (" + citation["YEAR"] + ").";
-    if (citation["JOURNAL"]) {
-        s += " <em>" + citation["JOURNAL"] + "</em>.";
-    }
-    return textohtml(s);
+  var s = "";
+  if (citation["URL"]) {
+    s += "<a href='" + citation["URL"] + "'>" + citation["TITLE"] + "</a>. ";
+  } else {
+    s += citation["TITLE"] + ". ";
+  };
+  s += citation["AUTHOR"] + " (" + citation["YEAR"] + ").";
+  if (citation["JOURNAL"]) {
+    s += " <em>" + citation["JOURNAL"] + "</em>.";
+  }
+  return textohtml(s);
+}
+
+function author_lastname(authorString) {
+  var names = authorString.split(", ");
+  if (names.length == 0) {
+    console.error('Expected first and last name, got: ' + authorString);
+    return;
+  }
+  return names[0];
+}
+
+function short_authors(authorsString) {
+  if (!authorsString) {
+    console.warn('short_authors got:' + authorsString);
+    return;
+  }
+  var authors = authorsString.split(" and ");
+  if (authors.length === 0) {
+    console.error('Expected >= 1 author, got: ' + authorsString);
+    return authorsString;
+  }
+  var firstAuthor = authors[0];
+  if (authors.length === 1) {
+    return author_lastname(firstAuthor);
+  } else if (authors.length === 2) {
+    var secondAuthor = authors[1];
+    return author_lastname(firstAuthor) + ' and ' + author_lastname(secondAuthor);
+  } else {
+    return author_lastname(firstAuthor) + ' et al.';
+  }
+}
+
+function cite_url(citation) {
+  if (citation["URL"]) {
+    return citation["URL"];
+  }
+  return 'https://scholar.google.com/scholar?q="' + citation["TITLE"] + '"';
 }
 
 function format_reference(citation) {
-    var s = "<em>" + citation["AUTHOR"] + " (" + citation["YEAR"] + ")</em>";
-    return textohtml(s);
+  var s = "";
+  s += "<a class='ref' href='" + cite_url(citation) + "'>";
+  s += short_authors(citation["AUTHOR"]) + " (" + citation["YEAR"] + ")";
+  s += "</a>";
+  return textohtml(s);  
 }
 
 $.get("/bibliography.bib", function (bibtext) {

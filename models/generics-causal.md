@@ -81,12 +81,12 @@ var listener1 = function(utterance, params) {
     var causeIsPresent = flip(params.theta)
     var state = causeIsPresent ? 
         bins[discrete(discretizeBeta(params.g1,params.d1))] : 
-        bins[discrete(discretizeBeta(params.g0,params.d0))]
+    bins[discrete(discretizeBeta(params.g0,params.d0))]
 
     var threshold = thresholdPrior()
     var S1 = speaker1(state, threshold, params)
     factor(s1optimality*S1.score([],utterance))
-    return causeIsPresent
+    return causeIsPresent ? "primary cause" : "background cause"
   })
 }
 
@@ -102,15 +102,16 @@ var speaker2 = function(prevalence, prior){
 
 
 
-listener1(
-  "specific", 
-  {
-    theta: 0.5,
-    g1: 0.99,
-    d1: 10,
-    g0: 0.05,
-    d0: 2,
-  }
+print(
+  listener1(
+    "specific", 
+    {
+      theta: 0.5,
+      g1: 0.99,
+      d1: 10,
+      g0: 0.05,
+      d0: 2,
+    }
+  )
 )
-
 ~~~~

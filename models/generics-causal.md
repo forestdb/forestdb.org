@@ -132,7 +132,7 @@ var thresholdPrior = function() {
 }
 
 var utterancePrior = function() {
-  var utterances = ["generic", "specific", "mu"]  
+  var utterances = ["generic", "specific"]//, "mu"]  
   //    var utterances = ["generic is true",
   //                 "generic is false"]  
   return uniformDraw(utterances)

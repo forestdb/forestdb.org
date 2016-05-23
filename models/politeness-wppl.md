@@ -139,7 +139,7 @@ var speaker1 = cache(function(world, speakerGoals) {
 
     var L0 = listener0(utterance, goals)
 
-    factor(L0.score([],qudVal))
+    factor(speakerOptimality*L0.score([],qudVal))
 
     return utterance
   })
@@ -159,7 +159,7 @@ var listener1 = function(utterance, knowledge) {
 
     var S1 = speaker1(world, speakerGoals)
 
-    factor(speakerOptimality*S1.score([],utterance))
+    factor(S1.score([],utterance))
 
     return speakerGoals
   })
@@ -241,7 +241,7 @@ var speaker1 = cache(function(state, speakerGoals) {
     var jointUtility = speakerGoals.honesty*epistemicUtility + 
                        speakerGoals.kindness*niceUtility
 
-    factor(jointUtility)
+    factor(speakerOptimality*jointUtility)
 
     return utterance
   })
@@ -262,7 +262,7 @@ var listener1 = function(utterance, knowledge) {
 
     var S1 = speaker1(state, speakerGoals)
 
-    factor(speakerOptimality*S1.score([],utterance))
+    factor(S1.score([],utterance))
 
     return speakerGoals
   })
@@ -366,7 +366,7 @@ var speaker1 = cache(function(state, speakerGoals) {
     var jointUtility = speakerGoals.honesty*epistemicUtility + 
                        speakerGoals.kindness*niceUtility
 
-    factor(jointUtility)
+    factor(speakerOptimality*jointUtility)
 
     return utterance
   })
@@ -385,7 +385,7 @@ var listener1 = function(utterance) {
 
     var S1 = speaker1(state, speakerGoals)
 
-    factor(speakerOptimality*S1.score([],utterance))
+    factor(S1.score([],utterance))
 
     return {
       state: state,

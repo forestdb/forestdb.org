@@ -66,7 +66,7 @@ var speaker1 = cache(function(state, speakerGoals) {
 
     var speakerUtility = eUtility+sUtility
 
-    factor(speakerUtility)
+    factor(speakerOptimality*speakerUtility)
 
     return utterance
   })
@@ -93,7 +93,7 @@ var listener1 = function(exptCondition, queryStatement) {
 
     var S1 = speaker1(state, speakerGoals)
 
-    factor(speakerOptimality*S1.score([],utterance))
+    factor(S1.score([],utterance))
 
     var returnStatement = {
       state: state,

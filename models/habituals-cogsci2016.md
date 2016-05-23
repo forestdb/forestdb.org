@@ -173,8 +173,9 @@ var structuredPriorModel = function(params){
 
 ///
 
-// "speaker optimality" parameter
-var alpha = 5
+// "speaker optimality" parameters
+var alpha_1 = 5
+var alpha_1 = 1.25
 
 var thresholdPrior = function() {
   var threshold = uniformDraw(thresholdBins)
@@ -206,26 +207,26 @@ var speaker1 = cache(function(state, threshold, prior) {
   Enumerate(function(){
     var utterance = utterancePrior()
     var L0 = listener0(utterance, threshold, prior)
-    factor(L0.score([],state))
+    factor(alpha_1*L0.score([],state))
     return utterance
   })
 })
 
-var listener1 = function(utterance, prior) {
+var listener1 = cache(function(utterance, prior) {
   Enumerate(function(){
     var state = sample(prior)
     var threshold = thresholdPrior()
     var S1 = speaker1(state, threshold, prior)
-    factor(alpha*S1.score([],utterance))
+    factor(S1.score([],utterance))
     return state
   })
-}
+})
 
 var speaker2 = function(frequency, prior){
   Enumerate(function(){
     var utterance = utterancePrior()
     var wL1 = listener1(utterance, prior)
-    factor(wL1.score([], logFrequency(frequency)))
+    factor(alpha_2*wL1.score([], logFrequency(frequency)))
     return utterance
   })
 }

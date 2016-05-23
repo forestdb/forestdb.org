@@ -130,7 +130,7 @@ var speaker1 = cache(function(state, threshold, prior) {
   Enumerate(function(){
     var utterance = utterancePrior()
     var L0 = listener0(utterance, threshold, prior)
-    factor(L0.score([],state))
+    factor(s1optimality*L0.score([],state))
     return utterance
   })
 })
@@ -142,7 +142,7 @@ var listener1 = function(utterance, prior) {
     var state = statePrior(prior)
     var threshold = thresholdPrior()
     var S1 = speaker1(state, threshold, prior)
-    factor(s1optimality*S1.score([],utterance))
+    factor(S1.score([],utterance))
     return state
   })
 }
@@ -339,7 +339,7 @@ var speaker1 = cache(function(state, threshold, prior, predicate) {
   Enumerate(function(){
     var utterance = utterancePrior(predicate)
     var L0 = listener0(utterance, threshold, prior)
-    factor(L0.score([],state))
+    factor(s1optimality*L0.score([],state))
     return utterance
   })
 })
@@ -350,7 +350,7 @@ var listener1 = cache(function(utterance, predicate, wrld) {
     var state = statePrior(prior)
     var threshold = thresholdPrior()
     var S1 = speaker1(state, threshold, prior, predicate)
-    factor(s1optimality*S1.score([],utterance))
+    factor(S1.score([],utterance))
     return state
   })
 })

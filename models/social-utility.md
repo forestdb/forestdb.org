@@ -32,8 +32,123 @@ var makeChoiceERP = function(utility) {
   return categoricalERP(ps, vs);
 };
 
-var choiceLikelihood = function(beliefs, choice) {
-  var choiceERP = makeChoiceERP(beliefs);
+var choiceLikelihood = function(ownUtility, choice) {
+  var choiceERP = makeChoiceERP(ownUtility);
+  return choiceERP.score([], choice);
+};
+
+var otherLikelihoods = function(otherUtilities, otherChoices) {
+  var likelihoods = map2(function(otherUtility, otherChoice) {
+    var otherChoiceERP = makeChoiceERP(otherUtility);
+    return otherChoiceERP.score([], otherChoice);
+  }, otherUtilities, otherChoices);
+  return sum(likelihoods);
+};
+
+var sampleAgentUtility = function(groupMean, groupSD) {
+  var utility = {
+    "Burger Barn" : gaussian(groupMean["Burger Barn"], groupSD),
+    "Stirfry Shack" : gaussian(groupMean["Stirfry Shack"], groupSD)
+  };
+  return mapObject(function(key, val) {
+    return (val <= 0 ? 0.001 :
+	    val >= 1 ? 0.999 :
+	    val);
+  }, utility);
+
+};
+
+///
+
+var numAgents = 3;
+
+var beliefPrior = function() {
+  var groupMean = {"Burger Barn" : uniform(0,1),
+		   "Stirfry Shack" : uniform(0,1)};
+  var groupSD = uniform(0, 0.1);
+  return {
+    groupMean: groupMean,
+    groupSD: groupSD,
+    ownUtility: sampleAgentUtility(groupMean, groupSD),
+    otherUtilities: repeat(numAgents, function() {
+      return sampleAgentUtility(groupMean, groupSD);
+    })
+  };
+};
+
+var infer = function(evidence) {
+  if(evidence.length === 0) {
+    return beliefPrior(); // Take a sample from prior
+  } else {
+    var newEvidence = last(evidence);
+
+    // Recursively reason about what I would have believed last time step
+    var beliefs = infer(butLast(evidence));
+
+    // What beliefs would make this new choice most likely?
+    // factor(choiceLikelihood(beliefs.ownUtility, newEvidence.self.choice));
+
+    // What beliefs would make this reward signal most likely?
+    factor(bernoulliERP.score([beliefs.ownUtility[newEvidence.self.choice]],
+			      newEvidence.self.rewardSignal));
+
+    // What beliefs would make my friend's choices most likely?
+    factor(otherLikelihoods(beliefs.otherUtilities, newEvidence.others));
+    return beliefs;
+  }
+};
+
+var results = SMC(function() {
+  var evidence1 = [{self: {choice : "Burger Barn", rewardSignal : true},
+		   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
+  //   var evidence2 = [{self: {choice : "Burger Barn", rewardSignal : true},
+  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                  {self: {choice : "Burger Barn", rewardSignal : true},
+  //                   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
+  //   var evidence3 = [{self: {choice : "Burger Barn", rewardSignal : true},
+  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                  {self: {choice : "Burger Barn", rewardSignal : false},
+  //                    others : ["Burger Barn", "Burger Barn", "Stirfry Shack"]}];
+
+  return infer(evidence);
+}, {particles : 10000});
+
+vizPrint(Enumerate(function() { return sample(results).ownUtility}));
+vizPrint(Enumerate(function() { return sample(results).groupSD}));
+~~~~
+
+Despite the fact Alice doesn't explicitly observe any information about the Stirfry Shack, she nonetheless forms strong beliefs about it by observing the actions of agents that she believes belong to her group. By comparing evidence1 to evidence2, we see that additional evidence strengthens Alice's belief and also leads to an inference that the SD of her group must be quite large (otherwise it's hard to explain why no one else is choosing the Burger Barn). By comparing evidence2 to evidence3, we see that observing just a few mixed signals (i.e. a bad experience at Burger Barn herself, and social evidence of some other choosing Burger Barn), her beliefs about SD shift much lower.
+
+In this first simulation, we assumed that all agents belong to the same group. In real social situations, however, there exist many groups with many different values and preferences. To formalize an intuitive theory about such situations, we extend our model with a simple hierarchical prior such that Alice can infer group membership in addition to utilities. First, we sample a number of groups between 1 and K. Next, we sample means and SDs for each of these groups independently. Finally, we sample an assignment of all agents in the population to one of K groups, such that that agent's utilities are drawn from that group's statistics. 
+
+~~~~
+
+///fold:
+var butLast = function(xs) {
+  return xs.slice(0, xs.length - 1);
+};
+
+var normalize = function(xs) {
+  var Z = sum(xs);
+  return map(function(x) {
+    return x / Z;
+  }, xs);
+};
+
+var normalizeVals = function(agentVals){
+  var arr = _.values(agentVals);
+  return normalize(arr);
+};
+
+// Each agent soft-maxes utility
+var makeChoiceERP = function(utility) {
+  var ps = normalizeVals(utility);
+  var vs = _.keys(utility);
+  return categoricalERP(ps, vs);
+};
+
+var choiceLikelihood = function(ownUtility, choice) {
+  var choiceERP = makeChoiceERP(ownUtility);
   return choiceERP.score([], choice);
 };
 
@@ -58,23 +173,33 @@ var sampleAgentUtility = function(groupMean, groupSD) {
 
 };
 
-var numAgents = 2;
+///
+
+var numAgents = 3;
+var maxNumGroups = 3;
 
 var beliefPrior = function() {
-  var groupMean = {"Burger Barn" : uniform(0,1),
-                   "Stirfry Shack" : uniform(0,1)};
-  var groupSD = uniform(0, 0.1);
+  var numGroups = randomInteger(maxNumGroups - 1) + 1;
+  var groupParams = repeat(numGroups, function() {
+    return {groupMean : {"Burger Barn" : uniform(0,1),
+                         "Stirfry Shack" : uniform(0,1)},
+            groupSD : uniform(0, 0.1)};
+  });
+  var groupMembership = repeat(numAgents + 1, function() {
+    return randomInteger(numGroups);
+  });
+  var ownGroup = groupParams[groupMembership[0]];
   return {
-    groupMean: groupMean,
-    groupSD: groupSD,
-    ownUtility: sampleAgentUtility(groupMean, groupSD),
-    otherUtilities: repeat(numAgents, function() {
-      return sampleAgentUtility(groupMean, groupSD);
-    })
+    numGroups : numGroups,
+    groupParams: groupParams,
+    groupMembership: groupMembership,
+    ownUtility: sampleAgentUtility(ownGroup.groupMean, ownGroup.groupSD),
+    otherUtilities: map(function(agentIndex) {
+      var otherGroup = groupParams[groupMembership[agentIndex + 1]];
+      return sampleAgentUtility(otherGroup.groupMean, otherGroup.groupSD);
+    }, _.range(numAgents))
   };
 };
-
-///
 
 var infer = function(evidence) {
   if(evidence.length === 0) {
@@ -86,7 +211,7 @@ var infer = function(evidence) {
     var beliefs = infer(butLast(evidence));
 
     // What beliefs would make this new choice most likely?
-    factor(choiceLikelihood(beliefs.ownUtility, newEvidence.self.choice));
+    // factor(choiceLikelihood(beliefs.ownUtility, newEvidence.self.choice));
 
     // What beliefs would make this reward signal most likely?
     factor(bernoulliERP.score([beliefs.ownUtility[newEvidence.self.choice]],
@@ -98,20 +223,30 @@ var infer = function(evidence) {
   }
 };
 
+beliefPrior();
+
+
 var results = SMC(function() {
-  var evidence = [{self: {choice : "Burger Barn", rewardSignal : false},
-                   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
-                  {self: {choice : "Stirfry Shack", rewardSignal : true},
-                   others : ["Burger Barn", "Stirfry Shack", "Stirfry Shack"]}];
+  var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
+                   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
+  // var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
+  // 		   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  // 		  {self: {choice : "Burger Barn", rewardSignal : true},
+  // 		   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
+  //   var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
+  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                  {self: {choice : "Burger Barn", rewardSignal : false},
+  //                    others : ["Burger Barn", "Burger Barn", "Stirfry Shack"]}];
+
   return infer(evidence);
 }, {particles : 10000});
 
-vizPrint(Enumerate(function() { return sample(results).ownUtility}));
+vizPrint(Enumerate(function() { return sample(results).ownUtility;}));
+print(Enumerate(function() { return sample(results).groupMembership;}));
+print(Enumerate(function() { return sample(results).numGroups;}));
 ~~~~
 
-We see that Alice is able to recover her true utility function from social observations and a noisy, but direct, reward signal. Of course, she would be able to do this with either source of information alone (they are not conflicting), but observing both speeds up inference quite dramatically.
-
-Next, notice that in the above model, every agent in the population is an equally good source of information about Alice's utility. In the real-world, however, people's utilities are not drawn from the same underlying distribution; people cluster around different utilities. To model this situation, we create a population that's a mixture of different utilities. Alice must weight each agent by how similar she believes their utilities are. This makes the reward signal critical to inference: it gives the agent information not just about their own utility, but about which social signals to pay attention to. If all agents are engaging in these inferences at the same time, can this capture group formation? What if these objective utilities are simply defined by whether agents coordinate or not? Can this capture conventionalization?
+  <!--
 
 ~~~~
 ///fold:
@@ -258,8 +393,6 @@ var results = timeStep(alice, 100);
 vizPrint(Enumerate(function() { return sample(results.knowledge).utility}));
 print(Enumerate(function() { return sample(results.knowledge).groupAssignments}));
 ~~~~
-
-  <!--
 
 // Discrete version
 

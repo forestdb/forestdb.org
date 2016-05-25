@@ -13,6 +13,14 @@ var butLast = function(xs) {
   return xs.slice(0, xs.length - 1);
 };
 
+var truncate = function(obj) {
+  return mapObject(function(key, val) {
+    return (val <= 0 ? 0.001 :
+            val >= 1 ? 0.999 :
+            val);
+  }, obj);
+};
+
 var normalize = function(xs) {
   var Z = sum(xs);
   return map(function(x) {
@@ -46,16 +54,10 @@ var otherLikelihoods = function(otherUtilities, otherChoices) {
 };
 
 var sampleAgentUtility = function(groupMean, groupSD) {
-  var utility = {
+  return truncate({
     "Burger Barn" : gaussian(groupMean["Burger Barn"], groupSD),
     "Stirfry Shack" : gaussian(groupMean["Stirfry Shack"], groupSD)
-  };
-  return mapObject(function(key, val) {
-    return (val <= 0 ? 0.001 :
-	    val >= 1 ? 0.999 :
-	    val);
-  }, utility);
-
+  });
 };
 
 ///
@@ -64,7 +66,7 @@ var numAgents = 3;
 
 var beliefPrior = function() {
   var groupMean = {"Burger Barn" : uniform(0,1),
-		   "Stirfry Shack" : uniform(0,1)};
+                   "Stirfry Shack" : uniform(0,1)};
   var groupSD = uniform(0, 0.1);
   return {
     groupMean: groupMean,
@@ -85,12 +87,9 @@ var infer = function(evidence) {
     // Recursively reason about what I would have believed last time step
     var beliefs = infer(butLast(evidence));
 
-    // What beliefs would make this new choice most likely?
-    // factor(choiceLikelihood(beliefs.ownUtility, newEvidence.self.choice));
-
     // What beliefs would make this reward signal most likely?
     factor(bernoulliERP.score([beliefs.ownUtility[newEvidence.self.choice]],
-			      newEvidence.self.rewardSignal));
+                              newEvidence.self.rewardSignal));
 
     // What beliefs would make my friend's choices most likely?
     factor(otherLikelihoods(beliefs.otherUtilities, newEvidence.others));
@@ -99,17 +98,27 @@ var infer = function(evidence) {
 };
 
 var results = SMC(function() {
-  var evidence1 = [{self: {choice : "Burger Barn", rewardSignal : true},
-		   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
-  //   var evidence2 = [{self: {choice : "Burger Barn", rewardSignal : true},
-  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
-  //                  {self: {choice : "Burger Barn", rewardSignal : true},
-  //                   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
-  //   var evidence3 = [{self: {choice : "Burger Barn", rewardSignal : true},
-  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
-  //                  {self: {choice : "Burger Barn", rewardSignal : false},
-  //                    others : ["Burger Barn", "Burger Barn", "Stirfry Shack"]}];
-
+  // evidence 1
+  var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
+                   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
+  // evidence 2
+  // var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
+  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                 {self: {choice : "Burger Barn", rewardSignal : true},
+  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                 {self: {choice : "Burger Barn", rewardSignal : true},
+  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                 {self: {choice : "Burger Barn", rewardSignal : true},
+  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
+  // evidence 3
+  // var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
+  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                 {self: {choice : "Burger Barn", rewardSignal : true},
+  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                 {self: {choice : "Burger Barn", rewardSignal : true},
+  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                 {self: {choice : "Burger Barn", rewardSignal : false},
+  //                  others : ["Burger Barn", "Burger Barn", "Stirfry Shack"]}];
   return infer(evidence);
 }, {particles : 10000});
 
@@ -210,9 +219,6 @@ var infer = function(evidence) {
     // Recursively reason about what I would have believed last time step
     var beliefs = infer(butLast(evidence));
 
-    // What beliefs would make this new choice most likely?
-    // factor(choiceLikelihood(beliefs.ownUtility, newEvidence.self.choice));
-
     // What beliefs would make this reward signal most likely?
     factor(bernoulliERP.score([beliefs.ownUtility[newEvidence.self.choice]],
                               newEvidence.self.rewardSignal));
@@ -223,21 +229,28 @@ var infer = function(evidence) {
   }
 };
 
-beliefPrior();
-
-
 var results = SMC(function() {
+  // evidence 1
   var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
+  // evidence 2
   // var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
-  // 		   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
-  // 		  {self: {choice : "Burger Barn", rewardSignal : true},
-  // 		   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
-  //   var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
-  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
-  //                  {self: {choice : "Burger Barn", rewardSignal : false},
-  //                    others : ["Burger Barn", "Burger Barn", "Stirfry Shack"]}];
-
+  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                 {self: {choice : "Burger Barn", rewardSignal : true},
+  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                 {self: {choice : "Burger Barn", rewardSignal : true},
+  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                 {self: {choice : "Burger Barn", rewardSignal : true},
+  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
+  // evidence 3
+  // var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
+  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                 {self: {choice : "Burger Barn", rewardSignal : true},
+  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                 {self: {choice : "Burger Barn", rewardSignal : true},
+  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //                 {self: {choice : "Burger Barn", rewardSignal : false},
+  //                  others : ["Burger Barn", "Burger Barn", "Stirfry Shack"]}];
   return infer(evidence);
 }, {particles : 10000});
 
@@ -246,8 +259,157 @@ print(Enumerate(function() { return sample(results).groupMembership;}));
 print(Enumerate(function() { return sample(results).numGroups;}));
 ~~~~
 
-  <!--
+Note that evidence2 now constitutes fairly strong evidence that there are two groups, one solely containing the agent and the other containing everyone else.
 
+Next, we add incidental features to the agents. In the real world, we don't always get to observe the choices of other agents, but we do observe perceptual features like skin color, hair color, and the team name on a sports jersey. Work on stereotyping and ingroup-outgroup perception suggests that we expect many groups to share such features. To incorporate this aspect of an intuitive theory of groups, we sample a "feature probability" for each group. If it is 1, then we expect all agents in the group to have that feature. If it is .5, we expect roughly half of the agents to have that features. Our agent then takes these stable perceptual traits into account when inferring group membership and utility.
+
+~~~~
+
+///fold:
+var butLast = function(xs) {
+  return xs.slice(0, xs.length - 1);
+};
+
+var normalize = function(xs) {
+  var Z = sum(xs);
+  return map(function(x) {
+    return x / Z;
+  }, xs);
+};
+
+var normalizeVals = function(agentVals){
+  var arr = _.values(agentVals);
+  return normalize(arr);
+};
+
+// Each agent soft-maxes utility
+var makeChoiceERP = function(utility) {
+  var ps = normalizeVals(utility);
+  var vs = _.keys(utility);
+  return categoricalERP(ps, vs);
+};
+
+var choiceLikelihood = function(ownUtility, choice) {
+  var choiceERP = makeChoiceERP(ownUtility);
+  return choiceERP.score([], choice);
+};
+
+var otherChoiceLikelihoods = function(beliefs, otherChoices) {
+  var likelihoods = map2(function(otherUtility, otherChoice) {
+    var otherChoiceERP = makeChoiceERP(otherUtility);
+    return otherChoiceERP.score([], otherChoice);
+  }, beliefs.otherUtilities, otherChoices);
+  return sum(likelihoods);
+};
+
+var featureLikelihoods = function(beliefs, features) {
+  var likelihoods = map2(function(agentID, feature) {
+    var group = beliefs.groupMembership[agentID];
+    var featureProb = beliefs.groupParams[group].groupFeatureProb;
+    return bernoulliERP.score([featureProb], feature);
+  }, _.range(beliefs.groupMembership.length), features);
+  return sum(likelihoods);
+};
+
+var sampleAgentUtility = function(groupMean, groupSD) {
+  var utility = {
+    "Burger Barn" : gaussian(groupMean["Burger Barn"], groupSD),
+    "Stirfry Shack" : gaussian(groupMean["Stirfry Shack"], groupSD)
+  };
+  return mapObject(function(key, val) {
+    return (val <= 0 ? 0.001 :
+            val >= 1 ? 0.999 :
+            val);
+  }, utility);
+
+};
+
+///
+
+var numAgents = 3;
+var maxNumGroups = 3;
+
+var beliefPrior = function() {
+  var numGroups = randomInteger(maxNumGroups - 1) + 1;
+  var groupParams = repeat(numGroups, function() {
+    return {groupMean : {"Burger Barn" : uniform(0,1),
+                         "Stirfry Shack" : uniform(0,1)},
+            groupSD : uniform(0, 0.1),
+            groupFeatureProb : uniform(0,1)};
+  });
+  var groupMembership = repeat(numAgents + 1, function() {
+    return randomInteger(numGroups);
+  });
+  var ownGroup = groupParams[groupMembership[0]];
+  return {
+    numGroups : numGroups,
+    groupParams: groupParams,
+    groupMembership: groupMembership,
+    ownUtility: sampleAgentUtility(ownGroup.groupMean, ownGroup.groupSD),
+    otherUtilities: map(function(agentIndex) {
+      var otherGroup = groupParams[groupMembership[agentIndex + 1]];
+      return sampleAgentUtility(otherGroup.groupMean, otherGroup.groupSD);
+    }, _.range(numAgents))
+  };
+};
+
+var infer = function(evidence) {
+  if(evidence.length === 0) {
+    return beliefPrior(); // Take a sample from prior
+  } else {
+    var newEvidence = last(evidence);
+
+    // Recursively reason about what I would have believed last time step
+    var beliefs = infer(butLast(evidence));
+
+    // What beliefs would make this reward signal most likely?
+    factor(bernoulliERP.score([beliefs.ownUtility[newEvidence.self.choice]],
+                              newEvidence.self.rewardSignal));
+
+    // What beliefs would make my friend's choices most likely?
+    factor(otherChoiceLikelihoods(beliefs, newEvidence.others));
+
+    // What beliefs would make our perceptual features most likely?
+    // TODO: should only count these once, since features are fixed for agents
+    factor(featureLikelihoods(beliefs, newEvidence.features));
+    return beliefs;
+  }
+};
+
+var results = SMC(function() {
+  var features = [false, true, true, true];
+  //   var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
+  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"],
+  //                    features: [true, true, true, true]}];
+
+  // var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
+  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"],
+  //                    features: features},
+  //                   {self: {choice : "Burger Barn", rewardSignal : true},
+  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"],
+  //                    features: features},
+  //                   {self: {choice : "Burger Barn", rewardSignal : true},
+  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"],
+  //                    features: features},
+  //                   {self: {choice : "Burger Barn", rewardSignal : true},
+  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"],
+  //                    features: features}];
+  return infer(evidence);
+}, {particles : 10000});
+
+vizPrint(Enumerate(function() { return sample(results).ownUtility;}));
+print(Enumerate(function() { return sample(results).groupMembership;}));
+print(Enumerate(function() { return sample(results).numGroups;}));
+vizPrint(Enumerate(function() {
+  var probList = map(function(groupParam) {
+    return groupParam.groupFeatureProb;
+  }, sample(results).groupParams);
+  return (probList.length == 1 ? append(probList, [0,0]) :
+          probList.length == 2 ? append(probList, [0]) : probList);
+}));
+~~~~
+
+<!--
 ~~~~
 ///fold:
 var normalize = function(xs) {
@@ -814,4 +976,5 @@ print(simResults['Carol'].relationships);
 ~~~~
 
 We see that several different equilibria can form, depending on the exact sequence of early observations. The most obvious is what happened above: all three agents converge on a single restaurant, and all have strong pairwise relationships. Another possibility is two agents with mutually strong relationships who have converged on the same restaurant, while the third agent has weak social bonds and prefers a different restaurant. A third possibility is all three agents prefering different restaurants and mutually disregarding one another. 
+
 -->

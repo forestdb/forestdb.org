@@ -53,29 +53,40 @@ var otherLikelihoods = function(otherUtilities, otherChoices) {
   return sum(likelihoods);
 };
 
-var sampleAgentUtility = function(groupMean, groupSD) {
+var sampleAgentUtility = function(groupParams) {
+  var mean = groupParams.groupMean;
+  var sd = groupParams.groupSD;
   return truncate({
-    "Burger Barn" : gaussian(groupMean["Burger Barn"], groupSD),
-    "Stirfry Shack" : gaussian(groupMean["Stirfry Shack"], groupSD)
+    "Burger Barn" : gaussian(mean["Burger Barn"], sd),
+    "Stirfry Shack" : gaussian(mean["Stirfry Shack"], sd)
   });
 };
 
+var sampleOtherUtilities = function(numAgents, groupParams) {
+  return repeat(numAgents, function() {
+    return sampleAgentUtility(groupParams.groupMean, groupParams.groupSD);
+  })
+};
 ///
 
 var numAgents = 3;
 
-var beliefPrior = function() {
-  var groupMean = {"Burger Barn" : uniform(0,1),
-                   "Stirfry Shack" : uniform(0,1)};
-  var groupSD = uniform(0, 0.1);
+var sampleGroupParams = function() {
   return {
-    groupMean: groupMean,
-    groupSD: groupSD,
-    ownUtility: sampleAgentUtility(groupMean, groupSD),
-    otherUtilities: repeat(numAgents, function() {
-      return sampleAgentUtility(groupMean, groupSD);
-    })
+    groupMean : {"Burger Barn" : uniform(0,1),
+                 "Stirfry Shack" : uniform(0,1)},
+    groupSD : uniform(0, 0.1)
   };
+};
+
+var beliefPrior = function() {
+  var groupParams = sampleGroupParams();
+  
+  return {
+    groupParams : groupParams,
+    ownUtility: sampleAgentUtility(groupParams),
+    otherUtilities : sampleOtherUtilities(numAgents, groupParams)
+  };  
 };
 
 var infer = function(evidence) {
@@ -137,6 +148,14 @@ var butLast = function(xs) {
   return xs.slice(0, xs.length - 1);
 };
 
+var truncate = function(obj) {
+  return mapObject(function(key, val) {
+    return (val <= 0 ? 0.001 :
+            val >= 1 ? 0.999 :
+            val);
+  }, obj);
+};
+
 var normalize = function(xs) {
   var Z = sum(xs);
   return map(function(x) {
@@ -169,17 +188,34 @@ var otherLikelihoods = function(otherUtilities, otherChoices) {
   return sum(likelihoods);
 };
 
-var sampleAgentUtility = function(groupMean, groupSD) {
-  var utility = {
-    "Burger Barn" : gaussian(groupMean["Burger Barn"], groupSD),
-    "Stirfry Shack" : gaussian(groupMean["Stirfry Shack"], groupSD)
-  };
-  return mapObject(function(key, val) {
-    return (val <= 0 ? 0.001 :
-            val >= 1 ? 0.999 :
-            val);
-  }, utility);
+var sampleAgentUtility = function(groupParams) {
+  var mean = groupParams.groupMean;
+  var sd = groupParams.groupSD;
+  return truncate({
+    "Burger Barn" : gaussian(mean["Burger Barn"], sd),
+    "Stirfry Shack" : gaussian(mean["Stirfry Shack"], sd)
+  });
+};
 
+var sampleOtherUtilities = function(numAgents, groupParams) {
+  return map(function(agentIndex) {
+    var otherGroupParams = groupParams[groupMembership[agentIndex + 1]];
+    return sampleAgentUtility(otherGroupParams);
+  }, _.range(numAgents))
+};
+
+var sampleGroupParams = function(numGroups) {
+  return repeat(numGroups, function() {
+    return {groupMean : {"Burger Barn" : uniform(0,1),
+                         "Stirfry Shack" : uniform(0,1)},
+            groupSD : uniform(0, 0.1)};
+  });
+};
+
+var sampleGroupMembership = function(numAgents, numGroups) {
+  return repeat(numAgents + 1, function() {
+    return randomInteger(numGroups);
+  });
 };
 
 ///
@@ -189,24 +225,15 @@ var maxNumGroups = 3;
 
 var beliefPrior = function() {
   var numGroups = randomInteger(maxNumGroups - 1) + 1;
-  var groupParams = repeat(numGroups, function() {
-    return {groupMean : {"Burger Barn" : uniform(0,1),
-                         "Stirfry Shack" : uniform(0,1)},
-            groupSD : uniform(0, 0.1)};
-  });
-  var groupMembership = repeat(numAgents + 1, function() {
-    return randomInteger(numGroups);
-  });
-  var ownGroup = groupParams[groupMembership[0]];
+  var groupParams = sampleGroupParams(numGroups);
+  var groupMembership = sampleGroupMembership(numAgents, numGroups);
+  
   return {
-    numGroups : numGroups,
     groupParams: groupParams,
+    numGroups : numGroups,
     groupMembership: groupMembership,
-    ownUtility: sampleAgentUtility(ownGroup.groupMean, ownGroup.groupSD),
-    otherUtilities: map(function(agentIndex) {
-      var otherGroup = groupParams[groupMembership[agentIndex + 1]];
-      return sampleAgentUtility(otherGroup.groupMean, otherGroup.groupSD);
-    }, _.range(numAgents))
+    ownUtility: sampleAgentUtility(groupParams[groupMembership[0]]),
+    otherUtilities: sampleOtherUtilities(groupParams, groupMembership, numAgents)
   };
 };
 
@@ -270,6 +297,14 @@ var butLast = function(xs) {
   return xs.slice(0, xs.length - 1);
 };
 
+var truncate = function(obj) {
+  return mapObject(function(key, val) {
+    return (val <= 0 ? 0.001 :
+            val >= 1 ? 0.999 :
+            val);
+  }, obj);
+};
+
 var normalize = function(xs) {
   var Z = sum(xs);
   return map(function(x) {
@@ -302,26 +337,44 @@ var otherChoiceLikelihoods = function(beliefs, otherChoices) {
   return sum(likelihoods);
 };
 
-var featureLikelihoods = function(beliefs, features) {
+var featureLikelihoods = function(groupParams, groupMembership, features) {
   var likelihoods = map2(function(agentID, feature) {
-    var group = beliefs.groupMembership[agentID];
-    var featureProb = beliefs.groupParams[group].groupFeatureProb;
+    var group = groupMembership[agentID];
+    var featureProb = groupParams[group].groupFeatureProb;
     return bernoulliERP.score([featureProb], feature);
-  }, _.range(beliefs.groupMembership.length), features);
+  }, _.range(groupMembership.length), features);
   return sum(likelihoods);
 };
 
-var sampleAgentUtility = function(groupMean, groupSD) {
-  var utility = {
-    "Burger Barn" : gaussian(groupMean["Burger Barn"], groupSD),
-    "Stirfry Shack" : gaussian(groupMean["Stirfry Shack"], groupSD)
-  };
-  return mapObject(function(key, val) {
-    return (val <= 0 ? 0.001 :
-            val >= 1 ? 0.999 :
-            val);
-  }, utility);
+var sampleAgentUtility = function(groupParams) {
+  var mean = groupParams.groupMean;
+  var sd = groupParams.groupSD;
+  return truncate({
+    "Burger Barn" : gaussian(mean["Burger Barn"], sd),
+    "Stirfry Shack" : gaussian(mean["Stirfry Shack"], sd)
+  });
+};
 
+var sampleOtherUtilities = function(numAgents, groupParams) {
+  return map(function(agentIndex) {
+    var otherGroupParams = groupParams[groupMembership[agentIndex + 1]];
+    return sampleAgentUtility(otherGroupParams);
+  }, _.range(numAgents))
+};
+
+var sampleGroupParams = function() {
+  return repeat(numGroups, function() {
+    return {groupMean : {"Burger Barn" : uniform(0,1),
+                         "Stirfry Shack" : uniform(0,1)},
+            groupSD : uniform(0, 0.1),
+            groupFeatureProb : uniform(0,1)};
+  });
+};
+
+var sampleGroupMembership = function(numAgents, numGroups) {
+  return repeat(numAgents + 1, function() {
+    return randomInteger(numGroups);
+  });
 };
 
 ///
@@ -331,25 +384,18 @@ var maxNumGroups = 3;
 
 var beliefPrior = function() {
   var numGroups = randomInteger(maxNumGroups - 1) + 1;
-  var groupParams = repeat(numGroups, function() {
-    return {groupMean : {"Burger Barn" : uniform(0,1),
-                         "Stirfry Shack" : uniform(0,1)},
-            groupSD : uniform(0, 0.1),
-            groupFeatureProb : uniform(0,1)};
-  });
-  var groupMembership = repeat(numAgents + 1, function() {
-    return randomInteger(numGroups);
-  });
-  var ownGroup = groupParams[groupMembership[0]];
+  var groupParams = sampleGroupParams();
+  var groupMembership = sampleGroupMembership(numAgents, numGroups);
+
+  // Incorporate perceptual features into initial belief prior
+  factor(featureLikelihoods(groupParams, groupMembership, features));
+  
   return {
     numGroups : numGroups,
     groupParams: groupParams,
     groupMembership: groupMembership,
-    ownUtility: sampleAgentUtility(ownGroup.groupMean, ownGroup.groupSD),
-    otherUtilities: map(function(agentIndex) {
-      var otherGroup = groupParams[groupMembership[agentIndex + 1]];
-      return sampleAgentUtility(otherGroup.groupMean, otherGroup.groupSD);
-    }, _.range(numAgents))
+    ownUtility: sampleAgentUtility(groupParams[groupMembership[0]]),
+    otherUtilities: sampleOtherUtilities(groupParams, groupMembership, numAgents)
   };
 };
 
@@ -378,24 +424,32 @@ var infer = function(evidence) {
 
 var results = SMC(function() {
   var features = [false, true, true, true];
-  //   var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
-  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"],
-  //                    features: [true, true, true, true]}];
 
-  // var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
-  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"],
-  //                    features: features},
-  //                   {self: {choice : "Burger Barn", rewardSignal : true},
-  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"],
-  //                    features: features},
-  //                   {self: {choice : "Burger Barn", rewardSignal : true},
-  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"],
-  //                    features: features},
-  //                   {self: {choice : "Burger Barn", rewardSignal : true},
-  //                    others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"],
-  //                    features: features}];
-  return infer(evidence);
-}, {particles : 10000});
+  // evidence 1
+  var input = {
+    features: features,
+    evidence: []};
+    
+  // evidence 2
+  // var input = {
+  //   features: features,
+  //   evidence: [{self: {choice : "Stirfry Shack", rewardSignal : true},
+  //               others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //              {self: {choice : "Stirfry Shack", rewardSignal : true},
+  //               others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}]};
+
+  // evidence 3
+  // var input = {
+  //   features: features,
+  //   evidence: [{self: {choice : "Stirfry Shack", rewardSignal : true},
+  //               others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //              {self: {choice : "Stirfry Shack", rewardSignal : true},
+  //               others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //              {self: {choice : "Burger Barn", rewardSignal : true},
+  //               others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}]};
+
+  return infer(input);
+}, {particles : 20000});
 
 vizPrint(Enumerate(function() { return sample(results).ownUtility;}));
 print(Enumerate(function() { return sample(results).groupMembership;}));
@@ -409,7 +463,7 @@ vizPrint(Enumerate(function() {
 }));
 ~~~~
 
-<!--
+<!---
 ~~~~
 ///fold:
 var normalize = function(xs) {
@@ -977,4 +1031,4 @@ print(simResults['Carol'].relationships);
 
 We see that several different equilibria can form, depending on the exact sequence of early observations. The most obvious is what happened above: all three agents converge on a single restaurant, and all have strong pairwise relationships. Another possibility is two agents with mutually strong relationships who have converged on the same restaurant, while the third agent has weak social bonds and prefers a different restaurant. A third possibility is all three agents prefering different restaurants and mutually disregarding one another. 
 
--->
+--->

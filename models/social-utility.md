@@ -64,7 +64,7 @@ var sampleAgentUtility = function(groupParams) {
 
 var sampleOtherUtilities = function(numAgents, groupParams) {
   return repeat(numAgents, function() {
-    return sampleAgentUtility(groupParams.groupMean, groupParams.groupSD);
+    return sampleAgentUtility(groupParams);
   })
 };
 ///
@@ -75,7 +75,7 @@ var sampleGroupParams = function() {
   return {
     groupMean : {"Burger Barn" : uniform(0,1),
                  "Stirfry Shack" : uniform(0,1)},
-    groupSD : uniform(0, 0.1)
+    groupSD : uniform(0, 0.15)
   };
 };
 
@@ -134,7 +134,7 @@ var results = SMC(function() {
 }, {particles : 10000});
 
 vizPrint(Enumerate(function() { return sample(results).ownUtility}));
-vizPrint(Enumerate(function() { return sample(results).groupSD}));
+vizPrint(Enumerate(function() { return sample(results).groupParams.groupSD}));
 ~~~~
 
 Despite the fact Alice doesn't explicitly observe any information about the Stirfry Shack, she nonetheless forms strong beliefs about it by observing the actions of agents that she believes belong to her group. By comparing evidence1 to evidence2, we see that additional evidence strengthens Alice's belief and also leads to an inference that the SD of her group must be quite large (otherwise it's hard to explain why no one else is choosing the Burger Barn). By comparing evidence2 to evidence3, we see that observing just a few mixed signals (i.e. a bad experience at Burger Barn herself, and social evidence of some other choosing Burger Barn), her beliefs about SD shift much lower.
@@ -197,7 +197,7 @@ var sampleAgentUtility = function(groupParams) {
   });
 };
 
-var sampleOtherUtilities = function(numAgents, groupParams) {
+var sampleOtherUtilities = function(groupParams, groupMembership, numAgents) {
   return map(function(agentIndex) {
     var otherGroupParams = groupParams[groupMembership[agentIndex + 1]];
     return sampleAgentUtility(otherGroupParams);
@@ -355,14 +355,14 @@ var sampleAgentUtility = function(groupParams) {
   });
 };
 
-var sampleOtherUtilities = function(numAgents, groupParams) {
+var sampleOtherUtilities = function(groupParams, groupMembership, numAgents) {
   return map(function(agentIndex) {
     var otherGroupParams = groupParams[groupMembership[agentIndex + 1]];
     return sampleAgentUtility(otherGroupParams);
-  }, _.range(numAgents))
+  }, _.range(numAgents));
 };
 
-var sampleGroupParams = function() {
+var sampleGroupParams = function(numGroups) {
   return repeat(numGroups, function() {
     return {groupMean : {"Burger Barn" : uniform(0,1),
                          "Stirfry Shack" : uniform(0,1)},
@@ -382,9 +382,9 @@ var sampleGroupMembership = function(numAgents, numGroups) {
 var numAgents = 3;
 var maxNumGroups = 3;
 
-var beliefPrior = function() {
+var beliefPrior = function(features) {
   var numGroups = randomInteger(maxNumGroups - 1) + 1;
-  var groupParams = sampleGroupParams();
+  var groupParams = sampleGroupParams(numGroups);
   var groupMembership = sampleGroupMembership(numAgents, numGroups);
 
   // Incorporate perceptual features into initial belief prior
@@ -399,14 +399,14 @@ var beliefPrior = function() {
   };
 };
 
-var infer = function(evidence) {
-  if(evidence.length === 0) {
-    return beliefPrior(); // Take a sample from prior
+var infer = function(input) {
+  if(input.evidence.length === 0) {
+    return beliefPrior(input.features); // Take a sample from prior
   } else {
-    var newEvidence = last(evidence);
+    var newEvidence = last(input.evidence);
 
     // Recursively reason about what I would have believed last time step
-    var beliefs = infer(butLast(evidence));
+    var beliefs = infer(butLast(input.evidence));
 
     // What beliefs would make this reward signal most likely?
     factor(bernoulliERP.score([beliefs.ownUtility[newEvidence.self.choice]],
@@ -415,9 +415,6 @@ var infer = function(evidence) {
     // What beliefs would make my friend's choices most likely?
     factor(otherChoiceLikelihoods(beliefs, newEvidence.others));
 
-    // What beliefs would make our perceptual features most likely?
-    // TODO: should only count these once, since features are fixed for agents
-    factor(featureLikelihoods(beliefs, newEvidence.features));
     return beliefs;
   }
 };

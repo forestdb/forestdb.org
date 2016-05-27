@@ -406,7 +406,7 @@ var infer = function(input) {
     var newEvidence = last(input.evidence);
 
     // Recursively reason about what I would have believed last time step
-    var beliefs = infer(butLast(input.evidence));
+    var beliefs = infer(_.extend(input, {evidence : butLast(input.evidence)}));
 
     // What beliefs would make this reward signal most likely?
     factor(bernoulliERP.score([beliefs.ownUtility[newEvidence.self.choice]],
@@ -433,12 +433,20 @@ var results = SMC(function() {
   //   evidence: [{self: {choice : "Stirfry Shack", rewardSignal : true},
   //               others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
   //              {self: {choice : "Stirfry Shack", rewardSignal : true},
-  //               others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}]};
+  //               others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //              {self: {choice : "Stirfry Shack", rewardSignal : true},
+  //               others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //              {self: {choice : "Stirfry Shack", rewardSignal : true},
+  //              others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}]};
 
   // evidence 3
   // var input = {
   //   features: features,
   //   evidence: [{self: {choice : "Stirfry Shack", rewardSignal : true},
+  //               others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //              {self: {choice : "Stirfry Shack", rewardSignal : true},
+  //               others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+  //              {self: {choice : "Stirfry Shack", rewardSignal : true},
   //               others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
   //              {self: {choice : "Stirfry Shack", rewardSignal : true},
   //               others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},

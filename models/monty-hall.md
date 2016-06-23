@@ -35,8 +35,8 @@ In a game show, a contestant is presented three doors. One door has a car behind
           (first (filter-out (filter-out door-options first-choice) car-door))))
     
     (define samples
-      (mh-query 
-       10000 1
+      (repeat 10000 
+              (lambda ()
        
        (define car-door (pick-door))
        (define doors (gen-doors car-door))
@@ -44,17 +44,15 @@ In a game show, a contestant is presented three doors. One door has a car behind
        (define first-choice (pick-door))
        (define shown-door (show-door first-choice car-door))
          
-       (define switch-doors (flip .5))
+       (define switch-doors #t)
          
        (define second-choice
          (if switch-doors
              (first (filter-out (filter-out door-options first-choice) shown-door))
              first-choice))
        
-       (equal? second-choice car-door)
-       
-       switch-doors))
-
+       (equal? second-choice car-door))))
+    
     (hist samples "Chance of winning if you switch")
     
 References:

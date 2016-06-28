@@ -1,7 +1,7 @@
 ---
-layout: page
-title: questions and answers
-status: current
+layout: model
+title: Questions and Answers
+model-language: webppl
 ---
 
 ### Clark (1979) whiskey example

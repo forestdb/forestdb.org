@@ -24,7 +24,7 @@ model-language: church
        (define categories '(a b c))
        (define cat-indices (iota (length categories)))
        (define pseudo-counts (repeat (length categories) (lambda () 1.0)))
-       (define cats-dist (dirichlet '(0.3 0.3 0.3)))
+       (define cats-dist (dirichlet pseudo-counts))
        (define cat-weights 
          (map (lambda (cat) (beta 1.0 1.0)) 
               categories))

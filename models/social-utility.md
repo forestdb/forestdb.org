@@ -2,6 +2,7 @@
 layout: model
 title: Social Construction of Value
 model-language: webppl
+model-language-version: pre-v0.7
 ---
 
 Suppose there are $M$ restaurants, which generate noisy reward signals $r_j \in \{0, 1\}$. Each agent $a_i$ in the population assigns some subjective utility $u_j$ to each restaurant $j$, such that $u_j = P(r_j = 1)$. These subjective utilities are drawn from a shared normal distribution, so all agents have relatively similar utilities functions. We will model a particular agent, Alice, as she infers her own utility function. She uses two sources of information. First, Alice assumes that all other agents know their own utility and decide which restaurants to visit according to a soft-max rule. Second, when Alice chooses according to her beliefs about her own utility, she observes a noisy reward signal from her true utility function. For each time step, then, Alice makes a choice according to her best guess at her utility function, then updates her beliefs based on the reward signal of this choice and her observations of the choices that others made on that time step. 

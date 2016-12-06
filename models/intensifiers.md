@@ -5,6 +5,7 @@ model-status: code
 model-category: Reasoning about Reasoning
 model-tags: linguistics, pragmatics
 model-language: webppl
+model-language-version: pre-v0.7
 ---
 
 <script src="http://web.stanford.edu/~erindb/webppl-viz/webppl.min.js"></script>  

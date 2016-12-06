@@ -2,6 +2,7 @@
 layout: model
 title: SAILORS Teaching Example
 model-language: webppl
+model-language-version: pre-v0.7
 ---
 
 * toc

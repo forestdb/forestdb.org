@@ -3,6 +3,7 @@ layout: model
 title: WebPPL version of Plural Predication model
 model-status: code
 model-language: webppl
+model-language-version: pre-v0.7
 ---
 
 This is the WebPPL version of the original Church Plural Predication model. It doesn't run.

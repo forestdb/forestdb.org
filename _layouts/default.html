@@ -21,19 +21,38 @@
     <script src="/assets/js/custom.js"></script>
 
     {% if page.model-language == 'webppl' %}
-      <link rel="stylesheet" href="/assets/dippl-pre-v0.7/node_modules/codemirror/lib/codemirror.css">
-      <link rel="stylesheet" href="/assets/dippl-pre-v0.7/node_modules/codemirror/theme/neat.css">
-      <link rel="stylesheet" href="/assets/dippl-pre-v0.7/assets/css/code.css">
-      <script src="/assets/dippl-pre-v0.7/bower_components/jquery-autosize/jquery.autosize.min.js"></script>
-      <script src="/assets/dippl-pre-v0.7/node_modules/codemirror/lib/codemirror.js"></script>
-      <script src="/assets/dippl-pre-v0.7/bower_components/d3/d3.min.js"></script>
-      <script src="/assets/dippl-pre-v0.7/bower_components/dimple/dist/dimple.v2.1.0.js"></script>
-      <script src="/assets/dippl-pre-v0.7/bower_components/underscore/underscore.js"></script>    
-      <script src="/assets/dippl-pre-v0.7/node_modules/codemirror/mode/javascript/javascript.js"></script>
-      <script src="/assets/dippl-pre-v0.7/assets/js/webppl.min.js"></script>    
-      <script src="/assets/dippl-pre-v0.7/assets/js/custom.js"></script>
-      <script src="/assets/dippl-pre-v0.7/assets/js/cm-folding.js"></script>
-      <script src="/assets/dippl-pre-v0.7/assets/js/cm-comments.js"></script>
+      {% if page.model-language-version == 'pre-v0.7' %}    
+        <link rel="stylesheet" href="/assets/dippl-pre-v0.7/node_modules/codemirror/lib/codemirror.css">
+        <link rel="stylesheet" href="/assets/dippl-pre-v0.7/node_modules/codemirror/theme/neat.css">
+        <link rel="stylesheet" href="/assets/dippl-pre-v0.7/assets/css/code.css">
+        <script src="/assets/dippl-pre-v0.7/bower_components/jquery-autosize/jquery.autosize.min.js"></script>
+        <script src="/assets/dippl-pre-v0.7/node_modules/codemirror/lib/codemirror.js"></script>
+        <script src="/assets/dippl-pre-v0.7/bower_components/d3/d3.min.js"></script>
+        <script src="/assets/dippl-pre-v0.7/bower_components/dimple/dist/dimple.v2.1.0.js"></script>
+        <script src="/assets/dippl-pre-v0.7/bower_components/underscore/underscore.js"></script>
+        <script src="/assets/dippl-pre-v0.7/node_modules/codemirror/mode/javascript/javascript.js"></script>
+        <script src="/assets/dippl-pre-v0.7/assets/js/webppl.min.js"></script>
+        <script src="/assets/dippl-pre-v0.7/assets/js/custom.js"></script>
+        <script src="/assets/dippl-pre-v0.7/assets/js/cm-folding.js"></script>
+        <script src="/assets/dippl-pre-v0.7/assets/js/cm-comments.js"></script>
+      {% else %}
+        {% if page.model-language-version %}
+          <script src="http://cdn.webppl.org/webppl-{{ page.model-language-version }}.js"></script>
+        {% else %}
+          <script>console.log('No webppl version specified, defaulting to v0.9.6')</script>
+          <script src="http://cdn.webppl.org/webppl-v0.9.6.js"></script>          
+        {% endif %}
+        <script src="http://cdn.webppl.org/webppl-viz-818a17e.js"></script>
+        <link rel="stylesheet" href="http://cdn.webppl.org/webppl-viz-0.7.10.css">
+        <script src="http://cdn.webppl.org/webppl-editor-1.0.5.js"></script>
+        <link rel="stylesheet" href="http://cdn.webppl.org/webppl-editor-1.0.5.css">
+        <script>
+          function setupEditorBoxes() {
+            var preEls = $('.container pre').map(function(i, el) { wpEditor.setup(el, {language: 'webppl'}); });
+          };
+          $(setupEditorBoxes);
+        </script>
+      {% endif %}
     {% elsif page.model-language == 'church' %}
       <link rel="stylesheet" href="/assets/webchurch/css/codemirror.css">
       <link rel="stylesheet" href="/assets/webchurch/css/d3.css">
@@ -43,10 +62,12 @@
       <script src="/assets/js/load-church.js"></script>
     {% else %}
       {% if page.isindex %}{% else %}
-        <script>console.log('no model-language specified')</script>
-      {% endif %}      
+        <script>
+          console.log('no known model-language specified (got {{ page.model-language }})')
+        </script>
+      {% endif %}
     {% endif %}
-    
+
     <script src="/assets/js/parse-bibtex.js"></script>
 
     <!--[if lt IE 9]>
@@ -80,7 +101,7 @@
           <p class="navbar-text navbar-collapse collapse">a repository for generative models</p>
         </div>
 
-        <div class="navbar-collapse collapse" id="navbar-search-right">    
+        <div class="navbar-collapse collapse" id="navbar-search-right">
 
           <form id="cse-search-box" action="http://google.com/cse" class="navbar-form navbar-right" role="search">
             <input type="hidden" name="cx" value="008887621561404558934:lqvspjvj53s" />
@@ -104,7 +125,7 @@
     <div id="footer">
       <div class="container">
         <p class="text-muted">
-           This page has been edited by <span id="contributors"></span>. 
+           This page has been edited by <span id="contributors"></span>.
            View <a id="github-page-link" href="#">on GitHub</a>.
         </p>
       </div>

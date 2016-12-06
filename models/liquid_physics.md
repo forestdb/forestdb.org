@@ -2,6 +2,7 @@
 layout: model
 title: LiquidFun Example
 model-language: webppl
+model-language-version: pre-v0.7
 ---
 
 <script src="http://web.mit.edu/cjbates/www/liquidfun/liquidfun/Box2D/lfjs/liquidfun.js"></script>

@@ -5,6 +5,7 @@ model-language: webppl
 model-language-version: v0.9.6
 ---
 
+~~~~
 var possibleUtterances = _.flatten(map(function(modifier) {
   map(function(type) {
     return [modifier, type].join(' ').trim();
@@ -83,3 +84,4 @@ viz(S1({type: 'fish', color: 'red'}, exampleContext.shared));
 viz(S1({type: 'fish', color: 'blue'}, exampleContext.shared));
 viz.marginals(L2('fish', exampleContext))
 viz.marginals(L2('blue fish', exampleContext))
+~~~~

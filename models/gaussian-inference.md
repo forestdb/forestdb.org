@@ -14,25 +14,30 @@ First, we want to infer the mean and standard deviation of a gaussian given some
 We set the prior over the mean to a Gaussian centered at 0, but with very large variance.
 We set the prior over the standard deviation to a uniform distribution over the interval [0,10]. 
 
-    var data =  [1.1, 1.9, 2.3, 1.8];
+~~~~
+var data =  [1.1, 1.9, 2.3, 1.8];
 
-    var model = function() {
-      var mu = gaussian(0,1/Math.sqrt(0.001)) 
-      var sigma = uniform(0, 10)
+var model = function() {
+  var mu = gaussian(0,1/Math.sqrt(0.001)) 
+  var sigma = uniform(0, 10)
 
-      var score = sum(map(function(dataPoint) {
-        return gaussianERP.score([mu, sigma], dataPoint);
-      }, data))
+  var score = sum(map(function(dataPoint) {
+    return gaussianERP.score([mu, sigma], dataPoint);
+  }, data))
 
-      factor(score)
-      return [mu, sigma]
-    }
+  factor(score)
+  return {"mu":mu,
+          "sigma":sigma}
+}
 
-    var results = MH(model, 10000)
-    print("expected value of mu is")
-    print(expectation(results, function(v){return v[0]}))
-    print("expected value of sigma is")
-    print(expectation(results, function(v){return v[1]}))
+var results = MH(model, 10000)
+
+vizPrint(results)
+print("expected value of mu is")
+print(expectation(results, function(v){return v["mu"]}))
+print("expected value of sigma is")
+print(expectation(results, function(v){return v["sigma"]}))
+~~~~
 
 To address Exercise 1 in L&M, try some different data sets -- e.g., what if there's only a large value and a small value? What if they're symmetric around 0? For Exercise 2, we don't currently have the visualization tools needed in WebPPL. For Exercise 3 and 4, try setting sigma = 1 or mu = 0.
 

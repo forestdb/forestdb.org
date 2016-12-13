@@ -29,9 +29,10 @@ var exampleContext = {
 };
 
 var alpha = 1
+var deceptionPrior = .1
 
 var uttCost = function(utt) {
-  return utt.split(' ').length/2;
+  return utt.split(' ').length;
 }
 
 var uttFitness = function(utt, object) {
@@ -47,6 +48,7 @@ var uttFitness = function(utt, object) {
 var L0 = cache(function(utt, perceivedContext) {
   return Infer({method: 'enumerate'}, function() {
     var object = uniformDraw(perceivedContext);
+    
     factor(uttFitness(utt, object))
     return object;
   })
@@ -60,6 +62,7 @@ var S1 = cache(function(target, knownContext) {
                                 knownContext.concat(uniformDraw(possibleObjects)) : 
                                 knownContext);
     var utt = uniformDraw(possibleUtterances);
+    
     factor(alpha * L0(utt, possibleListenerView).score(target)
            - uttCost(utt))
     return utt;
@@ -70,7 +73,7 @@ var S1 = cache(function(target, knownContext) {
 var L2 = cache(function(utt, perceivedContext) {
   var fullObjSet = perceivedContext.shared.concat(perceivedContext.occluded);
   return Infer({method: 'enumerate'}, function() {
-    var deception = flip(.5);
+    var deception = flip(deceptionPrior);
     var object = uniformDraw(fullObjSet);
     
     var speakerContext = (deception ? fullObjSet : perceivedContext.shared);
@@ -79,9 +82,8 @@ var L2 = cache(function(utt, perceivedContext) {
   })
 })
 
-// L0('blue apple', [{"type":"apple","color":"red"},{"type":"fish","color":"blue"},{"type":"cup","color":"yellow"},{"type":"fish","color":"red"}])
-viz(S1({type: 'fish', color: 'red'}, exampleContext.shared));
-viz(S1({type: 'fish', color: 'blue'}, exampleContext.shared));
+console.log("listener response after hearing (underinformative) 'fish'")
 viz.marginals(L2('fish', exampleContext))
+console.log("listener response after hearing 'blue fish'")
 viz.marginals(L2('blue fish', exampleContext))
 ~~~~

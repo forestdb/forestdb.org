@@ -20,6 +20,10 @@ Through language as well, and up through the generations, until somebody (or a c
 
 This model explores what happens when an observer gathers data (positive and negative examples of something), makes some infernece about the prevalence of the positive examples (e.g., the prevalence of the feature in the kind), and then decides whether or not to say a generic statement to a listener who shares his prior beliefs.
 
+Then, a population of listeners, having been exposed to the population of speakers represented by the probability distribution over producing the generic, updates their beliefs about the prevalence, and decides whether or not to say the generic. And on and on.
+
+The prior here is a hypothetical prior over some rare property (e.g., carrying malaria). 
+The question is: can intergenerational transmission retain the belief in the generic utterance (e.g., "Mosquitos carry malaria") while still appreciating that not-all (or even, not many) mosquitos carry malaria.
 
 ~~~~
 var speakerParams = {

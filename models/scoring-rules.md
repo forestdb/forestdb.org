@@ -5,6 +5,7 @@ model-status: code
 model-category: Miscellaneous
 model-tags: mechanism design, game theory
 model-language: webppl
+model-language-version: pre-v0.7
 ---
 
 ~~~~

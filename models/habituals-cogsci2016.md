@@ -2,6 +2,7 @@
 layout: model
 title: Habituals (CogSci 2016)
 model-language: webppl
+model-language-version: pre-v0.7
 ---
 
 This is a model of habitual language used in Ref:tesslerHabitualsCogSci.

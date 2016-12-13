@@ -2,6 +2,7 @@
 layout: model
 title: Questions and Answers
 model-language: webppl
+model-language-version: pre-v0.7
 ---
 
 ### Clark (1979) whiskey example

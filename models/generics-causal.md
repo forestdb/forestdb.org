@@ -3,6 +3,7 @@ layout: model
 title: Generics with causal background knowledge
 model-status: code
 model-language: webppl
+model-language-version: pre-v0.7
 ---
 
 Contrasting "Butterflies have dust on their wings" vs. "This butterfly has dust on its wings"

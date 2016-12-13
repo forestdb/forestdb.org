@@ -3,6 +3,7 @@ layout: model
 title: Generics (extensional)
 model-status: code
 model-language: webppl
+model-language-version: pre-v0.7
 ---
 
 <script src="http://web.stanford.edu/~erindb/webppl-viz/webppl.min.js"></script>  

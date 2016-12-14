@@ -26,6 +26,7 @@ The prior here is a hypothetical prior over some rare property (e.g., carrying m
 The question is: can intergenerational transmission retain the belief in the generic utterance (e.g., "Mosquitos carry malaria") while still appreciating that not-all (or even, not many) mosquitos carry malaria.
 
 ~~~~
+///fold:
 var speakerParams = {
   typesOfInidividuals: {
     ps: [0.95, 0.05], vs: ["x0", "x1"]
@@ -90,17 +91,7 @@ var speaker1 = cache(function(prevalence, threshold) {
     return utterance
   })
 })
-
-var observer = cache(function(obs) {
-  Infer({method: "enumerate"}, function(){
-    var state = sample(statePrior)
-    var prevalence = state.prevalence;
-    observe(
-      Binomial({p: prevalence, n: (obs.positive + obs.negative)}), 
-      obs.positive)
-    return state
-  })
-})
+///
 
 var learner = cache(function(utterance, obs) {
   Infer({method: "enumerate"}, function(){
@@ -109,89 +100,86 @@ var learner = cache(function(utterance, obs) {
     var threshold = thresholdPrior();
     var S1 = speaker1(prevalence, threshold)
     utterance ? observe(S1, utterance) : null
-    obs ? observe(
-    Binomial({p: prevalence, n: (obs.positive + obs.negative)}), 
+    obs ? observe(Binomial({
+    p: prevalence, n: (obs.positive + obs.negative)}), 
     obs.positive) : null
   return state
 })
 })
 
-var speaker = function(utterance, obs){
-  Infer({method: "enumerate"}, function(){
-    var prior = learner(utterance, obs);
-//     var prevalence = snap(expectation(marginalize(prior, "prevalence")));
-
-        var state = sample(prior);
-        var prevalence = state.prevalence;;    
-
-    // alterative generic utterances vs. individual statements (maybe quanitifers)
-    var utterance = utterancePrior();    
-
-    var L1 = marginalize(learner(utterance), "prevalence");
-    factor(alpha_2 * L1.score(prevalence));
-
-    return utterance
-  })
+var learnerPopulation = function(speakerDist){
+  Infer({model: function(){
+    var utt = sample(speakerDist);
+    return sample(learner(utt, false));
+  }})
 }
 
+var speaker = function(prevalenceBeliefs){
+  Infer({model: function(){
+    var state = sample(prevalenceBeliefs);
+
+    // generic or silence
+    var utterance = utterancePrior();    
+    var L1 = marginalize(learner(utterance), "prevalence");
+
+    factor(alpha_2 * L1.score(state.prevalence));
+
+    return utterance
+  }})
+}
 var initObs = {positive: 1, negative:100};
-display('listener prior expectation = ' + expectation(statePrior, function(x){return x.prevalence}))
+
+// speaker distribution based on the prior
+var s2_0 = speaker(statePrior);
+
+// prevalence distribution after observations
+var obsPosterior = learner(false, initObs)
+
+// speaker distribution based on posterior after observations
+var s2_1 = speaker(obsPosterior);
+
+// prevalence distribution after population of generic speakers
+var L1_1 = learnerPopulation(s2_1);
+
+// speaker distribution based on posterior after generics
+var s2_2 = speaker(L1_1);
+
+var L1_2 = learnerPopulation(s2_2);
+var s2_3 = speaker(L1_2)
+var L1_3 = learnerPopulation(s2_3);
+var s2_4 = speaker(L1_3)
+var L1_4 = learnerPopulation(s2_4);
+var s2_5 = speaker(L1_4)
+var L1_5 = learnerPopulation(s2_5);
+var s2_6 = speaker(L1_5)
+
+viz.line(
+  [0,1,2,3,4,5,6],
+  map(function(b){
+    return expectation(b, function(c){return c.prevalence})
+  }, [statePrior, obsPosterior, L1_1, L1_2, L1_3, L1_4, L1_5])
+)
+
+viz.line(
+  [0,1,2,3,4,5,6],
+  map(function(a){
+    return Math.exp(a.score("generic"))
+  }, [s2_0, s2_1, s2_2, s2_3, s2_4, s2_5, s2_6])
+)
+
+display('prior on prevalence')
 viz.marginals(statePrior)
-
-var s2_0 = speaker(false, false);
-display('speaker prior of saying generic = ' + Math.exp(s2_0.score("generic")))
-
-var obsPosterior = observer(initObs)
-display('observer posterior expectation = ' + expectation(obsPosterior, function(x){return x.prevalence}))
+display('prevalence dist after observations')
 viz.marginals(obsPosterior)
-viz.table(marginalize(obsPosterior, "prevalence"))
-
-var s2_1 = speaker(false, initObs);
-display('speaker gen 1 = ' + Math.exp(s2_1.score("generic")))
-
-var L1_1 = Infer({model: function(){
-  var u = sample(s2_1);
-  return sample(learner(u, false));
-}})
-
+display('prevalence dist after generation of generic speakers')
 viz.marginals(L1_1)
-viz.table(marginalize(L1_1, "prevalence"))
-
-display('listener gen 1 = ' + expectation(L1_1, function(x){return x.prevalence}))
-
-var s2_2 =  Infer({model: function(){
-    var state = sample(L1_1);
-    var prevalence = state.prevalence;
-//   condition(prevalence > 0)
-//   var prevalence = snap(expectation(marginalize(L1_1, "prevalence")));
-
-  var utterance = utterancePrior();    
-  var L1 = marginalize(learner(utterance), "prevalence");
-  factor(alpha_2 * L1.score(prevalence));
-  return utterance
-} })
-
-display('speaker gen 2 = ' + Math.exp(s2_2.score("generic")))
-
-var L1_2 = Infer({model: function(){
-  var u = sample(s2_2);
-  return sample(learner(u, false))
-}})
+display('gen 2')
 viz.marginals(L1_2)
-display('listener gen 2 = ' + expectation(L1_2, function(x){return x.prevalence}))
-
-var s2_3 =  Infer({model: function(){
-    var state = sample(L1_1);
-    var prevalence = state.prevalence;
-//   var prevalence = snap(expectation(marginalize(L1_2, "prevalence")));
-//   condition(prevalence > 0)
-
-  var utterance = utterancePrior();    
-  var L1 = marginalize(learner(utterance), "prevalence");
-  factor(alpha_2 * L1.score(prevalence));
-  return utterance
-} })
-
-display('speaker gen 3 = ' + Math.exp(s2_3.score("generic")))
+display('gen 3')
+viz.marginals(L1_3)
+display('gen 4')
+viz.marginals(L1_4)
+display('gen 5')
+viz.marginals(L1_5)
 
 ~~~~

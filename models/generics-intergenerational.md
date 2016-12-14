@@ -38,7 +38,7 @@ var speakerParams = {
 };
 
 var snap = function(x){
-  return Math.floor(x*20)/20
+  return Math.round(x*20)/20
 }
 var marginalize = function(dist, key){
   return Infer({method: "enumerate"}, function(){ return sample(dist)[key] })
@@ -118,6 +118,10 @@ var speaker = function(prevalenceBeliefs){
   Infer({model: function(){
     var state = sample(prevalenceBeliefs);
 
+    // try me:  condition(state.prevalence > 0)
+    // alternatively: var state = {prevalence: snap(expectation(prevalenceBeliefs,
+    //     function(x){return x.prevalence}))}
+    
     // generic or silence
     var utterance = utterancePrior();    
     var L1 = marginalize(learner(utterance), "prevalence");
@@ -127,6 +131,7 @@ var speaker = function(prevalenceBeliefs){
     return utterance
   }})
 }
+
 var initObs = {positive: 1, negative:100};
 
 // speaker distribution based on the prior

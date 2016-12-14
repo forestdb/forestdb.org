@@ -107,10 +107,18 @@ var learner = cache(function(utterance, obs) {
 })
 })
 
+var world = Infer({model: function(){
+  var x =  binomial(0.1, 10);
+  return {positive: x, negative: 10 - x};
+}})
+
 var learnerPopulation = function(speakerDist){
   Infer({model: function(){
     var utt = sample(speakerDist);
-    return sample(learner(utt, false));
+    // var obs = {positive:1, negative: 100};
+    // var obs = false;
+    var obs = sample(world);
+    return sample(learner(utt, obs));
   }})
 }
 

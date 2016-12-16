@@ -7,6 +7,8 @@ model-language-version: v0.9.6
 
 ### Part 1: arbitrary mapping
 
+This is the simplest demonstration of conventions; even though neither party knows the meaning of a label at the outset, a random choice is taken to be evidence for a particular lexicon and it becomes the base for successful communication.
+
 ~~~~
 // possible states of the world
 var statePrior =  Categorical({vs: ['tangram1', 'tangram2'], 
@@ -104,6 +106,8 @@ viz(L('label2', [{utt: 'label1', obj: 'tangram1'}]))
 ~~~~
 
 ### Part 2: Shortening arbitrary utterances
+
+We add a noise model to the above & show (very weakly) that under certain parameters, the shorter utterance becomes *more likely* relative to the longer utterance as the number of observations increases.
 
 ~~~~
 ///fold:
@@ -302,6 +306,8 @@ var exploreModel = function(params) {
     });
   });
 
+  // Listener is better able to understand 'ki' if they've observed full utterances
+  // than if they've only heard snippets
   // console.log(L('ki', [{utt:'kima', obj:'t1'}, {utt:'fuba', obj:'t2'}]));
   // console.log(L('ki', [{utt:'ki', obj:'t1'},{utt:'fu', obj:'t2'}]));
 
@@ -316,23 +322,25 @@ var exploreModel = function(params) {
                              - uttCost(noisyUtt)));
 
       mapData({data: data}, function(datum){
-        var intendedUtt = sample(utterancePrior);
-
-        observe(noiseModel(intendedUtt), datum.utt); // update beliefs about utterance dist
         observe(L2(datum.utt, lexicon), datum.obj); // update beliefs about lexicon
       });
       return noisyUtt;
     });
   };
 
+  console.log('speaker with no data ([])')
   viz(S('t1', []))
+  console.log("speaker who observed 'kima'<=>'t1'")
   viz(S('t1', [{utt: 'kima', obj: 't1'}]));
+  console.log("speaker who observed 'kima'<=>'t1' + 'fuba'<=>'t2'")  
   viz(S('t1', [{utt: 'kima', obj: 't1'},
                {utt: 'fuba', obj: 't2'}]))
+  console.log("speaker who observed 2x 'kima'<=>'t1' + 1x'fuba'<=>'t2'")
   viz(S('t1', [{utt: 'kima', obj: 't1'},
                {utt: 'fuba', obj: 't2'},
                {utt: 'kima', obj: 't1'}]))
 
+  console.log("respective ratios of 'ki' to 'kima' (increasing is good)")
   print(getRatio(S('t1', [{utt: 'kima', obj: 't1'}])))
   print(getRatio(S('t1', [{utt: 'kima', obj: 't1'},
                           {utt: 'fuba', obj: 't2'}])))

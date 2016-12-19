@@ -4,212 +4,191 @@ title: Plural Predication
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: language, ambiguity, plurality, interpretation noise
-model-language: church
+model-language: webppl
+model-language-version: v0.9.6
 ---
 
-This is the model of ambiguity resolution in plural predication from Scontras and Goodman 2015.
+This is the model of ambiguity resolution in plural predication from Scontras and Goodman 2016.
 
-	;; helper function to check list identity
-	(define (naive-list-equals? as bs)
-	  (if (not (= (length as) (length bs)))
-	      false
-	      (all (map equal? as bs))))
-	
-	;; helper function to get position of an element x in a haystack lst
-	(define (position* lst x) 
-	  (if (null? lst) 
-	      -Infinity
-	      (if (naive-list-equals? (first lst) x)
-	          0
-	          (+ 1 (position* (rest lst) x)))))
-	
-	;; helper functiont to compute the maximum support for KL
-	(define max-support 
-	  (lambda (dist maximal-support)
-	    (map 
-	     (lambda (x)
-	       (if (> (position* (first dist) x) -1)
-	           (list-ref (second dist) (position* (first dist) x))
-	           0))
-	     (first maximal-support))))
-	
-	;; helper function to compute KL divergence
-	(define (KL P Q)
-	  (sum (map (lambda (xp xq)
-	              (if (= xp 0)
-	                  0
-	                  (*
-	                   xp
-	                   (log (/ xp
-	                           xq)))))
-	            P Q)))
-	
-	;; helper function for speaker optimality
-	(define (power lst alpha) (map (lambda (x) (expt x alpha)) lst))
-	(define (topower dist alpha) (list (first dist)
-	                                   (power (second dist) alpha)))
-	
-	;; helper for erf(x)
-	(define (t x)
-	  (/ 1 
-	     (+ 1 (* 0.3275911 x))
-	     )
-	  )
-	(define (erf x)
-	  (if (>= x 0)
-	      (- 1 (* (+ (* 0.254829592 (t x))
-	                 (* -0.284496736 (expt (t x) 2))
-	                 (* 1.421413741 (expt (t x) 3))
-	                 (* -1.453152027 (expt (t x) 4))
-	                 (* 1.061405429 (expt (t x) 5)))          
-	              (exp (* -1 (expt x 2))))
-	         )
-	      (* -1 
-	         (- 1 (* (+ (* 0.254829592 (t (* -1 x)))
-	                 (* -0.284496736 (expt (t (* -1 x)) 2))
-	                 (* 1.421413741 (expt (t (* -1 x)) 3))
-	                 (* -1.453152027 (expt (t (* -1 x)) 4))
-	                 (* 1.061405429 (expt (t (* -1 x)) 5)))          
-	              (exp (* -1 (expt (* -1 x) 2))))
-	         )
-	         )
-	      )
-	  )
-	
-	;; the full model starts here
-	(define (plural-predication number-of-objects
-	                            noise
-	                            knowledge
-	                            )
-	
-	  ;; possible utterance 
-	  (define utterances (list  
-	                      'amb
-	                      'collective 
-	                      'distributive 
-	                      ))
-	
-	  ;; ambiguous utterance is cheaper
-	  (define (utterance-prior) (multinomial utterances '(2 1 1)))
-	
-	  ;; object come in two sizes, 3 and 4, with equal probability
-	  (define object-prior '((3 4) (1 1)))
-	
-	  ;; states are n random draws from the obejct prior where n=number-of-objects
-	  (define (state-prior) 
-	    (repeat number-of-objects (lambda () (apply multinomial object-prior) 
-	                                )))
-	
-	  ;; prior on thresholds
-	  (define (dist-theta-prior) (apply multinomial object-prior))
-	  (define (coll-theta-prior) (uniform-draw '(9 10 11 12)))
-	
-	  ;; contextual noise in collective interpretation
-	  (define noise-variance (case noise
-	                               (('no)
-	                                0.01) ;; no noise                            
-	                               (('low)
-	                                .75) ;; low
-	                               (('mid) 
-	                                1) ;; middle
-	                               (('high)
-	                                1.25) ;; high
-	                               ))
-	
-	  ;; interpretation semantics
-	  (define collective-interpretation 
-	    (lambda (state coll-theta collective-noise) 
-	      (flip ;;additive noise
-	       (- 1 (* (+ 1 (erf (/ (- (- coll-theta (sum state)) 0) 
-	                            (* collective-noise (sqrt 2))))) 
-	               0.5)))
-	      ))
-	  (define distributive-interpretation 
-	    (lambda (state dist-theta) 
-	      (if
-	       (all (map (lambda (d) (> d dist-theta)) state))
-	       #t
-	       #f)))
-	
-	  ;; utterance semantics
-	  (define (meaning utterance state dist-theta coll-theta collective? collective-noise)
-	    (case utterance
-	          (('amb)
-	           (if collective?
-	               (collective-interpretation state coll-theta collective-noise)
-	               (distributive-interpretation state dist-theta)))
-	          (('not-amb)
-	           (if collective?
-	               (not (collective-interpretation state coll-theta collective-noise))
-	               (not (distributive-interpretation state dist-theta))))
-	          (('distributive)
-	           (distributive-interpretation state dist-theta))
-	          (('collective)
-	           (collective-interpretation state coll-theta collective-noise))))
-	
-	  ;; pragmatic listener L1
-	  (define prag-listener
-	    (mem
-	     (lambda (utterance speakerknows)
-	       (enumeration-query
-	        (define state (state-prior))
-	        (define collective? (flip 0.8)) ; prior on collective interpretation
-	        (define dist-theta (dist-theta-prior))
-	        (define coll-theta (coll-theta-prior))
-	        collective?
-	        (condition (equal? utterance 
-	                           (apply multinomial 
-	                                  (topower (speaker collective? state dist-theta coll-theta speakerknows)
-	                                           7)))) ;; speaker optimality
-	        ))))
-	
-	  ;; speaker belief function for epistemic manipulation
-	  (define speakers-belief
-	    (mem
-	     (lambda (state knowledge)
-	       (define (obs s) (if knowledge s (sum s)))
-	       (enumeration-query
-	        (define bstate (state-prior))
-	        bstate
-	        (equal? (obs bstate) (obs state))
-	        ))))
-	
-	  ;; speaker S1
-	  (define speaker 
-	    (mem
-	     (lambda (collective? state dist-theta coll-theta knowstate)
-	       (enumeration-query
-	        (define utterance (utterance-prior))
-	        (define bstate-distribution (speakers-belief state knowstate))
-	        (define listener-dist (listener utterance collective? dist-theta coll-theta))
-	        (define speaker-dist 
-	          (max-support bstate-distribution listener-dist))
-	        utterance
-	        (factor (- (KL speaker-dist (second listener-dist))))
-	        ))))
-	
-	  ;; literal listener L0
-	  (define listener
-	    (mem
-	     (lambda (utterance collective? dist-theta coll-theta)
-	       (enumeration-query
-	        (define collective-noise noise-variance)
-	        (define state (state-prior))
-	        state
-	        (condition (meaning utterance state dist-theta coll-theta collective? collective-noise))
-	        ))))
-	
-	  ;; model computes probability of collective for ambiguous utterance
-	  (prag-listener 'amb knowledge) 
-	
-	  )
-	
-	;; model predictions for 3-object states
-	(barplot (plural-predication 3 'no #T) "no noise, full knowledge")
-	(barplot (plural-predication 3 'no #F) "no noise, sum knowledge")
-	(barplot (plural-predication 3 'low #T) "low noise, full knowledge")
-	(barplot (plural-predication 3 'low #F) "low noise, sum knowledge")
-	(barplot (plural-predication 3 'mid #T) "mid noise, full knowledge")
-	(barplot (plural-predication 3 'mid #F) "mid noise, sum knowledge")
-	(barplot (plural-predication 3 'high #T) "high noise, full knowledge")
-	(barplot (plural-predication 3 'high #F) "high noise, sum knowledge")
+	// helper functions
+	// error function
+	var erf = function(x) {
+	  var a1 =  0.254829592;
+	  var a2 = -0.284496736;
+	  var a3 =  1.421413741;
+	  var a4 = -1.453152027;
+	  var a5 =  1.061405429;
+	  var p  =  0.3275911;
+	  var sign = x < 0 ? -1 : 1
+	  var z = Math.abs(x);
+	  var t = 1.0/(1.0 + p*z);
+	  var y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*Math.exp(-z*z);
+	  var answer = sign*y
+	  return answer
+	}
+
+	// check array identity
+	var arraysEqual = function(a1,a2) {
+	  return JSON.stringify(a1)==JSON.stringify(a2);
+	}
+
+	// get ERP probabilities
+	var erpProbs = function(ERP,support) {
+	  var scores = function(val) {
+	    return Math.exp(ERP.score(val))
+	  }
+	  return map(scores,support)
+	}
+
+	// KL divergence
+	var KL = function(P,Q) {
+	  var diverge = function(xp,xq) {
+	    return xp == 0 ? 0 : (xp * Math.log(xp / xq) )
+	  }
+	  return sum(map2(diverge,P,Q))
+	}
+
+
+
+	// wrapper for plural predication model
+	var pluralPredication = function(numberObjects,
+	                                  collectiveNoise,
+	                                  knowledge,
+	                                  thingSaid
+	                                 ) {
+
+	  var utterances = [
+	    "null",
+	    "ambiguous-pos",
+	    "each-pos",
+	    "together-pos"
+	  ];
+
+	  // null > ambiguous > unambiguous 
+	  var utterancePrior = function() {
+	    return categorical([3,2,1,1],utterances)
+	  };
+
+	  // possible object sizes
+	  var objects = [2,3,4];
+	  var objectPrior = function() {
+	    uniformDraw(objects);
+	  }
+
+	  // build states with n many objects
+	  var statePrior = function(nObjLeft,stateSoFar) {
+	    var stateSoFar = stateSoFar == undefined ? [] : stateSoFar
+	    if (nObjLeft == 0) {
+	      return stateSoFar
+	    } else {
+	      var newObj = objectPrior()
+	      var newState = stateSoFar.concat([newObj])
+	      return statePrior(nObjLeft - 1,newState)
+	    }
+	  }
+
+	  // threshold priors
+	  var distThetaPrior = function(){return objectPrior()};  
+	  var collThetaPrior = function(){return uniformDraw([2,3,4,5,6,7,8,9,10,11,12])};
+
+	  // noise variance
+	  var noiseVariance = collectiveNoise == "no" ? 0.01 :
+	  collectiveNoise == "low" ? 1 :
+	  collectiveNoise == "mid" ? 2 : 3
+
+	  // x > theta interpretations
+	  var collInterpretationPos = function(state, collTheta,noise) {
+	    var weight = 1 - (0.5 * (1 + erf((collTheta - sum(state)) / 
+	                                     (noise * Math.sqrt(2)))))
+	    return weight == 0 ? flip(0.01) : weight == 1 ? flip(0.99) : flip(weight)
+	  }
+
+	  var distInterpretationPos = function(state, distTheta) {
+	    return all(function(x){x >= distTheta}, state) ? flip(0.99) : flip(0.01)
+	  }
+	  
+	//   // x < theta interpretations
+	//   var collInterpretationPos = function(state, collTheta,noise) {
+	//     var weight = 1 - (0.5 * (1 + erf((sum(state) - collTheta) / 
+	//                                      (noise * Math.sqrt(2)))))
+	//     return weight == 0 ? flip(0.01) : weight == 1 ? flip(0.99) : flip(weight)
+	//   }
+
+	//   var distInterpretationPos = function(state, distTheta) {
+	//     return all(function(x){x <= distTheta}, state) ? flip(0.99) : flip(0.01)
+	//   }
+
+	  // meaning function
+	  var meaning = function(utt,state,distThetaPos,collThetaPos,isCollective,noise) {
+	    return  utt == "null" ? true :
+	    utt == "each-pos" ? distInterpretationPos(state,distThetaPos) :
+	    utt == "together-pos" ? collInterpretationPos(state,collThetaPos,noise) :
+	    isCollective ? collInterpretationPos(state,collThetaPos,noise) :
+	    distInterpretationPos(state,distThetaPos)
+	  }
+
+	  var alpha = 10
+
+	  var literal = cache(function(utterance,distThetaPos,collThetaPos,isCollective) {
+	    Infer({method:"enumerate"}, function(){
+	      var state = statePrior(numberObjects);
+	      var noise = noiseVariance
+	      condition(meaning(utterance,state,distThetaPos,collThetaPos,isCollective,noise));
+	      return state;
+	    })
+	  });
+
+	  var speakerBelief = cache(function(state,speakerKnows) {
+	    Infer({method:"enumerate"}, function(){
+	      var obs = function(s) {
+	        return speakerKnows ? s : sum(s) 
+	      }
+	      var bState = statePrior(numberObjects)
+	      condition(arraysEqual(obs(bState),obs(state)))
+	      return bState
+	    })
+	  })
+
+	  var speaker = cache(function(state,distThetaPos,collThetaPos,isCollective,speakerKnows) {
+	    Infer({method:"enumerate"}, function(){
+	      var utterance = utterancePrior()
+	      var bDist = speakerBelief(state,speakerKnows)
+	      var lDist = literal(utterance,distThetaPos,collThetaPos,isCollective)
+	      factor(-1 *
+	             KL(erpProbs(bDist,bDist.support()),
+	                erpProbs(lDist,bDist.support())
+	               ))
+	      return utterance
+	    })
+	  });
+
+	  var listener = cache(function(utterance,speakerKnows) {
+	    Infer({method:"enumerate"}, function(){
+	      var state = statePrior(numberObjects);
+	      var isCollective = flip(0.8)
+	      var distThetaPos = distThetaPrior();
+	      var collThetaPos = collThetaPrior();
+	      factor(alpha * 
+	             speaker(state,distThetaPos,collThetaPos,isCollective,speakerKnows).score(utterance) 
+	            );
+	      return isCollective
+	    });
+	  });
+
+	  return listener(thingSaid,knowledge)
+	}
+
+
+	print(pluralPredication(3,"no",true,"ambiguous-pos"))
+	print(pluralPredication(3,"no",false,"ambiguous-pos"))
+
+	print(pluralPredication(3,"low",true,"ambiguous-pos"))
+	print(pluralPredication(3,"low",false,"ambiguous-pos"))
+
+	print(pluralPredication(3,"mid",true,"ambiguous-pos"))
+	print(pluralPredication(3,"mid",false,"ambiguous-pos"))
+
+	print(pluralPredication(3,"high",true,"ambiguous-pos"))
+	print(pluralPredication(3,"high",false,"ambiguous-pos"))
+
+

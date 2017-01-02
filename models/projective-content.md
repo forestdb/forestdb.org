@@ -1,3 +1,11 @@
+---
+layout: model
+title: Projective Content
+model-status: code
+model-language: church
+---
+
+~~~~
 ; Church code accompanying the paper "A rational speech-act model of projective content"
 ; by Ciyang Qing, Noah D. Goodman, and Daniel Lassiter 
 ; submitted to Cogsci 2016
@@ -298,3 +306,4 @@
 ; CG uniform prior, QUD now
 ; (barplot (pragmatic-listener alpha "not_stop" qud-now CG-uniformpriors))
 ; (barplot (pragmatic-listener-world alpha "not_stop" qud-now CG-uniformpriors))
+~~~~

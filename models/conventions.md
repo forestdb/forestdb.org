@@ -5,49 +5,98 @@ model-language: webppl
 model-language-version: v0.9.6
 ---
 
+Why do Americans drive on the right side of the road while the British drive on the left? Why do English speakers use 'cat' to refer to a pet that goes 'meow' while the French use the word `chat'? These conventions or norms govern much of our everyday behavior. While there is a substantial literature using simple agent-based models showing how these arbitrary but stable patterns can emerge in large populations, there has been comparatively less work on the cognitive underpinnings of conventions.
+
+Here, we focus on a classic case of conventionalization of language in a reference game (Clark & Wilkes-Gibbs, 1986). In the simplest version of this task, two players are presented with an array of objects constructed from tangrams which are not easily describable. One of them is designated as the 'target' for the speaker, and their goal is to produce an utterance that will allow the listener to distinguish the correct object from their array. 
+
+Our model of conventionalization combines two innovations in modeling language understanding: lexical uncertainty and a noisy communication channel. The former introduces uncertainty over the exact meanings of words in the lexicon; the latter introduces a perceptual noise model by which utterances can be corrupted during transmission. We gradually build up to this combined model by tackling sub-problems.
+
 ### Part 1: arbitrary mapping
+
+We begin by implementing the simplest lexical uncertainty model, used in Bergen, Levy, & Goodman (2016) to account for M-implicatures. In the simplified case we consider, there are just two labels and two tangrams. How does the pair converge on a mapping?
 
 This is the simplest demonstration of conventions; even though neither party knows the meaning of a label at the outset, a random choice is taken to be evidence for a particular lexicon and it becomes the base for successful communication.
 
 ~~~~
+///fold:
+var _powerset = function(set) {
+  if (set.length == 0)
+    return [[]];
+  else {
+    var rest = _powerset(set.slice(1));
+    return map(function(element) {
+      return [set[0]].concat(element);
+    }, rest).concat(rest);
+  }
+};
+
+var powerset = function(set, opts) {
+  var res = _powerset(set);
+  return opts.noNull ? filter(function(x){return !_.isEmpty(x);}, res) : res;
+};
+
+var cartesian = function(listOfLists) {
+  return reduce(function(b, a) { 
+    return _.flatten(map(function(x) {     
+      return map(function(y) {             
+        return x.concat([y]);                   
+      }, b);                                       
+    }, a), true);                                  
+  }, [ [] ], listOfLists);                                   
+};
+var constructAnyMeaning = function(label) {
+  return function(trueState) {
+    return any(function(labelState){
+      return labelState == trueState;
+    }, label.split('|'));
+  }
+};
+var nullMeaning = function(x) {return true;};
+///
+
 // possible states of the world
-var statePrior =  Categorical({vs: ['tangram1', 'tangram2'], 
-                               ps: [.5, .5]});
+var states = ['t1', 't2'];
+var statePrior =  Categorical({vs: states, ps: [1/2, 1/2]});
+
 // possible utterances (include null utterance to make sure dists are well-formed)
-var utterancePrior = Categorical({vs: ['label1', 'label2', 'n0'], 
-                                  ps: [1/3,1/3,1/3]});
+var unconstrainedUtterances = ['label1', 'label2'];
+var derivedUtterances = ['n0'];
+var utterances = unconstrainedUtterances.concat(derivedUtterances);
+var utterancePrior = Categorical({vs: utterances, ps: [1/3, 1/3, 1/3]});
 
-// meaning funtion to interpret the utterances
-var nullMeaning = function(state){return true;};
-var tangram1Meaning = function(state){return state == 'tangram1';};
-var tangram2Meaning = function(state){return state == 'tangram2';};
-var possibleMeanings = [nullMeaning, tangram1Meaning, tangram2Meaning];
-var possibleLexicons = _.flatten(
-  map(function(t1Meaning) {
-    map(function(t2Meaning) {
-      return _.extend(_.object(utterancePrior.support(), 
-			       [t1Meaning, t2Meaning]),
-                      {n0 : nullMeaning});
-    }, possibleMeanings);
-  }, possibleMeanings));
+// meanings are possible disjunctions of states
+var meanings = map(function(l){return l.join('|');}, 
+                   powerset(states, {noNull: true}));
 
-var lexiconPrior = Categorical({vs: possibleLexicons, 
-                                ps: [1/9,1/9,1/9,1/9,1/9,1/9,1/9,1/9,1/9]});
+// Lexicons are maps from utterances to meanings 
+var meaningSets = cartesian(repeat(unconstrainedUtterances.length, function() {return meanings;}));
+var lexicons = map(function(meaningSet) {
+  var unconstrainedMeanings = _.object(unconstrainedUtterances, meaningSet);
+  return _.extend(unconstrainedMeanings, {'n0': 'null'});
+}, meaningSets);
+var lexiconPrior = Categorical({vs: lexicons, ps: repeat(lexicons.length, function(){return 1/lexicons.length})});
 
 // speaker optimality
 var alpha = 1;
 
 // null utterance costly; everything else cheap
 var uttCost = function(utt) {
-  return (utt == 'tangram1' || utt == 'tangram2' ? 1 : 10);
+  return (utt == 't1' || utt == 't2' ? 1 : 10);
 };
+
+// Looks up the meaning of an utterance in a lexicon object
+var meaning = cache(function(utt, lexicon) {  
+  return (lexicon[utt] == 'null' ? 
+          nullMeaning : 
+          constructAnyMeaning(lexicon[utt]));
+});
 
 // literal listener
 var L0 = function(utt, lexicon) {
   return Infer({method:"enumerate"}, function(){
     var state = sample(statePrior);
-    var meaning = lexicon[utt];
-    condition(meaning(state));
+    var uttMeaning = meaning(utt, lexicon);
+    condition(uttMeaning(state));
     return state;
   });
 };
@@ -57,7 +106,7 @@ var S1 = function(state, lexicon) {
   return Infer({method:"enumerate"}, function(){
     var utt = sample(utterancePrior);
     factor(alpha * (L0(utt, lexicon).score(state)
-    		    - uttCost(utt)));
+                    - uttCost(utt)));
     return utt;
   });
 };
@@ -84,30 +133,23 @@ var L = function(utt, data) {
   });
 };
 
-// conventional speaker
-var S = function(state, data) {
-  return Infer({method:"enumerate"}, function(){
-    var lexicon = sample(lexiconPrior);
-    var utt = sample(utterancePrior);
-    factor(alpha * (L2(utt, lexicon).score(state)
-    		   - uttCost(utt)));
-    mapData({data: data}, function(datum){
-      observe(L2(datum.utt, lexicon), datum.obj);
-    });
-    return utt;
-  });
-};
+console.log("initial listener interpretation (first trial)");
+viz(L('label1', []))
 
 console.log("listener hearing label1 after data:");
-viz(L('label1', [{utt: 'label1', obj: 'tangram1'}]))
+viz(L('label1', [{utt: 'label1', obj: 't1'}]))
 
 console.log("listener hearing label2 after data:");
-viz(L('label2', [{utt: 'label1', obj: 'tangram1'}]))
+viz(L('label2', [{utt: 'label1', obj: 't1'}]))
 ~~~~
+
+The listener is initially uncertain about which tangram 'label1' is referring to, but after observing a trial in which 'label1' corresponded to 'tangram1', they update their beliefs about the likely lexicon and subsequently become more likely to interpret 'label1' as referring to 'tangram1.' Note that it is also more likely to interpret 'label2' as referring to 'tangram2', even though it has not observed any explicit usage of this label. This latter effect is a standard consequence of pragmatic reasoning. 
 
 ### Part 2: Shortening arbitrary utterances
 
-We add a noise model to the above & show (very weakly) that under certain parameters, the shorter utterance becomes *more likely* relative to the longer utterance as the number of observations increases.
+In Clark & Wilkes-Gibbs (1986), one signature phenomenon is the shortening of referring expressions over time. On the first round, a speaker may refer to a tangram as "the one with their arms out front, like an ice skater," which becomes "ice skater" by the final round. To account for this qualitative phenomenon, we add a noisy communication channel to the above lexical uncertainty model & show (very weakly) that under certain parameters, the shorter utterance becomes *more likely* relative to the longer utterance as the number of observations increases.
+
+To demonstrate this most clearly, and to explore the effect of different choices in the noise model, we briefly turn to a simpler example, where the pair of possible labels have two morphemes: "kima" and "fuba". The noisy channel can *delete* a morpheme (e.g. "kima" -> "ki"), or replace a morpheme (e.g. "kima" -> "kiba").
 
 ~~~~
 ///fold:
@@ -127,7 +169,7 @@ var powerset = function(set, opts) {
   return opts.noNull ? filter(function(x){return !_.isEmpty(x);}, res) : res;
 };
 
-var cartesianProductOf = function(listOfLists) {
+var cartesianProd = function(listOfLists) {
   return reduce(function(b, a) { 
     return _.flatten(map(function(x) {     
       return map(function(y) {             
@@ -136,6 +178,14 @@ var cartesianProductOf = function(listOfLists) {
     }, a), true);                                  
   }, [ [] ], listOfLists);                                   
 };
+
+var initList = function(n, val) {
+  return repeat(n, function() {return val})
+}
+
+var uniformPs = function(vs) {
+  return initList(vs.length, 1/vs.length)
+}
 
 // It takes too long to explore the real space, so we'll use the toy
 // version that doesn't allow repeats (e.g. only allowed to insert or
@@ -174,8 +224,33 @@ var replaceWords = function(words) {
   }
 };
 
+var firstMorphs = ['ki', 'fu'];
+var secondMorphs = ['ba', 'ma']
+var performOp = function(utt, op, morph) {
+  var morphs = utt.split(' ');
+  if(morphs.length === 1) {
+    var m = morphs[0];
+    return (op === 'delete' ? ['n0'] :
+            _.contains(firstMorphs, m) ? remove(m, firstMorphs) :
+            _.contains(secondMorphs, m) ? remove(m, secondMorphs) :
+           console.error('cannot perform op'));
+  } else {
+    if(op === 'delete') {
+      return (morph === 'both' ? ['n0'] :
+              morph === 'first' ? [morphs[1]] :
+              morph === 'second' ? [morphs[0]] : 
+              console.error('cannot perform op'))
+    } else if(op === 'replace') {
+      return (morph === 'first' ? remove(morphs[0], firstMorphs).concat(morphs[1]) :
+              morph === 'second' ? [morphs[0]].concat(remove(morphs[1], secondMorphs)) :
+              morph === 'both' ? remove(morphs[0], firstMorphs).concat(remove(morphs[1], secondMorphs)) :
+              console.error('cannot perform op'))
+    }
+  }
+};
+
 var nullMeaning = function(x) {return true;};
-var constructAnyMeaning = function(label) {
+var constructMeaning = function(label) {
   return function(trueState) {
     return any(function(labelState){
       return labelState == trueState;
@@ -184,23 +259,22 @@ var constructAnyMeaning = function(label) {
 };
 var negate = function(f) {return function(x) {return !f(x)};}
 var identity = function(x) {return x;};
-var utteranceProbs = Infer({method: 'enumerate'}, function() {
-  return normalize(repeat(5, function(){uniformDraw([.1, .5])}))
-})
 var getRatio = function(model) {
-  return Math.exp(model.score('ki') - model.score('kima'))
+  return Math.exp(model.score('ki') - model.score('ki ma'))
 }
 ///
 
 // possible states of the world
 var states = ['t1', 't2'];
-var statePrior = Categorical({vs: states, ps: [1/2, 1/2]});
+var statePrior = Categorical({vs: states, ps: uniformPs(states)});
 
 // possible utterances (include null utterance to make sure dists are well-formed)
-var unconstrainedUtterances = ['kima', 'fuba'];
-var derivedUtterances = ['n0'];
-var utterances = unconstrainedUtterances.concat(derivedUtterances);
-var utterancePrior = Categorical({vs: utterances, ps: [1/3,1/3,1/3]});
+var unconstrainedUtts = ['ki ma', 'fu ba'];
+var derivedUtts = ['n0'];
+var intentionallyCorruptedUtts = ['ki', 'fu', 'ma', 'ba', 'ki ba', 'fu ma']
+var uttsWithMeaning = unconstrainedUtts.concat(derivedUtts);
+var intendedUtts = uttsWithMeaning.concat(intentionallyCorruptedUtts)
+var trueUttPrior = Categorical({vs: uttsWithMeaning, ps: uniformPs(uttsWithMeaning)});
 
 // longer utterances more costly (count chars)
 var uttCost = cache(function(utt) {
@@ -210,62 +284,83 @@ var uttCost = cache(function(utt) {
 // meanings are possible disjunctions of states 
 var meanings = map(function(l){return l.join('|');}, 
                    powerset(states, {noNull: true}));
-var meaningSets = cartesianProductOf(repeat(unconstrainedUtterances.length, 
-                                            function() {return meanings;}));
+var meaningSets = cartesianProd(initList(unconstrainedUtts.length, meanings));
 
 // Lexicons are maps from utterances to meanings 
 // (null utterance always goes to null meaning)
 var lexicons = map(function(meaningSet) {
-  var unconstrainedMeanings = _.object(unconstrainedUtterances, meaningSet);
+  var unconstrainedMeanings = _.object(unconstrainedUtts, meaningSet);
   return _.extend(unconstrainedMeanings, {'n0': 'null'});
 }, meaningSets);
-var lexiconPrior = Categorical({vs: lexicons, ps: repeat(lexicons.length, function(){return 1/lexicons.length})});
+var lexiconPrior = Categorical({vs: lexicons, ps: uniformPs(lexicons)});
 
 // Looks up the meaning of an utterance in a lexicon object
 var meaning = cache(function(utt, lexicon) {  
-  return (lexicon[utt] == 'null' ? 
-          nullMeaning : 
-          constructAnyMeaning(lexicon[utt]));
+  var mStr = lexicon[utt];
+  return (mStr == 'null' ? nullMeaning : constructMeaning(mStr));
 });
 
+// Simplified corruption function 
+var corruptUtt = function(utt, params) {
+  if(utt === 'n0') {
+    return 'n0';
+  } else if (_.contains(intendedUtts, utt)) {
+    var operation = categorical({vs: ['delete', 'replace'],
+                                 ps: [params.deleteProb, 1-params.deleteProb]});
+    var morpheme = categorical({vs: ['both', 'first', 'second'],
+                                ps: [params.bothProb, (1-params.bothProb)/2, (1-params.bothProb)/2]})
+    return flip(params.randomProb) ? uniformDraw(intendedUtts) : performOp(utt, operation, morpheme).join(' ');
+  } else {
+    console.error('unknown utt')
+  }
+}
+
 var exploreModel = function(params) {
-  // Gives distribution over possible noisy versions of utt
+
+  // Gives distribution over possible noisy versions of intended utt
   var noiseModel = cache(function(utt) {
     return Infer({method: 'enumerate'}, function() {
-      if(flip(1-params.noiseRate)) {
-        return utt;
-      } else {
-        return (utt === 'n0' ? 'n0' :
-                utt === 'kima' ? categorical({vs: ['ki', 'kiba', 'fu', 'fuba'],
-                                              ps: params.noiseProbs}) :
-                utt === 'fuba' ? categorical({vs: ['fu', 'fuma', 'ki', 'kima'],
-                                              ps: params.noiseProbs}) :
-                console.error('unknown utt'));
-      }
+      return flip(1 - params.noiseRate) ? utt : corruptUtt(utt, params);
     });
   });
-
+  
+  // Inverts noise model, so that each corrupted utterances yields
+  // a distribution over possible intended utterances.
+  // Literal listener only thinking about meaningful utterances; others
+  // think about full range of things speaker might want to produce
+  var invNoiseModel = cache(function(utt, opts){
+    return Infer({method:'enumerate'}, function(){
+      var intendedUtt = (opts.literal ? sample(trueUttPrior) : uniformDraw(intendedUtts));
+      observe(noiseModel(intendedUtt), utt)
+      return intendedUtt
+    })
+  })
+  
   // literal listener w/ noisy channel inference
   var L0 = cache(function(utt, lexicon) {
     return Infer({method:"enumerate"}, function(){
       var state = sample(statePrior);
-      var intendedUtt = sample(utterancePrior);
+      var intendedUtt = sample(invNoiseModel(utt, {literal : true}))
 
       var uttMeaning = meaning(intendedUtt, lexicon);
-      factor(uttMeaning(state) ?
-             noiseModel(intendedUtt).score(utt) :
-             -100);
+      factor(uttMeaning(state) ? 0 : -100);
       return state;
     });
   });
-
-  // pragmatic speaker
+  
+  var L0_postchannel = cache(function(intendedUtt, lexicon) {
+    return Infer({method: 'enumerate'}, function(){
+      var corruptedUtt = sample(noiseModel(intendedUtt));
+      return sample(L0(corruptedUtt,lexicon))
+    })
+  });
+  
+  // pragmatic speaker marginalizing over perceptual corruption in L0
   var S1 = cache(function(state, lexicon) {
     return Infer({method:"enumerate"}, function(){
-      var intendedUtt = sample(utterancePrior);
-      var noisyUtt = sample(noiseModel(intendedUtt));
-      factor(params.alpha * (L0(noisyUtt, lexicon).score(state)
-                             - uttCost(noisyUtt)));
+      var intendedUtt = uniformDraw(intendedUtts)
+      var listener = L0_postchannel(intendedUtt, lexicon);
+      factor(params.alpha * (listener.score(state) - uttCost(intendedUtt)));
       return intendedUtt;
     });
   });
@@ -274,11 +369,9 @@ var exploreModel = function(params) {
   var L2 = cache(function(perceivedUtt, lexicon) {
     return Infer({method: 'enumerate'}, function() {
       var state = sample(statePrior);
-      var intendedUtt = sample(utterancePrior);
+      var intendedUtt = sample(invNoiseModel(perceivedUtt, {literal: false}));
 
-      observe(noiseModel(intendedUtt), perceivedUtt);
       observe(S1(state, lexicon), intendedUtt);
-
       return state;
     });
   });
@@ -292,15 +385,11 @@ var exploreModel = function(params) {
     return Infer({method:"enumerate"}, function(){
       var state = sample(statePrior);
       var lexicon = sample(lexiconPrior);
-      var intendedUtt = sample(utterancePrior);
-
-      observe(noiseModel(intendedUtt), perceivedUtt);
+      var intendedUtt = sample(invNoiseModel(perceivedUtt, {literal: false}));
+      
       observe(S1(state, lexicon), intendedUtt);
-
       mapData({data: data}, function(datum){
-        var intendedUtt = sample(utterancePrior);
-        observe(noiseModel(intendedUtt), datum.utt);
-        observe(S1(datum.obj, lexicon), intendedUtt);
+        observe(S1(datum.obj, lexicon), datum.utt);
       });
       return state;
     });
@@ -308,65 +397,82 @@ var exploreModel = function(params) {
 
   // Listener is better able to understand 'ki' if they've observed full utterances
   // than if they've only heard snippets
-  // console.log(L('ki', [{utt:'kima', obj:'t1'}, {utt:'fuba', obj:'t2'}]));
-  // console.log(L('ki', [{utt:'ki', obj:'t1'},{utt:'fu', obj:'t2'}]));
+  //   console.log(L('ki', [{utt:'ki ma', obj:'t1'}, {utt:'fu ba', obj:'t2'}]));
+  //   console.log(L('ki', [{utt:'ki', obj:'t1'},{utt:'fu', obj:'t2'}]));
 
+  var L2_postchannel = cache(function(intendedUtt, lexicon) {
+    return Infer({method: 'enumerate'}, function(){
+      var corruptedUtt = sample(noiseModel(intendedUtt))
+      return sample(L2(corruptedUtt, lexicon))
+    })
+  })
+  
   // conventional speaker
   var S = function(state, data) {
     return Infer({method:"enumerate"}, function(){
       var lexicon = sample(lexiconPrior);
-      var intendedUtt = sample(utterancePrior);
-      var noisyUtt = sample(noiseModel(intendedUtt));
+      var intendedUtt = uniformDraw(intendedUtts);
 
-      factor(params.alpha * (L2(noisyUtt, lexicon).score(state)
-                             - uttCost(noisyUtt)));
-
+      var listener = L2_postchannel(intendedUtt, lexicon);
+      factor(params.alpha * (listener.score(state) - uttCost(intendedUtt)));
       mapData({data: data}, function(datum){
         observe(L2(datum.utt, lexicon), datum.obj); // update beliefs about lexicon
       });
-      return noisyUtt;
+      return intendedUtt;
     });
   };
-
+//   return (getRatio(S('t1', [{utt: 'ki ma', obj: 't1'}])) <
+//           getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
+//                             {utt: 'fu ba', obj: 't2'}])) )
+//           &&
+//          getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
+//                             {utt: 'fu ba', obj: 't2'}])) < 
+//           getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
+//                             {utt: 'fu ba', obj: 't2'},
+//                             {utt: 'ki ma', obj: 't1'}])));
   console.log('speaker with no data ([])')
   viz(S('t1', []))
   console.log("speaker who observed 'kima'<=>'t1'")
-  viz(S('t1', [{utt: 'kima', obj: 't1'}]));
+  viz(S('t1', [{utt: 'ki ma', obj: 't1'}]));
   console.log("speaker who observed 'kima'<=>'t1' + 'fuba'<=>'t2'")  
-  viz(S('t1', [{utt: 'kima', obj: 't1'},
-               {utt: 'fuba', obj: 't2'}]))
+  viz(S('t1', [{utt: 'ki ma', obj: 't1'},
+               {utt: 'fu ba', obj: 't2'}]))
   console.log("speaker who observed 2x 'kima'<=>'t1' + 1x'fuba'<=>'t2'")
-  viz(S('t1', [{utt: 'kima', obj: 't1'},
-               {utt: 'fuba', obj: 't2'},
-               {utt: 'kima', obj: 't1'}]))
+  viz(S('t1', [{utt: 'ki ma', obj: 't1'},
+               {utt: 'fu ba', obj: 't2'},
+               {utt: 'ki ma', obj: 't1'}]))
 
   console.log("respective ratios of 'ki' to 'kima' (increasing is good)")
-  print(getRatio(S('t1', [{utt: 'kima', obj: 't1'}])))
-  print(getRatio(S('t1', [{utt: 'kima', obj: 't1'},
-                          {utt: 'fuba', obj: 't2'}])))
-  print(getRatio(S('t1', [{utt: 'kima', obj: 't1'},
-                          {utt: 'fuba', obj: 't2'},
-                          {utt: 'kima', obj: 't1'}])))
+  print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'}])))
+  print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
+                          {utt: 'fu ba', obj: 't2'}])))
+  print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
+                          {utt: 'fu ba', obj: 't2'},
+                          {utt: 'ki ma', obj: 't1'}])))
 }
 
 exploreModel({
-  alpha: 1,
-  noiseRate: .5,
-  noiseProbs: [.8, .05, .05, .1]
+  alpha: 2,
+  noiseRate: 0.3,
+  deleteProb: .6,
+  bothProb: .25,
+  randomProb: .25
 })
 
-// var paramRegimes = Infer({method: 'MCMC', samples: 2000, 
+// var paramRegimes = Infer({method: 'MCMC', samples: 1000, onlyMAP: true,
 //                           callbacks: [editor.MCMCProgress()]}, function(){
+// var paramRegimes = Infer({method: 'enumerate'}, function() {
 //   var params = {
-//     alpha: uniform({a: 0, b: 10}),
-//     noiseRate: uniform({a: 0, b: .5}),
-//     noiseProbs: T.toScalars(dirichlet(ones([4,1])))
+//     alpha: uniformDraw(_.range(1,5,1)),
+//     noiseRate: uniformDraw(_.range(0.1,1,.1)),
+//     deleteProb: uniformDraw(_.range(0.5, 1, .1)),
+//     bothProb: uniformDraw(_.range(0.1,.5, .1)),
+//     randomProb: uniformDraw(_.range(0.1,.5, .1))
 //   }
-  
+//   print(params);
 //   condition(exploreModel(params))
   
-//   return _.extend(_.omit(params, 'noiseProbs'),  
-//                   _.object(['ki', 'kiba', 'fu', 'fuba'], params.noiseProbs));
+//   return params;
 // })
 
 // viz.marginals(paramRegimes)

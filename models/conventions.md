@@ -272,9 +272,9 @@ var statePrior = Categorical({vs: states, ps: uniformPs(states)});
 var unconstrainedUtts = ['ki ma', 'fu ba'];
 var derivedUtts = ['n0'];
 var intentionallyCorruptedUtts = ['ki', 'fu', 'ma', 'ba', 'ki ba', 'fu ma']
-var uttsWithMeaning = unconstrainedUtts.concat(derivedUtts);
-var intendedUtts = uttsWithMeaning.concat(intentionallyCorruptedUtts)
-var trueUttPrior = Categorical({vs: uttsWithMeaning, ps: uniformPs(uttsWithMeaning)});
+var grammaticalUtts = unconstrainedUtts.concat(derivedUtts);
+var intendedUtts = grammaticalUtts.concat(intentionallyCorruptedUtts)
+var utterancePrior = Categorical({vs: grammaticalUtts, ps: uniformPs(grammaticalUtts)});
 
 // longer utterances more costly (count chars)
 var uttCost = cache(function(utt) {
@@ -315,165 +315,123 @@ var corruptUtt = function(utt, params) {
   }
 }
 
-var exploreModel = function(params) {
-
-  // Gives distribution over possible noisy versions of intended utt
-  var noiseModel = cache(function(utt) {
-    return Infer({method: 'enumerate'}, function() {
-      return flip(1 - params.noiseRate) ? utt : corruptUtt(utt, params);
-    });
-  });
-  
-  // Inverts noise model, so that each corrupted utterances yields
-  // a distribution over possible intended utterances.
-  // Literal listener only thinking about meaningful utterances; others
-  // think about full range of things speaker might want to produce
-  var invNoiseModel = cache(function(utt, opts){
-    return Infer({method:'enumerate'}, function(){
-      var intendedUtt = (opts.literal ? sample(trueUttPrior) : uniformDraw(intendedUtts));
-      observe(noiseModel(intendedUtt), utt)
-      return intendedUtt
-    })
-  })
-  
-  // literal listener w/ noisy channel inference
-  var L0 = cache(function(utt, lexicon) {
-    return Infer({method:"enumerate"}, function(){
-      var state = sample(statePrior);
-      var intendedUtt = sample(invNoiseModel(utt, {literal : true}))
-
-      var uttMeaning = meaning(intendedUtt, lexicon);
-      factor(uttMeaning(state) ? 0 : -100);
-      return state;
-    });
-  });
-  
-  var L0_postchannel = cache(function(intendedUtt, lexicon) {
-    return Infer({method: 'enumerate'}, function(){
-      var corruptedUtt = sample(noiseModel(intendedUtt));
-      return sample(L0(corruptedUtt,lexicon))
-    })
-  });
-  
-  // pragmatic speaker marginalizing over perceptual corruption in L0
-  var S1 = cache(function(state, lexicon) {
-    return Infer({method:"enumerate"}, function(){
-      var intendedUtt = uniformDraw(intendedUtts)
-      var listener = L0_postchannel(intendedUtt, lexicon);
-      factor(params.alpha * (listener.score(state) - uttCost(intendedUtt)));
-      return intendedUtt;
-    });
-  });
-
-  // pragmatic listener (needed for S)
-  var L2 = cache(function(perceivedUtt, lexicon) {
-    return Infer({method: 'enumerate'}, function() {
-      var state = sample(statePrior);
-      var intendedUtt = sample(invNoiseModel(perceivedUtt, {literal: false}));
-
-      observe(S1(state, lexicon), intendedUtt);
-      return state;
-    });
-  });
-
-  // conventional listener
-  // Assumes:
-  // * all utterances, including current one, come from same lexicon
-  // * intended utt for each past data point is independent
-  // * speaker is S1 using utt to noisily communicate about some state 
-  var L = cache(function(perceivedUtt, data) {
-    return Infer({method:"enumerate"}, function(){
-      var state = sample(statePrior);
-      var lexicon = sample(lexiconPrior);
-      var intendedUtt = sample(invNoiseModel(perceivedUtt, {literal: false}));
-      
-      observe(S1(state, lexicon), intendedUtt);
-      mapData({data: data}, function(datum){
-        observe(S1(datum.obj, lexicon), datum.utt);
-      });
-      return state;
-    });
-  });
-
-  // Listener is better able to understand 'ki' if they've observed full utterances
-  // than if they've only heard snippets
-  //   console.log(L('ki', [{utt:'ki ma', obj:'t1'}, {utt:'fu ba', obj:'t2'}]));
-  //   console.log(L('ki', [{utt:'ki', obj:'t1'},{utt:'fu', obj:'t2'}]));
-
-  var L2_postchannel = cache(function(intendedUtt, lexicon) {
-    return Infer({method: 'enumerate'}, function(){
-      var corruptedUtt = sample(noiseModel(intendedUtt))
-      return sample(L2(corruptedUtt, lexicon))
-    })
-  })
-  
-  // conventional speaker
-  var S = function(state, data) {
-    return Infer({method:"enumerate"}, function(){
-      var lexicon = sample(lexiconPrior);
-      var intendedUtt = uniformDraw(intendedUtts);
-
-      var listener = L2_postchannel(intendedUtt, lexicon);
-      factor(params.alpha * (listener.score(state) - uttCost(intendedUtt)));
-      mapData({data: data}, function(datum){
-        observe(L2(datum.utt, lexicon), datum.obj); // update beliefs about lexicon
-      });
-      return intendedUtt;
-    });
-  };
-//   return (getRatio(S('t1', [{utt: 'ki ma', obj: 't1'}])) <
-//           getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
-//                             {utt: 'fu ba', obj: 't2'}])) )
-//           &&
-//          getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
-//                             {utt: 'fu ba', obj: 't2'}])) < 
-//           getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
-//                             {utt: 'fu ba', obj: 't2'},
-//                             {utt: 'ki ma', obj: 't1'}])));
-  console.log('speaker with no data ([])')
-  viz(S('t1', []))
-  console.log("speaker who observed 'kima'<=>'t1'")
-  viz(S('t1', [{utt: 'ki ma', obj: 't1'}]));
-  console.log("speaker who observed 'kima'<=>'t1' + 'fuba'<=>'t2'")  
-  viz(S('t1', [{utt: 'ki ma', obj: 't1'},
-               {utt: 'fu ba', obj: 't2'}]))
-  console.log("speaker who observed 2x 'kima'<=>'t1' + 1x'fuba'<=>'t2'")
-  viz(S('t1', [{utt: 'ki ma', obj: 't1'},
-               {utt: 'fu ba', obj: 't2'},
-               {utt: 'ki ma', obj: 't1'}]))
-
-  console.log("respective ratios of 'ki' to 'kima' (increasing is good)")
-  print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'}])))
-  print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
-                          {utt: 'fu ba', obj: 't2'}])))
-  print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
-                          {utt: 'fu ba', obj: 't2'},
-                          {utt: 'ki ma', obj: 't1'}])))
-}
-
-exploreModel({
+var params = {
   alpha: 2,
   noiseRate: 0.3,
   deleteProb: .6,
   bothProb: .25,
   randomProb: .25
+}
+
+// Gives distribution over possible noisy versions of intended utt
+var noiseModel = cache(function(utt) {
+  return Infer({method: 'enumerate'}, function() {
+    return flip(1 - params.noiseRate) ? utt : corruptUtt(utt, params);
+  });
+});
+  
+// Inverts noise model, so that each corrupted utterances yields
+// a distribution over possible intended utterances.
+var invNoiseModel = cache(function(utt, opts){
+  return Infer({method:'enumerate'}, function(){
+    var intendedUtt = sample(utterancePrior)
+    observe(noiseModel(intendedUtt), utt)
+    return intendedUtt
+  })
 })
 
-// var paramRegimes = Infer({method: 'MCMC', samples: 1000, onlyMAP: true,
-//                           callbacks: [editor.MCMCProgress()]}, function(){
-// var paramRegimes = Infer({method: 'enumerate'}, function() {
-//   var params = {
-//     alpha: uniformDraw(_.range(1,5,1)),
-//     noiseRate: uniformDraw(_.range(0.1,1,.1)),
-//     deleteProb: uniformDraw(_.range(0.5, 1, .1)),
-//     bothProb: uniformDraw(_.range(0.1,.5, .1)),
-//     randomProb: uniformDraw(_.range(0.1,.5, .1))
-//   }
-//   print(params);
-//   condition(exploreModel(params))
-  
-//   return params;
-// })
+// literal listener w/ noisy channel inference
+var L0 = cache(function(utt, lexicon) {
+  return Infer({method:"enumerate"}, function(){
+    var state = sample(statePrior);
+    var intendedUtt = sample(invNoiseModel(utt));
 
-// viz.marginals(paramRegimes)
+    var uttMeaning = meaning(intendedUtt, lexicon);
+    factor(uttMeaning(state) ? 0 : -100);
+    return state;
+  });
+});
+
+// pragmatic speaker marginalizing over perceptual corruption in L0
+var S1 = cache(function(state, lexicon) {
+  return Infer({method:"enumerate"}, function(){
+    var intendedUtt = uniformDraw(intendedUtts)
+    var listener = Infer({method: 'enumerate'}, function(){
+      var corruptedUtt = sample(noiseModel(intendedUtt));
+      return sample(L0(corruptedUtt,lexicon))
+    })
+
+    factor(params.alpha * (listener.score(state) - uttCost(intendedUtt)));
+    return intendedUtt;
+  });
+});
+
+// pragmatic listener (needed for S)
+var L2 = cache(function(perceivedUtt, lexicon) {
+  return Infer({method: 'enumerate'}, function() {
+    var state = sample(statePrior);
+    var intendedUtt = sample(invNoiseModel(perceivedUtt));
+    observe(S1(state, lexicon), intendedUtt);
+    return state;
+  });
+});
+
+// conventional listener
+var L = cache(function(perceivedUtt, data) {
+  return Infer({method:"enumerate"}, function(){
+    var state = sample(statePrior);
+    var lexicon = sample(lexiconPrior);
+    var intendedUtt = sample(invNoiseModel(perceivedUtt));
+    
+    observe(S1(state, lexicon), intendedUtt);
+    mapData({data: data}, function(datum){
+      observe(S1(datum.obj, lexicon), datum.utt);
+    });
+    return state;
+  });
+});
+
+// conventional speaker
+var S = function(state, data) {
+  return Infer({method:"enumerate"}, function(){
+    var lexicon = sample(lexiconPrior);
+    var intendedUtt = uniformDraw(intendedUtts);
+    var listener = Infer({method: 'enumerate'}, function(){
+      var corruptedUtt = sample(noiseModel(intendedUtt))
+      return sample(L2(corruptedUtt, lexicon))
+    })
+    
+    factor(params.alpha * (listener.score(state) - uttCost(intendedUtt)));
+    mapData({data: data}, function(datum){
+      observe(L2(datum.utt, lexicon), datum.obj); // update beliefs about lexicon
+    });
+    return intendedUtt;
+  });
+};
+
+// Listener is better able to understand 'ki' if they've observed full utterances
+// than if they've only heard snippets
+//   console.log(L('ki', [{utt:'ki ma', obj:'t1'}, {utt:'fu ba', obj:'t2'}]));
+//   console.log(L('ki', [{utt:'ki', obj:'t1'},{utt:'fu', obj:'t2'}]));
+
+console.log('speaker with no data ([])')
+viz(S('t1', []))
+console.log("speaker who observed 'kima'<=>'t1'")
+viz(S('t1', [{utt: 'ki ma', obj: 't1'}]));
+console.log("speaker who observed 'kima'<=>'t1' + 'fuba'<=>'t2'")  
+viz(S('t1', [{utt: 'ki ma', obj: 't1'},
+             {utt: 'fu ba', obj: 't2'}]))
+console.log("speaker who observed 2x 'kima'<=>'t1' + 1x'fuba'<=>'t2'")
+viz(S('t1', [{utt: 'ki ma', obj: 't1'},
+             {utt: 'fu ba', obj: 't2'},
+             {utt: 'ki ma', obj: 't1'}]))
+
+console.log("respective ratios of 'ki' to 'kima' (increasing is good)")
+print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'}])))
+print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
+                        {utt: 'fu ba', obj: 't2'}])))
+print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
+                        {utt: 'fu ba', obj: 't2'},
+                        {utt: 'ki ma', obj: 't1'}])))
+}
 ~~~~

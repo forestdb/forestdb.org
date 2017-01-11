@@ -136,7 +136,119 @@ viz(L('label2', [{utt: 'label1', obj: 't1'}]))
 
 The listener is initially uncertain about which tangram 'label1' is referring to, but after observing a trial in which 'label1' corresponded to 'tangram1', they update their beliefs about the likely lexicon and subsequently become more likely to interpret 'label1' as referring to 'tangram1.' Note that it is also more likely to interpret 'label2' as referring to 'tangram2', even though it has not observed any explicit usage of this label. This latter effect is a standard consequence of pragmatic reasoning. 
 
-### Part 2: Shortening arbitrary utterances
+### Part 2: Dropping modifiers
+
+In our data, several of the most frequently dropped utterances between the first round and the last round are modifying clauses. We account for this in an RSA model by 
+
+~~~~
+///fold:
+var _powerset = function(set) {
+  if (set.length == 0)
+    return [[]];
+  else {
+    var rest = _powerset(set.slice(1));
+    return map(function(element) {
+      return [set[0]].concat(element);
+    }, rest).concat(rest);
+  }
+};
+
+var powerset = function(set, opts) {
+  var res = _powerset(set);
+  return opts.noNull ? filter(function(x){return !_.isEmpty(x);}, res) : res;
+};
+
+var cartesian = function(listOfLists) {
+  return reduce(function(b, a) { 
+    return _.flatten(map(function(x) {     
+      return map(function(y) {             
+        return x.concat([y]);                   
+      }, b);                                       
+    }, a), true);                                  
+  }, [ [] ], listOfLists);                                   
+};
+var constructAnyMeaning = function(label) {
+  return function(trueState) {
+    return any(function(labelState){
+      return labelState == trueState;
+    }, label.split('|'));
+  }
+};
+var nullMeaning = function(x) {return true;};
+///
+
+// possible states of the world
+var states = ['t1', 't2'];
+var statePrior =  Categorical({vs: states, ps: [1/2, 1/2]});
+
+// possible utterances (include null utterance to make sure dists are well-formed)
+var unconstrainedUtterances = ['label1', 'label2'];
+var derivedUtterances = ['n0'];
+var utterances = unconstrainedUtterances.concat(derivedUtterances);
+var utterancePrior = Categorical({vs: utterances, ps: [1/3, 1/3, 1/3]});
+
+// meanings are possible disjunctions of states
+var meanings = map(function(l){return l.join('|');}, 
+                   powerset(states, {noNull: true}));
+
+// Lexicons are maps from utterances to meanings 
+var meaningSets = cartesian(repeat(unconstrainedUtterances.length, function() {return meanings;}));
+var lexicons = map(function(meaningSet) {
+  var unconstrainedMeanings = _.object(unconstrainedUtterances, meaningSet);
+  return _.extend(unconstrainedMeanings, {'n0': 'null'});
+}, meaningSets);
+var lexiconPrior = Categorical({vs: lexicons, ps: repeat(lexicons.length, function(){return 1/lexicons.length})});
+
+// speaker optimality
+var alpha = 1;
+
+// null utterance costly; everything else cheap
+var uttCost = function(utt) {
+  return (utt == 't1' || utt == 't2' ? 1 : 10);
+};
+
+// Looks up the meaning of an utterance in a lexicon object
+var meaning = cache(function(utt, lexicon) {  
+  return (lexicon[utt] == 'null' ? 
+          nullMeaning : 
+          constructAnyMeaning(lexicon[utt]));
+});
+
+// literal listener
+var L0 = function(utt, lexicon) {
+  return Infer({method:"enumerate"}, function(){
+    var state = sample(statePrior);
+    var uttMeaning = meaning(utt, lexicon);
+    condition(uttMeaning(state));
+    return state;
+  });
+};
+
+// pragmatic speaker
+var S1 = function(state, lexicon) {
+  return Infer({method:"enumerate"}, function(){
+    var utt = sample(utterancePrior);
+    factor(alpha * (L0(utt, lexicon).score(state)
+                    - uttCost(utt)));
+    return utt;
+  });
+};
+
+// conventional listener
+var L = function(utt, data) {
+  return Infer({method:"enumerate"}, function(){
+    var state = sample(statePrior);
+    var lexicon = sample(lexiconPrior);
+    observe(S1(state, lexicon), utt);
+    mapData({data: data}, function(datum){
+      observe(S1(datum.obj, lexicon), datum.utt);
+    });
+    return state;
+  });
+};
+~~~~
+
+### Part 3: Shortening arbitrary utterances
 
 In Clark & Wilkes-Gibbs (1986), one signature phenomenon is the shortening of referring expressions over time. On the first round, a speaker may refer to a tangram as "the one with their arms out front, like an ice skater," which becomes "ice skater" by the final round. To account for this qualitative phenomenon, we add a noisy communication channel to the above lexical uncertainty model & show (very weakly) that under certain parameters, the shorter utterance becomes *more likely* relative to the longer utterance as the number of observations increases.
 
@@ -198,12 +310,15 @@ var insertWords = function(words) {
 };
 
 var replaceWords = function(words) {
-  var replaceLoc = randomInteger(words.length);
-  var replaceWord = uniformDraw(possibleWords);
-  return (words.slice(0,replaceLoc)
-          .concat(replaceWord)
-          .concat(words.slice(replaceLoc+1,words.length)));
-  }
+  if(_.isEmpty(words)) {
+    return words;
+  } else {
+    var replaceLoc = randomInteger(words.length);
+    var replaceWord = uniformDraw(possibleWords);
+    return (words.slice(0,replaceLoc)
+            .concat(replaceWord)
+            .concat(words.slice(replaceLoc+1,words.length)));
+  }  
 };
 
 var nullMeaning = function(x) {return true;};
@@ -258,14 +373,15 @@ var meaning = cache(function(utt, lexicon) {
 });
 
 var params = {
-  alpha: 2,
-  noiseRate: 0.1,
-  maxDepth: 2
+  alpha: 1,
+  noiseRate: 0.01,
+  maxDepth: 1
 }
 
+// Recursively edit string to maxDepth (log prob proportional to levenstein distance)
 var transform = function(words, currDepth) {
   if(flip(1 - params.noiseRate) || currDepth > params.maxDepth) {
-    return words;
+    return _.isEmpty(words) ? ['n0'] : words;
   } else {
     var operations = [deleteWords, insertWords, replaceWords];
     var op = uniformDraw(operations);
@@ -282,15 +398,20 @@ var noiseModel = cache(function(utt) {
 });
 
 // literal listener w/ noisy channel inference
+// Note that the -100s are hacks to make it well-formed after capping recursion:
+// a corruption of a corruption may not be reachable from a corruption of a grammatical utt,
+// and it's possible that none of the reachable meanings are true of any of the states
 var L0 = cache(function(utt, lexicon) {
   return Infer({method:"enumerate"}, function(){
     var state = sample(statePrior);
     var intendedUtt = sample(utterancePrior)
 
     var uttMeaning = meaning(intendedUtt, lexicon);
+    var noiseScore = (_.contains(noiseModel(intendedUtt).support(), utt) ?
+                      noiseModel(intendedUtt).score(utt) :
+                      -100)
     factor(uttMeaning(state) ? 
-           noiseModel(intendedUtt).score(utt) : 
-           -100);
+           noiseScore : -100);
     return state;
   });
 });
@@ -309,6 +430,7 @@ var S1 = cache(function(state, lexicon) {
   });
 });
 
+// S1('t2', {"ki ma":"t1|t2","fu ba":"t1|t2","n0":"null"})
 // pragmatic listener (needed for S)
 var L2 = cache(function(perceivedUtt, lexicon) {
   return Infer({method: 'enumerate'}, function() {
@@ -323,7 +445,6 @@ var L = cache(function(perceivedUtt, data) {
   return Infer({method:"enumerate"}, function(){
     var state = sample(statePrior);
     var lexicon = sample(lexiconPrior);
-    
     observe(S1(state, lexicon), perceivedUtt);
     mapData({data: data}, function(datum){
       observe(S1(datum.obj, lexicon), datum.utt);
@@ -352,20 +473,19 @@ var S = function(state, data) {
 
 // Listener is better able to understand 'ki' if they've observed full utterances
 // than if they've only heard snippets
-//   console.log(L('ki', [{utt:'ki ma', obj:'t1'}, {utt:'fu ba', obj:'t2'}]));
-//   console.log(L('ki', [{utt:'ki', obj:'t1'},{utt:'fu', obj:'t2'}]));
-
-console.log('speaker with no data ([])')
-viz(S('t1', []))
-console.log("speaker who observed 'kima'<=>'t1'")
-viz(S('t1', [{utt: 'ki ma', obj: 't1'}]));
-console.log("speaker who observed 'kima'<=>'t1' + 'fuba'<=>'t2'")  
-viz(S('t1', [{utt: 'ki ma', obj: 't1'},
-             {utt: 'fu ba', obj: 't2'}]))
-console.log("speaker who observed 2x 'kima'<=>'t1' + 1x'fuba'<=>'t2'")
-viz(S('t1', [{utt: 'ki ma', obj: 't1'},
-             {utt: 'fu ba', obj: 't2'},
-             {utt: 'ki ma', obj: 't1'}]))
+// console.log(L('ki', [{utt:'ki ma', obj:'t1'},{utt:'fu ba', obj:'t2'}]));
+// console.log(L('ki', [{utt:'ki', obj:'t1'},{utt:'fu', obj:'t2'}]));
+// console.log('speaker with no data ([])')
+// viz(S('t1', []))
+// console.log("speaker who observed 'kima'<=>'t1'")
+// viz(S('t1', [{utt: 'ki ma', obj: 't1'}]));
+// console.log("speaker who observed 'kima'<=>'t1' + 'fuba'<=>'t2'")  
+// viz(S('t1', [{utt: 'ki ma', obj: 't1'},
+//              {utt: 'fu ba', obj: 't2'}]))
+// console.log("speaker who observed 2x 'kima'<=>'t1' + 1x'fuba'<=>'t2'")
+// viz(S('t1', [{utt: 'ki ma', obj: 't1'},
+//              {utt: 'fu ba', obj: 't2'},
+//              {utt: 'ki ma', obj: 't1'}]))
 
 console.log("respective ratios of 'ki' to 'kima' (increasing is good)")
 print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'}])))

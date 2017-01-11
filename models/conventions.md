@@ -111,15 +111,6 @@ var S1 = function(state, lexicon) {
   });
 };
 
-// pragmatic listener (needed for S)
-var L2 = function(utt, lexicon) {
-  return Infer({method: 'enumerate'}, function() {
-    var state = sample(statePrior);
-    observe(S1(state, lexicon), utt);
-    return state;
-  });
-};
-
 // conventional listener
 var L = function(utt, data) {
   return Infer({method:"enumerate"}, function(){
@@ -305,10 +296,8 @@ var corruptUtt = function(utt, params) {
   if(utt === 'n0') {
     return 'n0';
   } else if (_.contains(intendedUtts, utt)) {
-    var operation = categorical({vs: ['delete', 'replace'],
-                                 ps: [params.deleteProb, 1-params.deleteProb]});
-    var morpheme = categorical({vs: ['both', 'first', 'second'],
-                                ps: [params.bothProb, (1-params.bothProb)/2, (1-params.bothProb)/2]})
+    var operation = uniformDraw(['delete', 'replace'])
+    var morpheme = uniformDraw(['both', 'first', 'second'])
     return flip(params.randomProb) ? uniformDraw(intendedUtts) : performOp(utt, operation, morpheme).join(' ');
   } else {
     console.error('unknown utt')
@@ -317,9 +306,7 @@ var corruptUtt = function(utt, params) {
 
 var params = {
   alpha: 2,
-  noiseRate: 0.3,
-  deleteProb: .6,
-  bothProb: .25,
+  noiseRate: 0.1,
   randomProb: .25
 }
 
@@ -329,25 +316,17 @@ var noiseModel = cache(function(utt) {
     return flip(1 - params.noiseRate) ? utt : corruptUtt(utt, params);
   });
 });
-  
-// Inverts noise model, so that each corrupted utterances yields
-// a distribution over possible intended utterances.
-var invNoiseModel = cache(function(utt, opts){
-  return Infer({method:'enumerate'}, function(){
-    var intendedUtt = sample(utterancePrior)
-    observe(noiseModel(intendedUtt), utt)
-    return intendedUtt
-  })
-})
 
 // literal listener w/ noisy channel inference
 var L0 = cache(function(utt, lexicon) {
   return Infer({method:"enumerate"}, function(){
     var state = sample(statePrior);
-    var intendedUtt = sample(invNoiseModel(utt));
+    var intendedUtt = sample(utterancePrior)
 
     var uttMeaning = meaning(intendedUtt, lexicon);
-    factor(uttMeaning(state) ? 0 : -100);
+    factor(uttMeaning(state) ? 
+           noiseModel(intendedUtt).score(utt) : 
+           -100);
     return state;
   });
 });
@@ -362,7 +341,7 @@ var S1 = cache(function(state, lexicon) {
     })
 
     factor(params.alpha * (listener.score(state) - uttCost(intendedUtt)));
-    return intendedUtt;
+    return sample(noiseModel(intendedUtt));
   });
 });
 
@@ -370,8 +349,7 @@ var S1 = cache(function(state, lexicon) {
 var L2 = cache(function(perceivedUtt, lexicon) {
   return Infer({method: 'enumerate'}, function() {
     var state = sample(statePrior);
-    var intendedUtt = sample(invNoiseModel(perceivedUtt));
-    observe(S1(state, lexicon), intendedUtt);
+    observe(S1(state, lexicon), perceivedUtt);
     return state;
   });
 });
@@ -381,9 +359,8 @@ var L = cache(function(perceivedUtt, data) {
   return Infer({method:"enumerate"}, function(){
     var state = sample(statePrior);
     var lexicon = sample(lexiconPrior);
-    var intendedUtt = sample(invNoiseModel(perceivedUtt));
     
-    observe(S1(state, lexicon), intendedUtt);
+    observe(S1(state, lexicon), perceivedUtt);
     mapData({data: data}, function(datum){
       observe(S1(datum.obj, lexicon), datum.utt);
     });
@@ -405,7 +382,7 @@ var S = function(state, data) {
     mapData({data: data}, function(datum){
       observe(L2(datum.utt, lexicon), datum.obj); // update beliefs about lexicon
     });
-    return intendedUtt;
+    return sample(noiseModel(intendedUtt));
   });
 };
 
@@ -433,5 +410,4 @@ print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
 print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
                         {utt: 'fu ba', obj: 't2'},
                         {utt: 'ki ma', obj: 't1'}])))
-}
 ~~~~

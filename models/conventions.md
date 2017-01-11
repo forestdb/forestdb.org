@@ -178,9 +178,8 @@ var uniformPs = function(vs) {
   return initList(vs.length, 1/vs.length)
 }
 
-// It takes too long to explore the real space, so we'll use the toy
-// version that doesn't allow repeats (e.g. only allowed to insert or
-// replace words with new ones that aren't already in the list)
+var possibleWords = ['ki', 'ma', 'fu', 'ba'];
+
 var deleteWords = function(words) {
   if(_.isEmpty(words)) {
     return words;
@@ -191,52 +190,19 @@ var deleteWords = function(words) {
 };
 
 var insertWords = function(words) {
-  if(_.isEmpty(_.difference(possibleWords, words))) {
-    return words;
-  } else {
-    var insertLoc = randomInteger(words.length + 1);
-    var insertWord = uniformDraw(_.difference(possibleWords, words));
-    return (words.slice(0,insertLoc)
-            .concat(insertWord)
-            .concat(words.slice(insertLoc, words.length)));
-  }
+  var insertLoc = randomInteger(words.length + 1);
+  var insertWord = uniformDraw(possibleWords);
+  return (words.slice(0,insertLoc)
+         .concat(insertWord)
+         .concat(words.slice(insertLoc, words.length)));
 };
 
 var replaceWords = function(words) {
-  if(_.isEmpty(_.difference(possibleWords, words))) {
-    return words;
-  } else {
-    
-    var replaceLoc = randomInteger(words.length);
-    var replaceWord = uniformDraw(_.difference(possibleWords, words));
-    return (words.slice(0,replaceLoc)
-            .concat(replaceWord)
-            .concat(words.slice(replaceLoc+1,words.length)));
-  }
-};
-
-var firstMorphs = ['ki', 'fu'];
-var secondMorphs = ['ba', 'ma']
-var performOp = function(utt, op, morph) {
-  var morphs = utt.split(' ');
-  if(morphs.length === 1) {
-    var m = morphs[0];
-    return (op === 'delete' ? ['n0'] :
-            _.contains(firstMorphs, m) ? remove(m, firstMorphs) :
-            _.contains(secondMorphs, m) ? remove(m, secondMorphs) :
-           console.error('cannot perform op'));
-  } else {
-    if(op === 'delete') {
-      return (morph === 'both' ? ['n0'] :
-              morph === 'first' ? [morphs[1]] :
-              morph === 'second' ? [morphs[0]] : 
-              console.error('cannot perform op'))
-    } else if(op === 'replace') {
-      return (morph === 'first' ? remove(morphs[0], firstMorphs).concat(morphs[1]) :
-              morph === 'second' ? [morphs[0]].concat(remove(morphs[1], secondMorphs)) :
-              morph === 'both' ? remove(morphs[0], firstMorphs).concat(remove(morphs[1], secondMorphs)) :
-              console.error('cannot perform op'))
-    }
+  var replaceLoc = randomInteger(words.length);
+  var replaceWord = uniformDraw(possibleWords);
+  return (words.slice(0,replaceLoc)
+          .concat(replaceWord)
+          .concat(words.slice(replaceLoc+1,words.length)));
   }
 };
 
@@ -291,29 +257,27 @@ var meaning = cache(function(utt, lexicon) {
   return (mStr == 'null' ? nullMeaning : constructMeaning(mStr));
 });
 
-// Simplified corruption function 
-var corruptUtt = function(utt, params) {
-  if(utt === 'n0') {
-    return 'n0';
-  } else if (_.contains(intendedUtts, utt)) {
-    var operation = uniformDraw(['delete', 'replace'])
-    var morpheme = uniformDraw(['both', 'first', 'second'])
-    return flip(params.randomProb) ? uniformDraw(intendedUtts) : performOp(utt, operation, morpheme).join(' ');
-  } else {
-    console.error('unknown utt')
-  }
-}
-
 var params = {
   alpha: 2,
   noiseRate: 0.1,
-  randomProb: .25
+  maxDepth: 2
 }
+
+var transform = function(words, currDepth) {
+  if(flip(1 - params.noiseRate) || currDepth > params.maxDepth) {
+    return words;
+  } else {
+    var operations = [deleteWords, insertWords, replaceWords];
+    var op = uniformDraw(operations);
+    return transform(op(words), currDepth + 1);
+  }
+};
 
 // Gives distribution over possible noisy versions of intended utt
 var noiseModel = cache(function(utt) {
   return Infer({method: 'enumerate'}, function() {
-    return flip(1 - params.noiseRate) ? utt : corruptUtt(utt, params);
+    return (utt === 'n0' ? 'n0' :
+            transform(utt.split(' '), 0).join(' '));
   });
 });
 

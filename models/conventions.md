@@ -176,7 +176,6 @@ var constructAnyMeaning = function(label) {
 };
 var conjunction = function(meanings) {
   return function(trueState) {
-    print(trueState)
     return all(function(meaning) {
       return meaning(trueState);
     }, meanings);
@@ -226,7 +225,7 @@ var alpha = 1;
 
 // null utterance costly; everything else cheap
 var uttCost = function(utt) {
-  return (utt == 't1' || utt == 't2' ? 1 : 10);
+  return (utt == 'n0' ? 10 : utt.split(' ').length/3);
 };
 
 // Looks up the meaning of an utterance in a lexicon object
@@ -237,7 +236,6 @@ var meaning = cache(function(utt, lexicon) {
     return constructAnyMeaning(lexicon[utt]);
   } else {
     var baseMeanings = map(function(baseUtt) {
-      print(lexicon[baseUtt])
       return constructAnyMeaning(lexicon[baseUtt])
     }, utt.split(' and '));
     return conjunction(baseMeanings)
@@ -249,7 +247,6 @@ var L0 = function(utt, lexicon) {
   return Infer({method:"enumerate"}, function(){
     var state = sample(statePrior);
     var uttMeaning = meaning(utt, lexicon);
-    print(uttMeaning(state))
     factor(uttMeaning(state) ? 0 : -100);
     return state;
   });
@@ -265,6 +262,14 @@ var S1 = function(state, lexicon) {
   });
 };
 
+var L2 = cache(function(perceivedUtt, lexicon) {
+  return Infer({method: 'enumerate'}, function() {
+    var state = sample(statePrior);
+    observe(S1(state, lexicon), perceivedUtt);
+    return state;
+  });
+});
+
 // conventional listener
 var L = function(utt, data) {
   return Infer({method:"enumerate"}, function(){
@@ -277,6 +282,26 @@ var L = function(utt, data) {
     return state;
   });
 };
+
+// conventional speaker
+var S = function(state, data) {
+  return Infer({method:"enumerate"}, function(){
+    var utt = sample(utterancePrior);
+    var lexicon = sample(lexiconPrior);
+    
+    factor(alpha * (L2(utt, lexicon).score(state)
+                    - uttCost(utt)));
+    mapData({data: data}, function(datum){
+      observe(L2(datum.utt, lexicon), datum.obj); // update beliefs about lexicon
+    });
+    return {utt, t1a: lexicon['t1_a'], t2a: lexicon['t2_a']};
+  });
+};
+
+viz.marginals(S('t1', []))
+viz.marginals(S('t1', [{utt: 't1_a', obj: 't1'}]))
+viz.marginals(S('t1', [{utt: 't1_a', obj: 't1'},
+                       {utt: 't1_b', obj: 't1'}]))
 ~~~~
 
 ### Part 3: Shortening arbitrary utterances

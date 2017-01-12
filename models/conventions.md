@@ -136,9 +136,9 @@ viz(L('label2', [{utt: 'label1', obj: 't1'}]))
 
 The listener is initially uncertain about which tangram 'label1' is referring to, but after observing a trial in which 'label1' corresponded to 'tangram1', they update their beliefs about the likely lexicon and subsequently become more likely to interpret 'label1' as referring to 'tangram1.' Note that it is also more likely to interpret 'label2' as referring to 'tangram2', even though it has not observed any explicit usage of this label. This latter effect is a standard consequence of pragmatic reasoning. 
 
-### Part 2: Dropping modifiers
+### Part 2: Dropping redundant information (conjunctions and modifiers)
 
-In our data, several of the most frequently dropped utterances between the first round and the last round are modifying clauses. We account for this in an RSA model by 
+In our data, several of the most frequently dropped utterances between the first round and the last round are modifying clauses. We account for this in an RSA model by enriching the lexicon with compositional semantics. In addition to bare labels, the speaker can form conjunctions of labels which have a meaning derived from the individual label meanings in the lexicon. We also introduce some initial bias for some labels toward one tangrams and other labels toward the other tangram. The intended behavior is that speakers are initially more likely to form conjunctions of the two labels with a bias toward the target tangram, in effect hedging against the possibility that they're in a world where one or the other of those labels don't turn out to mean the target tangram. As uncertainty over the lexicon decreases over multiple rounds, however, this information will become redundant and the benefit of hedging will not be worth the additional utterance cost. 
 
 ~~~~
 ///fold:
@@ -158,7 +158,7 @@ var powerset = function(set, opts) {
   return opts.noNull ? filter(function(x){return !_.isEmpty(x);}, res) : res;
 };
 
-var cartesian = function(listOfLists) {
+var cartesianProd = function(listOfLists) {
   return reduce(function(b, a) { 
     return _.flatten(map(function(x) {     
       return map(function(y) {             
@@ -174,7 +174,23 @@ var constructAnyMeaning = function(label) {
     }, label.split('|'));
   }
 };
+var conjunction = function(meanings) {
+  return function(trueState) {
+    print(trueState)
+    return all(function(meaning) {
+      return meaning(trueState);
+    }, meanings);
+  }
+}
 var nullMeaning = function(x) {return true;};
+
+var initList = function(n, val) {
+  return repeat(n, function() {return val})
+}
+
+var uniformPs = function(vs) {
+  return initList(vs.length, 1/vs.length)
+}
 ///
 
 // possible states of the world
@@ -182,22 +198,28 @@ var states = ['t1', 't2'];
 var statePrior =  Categorical({vs: states, ps: [1/2, 1/2]});
 
 // possible utterances (include null utterance to make sure dists are well-formed)
-var unconstrainedUtterances = ['label1', 'label2'];
-var derivedUtterances = ['n0'];
+var unconstrainedUtterances = ['t1_a', 't1_b','t2_a','t2_b'];
+var derivedUtterances = ['t1_a and t1_b', 't1_a and t2_a', 't1_a and t2_b',
+                         't1_b and t2_a', 't1_b and t2_b', 't2_a and t2_b',
+                         'n0'];
 var utterances = unconstrainedUtterances.concat(derivedUtterances);
-var utterancePrior = Categorical({vs: utterances, ps: [1/3, 1/3, 1/3]});
+var utterancePrior = Categorical({vs: utterances, ps: uniformPs(utterances)});
 
 // meanings are possible disjunctions of states
 var meanings = map(function(l){return l.join('|');}, 
                    powerset(states, {noNull: true}));
 
-// Lexicons are maps from utterances to meanings 
-var meaningSets = cartesian(repeat(unconstrainedUtterances.length, function() {return meanings;}));
-var lexicons = map(function(meaningSet) {
-  var unconstrainedMeanings = _.object(unconstrainedUtterances, meaningSet);
-  return _.extend(unconstrainedMeanings, {'n0': 'null'});
-}, meaningSets);
-var lexiconPrior = Categorical({vs: lexicons, ps: repeat(lexicons.length, function(){return 1/lexicons.length})});
+var lexiconPrior = Infer({method: 'enumerate'}, function(){
+  var meaningSet = map(function(utt) {
+    var meaningProbs = {
+      't1' : utt.split('_')[0] === 't1' ? 1/3 + 1/5 : 1/3 - 1/5,
+      't2' : utt.split('_')[0] === 't1' ? 1/3 - 1/5 : 1/3 + 1/5,
+      't1|t2' : 1/3
+    }
+    return categorical({vs: _.keys(meaningProbs), ps: _.values(meaningProbs)});
+  }, unconstrainedUtterances)  
+  return _.object(unconstrainedUtterances, meaningSet);
+})
 
 // speaker optimality
 var alpha = 1;
@@ -209,9 +231,17 @@ var uttCost = function(utt) {
 
 // Looks up the meaning of an utterance in a lexicon object
 var meaning = cache(function(utt, lexicon) {  
-  return (lexicon[utt] == 'null' ? 
-          nullMeaning : 
-          constructAnyMeaning(lexicon[utt]));
+  if(utt === 'n0') {
+    return nullMeaning;
+  } else if (_.contains(unconstrainedUtterances, utt)) {
+    return constructAnyMeaning(lexicon[utt]);
+  } else {
+    var baseMeanings = map(function(baseUtt) {
+      print(lexicon[baseUtt])
+      return constructAnyMeaning(lexicon[baseUtt])
+    }, utt.split(' and '));
+    return conjunction(baseMeanings)
+  }
 });
 
 // literal listener
@@ -219,7 +249,8 @@ var L0 = function(utt, lexicon) {
   return Infer({method:"enumerate"}, function(){
     var state = sample(statePrior);
     var uttMeaning = meaning(utt, lexicon);
-    condition(uttMeaning(state));
+    print(uttMeaning(state))
+    factor(uttMeaning(state) ? 0 : -100);
     return state;
   });
 };

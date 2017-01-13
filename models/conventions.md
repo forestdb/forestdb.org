@@ -18,123 +18,121 @@ We begin by implementing the simplest lexical uncertainty model, used in Bergen,
 This is the simplest demonstration of conventions; even though neither party knows the meaning of a label at the outset, a random choice is taken to be evidence for a particular lexicon and it becomes the base for successful communication.
 
 ~~~~
-///fold:
-var _powerset = function(set) {
-  if (set.length == 0)
-    return [[]];
-  else {
-    var rest = _powerset(set.slice(1));
-    return map(function(element) {
-      return [set[0]].concat(element);
-    }, rest).concat(rest);
-  }
-};
-
-var powerset = function(set, opts) {
-  var res = _powerset(set);
-  return opts.noNull ? filter(function(x){return !_.isEmpty(x);}, res) : res;
-};
-
-var cartesian = function(listOfLists) {
-  return reduce(function(b, a) { 
-    return _.flatten(map(function(x) {     
-      return map(function(y) {             
-        return x.concat([y]);                   
-      }, b);                                       
-    }, a), true);                                  
-  }, [ [] ], listOfLists);                                   
-};
-var constructAnyMeaning = function(label) {
-  return function(trueState) {
-    return any(function(labelState){
-      return labelState == trueState;
-    }, label.split('|'));
-  }
-};
-var nullMeaning = function(x) {return true;};
-///
-
 // possible states of the world
 var states = ['t1', 't2'];
 var statePrior =  Categorical({vs: states, ps: [1/2, 1/2]});
 
-// possible utterances (include null utterance to make sure dists are well-formed)
-var unconstrainedUtterances = ['label1', 'label2'];
-var derivedUtterances = ['n0'];
-var utterances = unconstrainedUtterances.concat(derivedUtterances);
-var utterancePrior = Categorical({vs: utterances, ps: [1/3, 1/3, 1/3]});
+// possible utterances
+var utterances = ['label1', 'label2'];
+var utterancePrior = Categorical({vs: utterances, ps: [1/2, 1/2]});
 
-// meanings are possible disjunctions of states
-var meanings = map(function(l){return l.join('|');}, 
-                   powerset(states, {noNull: true}));
-
-// Lexicons are maps from utterances to meanings 
-var meaningSets = cartesian(repeat(unconstrainedUtterances.length, function() {return meanings;}));
-var lexicons = map(function(meaningSet) {
-  var unconstrainedMeanings = _.object(unconstrainedUtterances, meaningSet);
-  return _.extend(unconstrainedMeanings, {'n0': 'null'});
-}, meaningSets);
-var lexiconPrior = Categorical({vs: lexicons, ps: repeat(lexicons.length, function(){return 1/lexicons.length})});
+// takes a sample from a (discretized) dirichlet distribution for each word,
+// representing the extent to which that word describes each object
+var lexiconPrior = Infer({method: 'enumerate'}, function(){
+  var meanings = map(function(utt) {
+    var t1Prob = uniformDraw([0.01, .25, .5, .75, 0.99]);
+    return {'t1' : t1Prob, 't2' : 1-t1Prob};
+  }, utterances);
+  return _.object(utterances, meanings);
+});
 
 // speaker optimality
 var alpha = 1;
 
-// null utterance costly; everything else cheap
+// length-based cost (although they're all the same length here)
 var uttCost = function(utt) {
-  return (utt == 't1' || utt == 't2' ? 1 : 10);
+  return utt.split(' ').length;
 };
 
-// Looks up the meaning of an utterance in a lexicon object
-var meaning = cache(function(utt, lexicon) {  
-  return (lexicon[utt] == 'null' ? 
-          nullMeaning : 
-          constructAnyMeaning(lexicon[utt]));
-});
-
-// literal listener
-var L0 = function(utt, lexicon) {
+// literal listener (using real-valued lexicon)
+var L0 = cache(function(utt, lexicon) {
   return Infer({method:"enumerate"}, function(){
     var state = sample(statePrior);
-    var uttMeaning = meaning(utt, lexicon);
-    condition(uttMeaning(state));
+    factor(Math.log(lexicon[utt][state]));
     return state;
   });
-};
+});
 
-// pragmatic speaker
-var S1 = function(state, lexicon) {
+// pragmatic speaker (opti
+var S1 = cache(function(state, lexicon) {
   return Infer({method:"enumerate"}, function(){
     var utt = sample(utterancePrior);
     factor(alpha * (L0(utt, lexicon).score(state)
                     - uttCost(utt)));
     return utt;
   });
-};
+});
 
 // conventional listener
-var L = function(utt, data) {
+var L1 = cache(function(utt, lexicon) {
   return Infer({method:"enumerate"}, function(){
     var state = sample(statePrior);
-    var lexicon = sample(lexiconPrior);
     observe(S1(state, lexicon), utt);
+    return state;
+  });
+});
+
+// compute lexicon posterior, taking into account some previous observations
+// speakers do this by assuming data came from knowledgable listener, and vice versa
+var lexiconPosterior = cache(function(originAgent, data) {
+  return Infer({method: 'enumerate'}, function() {
+    var lexicon = sample(lexiconPrior);
     mapData({data: data}, function(datum){
-      observe(S1(datum.obj, lexicon), datum.utt);
+      if(originAgent === 'L') 
+        observe(S1(datum.obj, lexicon), datum.utt);
+      else if(originAgent === 'S') 
+        observe(L1(datum.utt, lexicon), datum.obj);
     });
+    return lexicon;
+  });
+});
+
+// conventional listener (L1, marginalizing over lexicons)
+var L = function(utt, data) {
+  return Infer({method:"enumerate"}, function(){
+    var lexicon = sample(lexiconPosterior('L', data));
+    var state = sample(L1(utt, lexicon));
     return state;
   });
 };
 
+// conventional speaker (S1, reasoning about expected L1 behavior across lexicons)
+var S = function(state, data) {
+  return Infer({method:"enumerate"}, function(){
+    var utt = sample(utterancePrior);
+    var listener = Infer({method: 'enumerate'}, function() {
+      var lexicon = sample(lexiconPosterior('S', data));
+      return sample(L1(utt, lexicon))
+    });
+    factor(alpha * (listener.score(state) - uttCost(utt)));
+    return utt;
+  });
+};
+
 console.log("initial listener interpretation (first trial)");
-viz(L('label1', []))
+viz(L('label1', []));
 
 console.log("listener hearing label1 after data:");
-viz(L('label1', [{utt: 'label1', obj: 't1'}]))
+viz(L('label1', [{utt: 'label1', obj: 't1'}]));
 
-console.log("listener hearing label2 after data:");
-viz(L('label2', [{utt: 'label1', obj: 't1'}]))
+// console.log("listener hearing label2 after data:");
+// viz(L('label2', [{utt: 'label1', obj: 't1'}]));
+
+// console.log("listener hearing label1 after opposite data:");
+// viz(L('label1', [{utt: 'label1', obj: 't2'}]));
+
+// console.log("listener hearing label1 after more data:");
+// viz(L('label1', [{utt: 'label1', obj: 't1'},
+// 			 {utt: 'label1', obj: 't1'},
+// 			 {utt: 'label2', obj: 't2'}]));
+
+// console.log("speaker hearing label1 after more data:");
+// viz(S('t1', [{utt: 'label1', obj: 't1'},
+// 			 {utt: 'label1', obj: 't1'},
+// 			 {utt: 'label2', obj: 't2'}]));
 ~~~~
 
-The listener is initially uncertain about which tangram 'label1' is referring to, but after observing a trial in which 'label1' corresponded to 'tangram1', they update their beliefs about the likely lexicon and subsequently become more likely to interpret 'label1' as referring to 'tangram1.' Note that it is also more likely to interpret 'label2' as referring to 'tangram2', even though it has not observed any explicit usage of this label. This latter effect is a standard consequence of pragmatic reasoning. 
+The listener is initially uncertain about which tangram 'label1' is referring to, but after observing evidence in which a speaker produced 'label1' for 'tangram1', they update their beliefs about the likely lexicon and subsequently become more likely to interpret 'label1' as referring to 'tangram1.' Note that it is also more likely to interpret 'label2' as referring to 'tangram2', even though it has not observed any explicit usage of this label. This latter effect is a standard consequence of pragmatic reasoning. Uncomment for additional explorations of this model, and examine what the lexicon posterior looks like after seeing different data.
 
 ### Part 2: Dropping redundant information (conjunctions and modifiers)
 

@@ -140,47 +140,6 @@ In our data, several of the most frequently dropped utterances between the first
 
 ~~~~
 ///fold:
-var _powerset = function(set) {
-  if (set.length == 0)
-    return [[]];
-  else {
-    var rest = _powerset(set.slice(1));
-    return map(function(element) {
-      return [set[0]].concat(element);
-    }, rest).concat(rest);
-  }
-};
-
-var powerset = function(set, opts) {
-  var res = _powerset(set);
-  return opts.noNull ? filter(function(x){return !_.isEmpty(x);}, res) : res;
-};
-
-var cartesianProd = function(listOfLists) {
-  return reduce(function(b, a) { 
-    return _.flatten(map(function(x) {     
-      return map(function(y) {             
-        return x.concat([y]);                   
-      }, b);                                       
-    }, a), true);                                  
-  }, [ [] ], listOfLists);                                   
-};
-var constructAnyMeaning = function(label) {
-  return function(trueState) {
-    return any(function(labelState){
-      return labelState == trueState;
-    }, label.split('|'));
-  }
-};
-var conjunction = function(meanings) {
-  return function(trueState) {
-    return all(function(meaning) {
-      return meaning(trueState);
-    }, meanings);
-  }
-}
-var nullMeaning = function(x) {return true;};
-
 var initList = function(n, val) {
   return repeat(n, function() {return val})
 }
@@ -194,113 +153,123 @@ var uniformPs = function(vs) {
 var states = ['t1', 't2'];
 var statePrior =  Categorical({vs: states, ps: [1/2, 1/2]});
 
-// possible utterances (include null utterance to make sure dists are well-formed)
+// possible base utterances, and possible conjunctions
 var unconstrainedUtterances = ['t1_a', 't1_b','t2_a','t2_b'];
-var derivedUtterances = ['t1_a and t1_b', 't1_a and t2_a', 't1_a and t2_b',
-                         't1_b and t2_a', 't1_b and t2_b', 't2_a and t2_b',
-                         'n0'];
+var derivedUtterances = ['t1_a t1_b', 't2_a t2_b'];
 var utterances = unconstrainedUtterances.concat(derivedUtterances);
 var utterancePrior = Categorical({vs: utterances, ps: uniformPs(utterances)});
 
-// meanings are possible disjunctions of states
-var meanings = map(function(l){return l.join('|');}, 
-                   powerset(states, {noNull: true}));
-
+// takes a sample from a (biased & discretized) dirichlet distribution for each word,
+// representing the extent to which that word describes each object
 var lexiconPrior = Infer({method: 'enumerate'}, function(){
-  var meaningSet = map(function(utt) {
-    var meaningProbs = {
-      't1' : utt.split('_')[0] === 't1' ? 1/3 + 1/5 : 1/3 - 1/5,
-      't2' : utt.split('_')[0] === 't1' ? 1/3 - 1/5 : 1/3 + 1/5,
-      't1|t2' : 1/3
-    }
-    return categorical({vs: _.keys(meaningProbs), ps: _.values(meaningProbs)});
-  }, unconstrainedUtterances)  
-  return _.object(unconstrainedUtterances, meaningSet);
-})
+  var meanings = map(function(utt) {
+    var t1Bias = utt.split('_')[0] === 't1' 
+    var t1ps = t1Bias ? [.1,.15,.2,.25,.3] : [.3,.25,.2,.15,.1]
+    var t1Prob = categorical({vs: [0.01, 0.25, .5, .75, .99], ps: t1ps})
+    return {'t1' : t1Prob, 't2' : 1-t1Prob};
+  }, unconstrainedUtterances);
+  return _.object(unconstrainedUtterances, meanings);
+});
 
 // speaker optimality
-var alpha = 1;
+var alpha = 15;
 
-// null utterance costly; everything else cheap
+// length-based cost 
 var uttCost = function(utt) {
-  return (utt == 'n0' ? 10 : utt.split(' ').length/3);
+  return utt.split(' ').length;
 };
 
-// Looks up the meaning of an utterance in a lexicon object
-var meaning = cache(function(utt, lexicon) {  
-  if(utt === 'n0') {
-    return nullMeaning;
-  } else if (_.contains(unconstrainedUtterances, utt)) {
-    return constructAnyMeaning(lexicon[utt]);
-  } else {
-    var baseMeanings = map(function(baseUtt) {
-      return constructAnyMeaning(lexicon[baseUtt])
-    }, utt.split(' and '));
-    return conjunction(baseMeanings)
-  }
+// Looks up the meaning of an utterance in a lexicon object  
+var uttFitness = cache(function(utt, state, lexicon) {
+  return Math.log(reduce(function(subUtt, memo) {
+    return lexicon[subUtt][state] * memo;
+  }, 1, utt.split(' ')));
 });
 
 // literal listener
-var L0 = function(utt, lexicon) {
+var L0 = cache(function(utt, lexicon) {
   return Infer({method:"enumerate"}, function(){
     var state = sample(statePrior);
-    var uttMeaning = meaning(utt, lexicon);
-    factor(uttMeaning(state) ? 0 : -100);
+    factor(uttFitness(utt, state, lexicon));
     return state;
   });
-};
+});
 
 // pragmatic speaker
-var S1 = function(state, lexicon) {
+var S1 = cache(function(state, lexicon) {
   return Infer({method:"enumerate"}, function(){
     var utt = sample(utterancePrior);
-    factor(alpha * (L0(utt, lexicon).score(state)
-                    - uttCost(utt)));
+    factor(alpha * (L0(utt, lexicon).score(state))
+           - uttCost(utt));
     return utt;
-  });
-};
-
-var L2 = cache(function(perceivedUtt, lexicon) {
-  return Infer({method: 'enumerate'}, function() {
-    var state = sample(statePrior);
-    observe(S1(state, lexicon), perceivedUtt);
-    return state;
   });
 });
 
 // conventional listener
-var L = function(utt, data) {
+var L1 = cache(function(utt, lexicon) {
   return Infer({method:"enumerate"}, function(){
     var state = sample(statePrior);
-    var lexicon = sample(lexiconPrior);
     observe(S1(state, lexicon), utt);
+    return state;
+  });
+});
+
+var lexiconPosterior = cache(function(originAgent, data) {
+  return Infer({method: 'enumerate'}, function() {
+    var lexicon = sample(lexiconPrior);
     mapData({data: data}, function(datum){
-      observe(S1(datum.obj, lexicon), datum.utt);
+      if(originAgent === 'L') {
+        observe(S1(datum.obj, lexicon), datum.utt);
+      } else if(originAgent === 'S') {
+        observe(L1(datum.utt, lexicon), datum.obj);
+      }
     });
+    return lexicon;
+  });
+});
+
+// conventional listener (L1, marginalizing over lexicons)
+var L = function(utt, data) {
+  return Infer({method:"enumerate"}, function(){
+    var lexicon = sample(lexiconPosterior('L', data));
+    var state = sample(L1(utt, lexicon));
     return state;
   });
 };
 
-// conventional speaker
+// conventional speaker (S1, reasoning about expected listener across lexicons)
 var S = function(state, data) {
   return Infer({method:"enumerate"}, function(){
     var utt = sample(utterancePrior);
-    var lexicon = sample(lexiconPrior);
-    
-    factor(alpha * (L2(utt, lexicon).score(state)
-                    - uttCost(utt)));
-    mapData({data: data}, function(datum){
-      observe(L2(datum.utt, lexicon), datum.obj); // update beliefs about lexicon
+    var listener = Infer({method: 'enumerate'}, function() {
+      var lexicon = sample(lexiconPosterior('S', data));
+      return sample(L1(utt, lexicon));
     });
-    return {utt, t1a: lexicon['t1_a'], t2a: lexicon['t2_a']};
+    factor(alpha * (listener.score(state))
+           - uttCost(utt));
+    return utt;
   });
 };
 
-viz.marginals(S('t1', []))
-viz.marginals(S('t1', [{utt: 't1_a', obj: 't1'}]))
-viz.marginals(S('t1', [{utt: 't1_a', obj: 't1'},
-                       {utt: 't1_b', obj: 't1'}]))
+console.log("likelihood of t1_a meaning t1: " + 
+            expectation(lexiconPosterior('S', []), 
+                        function(v) {return v['t1_a']['t1']}))
+viz(S('t1', []))
+
+console.log("likelihood of t1_a meaning t1 after observations: " + 
+            expectation(lexiconPosterior('S', [{utt: 't1_a t1_b', obj: 't1'},
+                                               {utt: 't1_a', obj: 't1'}]), 
+                        function(v) {return v['t1_a']['t1']}))
+viz(S('t1', [{utt: 't1_a t1_b', obj: 't1'},
+             {utt: 't1_a', obj: 't1'}]))
 ~~~~
+
+We see that there's an initial preference for the longer conjunction of "t1_a" and "t1_b" despite the utterance cost because
+
+(1) there's an initial bias in the lexicon prior for these utterances to mean 't1' (thus why neither of the t2 utterances are assigned any probability) 
+(2) the conjunction hedges against unlikely but possible lexicons where one or the other actually means 't2'. 
+
+After observing an example of this conjunction correctly referring to 't1', the conjunction actually becomes *more* preferred by the speaker, as it increases the probability of utterances where both t1_a and t1_b mean 't1'. Because of cost considerations, however, the shorter utterances are still assigned some probability. Once the speaker produces one or the other short utterances by chance, then, it breaks the symmetry and this utterance becomes the most probable in future rounds.
 
 ### Part 3: Shortening arbitrary utterances
 

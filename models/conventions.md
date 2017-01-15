@@ -279,41 +279,7 @@ To demonstrate this most clearly, and to explore the effect of different choices
 
 ~~~~
 ///fold:
-var _powerset = function(set) {
-  if (set.length == 0)
-    return [[]];
-  else {
-    var rest = _powerset(set.slice(1));
-    return map(function(element) {
-      return [set[0]].concat(element);
-    }, rest).concat(rest);
-  }
-};
-
-var powerset = function(set, opts) {
-  var res = _powerset(set);
-  return opts.noNull ? filter(function(x){return !_.isEmpty(x);}, res) : res;
-};
-
-var cartesianProd = function(listOfLists) {
-  return reduce(function(b, a) { 
-    return _.flatten(map(function(x) {     
-      return map(function(y) {             
-        return x.concat([y]);                   
-      }, b);                                       
-    }, a), true);                                  
-  }, [ [] ], listOfLists);                                   
-};
-
-var initList = function(n, val) {
-  return repeat(n, function() {return val})
-}
-
-var uniformPs = function(vs) {
-  return initList(vs.length, 1/vs.length)
-}
-
-var possibleWords = ['ki', 'ma', 'fu', 'ba'];
+var possibleWords = ['the', 'ki', 'ma'];
 
 var deleteWords = function(words) {
   if(_.isEmpty(words)) {
@@ -357,54 +323,54 @@ var identity = function(x) {return x;};
 var getRatio = function(model) {
   return Math.exp(model.score('ki') - model.score('ki ma'))
 }
+
+var initList = function(n, val) {
+  return repeat(n, function() {return val})
+}
+
+var uniformPs = function(vs) {
+  return initList(vs.length, 1/vs.length)
+}
 ///
 
 // possible states of the world
 var states = ['t1', 't2'];
-var statePrior = Categorical({vs: states, ps: uniformPs(states)});
+var statePrior =  Categorical({vs: states, ps: [1/2, 1/2]});
 
 // possible utterances (include null utterance to make sure dists are well-formed)
-var unconstrainedUtts = ['ki ma', 'fu ba'];
-var derivedUtts = ['n0'];
-var intentionallyCorruptedUtts = ['ki', 'fu', 'ma', 'ba', 'ki ba', 'fu ma']
-var grammaticalUtts = unconstrainedUtts.concat(derivedUtts);
+var grammaticalUtts = ['the ma', 'the ki'];
+var intentionallyCorruptedUtts = ['the', 'ma', 'ki', 'ma ki', 'ki ma'];
 var intendedUtts = grammaticalUtts.concat(intentionallyCorruptedUtts)
 var utterancePrior = Categorical({vs: grammaticalUtts, ps: uniformPs(grammaticalUtts)});
 
-// longer utterances more costly (count chars)
-var uttCost = cache(function(utt) {
-  return utt == 'n0' ? 10 : utt.split('').length/2;
+// takes a sample from a (discretized) dirichlet distribution for each word,
+// representing the extent to which that word describes each object
+var lexiconPrior = Infer({method: 'enumerate'}, function(){
+  var meanings = map(function(utt) {
+    var t1Ps = (utt === 'the ki' ? [.1,.15,.2,.25,.3] : 
+                utt === 'the ma' ? [.3,.25,.2,.15,.1] :
+                [.2, .2, .2, .2, .2]);
+    var t1Prob = categorical({vs: [0.01, 0.25, .5, .75, .99], ps: t1Ps})
+    return {'t1' : t1Prob, 't2' : 1-t1Prob};
+  }, grammaticalUtts);
+  return _.object(grammaticalUtts, meanings);
 });
 
-// meanings are possible disjunctions of states 
-var meanings = map(function(l){return l.join('|');}, 
-                   powerset(states, {noNull: true}));
-var meaningSets = cartesianProd(initList(unconstrainedUtts.length, meanings));
-
-// Lexicons are maps from utterances to meanings 
-// (null utterance always goes to null meaning)
-var lexicons = map(function(meaningSet) {
-  var unconstrainedMeanings = _.object(unconstrainedUtts, meaningSet);
-  return _.extend(unconstrainedMeanings, {'n0': 'null'});
-}, meaningSets);
-var lexiconPrior = Categorical({vs: lexicons, ps: uniformPs(lexicons)});
-
-// Looks up the meaning of an utterance in a lexicon object
-var meaning = cache(function(utt, lexicon) {  
-  var mStr = lexicon[utt];
-  return (mStr == 'null' ? nullMeaning : constructMeaning(mStr));
-});
+// length-based cost 
+var uttCost = function(utt) {
+  return utt.split(' ').length > 1 ? 1.2 : 1;
+};
 
 var params = {
-  alpha: 1,
+  alpha: 12,
   noiseRate: 0.01,
-  maxDepth: 1
+  maxDepth: 2
 }
 
 // Recursively edit string to maxDepth (log prob proportional to levenstein distance)
 var transform = function(words, currDepth) {
   if(flip(1 - params.noiseRate) || currDepth > params.maxDepth) {
-    return _.isEmpty(words) ? ['n0'] : words;
+    return _.isEmpty(words) ? [''] : words;
   } else {
     var operations = [deleteWords, insertWords, replaceWords];
     var op = uniformDraw(operations);
@@ -421,7 +387,7 @@ var noiseModel = cache(function(utt) {
 });
 
 // literal listener w/ noisy channel inference
-// Note that the -100s are hacks to make it well-formed after capping recursion:
+// Note that the -100 is a hacks to make it well-formed after capping recursion:
 // a corruption of a corruption may not be reachable from a corruption of a grammatical utt,
 // and it's possible that none of the reachable meanings are true of any of the states
 var L0 = cache(function(utt, lexicon) {
@@ -429,12 +395,10 @@ var L0 = cache(function(utt, lexicon) {
     var state = sample(statePrior);
     var intendedUtt = sample(utterancePrior)
 
-    var uttMeaning = meaning(intendedUtt, lexicon);
     var noiseScore = (_.contains(noiseModel(intendedUtt).support(), utt) ?
                       noiseModel(intendedUtt).score(utt) :
                       -100)
-    factor(uttMeaning(state) ? 
-           noiseScore : -100);
+    factor(Math.log(lexicon[intendedUtt][state]) + noiseScore);
     return state;
   });
 });
@@ -448,14 +412,14 @@ var S1 = cache(function(state, lexicon) {
       return sample(L0(corruptedUtt,lexicon))
     })
 
-    factor(params.alpha * (listener.score(state) - uttCost(intendedUtt)));
+    factor(params.alpha * listener.score(state) 
+           - uttCost(intendedUtt));
     return sample(noiseModel(intendedUtt));
   });
 });
 
-// S1('t2', {"ki ma":"t1|t2","fu ba":"t1|t2","n0":"null"})
 // pragmatic listener (needed for S)
-var L2 = cache(function(perceivedUtt, lexicon) {
+var L1 = cache(function(perceivedUtt, lexicon) {
   return Infer({method: 'enumerate'}, function() {
     var state = sample(statePrior);
     observe(S1(state, lexicon), perceivedUtt);
@@ -463,58 +427,56 @@ var L2 = cache(function(perceivedUtt, lexicon) {
   });
 });
 
-// conventional listener
-var L = cache(function(perceivedUtt, data) {
-  return Infer({method:"enumerate"}, function(){
-    var state = sample(statePrior);
+var lexiconPosterior = cache(function(originAgent, data) {
+  return Infer({method: 'enumerate'}, function() {
     var lexicon = sample(lexiconPrior);
-    observe(S1(state, lexicon), perceivedUtt);
     mapData({data: data}, function(datum){
-      observe(S1(datum.obj, lexicon), datum.utt);
+      if(originAgent === 'L') {
+        observe(S1(datum.obj, lexicon), datum.utt);
+      } else if(originAgent === 'S') {
+        observe(L1(datum.utt, lexicon), datum.obj);
+      }
     });
-    return state;
+    return lexicon;
   });
 });
+
+// conventional listener (L1, marginalizing over lexicons)
+var L = function(utt, data) {
+  return Infer({method:"enumerate"}, function(){
+    var lexicon = sample(lexiconPosterior('L', data));
+    var state = sample(L1(utt, lexicon));
+    return state;
+  });
+};
 
 // conventional speaker
 var S = function(state, data) {
   return Infer({method:"enumerate"}, function(){
-    var lexicon = sample(lexiconPrior);
     var intendedUtt = uniformDraw(intendedUtts);
     var listener = Infer({method: 'enumerate'}, function(){
+      var lexicon = sample(lexiconPosterior('S', data));
       var corruptedUtt = sample(noiseModel(intendedUtt))
-      return sample(L2(corruptedUtt, lexicon))
+      return sample(L1(corruptedUtt, lexicon))
     })
     
-    factor(params.alpha * (listener.score(state) - uttCost(intendedUtt)));
-    mapData({data: data}, function(datum){
-      observe(L2(datum.utt, lexicon), datum.obj); // update beliefs about lexicon
-    });
-    return sample(noiseModel(intendedUtt));
+    factor(params.alpha * listener.score(state) - uttCost(intendedUtt));
+    return intendedUtt;
   });
 };
 
-// Listener is better able to understand 'ki' if they've observed full utterances
-// than if they've only heard snippets
-// console.log(L('ki', [{utt:'ki ma', obj:'t1'},{utt:'fu ba', obj:'t2'}]));
-// console.log(L('ki', [{utt:'ki', obj:'t1'},{utt:'fu', obj:'t2'}]));
-// console.log('speaker with no data ([])')
-// viz(S('t1', []))
-// console.log("speaker who observed 'kima'<=>'t1'")
-// viz(S('t1', [{utt: 'ki ma', obj: 't1'}]));
-// console.log("speaker who observed 'kima'<=>'t1' + 'fuba'<=>'t2'")  
-// viz(S('t1', [{utt: 'ki ma', obj: 't1'},
-//              {utt: 'fu ba', obj: 't2'}]))
-// console.log("speaker who observed 2x 'kima'<=>'t1' + 1x'fuba'<=>'t2'")
-// viz(S('t1', [{utt: 'ki ma', obj: 't1'},
-//              {utt: 'fu ba', obj: 't2'},
-//              {utt: 'ki ma', obj: 't1'}]))
+// viz.marginals(lexiconPosterior('S', []))
+// viz.marginals(lexiconPosterior('S', [{obj: 't1', utt: 'the ki'},
+//                        {obj: 't2', utt: 'the ma'}]))
+viz(S('t1', []))
+viz(S('t1', [{obj: 't1', utt: 'the ki'},
+             {obj: 't2', utt: 'the ma'}]))
 
-console.log("respective ratios of 'ki' to 'kima' (increasing is good)")
-print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'}])))
-print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
-                        {utt: 'fu ba', obj: 't2'}])))
-print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
-                        {utt: 'fu ba', obj: 't2'},
-                        {utt: 'ki ma', obj: 't1'}])))
+// console.log("respective ratios of 'ki' to 'kima' (increasing is good)")
+// print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'}])))
+// print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
+//                         {utt: 'fu ba', obj: 't2'}])))
+// print(getRatio(S('t1', [{utt: 'ki ma', obj: 't1'},
+//                         {utt: 'fu ba', obj: 't2'},
+//                         {utt: 'ki ma', obj: 't1'}])))
 ~~~~

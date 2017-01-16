@@ -150,12 +150,14 @@ var uniformPs = function(vs) {
 ///
 
 // possible states of the world
-var states = ['t1', 't2'];
+var states = [{type: 0, color: 0}, 
+              {type: 1, color: 1}];
 var statePrior =  Categorical({vs: states, ps: [1/2, 1/2]});
 
 // possible base utterances, and possible conjunctions
-var unconstrainedUtterances = ['t1_a', 't1_b','t2_a','t2_b'];
-var derivedUtterances = ['t1_a t1_b', 't2_a t2_b'];
+var unconstrainedUtterances = ['type_a', 'type_b', 'color_a','color_b'];
+var derivedUtterances = ['type_a type_b', 'type_a color_a','type_a color_b',
+                         'type_b color_a','type_b color_b','color_a color_b'];
 var utterances = unconstrainedUtterances.concat(derivedUtterances);
 var utterancePrior = Categorical({vs: utterances, ps: uniformPs(utterances)});
 
@@ -163,28 +165,31 @@ var utterancePrior = Categorical({vs: utterances, ps: uniformPs(utterances)});
 // representing the extent to which that word describes each object
 var lexiconPrior = Infer({method: 'enumerate'}, function(){
   var meanings = map(function(utt) {
-    var t1Bias = utt.split('_')[0] === 't1' 
-    var t1ps = t1Bias ? [.1,.15,.2,.25,.3] : [.3,.25,.2,.15,.1]
-    var t1Prob = categorical({vs: [0.01, 0.25, .5, .75, .99], ps: t1ps})
-    return {'t1' : t1Prob, 't2' : 1-t1Prob};
+    var aBias = utt.split('_')[1] === 'a'
+    var ps = aBias ? [.3,.25,.2,.15,.1] : [.1,.15,.2,.25,.3];
+    return categorical({vs: [0.01, 0.25, .5, .75, .99], ps})
   }, unconstrainedUtterances);
   return _.object(unconstrainedUtterances, meanings);
 });
 
 // speaker optimality
-var alpha = 15;
+var alpha = 13;
 
-// length-based cost 
+// length-based cost
 var uttCost = function(utt) {
   return utt.split(' ').length;
 };
 
-// Looks up the meaning of an utterance in a lexicon object  
+// Looks up the meaning of an utterance in a lexicon object
 var uttFitness = cache(function(utt, state, lexicon) {
   return Math.log(reduce(function(subUtt, memo) {
-    return lexicon[subUtt][state] * memo;
+    var relevantProperty = (subUtt.split('_')[0] === 'type' ?
+                            state.type : state.color);
+    var lexiconProb = relevantProperty ? lexicon[subUtt] : 1- lexicon[subUtt]
+    return lexiconProb * memo;
   }, 1, utt.split(' ')));
 });
+
 
 // literal listener
 var L0 = cache(function(utt, lexicon) {
@@ -251,25 +256,22 @@ var S = function(state, data) {
   });
 };
 
-console.log("likelihood of t1_a meaning t1: " + 
-            expectation(lexiconPosterior('S', []), 
-                        function(v) {return v['t1_a']['t1']}))
-viz(S('t1', []))
+var intendedState = {type: 0, color: 0}
+console.log("likelihood of type_a meaning 0: " + expectation(lexiconPosterior('S', []), function(v) {return 1-v['type_a']}))
+viz(S(intendedState, []))
 
-console.log("likelihood of t1_a meaning t1 after observations: " + 
-            expectation(lexiconPosterior('S', [{utt: 't1_a t1_b', obj: 't1'},
-                                               {utt: 't1_a', obj: 't1'}]), 
-                        function(v) {return v['t1_a']['t1']}))
-viz(S('t1', [{utt: 't1_a t1_b', obj: 't1'},
-             {utt: 't1_a', obj: 't1'}]))
+console.log("likelihood of type_a meaning 0 after observations: " + expectation(lexiconPosterior('S', [{utt: 'type_a color_a', obj: intendedState}, {utt: 'type_a', obj: intendedState}]), function(v) {return 1-v['type_a']}))
+viz(S(intendedState, [{utt: 'type_a color_a', obj: intendedState},
+                      {utt: 'type_a', obj: intendedState}]))
 ~~~~
 
-We see that there's an initial preference for the longer conjunction of "t1_a" and "t1_b" despite the utterance cost because
+We see that there's an initial preference for the longer conjunction of "type_a" and "color_a" despite the utterance cost because
 
-(1) there's an initial bias in the lexicon prior for these utterances to mean 't1' (thus why neither of the t2 utterances are assigned any probability) 
-(2) the conjunction hedges against unlikely but possible lexicons where one or the other actually means 't2'. 
+(1) there's an initial bias in the lexicon prior for 'a' utterances to correspond to properties with the value 0 (thus why neither of the 'b' utterances are assigned any probability)
 
-After observing an example of this conjunction correctly referring to 't1', the conjunction actually becomes *more* preferred by the speaker, as it increases the probability of utterances where both t1_a and t1_b mean 't1'. Because of cost considerations, however, the shorter utterances are still assigned some probability. Once the speaker produces one or the other short utterances by chance, then, it breaks the symmetry and this utterance becomes the most probable in future rounds.
+(2) the conjunction hedges against unlikely but possible lexicons where one or the other utterance actually corresponds to a property with value 1. 
+
+After observing an example of this conjunction referring to the first state, the conjunction actually becomes *more* preferred by the speaker, as it increases the probability of utterances where both type_a and color_a mean the first state. The evidence is indeterminate about the separate meanings of type_a and color_a. Because of cost considerations, however, the shorter utterances are still assigned some probability. Once the speaker produces one or the other short utterances by chance, then, it breaks the symmetry and this shorter utterance becomes the most probable in future rounds.
 
 ### Part 3: Shortening arbitrary utterances
 

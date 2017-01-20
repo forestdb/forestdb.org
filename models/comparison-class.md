@@ -166,6 +166,11 @@ var listener2 = function(form) {
   }})
 }
 
+display("superordinate degree prior")
+viz.hist(statePrior.super);
+display("subordinate degree prior")
+viz.hist(statePrior.sub);
+
 display("tall (basketball player) --> for a person = " + Math.exp(listener2("positive").score("super")))
 display("short (basketball player) --> for a person =  " + Math.exp(listener2("negative").score("super")))
 ~~~~

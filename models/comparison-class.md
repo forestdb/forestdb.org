@@ -14,7 +14,7 @@ model-language-version: v0.9.6
 + `L1` and below is straight-up adjectives
 
 ~~~~
-var alphas = {s1: 15, s2: 1};
+var alphas = {s1: 15, s2: 5};
 
 var round = function(x){
   return Math.round(x*10)/10
@@ -40,7 +40,7 @@ var binParam = 4;
 
 var stateParams = {
     sub: {mu: 1, sigma: 0.25},
-    super: {mu: 0, sigma: 1}
+    super: {mu: 0, sigma: 0.5}
 }
 
 var stateVals = map(

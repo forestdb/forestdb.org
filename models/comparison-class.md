@@ -14,8 +14,7 @@ model-language-version: v0.9.6
 + `L1` and below is straight-up adjectives
 
 ~~~~
-var alphas = {s1: 15, s2: 5};
-
+///fold:
 var round = function(x){
   return Math.round(x*10)/10
 }
@@ -72,7 +71,6 @@ var statePrior = {
   })
 };
 
-
 var thresholdBins ={
   positive: map(function(x){
     return  x - (1/(binParam*2));
@@ -87,7 +85,9 @@ var thresholdPrior = cache(function(form){
     model: function() { return uniformDraw(thresholdBins[form]) }
   });
 });
+///
 
+var alphas = {s1: 15, s2: 5};
 
 var utterances = {
 //  positive: ["positiveAdjective", "silence"],

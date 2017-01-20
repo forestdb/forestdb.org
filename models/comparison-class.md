@@ -174,3 +174,294 @@ viz.hist(statePrior.sub);
 display("tall (basketball player) --> for a person = " + Math.exp(listener2("positive").score("super")))
 display("short (basketball player) --> for a person =  " + Math.exp(listener2("negative").score("super")))
 ~~~~
+
+
+### Listener 1 model (older)
+
++ `L1` is adjectives with a second lifted variable about the comparison class
++ Alternative is "silence" (for model with alternative of the opposite adjective, see below)
+
+~~~~
+///fold:
+var round = function(x){
+  return Math.round(x*10)/10
+}
+
+var distProbs = function(dist, supp) {
+  return map(function(s) {
+    return Math.exp(dist.score(s))
+  }, supp)
+}
+
+var KL = function(p, q, supp) {
+  var P = distProbs(p, supp), Q = distProbs(q, supp);
+  var diverge = function(xp,xq) {
+    return xp == 0 ? 0 : (xp * Math.log(xp / xq) );
+  };
+  return sum(map2(diverge,P,Q));
+};
+
+var exp = function(x){return Math.exp(x)}
+
+var binParam = 4;
+
+var stateParams = {
+    sub: {mu: 1, sigma: 0.25},
+    super: {mu: 0, sigma: 0.5}
+}
+
+var stateVals = map(
+  function(x){return round(x) },
+  _.range(stateParams.super.mu - 3 * stateParams.super.sigma,
+          stateParams.super.mu + 3 * stateParams.super.sigma,
+          stateParams.super.sigma/binParam)
+);
+
+var stateProbs = {
+  sub: map(function(s){
+    exp(Gaussian(stateParams.sub).score(s))+
+    Number.EPSILON
+  }, stateVals),
+  super: map(function(s){
+    exp(Gaussian(stateParams.super).score(s))+
+    Number.EPSILON
+  }, stateVals)
+};
+
+var statePrior = {
+  sub: Infer({
+//     model: function(){ return categorical({vs: map(exp, stateVals), ps: stateProbs.sub}) }
+    model: function(){ return categorical({vs: stateVals, ps: stateProbs.sub}) }
+  }),
+  super: Infer({
+    model: function(){ return categorical({ vs: stateVals, ps: stateProbs.super}) }
+//     model: function(){ return categorical({ vs: map(exp, stateVals), ps: stateProbs.super}) }
+  })
+};
+
+var thresholdBins ={
+  positive: map(function(x){
+    return  x - (1/(binParam*2));
+  }, sort(statePrior.super.support())),
+  negative: map(function(x){
+    return  x + (1/(binParam*2));
+  }, sort(statePrior.super.support()))
+};
+
+var thresholdPrior = cache(function(form){
+  return Infer({
+    model: function() { return uniformDraw(thresholdBins[form]) }
+  });
+});
+///
+
+var alphas = {s1: 15, s2: 5};
+
+var utterances = {
+//  positive: ["positiveAdjective", "silence"],
+  positive: ["positiveAdjective", "silence"],
+  negative: ["negativeAdjective","silence"]
+};
+
+var utterancePrior = cache(function(form){
+  return Infer({
+    model: function() { return uniformDraw(utterances[form]) }
+  })
+});
+
+var meaning = function(utterance, state, threshold) {
+  utterance == "positiveAdjective" ? state > threshold ? flip(0.9999) : flip(0.0001) :
+  utterance == "negativeAdjective" ? state < threshold ? flip(0.9999) : flip(0.0001) :
+  true
+}
+
+var classPrior = Infer({
+  model: function(){return flip(0.5) ? "sub" : "super"}
+});
+
+var literalListener = cache(function(utterance, threshold, comparisonClass) {
+  Infer({model: function(){
+    var state = sample(statePrior[comparisonClass]);
+    var m = meaning(utterance, state, threshold);
+    condition(m);
+    return state;
+  }})
+}, 10000)
+
+var speaker1 = cache(function(state, threshold, comparisonClass, form) {
+  Infer({model: function(){
+    var utterance = sample(utterancePrior(form))
+    var L0 = literalListener(utterance, threshold, comparisonClass)
+    factor( alphas.s1 * L0.score(state) )
+    return utterance
+  }})
+}, 10000)
+
+var pragmaticListener = function(form) {
+  Infer({model: function(){
+    var utterance = form + "Adjective";
+    var comparisonClass = sample(classPrior);
+    var state = sample(statePrior["sub"]);
+    var threshold = sample(thresholdPrior(form));
+    var S1 = speaker1(state, threshold, comparisonClass, form);
+    observe(S1, utterance);
+    return comparisonClass
+  }})
+}
+
+
+display("superordinate degree prior")
+viz.hist(statePrior.super);
+display("subordinate degree prior")
+viz.hist(statePrior.sub);
+
+display("tall (basketball player) --> for a person = " + exp(pragmaticListener("positive").score("super")))
+display("short (basketball player) --> for a person =  " + exp(pragmaticListener("negative").score("super")))
+~~~~
+
+
+### Listener 1 model (older)
+
++ Same as above but with the other adjective (e.g., short) with its own lifted threhsold as an alternative
++ Takes much longer to run!
+
+
+~~~~
+///fold:
+var round = function(x){
+  return Math.round(x*10)/10
+}
+
+var distProbs = function(dist, supp) {
+  return map(function(s) {
+    return Math.exp(dist.score(s))
+  }, supp)
+}
+
+var KL = function(p, q, supp) {
+  var P = distProbs(p, supp), Q = distProbs(q, supp);
+  var diverge = function(xp,xq) {
+    return xp == 0 ? 0 : (xp * Math.log(xp / xq) );
+  };
+  return sum(map2(diverge,P,Q));
+};
+
+var exp = function(x){return Math.exp(x)}
+
+var binParam = 3;
+
+var stateParams = {
+    sub: {mu: 1, sigma: 0.25},
+    super: {mu: 0, sigma: 0.5}
+}
+
+var stateVals = map(
+  function(x){return round(x) },
+  _.range(stateParams.super.mu - 3 * stateParams.super.sigma,
+          stateParams.super.mu + 3 * stateParams.super.sigma,
+          stateParams.super.sigma/binParam)
+);
+
+var stateProbs = {
+  sub: map(function(s){
+    exp(Gaussian(stateParams.sub).score(s))+
+    Number.EPSILON
+  }, stateVals),
+  super: map(function(s){
+    exp(Gaussian(stateParams.super).score(s))+
+    Number.EPSILON
+  }, stateVals)
+};
+
+var statePrior = {
+  sub: Infer({
+//     model: function(){ return categorical({vs: map(exp, stateVals), ps: stateProbs.sub}) }
+    model: function(){ return categorical({vs: stateVals, ps: stateProbs.sub}) }
+  }),
+  super: Infer({
+    model: function(){ return categorical({ vs: stateVals, ps: stateProbs.super}) }
+//     model: function(){ return categorical({ vs: map(exp, stateVals), ps: stateProbs.super}) }
+  })
+};
+
+var thresholdBins ={
+  positive: map(function(x){
+    return  x - (1/(binParam*2));
+  }, sort(statePrior.super.support())),
+  negative: map(function(x){
+    return  x + (1/(binParam*2));
+  }, sort(statePrior.super.support()))
+};
+
+var thresholdPrior = cache(function(form){
+  return Infer({
+    model: function() { return uniformDraw(thresholdBins[form]) }
+  });
+});
+
+var alphas = {s1: 15, s2: 5};
+
+var utterances = {
+  positive: ["positiveAdjective", "negativeAdjective", "silence"],
+  negative: ["positiveAdjective", "negativeAdjective","silence"]
+};
+
+var utterancePrior = cache(function(form){
+  return Infer({
+    model: function() { return uniformDraw(utterances[form]) }
+  })
+});
+
+var meaning = function(utterance, state, thresholds) {
+  utterance == "positiveAdjective" ? state > thresholds.positive ? flip(0.9999) : flip(0.0001) :
+  utterance == "negativeAdjective" ? state < thresholds.negative ? flip(0.9999) : flip(0.0001) :
+  true
+}
+
+var classPrior = Infer({
+  model: function(){return flip(0.5) ? "sub" : "super"}
+});
+
+var literalListener = cache(function(utterance, thresholds, comparisonClass) {
+  Infer({model: function(){
+    var state = sample(statePrior[comparisonClass]);
+    var m = meaning(utterance, state, thresholds);
+    condition(m);
+    return state;
+  }})
+}, 10000)
+
+var speaker1 = cache(function(state, thresholds, comparisonClass, form) {
+  Infer({model: function(){
+    var utterance = sample(utterancePrior(form))
+    var L0 = literalListener(utterance, thresholds, comparisonClass)
+    factor( alphas.s1 * L0.score(state) )
+    return utterance
+  }})
+}, 10000)
+///
+
+var pragmaticListener = function(form) {
+  Infer({model: function(){
+    var utterance = form + "Adjective";
+    var comparisonClass = sample(classPrior);
+    var state = sample(statePrior["sub"]);
+    var thresholds = {
+      positive: sample(thresholdPrior("positive")),
+      negative: sample(thresholdPrior("negative"))
+    };
+    var S1 = speaker1(state, thresholds, comparisonClass, form);
+    observe(S1, utterance);
+    return comparisonClass
+  }})
+}
+
+
+display("superordinate degree prior")
+viz.hist(statePrior.super);
+display("subordinate degree prior")
+viz.hist(statePrior.sub);
+
+display("tall (basketball player) --> for a person = " + exp(pragmaticListener("positive").score("super")))
+display("short (basketball player) --> for a person =  " + exp(pragmaticListener("negative").score("super")))
+~~~~

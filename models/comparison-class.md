@@ -566,9 +566,19 @@ var utterances = {
              "negative_super"]
 };
 
+// explicit comparison class is twice as expensive; silence is cheap
+var utteranceCosts = [1, 1, 0.5, 2, 2, 2, 2];
+// uniform costs
+// var utteranceCosts = [1, 1, 1, 1, 1, 1, 1];
+var utteranceProbs = map(function(c) {return exp(-c)}, utteranceCosts);
 var utterancePrior = cache(function(form){
   return Infer({
-    model: function() { return uniformDraw(utterances[form]) }
+    model: function() {
+      return categorical({
+        vs: utterances[form],
+        ps: utteranceProbs
+      })
+    }
   })
 });
 

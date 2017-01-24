@@ -1118,19 +1118,19 @@ var realValuedMeanings = {
 var getLexicon = function(lexiconStr) {
   return (lexiconStr === 'realValued' ? realValuedMeanings :
           lexiconStr === 'truthConditional' ? truthConditionalMeanings :
-	  console.error('unknown lexiconStr: ' + lexiconStr));
+          console.error('unknown lexiconStr: ' + lexiconStr));
 }
 
 var colors = ["yellow","orange","red","pink",
-	      "green","blue","brown","black"];
+              "green","blue","brown","black"];
 var objects = [["blue","apple"], ["green","apple"], ["red","apple"],
-	       ["black","avocado"], ["green","avocado"], ["red","avocado"],
-	       ["blue","banana"], ["brown","banana"], ["yellow","banana"],
-	       ["brown","carrot"], ["orange","carrot"], ["pink","carrot"],
-	       ["green","pear"], ["orange","pear"], ["yellow","pear"],
-	       ["green","tomato"], ["pink","tomato"], ["red","tomato"],	       
-	       ["black","pepper"], ["green","pepper"], ["orange","pepper"],
-	       ["red","pepper"]];
+               ["black","avocado"], ["green","avocado"], ["red","avocado"],
+               ["blue","banana"], ["brown","banana"], ["yellow","banana"],
+               ["brown","carrot"], ["orange","carrot"], ["pink","carrot"],
+               ["green","pear"], ["orange","pear"], ["yellow","pear"],
+               ["green","tomato"], ["pink","tomato"], ["red","tomato"],               
+               ["black","pepper"], ["green","pepper"], ["orange","pepper"],
+               ["red","pepper"]];
 
 // for all objects in a given context, can name the color, type, or both
 var getPossibleUtts = function(context) {
@@ -1149,17 +1149,17 @@ var initializeModel = function(params) {
   var getNoisyContextPrior = function(trueContext) {
     return Infer({method: 'enumerate'}, function() {
       if(params.noiseType === 'none' || flip(1 - params.noiseRate))
-	return trueContext;
+        return trueContext;
       else if(params.noiseType === 'addition')
-	return trueContext.concat([uniformDraw(objects)]);
+        return trueContext.concat([uniformDraw(objects)]);
       else if(params.noiseType === 'replacement') {
-	var replaceIndex = randomInteger(trueContext.length);
-	var replaceObj = uniformDraw(objects);
-	return (trueContext.slice(0,replaceIndex)
-		.concat([replaceObj])
-		.concat(trueContext.slice(replaceIndex+1,trueContext.length)));
+        var replaceIndex = randomInteger(trueContext.length);
+        var replaceObj = uniformDraw(objects);
+        return (trueContext.slice(0,replaceIndex)
+                .concat([replaceObj])
+                .concat(trueContext.slice(replaceIndex+1,trueContext.length)));
       } else {
-	console.error("unknown noiseType: " + params.noiseType);
+        console.error("unknown noiseType: " + params.noiseType);
       }
     });
   };
@@ -1173,8 +1173,7 @@ var initializeModel = function(params) {
       return params.cost_color + params.cost_type;
     } else {
       return (_.includes(colors, split[0]) ?
-	      params.cost_color ://  + params.color_only_cost :
-	      params.cost_type);
+              params.cost_color : params.cost_type);
     }
   };
 
@@ -1202,15 +1201,16 @@ var initializeModel = function(params) {
     var target = context[0];
     var possibleutts = getPossibleUtts(context);
     var noisyContextPrior = getNoisyContextPrior(context);
+
     return Infer({method:'enumerate'},function(){
       var utt = uniformDraw(possibleutts);
       var listener = Infer({method: 'enumerate'}, function() {
-	var noisyContext = sample(noisyContextPrior);
-	return sample(literalListener(utt, noisyContext));
+        var noisyContext = sample(noisyContextPrior);
+        return sample(literalListener(utt, noisyContext));
       });
 
       factor(params.alpha * listener.score(target)
-	     - getUtteranceCost(utt));
+             - getUtteranceCost(utt));
       return utt;
     });
   };
@@ -1219,13 +1219,16 @@ var initializeModel = function(params) {
 };
 
 var params = {
-  lexicon: getLexicon('realValued'), // (['realValued', 'truthConditional']),
-  noiseType: 'none', // (['none', 'addition', 'replacement']),
-  noiseRate: .5, // ({a: 0, b: 1, width: 1/20}),
-  alpha : 10, // uniformDrift({a:0,b:40,width:40/20}),
-  cost_color : .5, //uniformDrift({a:0,b:3,width:3/20}),
-  cost_type : .5  // uniformDrift({a:0,b:3,width:3/20}),
-//    color_only_cost : uniformDrift({a:0,b:3,width:3/20})
+  // 'realValued' vs. 'truthConditional'
+  lexicon: getLexicon('truthConditional'),
+  // 'none' vs 'addition' vs 'replacement'
+  noiseType: 'none',
+  // float in [0,1]
+  noiseRate: .5,
+  // float > 0
+  alpha : 10,
+  cost_color : 1,
+  cost_type : .5
 };  
 
 var context = [
@@ -1235,5 +1238,5 @@ var context = [
 ];
 
 var speaker = initializeModel(params);
-speaker(context[0], context);
+speaker(context);
 ~~~~

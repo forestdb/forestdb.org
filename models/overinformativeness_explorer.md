@@ -1177,7 +1177,7 @@ var initializeModel = function(params) {
   var meaning = function(utt, object) {
     var objStr = object.join("_");
     var lexicalEntry = params.lexicon[utt];
-    return _.has(lexicalEntry, objStr) ? lexicalEntry[objStr] : -100; 
+    return _.has(lexicalEntry, objStr) ? lexicalEntry[objStr] : -1000; 
   };
 
   // Selects among objects in context using lexicon
@@ -1191,7 +1191,6 @@ var initializeModel = function(params) {
 
   // Selects among utterances given informativity in context and cost of production,
   // marginalizing over possible noise in perception of context
-  // Timeit note: marginalizing over listener takes about 200-300ms per utt
   var speaker = function(context) {
     var target = context[0];
     var possibleutts = getPossibleUtts(context);
@@ -1213,14 +1212,14 @@ var initializeModel = function(params) {
   return speaker;
 };
 
+// lexicon: 'realValued' vs. 'truthConditional'
+// noiseType: 'none' vs 'addition' vs 'replacement'
+// noiseRate: float in [0,1]
+// others: float > 0
 var params = {
-  // 'realValued' vs. 'truthConditional'
-  lexicon: getLexicon('truthConditional'),
-  // 'none' vs 'addition' vs 'replacement'
+  lexicon: getLexicon('truthConditional'), 
   noiseType: 'none',
-  // float in [0,1]
   noiseRate: .5,
-  // float > 0
   alpha : 10,
   cost_color : 1,
   cost_type : .5
@@ -1233,5 +1232,14 @@ var context = [
 ];
 
 var speaker = initializeModel(params);
-speaker(context);
+viz(speaker(context));
 ~~~~
+
+Note that this does not include several ideas we've considered in the past:
+
+* Empirical lengths & frequencies in cost function
+* A parameter adding additional cost to using colors by themselves
+* A similarity-weighted replacement prior, or allowing multiple edits 
+* Compositional typicalities
+* Taking logs of typicality output (i.e. L_0(s|u) ~ Lex(u, s)P(s) vs. e^{Lex(u, s)P(s)})
+* Taking optimality of whole speaker utility (i.e. a*(inf - cost) vs. a*inf - cost)

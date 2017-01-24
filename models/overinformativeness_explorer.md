@@ -1164,17 +1164,12 @@ var initializeModel = function(params) {
     });
   };
   
-  // Cost of full utterances is sum of individual word costs,
-  // unless you just use a color, in which case you incur
-  // an additional costx
+  // Cost of full utterances is sum of individual word costs
   var getUtteranceCost = function(utt) {
-    var split = utt.split("_");
-    if (split.length == 2) {
-      return params.cost_color + params.cost_type;
-    } else {
-      return (_.includes(colors, split[0]) ?
-              params.cost_color : params.cost_type);
-    }
+    return reduce(function(word, memo) {
+      var cost = _.contains(colors, word) ? params.cost_color : params.cost_type;
+      return memo + cost;
+    }, 0, utt.split('_'))
   };
 
   // Looks up meaning in given lexicon

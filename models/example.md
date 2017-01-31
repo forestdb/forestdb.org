@@ -1,12 +1,11 @@
 ---
 layout: model
 title: Example
-model-language: church
+model-language: webppl
 ---
 
 This is an example page.
 
-    (define (foo)
-      (flip))
-
-    (foo)
+~~~~
+flip(.5)
+~~~~

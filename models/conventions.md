@@ -2,7 +2,7 @@
 layout: model
 title: Conventions
 model-language: webppl
-model-language-version: v0.9.6
+model-language-version: v0.9.7
 ---
 
 Why do Americans drive on the right side of the road while the British drive on the left? Why do English speakers use 'cat' to refer to a pet that goes 'meow' while the French use the word `chat'? These conventions or norms govern much of our everyday behavior. While there is a substantial literature using simple agent-based models showing how these arbitrary but stable patterns can emerge in large populations, there has been comparatively less work on the cognitive underpinnings of conventions.
@@ -18,6 +18,24 @@ We begin by implementing the simplest lexical uncertainty model, used in Bergen,
 This is the simplest demonstration of conventions; even though neither party knows the meaning of a label at the outset, a random choice is taken to be evidence for a particular lexicon and it becomes the base for successful communication.
 
 ~~~~
+///fold:
+var getTrajectories = function(data) {
+  var keys = _.keys(data[0]);
+  return reduce(function(key, memo) {
+    var timeBasedKeys = map(function(i) {return key + "." + i}, _.range(data.length));
+    var vals = _.map(data, key);
+    return extend(_.zipObject(timeBasedKeys, vals), memo)
+  }, [], keys)
+};
+///
+
+// set up speaker optimality & number of iterations
+var params = {
+  alpha : 5,
+  beta : 1,
+  numSteps : 6
+};
+
 // possible states of the world
 var states = ['t1', 't2'];
 var statePrior =  Categorical({vs: states, ps: [1/2, 1/2]});
@@ -33,11 +51,8 @@ var lexiconPrior = Infer({method: 'enumerate'}, function(){
     var t1Prob = uniformDraw([0.01, .25, .5, .75, 0.99]);
     return {'t1' : t1Prob, 't2' : 1-t1Prob};
   }, utterances);
-  return _.object(utterances, meanings);
+  return _.zipObject(utterances, meanings);
 });
-
-// speaker optimality
-var alpha = 1;
 
 // length-based cost (although they're all the same length here)
 var uttCost = function(utt) {
@@ -53,12 +68,12 @@ var L0 = cache(function(utt, lexicon) {
   });
 });
 
-// pragmatic speaker (opti
+// pragmatic speaker 
 var S1 = cache(function(state, lexicon) {
   return Infer({method:"enumerate"}, function(){
     var utt = sample(utterancePrior);
-    factor(alpha * (L0(utt, lexicon).score(state)
-                    - uttCost(utt)));
+    factor(params.alpha * (L0(utt, lexicon).score(state))
+           - params.beta * uttCost(utt));
     return utt;
   });
 });
@@ -79,60 +94,53 @@ var lexiconPosterior = cache(function(originAgent, data) {
     var lexicon = sample(lexiconPrior);
     mapData({data: data}, function(datum){
       if(originAgent === 'L') 
-        observe(S1(datum.obj, lexicon), datum.utt);
+        observe(S1(datum.response, lexicon), datum.utt);
       else if(originAgent === 'S') 
-        observe(L1(datum.utt, lexicon), datum.obj);
+        observe(L1(datum.utt, lexicon), datum.response);
     });
     return lexicon;
   });
 });
 
 // conventional listener (L1, marginalizing over lexicons)
-var L = function(utt, data) {
+var L = cache(function(utt, data) {
   return Infer({method:"enumerate"}, function(){
     var lexicon = sample(lexiconPosterior('L', data));
     var state = sample(L1(utt, lexicon));
     return state;
   });
-};
+});
 
 // conventional speaker (S1, reasoning about expected L1 behavior across lexicons)
-var S = function(state, data) {
+var S = cache(function(state, data) {
   return Infer({method:"enumerate"}, function(){
     var utt = sample(utterancePrior);
     var listener = Infer({method: 'enumerate'}, function() {
       var lexicon = sample(lexiconPosterior('S', data));
       return sample(L1(utt, lexicon))
     });
-    factor(alpha * (listener.score(state) - uttCost(utt)));
+    factor(params.alpha * listener.score(state)
+           - params.beta * uttCost(utt));
     return utt;
   });
+});
+
+var model = function() {
+  var step = function(data) {
+    if(data.length > params.numSteps) return getTrajectories(data);
+    var state = sample(statePrior);
+    var utt = sample(S(state, data));
+    var response = sample(L(utt, data));
+    var newDatum = {utt, response, intended: state, acc: state == response};
+    return step(data.concat(newDatum));
+  };
+  step([]);
 };
 
-console.log("initial listener interpretation (first trial)");
-viz(L('label1', []));
-
-console.log("listener hearing label1 after data:");
-viz(L('label1', [{utt: 'label1', obj: 't1'}]));
-
-// console.log("listener hearing label2 after data:");
-// viz(L('label2', [{utt: 'label1', obj: 't1'}]));
-
-// console.log("listener hearing label1 after opposite data:");
-// viz(L('label1', [{utt: 'label1', obj: 't2'}]));
-
-// console.log("listener hearing label1 after more data:");
-// viz(L('label1', [{utt: 'label1', obj: 't1'},
-// 			 {utt: 'label1', obj: 't1'},
-// 			 {utt: 'label2', obj: 't2'}]));
-
-// console.log("speaker hearing label1 after more data:");
-// viz(S('t1', [{utt: 'label1', obj: 't1'},
-// 			 {utt: 'label1', obj: 't1'},
-// 			 {utt: 'label2', obj: 't2'}]));
+model();
 ~~~~
 
-The listener is initially uncertain about which tangram 'label1' is referring to, but after observing evidence in which a speaker produced 'label1' for 'tangram1', they update their beliefs about the likely lexicon and subsequently become more likely to interpret 'label1' as referring to 'tangram1.' Note that it is also more likely to interpret 'label2' as referring to 'tangram2', even though it has not observed any explicit usage of this label. This latter effect is a standard consequence of pragmatic reasoning. Uncomment for additional explorations of this model, and examine what the lexicon posterior looks like after seeing different data.
+The listener is initially uncertain about which tangram 'label1' is referring to, but after observing evidence in which a speaker produced 'label1' for '1', they update their beliefs about the likely lexicon and subsequently become more likely to interpret 'label1' as referring to 't1.' Note that it is also more likely to interpret 'label2' as referring to 't2', even though it has not observed any explicit usage of this label. This latter effect is a standard consequence of pragmatic reasoning. Uncomment for additional explorations of this model, and examine what the lexicon posterior looks like after seeing different data.
 
 ### Part 2: Dropping redundant information (conjunctions and modifiers)
 
@@ -147,7 +155,23 @@ var initList = function(n, val) {
 var uniformPs = function(vs) {
   return initList(vs.length, 1/vs.length)
 }
+
+var getTrajectories = function(data) {
+  var keys = _.keys(data[0]);
+  return reduce(function(key, memo) {
+    var timeBasedKeys = map(function(i) {return key + "." + i}, _.range(data.length));
+    var vals = _.map(data, key);
+    return extend(_.zipObject(timeBasedKeys, vals), memo)
+  }, [], keys)
+};
 ///
+
+// speaker optimality
+var params = {
+  alpha : 5,
+  beta : 1,
+  numSteps : 6
+};
 
 // possible states of the world
 var states = [{type: 0, color: 0}, 
@@ -169,11 +193,8 @@ var lexiconPrior = Infer({method: 'enumerate'}, function(){
     var ps = aBias ? [.3,.25,.2,.15,.1] : [.1,.15,.2,.25,.3];
     return categorical({vs: [0.01, 0.25, .5, .75, .99], ps})
   }, unconstrainedUtterances);
-  return _.object(unconstrainedUtterances, meanings);
+  return _.zipObject(unconstrainedUtterances, meanings);
 });
-
-// speaker optimality
-var alpha = 13;
 
 // length-based cost
 var uttCost = function(utt) {
@@ -204,8 +225,8 @@ var L0 = cache(function(utt, lexicon) {
 var S1 = cache(function(state, lexicon) {
   return Infer({method:"enumerate"}, function(){
     var utt = sample(utterancePrior);
-    factor(alpha * (L0(utt, lexicon).score(state))
-           - uttCost(utt));
+    factor(params.alpha * L0(utt, lexicon).score(state)
+           - params.beta * uttCost(utt));
     return utt;
   });
 });
@@ -224,9 +245,9 @@ var lexiconPosterior = cache(function(originAgent, data) {
     var lexicon = sample(lexiconPrior);
     mapData({data: data}, function(datum){
       if(originAgent === 'L') {
-        observe(S1(datum.obj, lexicon), datum.utt);
+        observe(S1(datum.response, lexicon), datum.utt);
       } else if(originAgent === 'S') {
-        observe(L1(datum.utt, lexicon), datum.obj);
+        observe(L1(datum.utt, lexicon), datum.response);
       }
     });
     return lexicon;
@@ -234,35 +255,41 @@ var lexiconPosterior = cache(function(originAgent, data) {
 });
 
 // conventional listener (L1, marginalizing over lexicons)
-var L = function(utt, data) {
+var L = cache(function(utt, data) {
   return Infer({method:"enumerate"}, function(){
     var lexicon = sample(lexiconPosterior('L', data));
     var state = sample(L1(utt, lexicon));
     return state;
   });
-};
+});
 
 // conventional speaker (S1, reasoning about expected listener across lexicons)
-var S = function(state, data) {
+var S = cache(function(state, data) {
   return Infer({method:"enumerate"}, function(){
     var utt = sample(utterancePrior);
     var listener = Infer({method: 'enumerate'}, function() {
       var lexicon = sample(lexiconPosterior('S', data));
       return sample(L1(utt, lexicon));
     });
-    factor(alpha * (listener.score(state))
-           - uttCost(utt));
+    factor(params.alpha * listener.score(state)
+           - params.beta * uttCost(utt));
     return utt;
   });
+});
+
+var model = function() {
+  var step = function(data) {
+    if(data.length > params.numSteps) return getTrajectories(data);
+    var state = states[0]
+    var utt = sample(S(state, data));
+    var response = sample(L(utt, data));
+    var newDatum = {utt, response, intended: state, acc: state == response};
+    return step(data.concat(newDatum));
+  };
+  step([]);
 };
 
-var intendedState = {type: 0, color: 0}
-console.log("likelihood of type_a meaning 0: " + expectation(lexiconPosterior('S', []), function(v) {return 1-v['type_a']}))
-viz(S(intendedState, []))
-
-console.log("likelihood of type_a meaning 0 after observations: " + expectation(lexiconPosterior('S', [{utt: 'type_a color_a', obj: intendedState}, {utt: 'type_a', obj: intendedState}]), function(v) {return 1-v['type_a']}))
-viz(S(intendedState, [{utt: 'type_a color_a', obj: intendedState},
-                      {utt: 'type_a', obj: intendedState}]))
+model();
 ~~~~
 
 We see that there's an initial preference for the longer conjunction of "type_a" and "color_a" despite the utterance cost because
@@ -273,6 +300,7 @@ We see that there's an initial preference for the longer conjunction of "type_a"
 
 After observing an example of this conjunction referring to the first state, the conjunction actually becomes *more* preferred by the speaker, as it increases the probability of utterances where both type_a and color_a mean the first state. The evidence is indeterminate about the separate meanings of type_a and color_a. Because of cost considerations, however, the shorter utterances are still assigned some probability. Once the speaker produces one or the other short utterances by chance, then, it breaks the symmetry and this shorter utterance becomes the most probable in future rounds.
 
+<!-- 
 ### Part 3: Shortening arbitrary utterances
 
 In Clark & Wilkes-Gibbs (1986), one signature phenomenon is the shortening of referring expressions over time. On the first round, a speaker may refer to a tangram as "the one with their arms out front, like an ice skater," which becomes "ice skater" by the final round. To account for this qualitative phenomenon, we add a noisy communication channel to the above lexical uncertainty model & show (very weakly) that under certain parameters, the shorter utterance becomes *more likely* relative to the longer utterance as the number of observations increases.
@@ -482,3 +510,4 @@ viz(S('t1', [{obj: 't1', utt: 'the ki'},
 //                         {utt: 'fu ba', obj: 't2'},
 //                         {utt: 'ki ma', obj: 't1'}])))
 ~~~~
+-->

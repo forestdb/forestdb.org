@@ -14,7 +14,8 @@ This page shows the models used in Ref:tesslerComparisonClassCogSci.
 
 ~~~~
 ///fold:
-////// HELPER FUNCTIONS
+var exp = function(x){return Math.exp(x)}
+
 var round = function(x){
   return Math.round(x*10)/10
 }
@@ -33,10 +34,7 @@ var KL = function(p, q, supp) {
   return sum(map2(diverge,P,Q));
 };
 
-var exp = function(x){return Math.exp(x)}
-
-// STATE PRIOR CONSTRUCTION (discretized Gaussians)
-var binParam = 5;
+var binParam = 5; // for discretization
 
 var standardNormal = {mu: 0, sigma: 1}
 
@@ -58,7 +56,6 @@ var generateStatePrior = cache(function(stateParams) {
     model: function(){ return categorical({vs: stateVals, ps: stateProbs(stateParams)}) }
   })
 });
-//
 
 var thresholdBins = cache(function(form, stateSupport){
   return map(function(x){
@@ -66,14 +63,13 @@ var thresholdBins = cache(function(form, stateSupport){
   }, sort(stateSupport))
 })
 
-// uninformed prior over the semantic threshold
 var thresholdPrior = cache(function(form, stateSupport){
   return Infer({
     model: function() { return uniformDraw(thresholdBins(form, stateSupport)) }
   });
-});
+}); // uninformed prior over the semantic threshold
 
-// alternative utterances depend on the adjective form
+
 var utterances = {
   positive: ["positive_null",
              "positive_sub",
@@ -81,7 +77,7 @@ var utterances = {
   negative: ["negative_null",
              "negative_sub",
              "negative_super"]
-};
+}; // alternative utterances depend on the adjective form
 
 var utteranceProbs = [1, 1, 1];
 var utterancePrior = cache(function(form){
@@ -101,10 +97,10 @@ var meaning = function(utterance, state, thresholds) {
   true
 }
 
-// assume a uniform prior over comparison classes
 var classPrior = Infer({
   model: function(){return uniformDraw(["sub", "super"])}
-});
+}); // assume a uniform prior over comparison classes
+
 ///
 var alphas = {s1: 3, s2: 1};
 
@@ -154,6 +150,11 @@ var pragmaticListener = function(form, subordinateParams) {
   }})
 }
 
-var subParams = {mu: 1, sigma: 0.5};
+var subParams = {
+  low: {mu: -1, sigma: 0.5},
+  middle: {mu: 0, sigma: 0.5},
+  high: {mu: 1, sigma: 0.5}
+}
+
 viz(pragmaticListener("positive", subParams))
 ~~~~

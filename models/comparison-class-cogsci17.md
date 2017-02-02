@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Comparison class understanding (CogSci 2017)
+title: Comparison classes (CogSci 2017)
 model-status: hidden
 model-category: Miscellaneous
 model-language: webppl
@@ -34,59 +34,42 @@ var KL = function(p, q, supp) {
 };
 
 var exp = function(x){return Math.exp(x)}
-///////
 
-
-////// STATE PRIOR CONSTRUCTION (discretized Gaussians)
+// STATE PRIOR CONSTRUCTION (discretized Gaussians)
 var binParam = 5;
 
-var stateParams = {
-  sub: {mu: 1, sigma: 0.5},
-  super: {mu: 0, sigma: 1}
-};
+var standardNormal = {mu: 0, sigma: 1}
 
 var stateVals = map(
   round,
-  _.range(stateParams.super.mu - 3 * stateParams.super.sigma,
-          stateParams.super.mu + 3 * stateParams.super.sigma,
-          stateParams.super.sigma/binParam)
+  _.range(standardNormal.mu - 3 * standardNormal.sigma,
+          standardNormal.mu + 3 * standardNormal.sigma,
+          standardNormal.sigma/binParam)
 );
 
-var stateProbs = {
-  sub: map(function(s){
-    Math.exp(Gaussian(stateParams.sub).score(s))+
-    Number.EPSILON
-  }, stateVals),
-  super: map(function(s){
-    Math.exp(Gaussian(stateParams.super).score(s))+
-    Number.EPSILON
+var stateProbs = cache(function(stateParams){
+  return map(function(s){
+    exp(Gaussian(stateParams).score(s))+ Number.EPSILON
   }, stateVals)
-};
+});
 
-var statePrior = {
-  sub: Infer({
-    model: function(){ return categorical({vs: stateVals, ps: stateProbs.sub}) }
-  }),
-  super: Infer({
-    model: function(){ return categorical({ vs: stateVals, ps: stateProbs.super}) }
+var generateStatePrior = cache(function(stateParams) {
+  return Infer({
+    model: function(){ return categorical({vs: stateVals, ps: stateProbs(stateParams)}) }
   })
-};
-//////
+});
+//
 
-
-var thresholdBins ={
-  positive: map(function(x){
-    return  x - (1/(binParam*2));
-  }, sort(statePrior.super.support())),
-  negative: map(function(x){
-    return  x + (1/(binParam*2));
-  }, sort(statePrior.super.support()))
-};
+var thresholdBins = cache(function(form, stateSupport){
+  return map(function(x){
+    return form == "positive" ? x - (1/(binParam*2)) : x + (1/(binParam*2));
+  }, sort(stateSupport))
+})
 
 // uninformed prior over the semantic threshold
-var thresholdPrior = cache(function(form){
+var thresholdPrior = cache(function(form, stateSupport){
   return Infer({
-    model: function() { return uniformDraw(thresholdBins[form]) }
+    model: function() { return uniformDraw(thresholdBins(form, stateSupport)) }
   });
 });
 
@@ -125,7 +108,7 @@ var classPrior = Infer({
 ///
 var alphas = {s1: 3, s2: 1};
 
-var literalListener = cache(function(u, thresholds, comparisonClass) {
+var literalListener = cache(function(u, thresholds, comparisonClass, subordinateParams) {
   Infer({model: function(){
     // if the comparison class is explicit in the utterance, use that
     // otherwise, use whatever the pragmaticListener model passes in
@@ -133,40 +116,44 @@ var literalListener = cache(function(u, thresholds, comparisonClass) {
         comparisonClass :
     u.split("_")[1] == "silence" ?
         comparisonClass :
-    u.split("_")[1]    
+    u.split("_")[1]
 
-    var state = sample(statePrior[cc]);
+    var stateParams = cc == "super" ? standardNormal : subordinateParams
+
+    var state = sample(generateStatePrior(stateParams));
     var utterance = u.split("_")[0]
     var m = meaning(utterance, state, thresholds);
     condition(m);
     return state;
   }})
-}, 10000)
+})
 
-var speaker1 = cache(function(state, thresholds, comparisonClass, form) {
+var speaker1 = cache(function(state, thresholds, comparisonClass, form, subordinateParams) {
   Infer({model: function(){
     var utterance = sample(utterancePrior(form))
-    var L0 = literalListener(utterance, thresholds, comparisonClass)
+    var L0 = literalListener(utterance, thresholds, comparisonClass, subordinateParams)
     factor( alphas.s1 * L0.score(state) )
     return utterance
   }})
-}, 10000)
+})
 
-var pragmaticListener = function(form) {
+var pragmaticListener = function(form, subordinateParams) {
   Infer({model: function(){
     var utterance = form + "_null";
     var comparisonClass = sample(classPrior);
-    var state = sample(statePrior["sub"]);
+    var statePrior = generateStatePrior(subordinateParams);
+    var state = sample(statePrior);
     var thresholds = form == "positive" ? {
-      positive: sample(thresholdPrior("positive"))
+      positive: sample(thresholdPrior("positive", statePrior.support()))
     } : {
-      negative: sample(thresholdPrior("negative"))
+      negative: sample(thresholdPrior("negative", statePrior.support()))
     }
-    var S1 = speaker1(state, thresholds, comparisonClass, form);
+    var S1 = speaker1(state, thresholds, comparisonClass, form, subordinateParams);
     observe(S1, utterance);
     return comparisonClass
   }})
 }
 
-viz(pragmaticListener("positive"))
+var subParams = {mu: 1, sigma: 0.5};
+viz(pragmaticListener("positive", subParams))
 ~~~~

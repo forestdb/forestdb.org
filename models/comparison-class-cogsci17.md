@@ -221,7 +221,7 @@ viz.table(S2predictions)
 
 ## Bayesian data analysis model
 
-~~~~ norun
+~~~~norun
 var dataAnalysis = function(){
   var alphas = {
     expt1 : { s1: uniform(0, 20) },

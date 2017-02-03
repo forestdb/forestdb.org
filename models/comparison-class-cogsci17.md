@@ -197,32 +197,42 @@ var exptConditions = [
 var L1predictions = map(function(stim){
   var L1posterior = pragmaticListener(stim.utt,stim.form, subParams[stim.sub], 1)
   return {
-    y: exp(marginalize(L1posterior, "comparisonClass").score("super")),
     x: stim.form,
+    y: exp(marginalize(L1posterior, "comparisonClass").score("super")),
     sub: stim.sub,
     model: "L1"
   }
 }, exptConditions)
 
-viz.table(L1predictions)
+display("probability of superordinate comparison class (listener model)")
+viz.bar(L1predictions, {groupBy: 'sub'})
 
 var S2predictions = map(function(stim){
   var S2posterior = speaker2(stim.form, subParams[stim.sub])
   return {
-    y: expectation(S2posterior),
     x: stim.form,
+    y: expectation(S2posterior),
     sub: stim.sub,
     model: "S2"
   }
 }, exptConditions)
 
-viz.table(S2predictions)
+display("production of adjective with explicit superordinate comparison class \n given knowledge of the subordinate comparison class (speaker model)")
+viz.bar(S2predictions, {groupBy: 'sub'})
 ~~~~
 
-## Bayesian data analysis model
+## Bayesian data analysis model sketch
 
-~~~~norun
+This is a sketch of the full Bayesian data analysis model used in Ref:tesslerComparisonClassCogSci.
+Note that this model calls `pragmaticListener` and `speaker2`, which are defined above.
+The exact function arguments may not correspond.
+The sketch of the model below is simply to illustrate the structure of the data analysis.
+
+**Note: This model does not run.**
+
+~~~~
 var dataAnalysis = function(){
+  // speaker optimality parameters
   var alphas = {
     expt1 : { s1: uniform(0, 20) },
     expt2 : {
@@ -230,41 +240,47 @@ var dataAnalysis = function(){
       s2: uniform(0, 5)
     }
   };
-
+  // scaling parameter on empirical corpus frequency
   var frequencyScale = uniform(0, 3);
 
   foreach(subcategories, function(subCat){
-    var mu = uniform(-3, 3);
-    var sigma = uniform(0, 5);
+    // parameters of the subcategory prior
+    var priorParams = {
+      mu: uniform(-3, 3),
+      sigma: uniform(0, 5)
+    }
+    var subCatPrior = Gaussian(priorParams);
 
-    var subCatPrior = Gaussian({mu: mu, sigma: sigma})
-
-    var subCatWeight = exp(
-      frequencyScale * empiricalFrequency[subCat]
-    )
-    var superCatWeight = exp(
-      frequencyScale * empiricalFrequency[superCat]
-    )
-
+    // construct comparison class prior
     var classPrior = Categorical({
-      vs: ["sub", "super"], ps: [subCatWeight, superCatWeight]
+      vs: ["sub", "super"],
+      ps: [
+        exp(frequencyScale * empiricalFrequency[subCat]),
+        exp(frequencyScale * empiricalFrequency[superCat])
+        ]
     })
 
     foreach(["positive","negative"], function(utterance){
 
+      // experiment 1: comparison class inference
       var expt1predictions = pragmaticListener(utterance, subCatPrior, classPrior, ...)
 
+      // observe data
       mapData({data: data.expt1.subCat}, function(d){
         observe(expt1predictions, d)
         })
 
+      // experiment 2: adjective speaker (with explicit comparison class)
       var expt2predictions = speaker2(utterance, subCatPrior, ...)
 
       mapData({data: data.expt2.subCat}, function(d){
         observe(expt2predictions, d)
-      })
+        })
+
     })
+
   })
+
   return [expt1predictions, expt2predictions, alphas, ...]
 }
 ~~~~

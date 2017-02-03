@@ -10,7 +10,25 @@ model-language-version: v0.9.6
 This page shows the models used in Ref:tesslerComparisonClassCogSci.
 
 
-### Listener model with comparison class uncertainty
+## Rational Speech Act model
+
+This model gives the listener the ability to infer the comparison class when it is not specified in the utterance.
+When the utterance does use an explicit comparison class (e.g., "He's short for a basketball player"), the listener uses the explicitly mentioned comparison class.
+
+### Experiment 1: Comparison class inference.
+
+In this task, participants are told that the target is a member of the subordinate category (e.g., "John sees a basketball player").
+The listener then hears the ambiguous utterance "He's tall".
+Listener reasons about the likely comparison class.
+We model this with the `pragmaticListener` given the underspecified utterance.
+
+### Experiment 2: Adjective production
+
+In this task, participants are told that the target is a member of the subordinate category (e.g., "John sees a basketball player").
+They are asked to endorse the adjective sentence with the comparison class explicitly the superordinate category (e.g., "He's tall relative to other people").
+We model this as the `speaker2` who can say either the adjective sentence with an explicit comparison class or remain silent.
+
+Links to experiments and project repository can be found [here](https://mhtess.github.io).
 
 ~~~~
 ///fold:
@@ -26,7 +44,8 @@ var distProbs = function(dist, supp) {
   }, supp)
 }
 
-var KL = function(p, q, supp) {
+var KL = function(p, q) {
+  var supp = sort(p.support());
   var P = distProbs(p, supp), Q = distProbs(q, supp);
   var diverge = function(xp,xq) {
     return xp == 0 ? 0 : (xp * Math.log(xp / xq) );
@@ -34,15 +53,18 @@ var KL = function(p, q, supp) {
   return sum(map2(diverge,P,Q));
 };
 
+var marginalize = function(dist, key){
+  return Infer({model: function(){sample(dist)[key]}})
+}
 var binParam = 5; // for discretization
 
-var standardNormal = {mu: 0, sigma: 1}
+var superordinate = {mu: 0, sigma: 1};
 
 var stateVals = map(
   round,
-  _.range(standardNormal.mu - 3 * standardNormal.sigma,
-          standardNormal.mu + 3 * standardNormal.sigma,
-          standardNormal.sigma/binParam)
+  _.range(superordinate.mu - 3 * superordinate.sigma,
+          superordinate.mu + 3 * superordinate.sigma,
+          superordinate.sigma/binParam)
 );
 
 var stateProbs = cache(function(stateParams){
@@ -69,31 +91,23 @@ var thresholdPrior = cache(function(form, stateSupport){
   });
 }); // uninformed prior over the semantic threshold
 
-
+// alternative utterances depend on expt
+// expt 1 (comparison class inferences) uses explicit paraphrases
+// expt 2 (adjective endorsement) is a standard truth judgment alternative set
 var utterances = {
-  positive: ["positive_null",
-             "positive_sub",
-             "positive_super"],
-  negative: ["negative_null",
-             "negative_sub",
-             "negative_super"]
-}; // alternative utterances depend on the adjective form
+  1: {
+    positive: ["positive_null", "positive_sub", "positive_super"],
+    negative: ["negative_null", "negative_sub", "negative_super"]
+  },
+  2: {
+    positive: ["positive_super", "silence_super"],
+    negative: ["negative_super", "silence_super"]
+  }
+}
 
-var utteranceProbs = [1, 1, 1];
-var utterancePrior = cache(function(form){
-  return Infer({
-    model: function() {
-      return categorical({
-        vs: utterances[form],
-        ps: utteranceProbs
-      })
-    }
-  })
-});
-
-var meaning = function(utterance, state, thresholds) {
-  utterance == "positive" ? state > thresholds.positive ? flip(0.9999) : flip(0.0001) :
-  utterance == "negative" ? state < thresholds.negative ? flip(0.9999) : flip(0.0001) :
+var meaning = function(utterance, state, threshold) {
+  utterance == "positive" ? state > threshold ? flip(0.9999) : flip(0.0001) :
+  utterance == "negative" ? state < threshold ? flip(0.9999) : flip(0.0001) :
   true
 }
 
@@ -101,52 +115,67 @@ var classPrior = Infer({
   model: function(){return uniformDraw(["sub", "super"])}
 }); // assume a uniform prior over comparison classes
 
-///
 var alphas = {s1: 3, s2: 1};
 
-var literalListener = cache(function(u, thresholds, comparisonClass, subordinateParams) {
+var literalListener = cache(
+  function(u, threshold, comparisonClass, subordinate) {
+    Infer({model: function(){
+      var utterance =  u.split("_")[0], explicitCC =  u.split("_")[1]
+      // if the comparison class is explicit in the utterance, use that
+      // otherwise, use whatever the pragmaticListener model passes in
+      var cc = explicitCC == "null" ?  comparisonClass :
+      explicitCC == "silence" ? comparisonClass : explicitCC
+
+      var state = sample(generateStatePrior(cc === "super" ? superordinate : subordinate));
+      var m = meaning(utterance, state, threshold);
+      condition(m);
+      return state;
+    }})
+  }
+)
+
+var speaker1 = cache(
+  function(state, threshold, comparisonClass, form, subordinate, task) {
+    Infer({model: function(){
+      var utterance = uniformDraw(utterances[task][form]);
+      var L0 = literalListener(utterance, threshold, comparisonClass, subordinate);
+      factor( alphas.s1 * L0.score(state) );
+      return utterance;
+    }})
+  }
+)
+
+var pragmaticListener = function(utterance, form, subordinate, task) {
   Infer({model: function(){
-    // if the comparison class is explicit in the utterance, use that
-    // otherwise, use whatever the pragmaticListener model passes in
-    var cc = u.split("_")[1] == "null" ?
-        comparisonClass :
-    u.split("_")[1] == "silence" ?
-        comparisonClass :
-    u.split("_")[1]
-
-    var stateParams = cc == "super" ? standardNormal : subordinateParams
-
-    var state = sample(generateStatePrior(stateParams));
-    var utterance = u.split("_")[0]
-    var m = meaning(utterance, state, thresholds);
-    condition(m);
-    return state;
-  }})
-})
-
-var speaker1 = cache(function(state, thresholds, comparisonClass, form, subordinateParams) {
-  Infer({model: function(){
-    var utterance = sample(utterancePrior(form))
-    var L0 = literalListener(utterance, thresholds, comparisonClass, subordinateParams)
-    factor( alphas.s1 * L0.score(state) )
-    return utterance
-  }})
-})
-
-var pragmaticListener = function(form, subordinateParams) {
-  Infer({model: function(){
-    var utterance = form + "_null";
-    var comparisonClass = sample(classPrior);
-    var statePrior = generateStatePrior(subordinateParams);
+    var explicitCC = utterance.split("_")[1];
+    // listener knowledge: expt 1 === "sub"; expt 2 === "super"
+    var statePrior = generateStatePrior(
+      task === 1 ? subordinate : superordinate
+    );
     var state = sample(statePrior);
-    var thresholds = form == "positive" ? {
-      positive: sample(thresholdPrior("positive", statePrior.support()))
-    } : {
-      negative: sample(thresholdPrior("negative", statePrior.support()))
-    }
-    var S1 = speaker1(state, thresholds, comparisonClass, form, subordinateParams);
+    var threshold = sample(thresholdPrior(form, statePrior.support()))
+    // comparison class is implicit in expt 1 (therefore, sample)
+    // explicit in expt 2 ("super")
+    var c = task === 1 ? sample(classPrior) : explicitCC;
+
+    var S1 = speaker1(state, threshold, c, form, subordinate, task);
     observe(S1, utterance);
-    return comparisonClass
+    return { comparisonClass: c, state: state }
+  }})
+}
+
+var speaker2 = function(form, subordinate){
+  Infer({model: function(){
+    var speakerBeliefs = generateStatePrior(subordinate);
+
+    var utterance = uniformDraw(utterances[2][form])
+    var L1 = pragmaticListener(utterance, form, subordinate, 2);
+
+    var beliefDistance = KL(speakerBeliefs, marginalize(L1, "state"));
+
+    factor(-1 * alphas.s2* beliefDistance)
+
+    return utterance == form + "_super"
   }})
 }
 
@@ -156,5 +185,36 @@ var subParams = {
   high: {mu: 1, sigma: 0.5}
 }
 
-viz(pragmaticListener("positive", subParams))
+var exptConditions = [
+  {utt: "positive_null", form: "positive", sub: "high"},
+  {utt: "negative_null", form: "negative", sub: "high"},
+  {utt: "positive_null", form: "positive", sub: "middle"},
+  {utt: "negative_null", form: "negative", sub: "middle"},
+  {utt: "positive_null", form: "positive", sub: "low"},
+  {utt: "negative_null", form: "negative", sub: "low"}
+];
+
+var L1predictions = map(function(stim){
+  var L1posterior = pragmaticListener(stim.utt,stim.form, subParams[stim.sub], 1)
+  return {
+    y: exp(marginalize(L1posterior, "comparisonClass").score("super")),
+    x: stim.form,
+    sub: stim.sub,
+    model: "L1"
+  }
+}, exptConditions)
+
+viz.table(L1predictions)
+
+var S2predictions = map(function(stim){
+  var S2posterior = speaker2(stim.form, subParams[stim.sub])
+  return {
+    y: expectation(S2posterior),
+    x: stim.form,
+    sub: stim.sub,
+    model: "S2"
+  }
+}, exptConditions)
+
+viz.table(S2predictions)
 ~~~~

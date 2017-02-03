@@ -115,7 +115,7 @@ var classPrior = Infer({
   model: function(){return uniformDraw(["sub", "super"])}
 }); // assume a uniform prior over comparison classes
 
-var alphas = {s1: 3, s2: 1};
+var alphas = {s1: 5, s2: 3};
 
 var literalListener = cache(
   function(u, threshold, comparisonClass, subordinate) {

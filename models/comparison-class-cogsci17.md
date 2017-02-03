@@ -218,3 +218,53 @@ var S2predictions = map(function(stim){
 
 viz.table(S2predictions)
 ~~~~
+
+## Bayesian data analysis model
+
+~~~~ norun
+var dataAnalysis = function(){
+  var alphas = {
+    expt1 : { s1: uniform(0, 20) },
+    expt2 : {
+      s1: uniform(0, 20),
+      s2: uniform(0, 5)
+    }
+  };
+
+  var frequencyScale = uniform(0, 3);
+
+  foreach(subcategories, function(subCat){
+    var mu = uniform(-3, 3);
+    var sigma = uniform(0, 5);
+
+    var subCatPrior = Gaussian({mu: mu, sigma: sigma})
+
+    var subCatWeight = exp(
+      frequencyScale * empiricalFrequency[subCat]
+    )
+    var superCatWeight = exp(
+      frequencyScale * empiricalFrequency[superCat]
+    )
+
+    var classPrior = Categorical({
+      vs: ["sub", "super"], ps: [subCatWeight, superCatWeight]
+    })
+
+    foreach(["positive","negative"], function(utterance){
+
+      var expt1predictions = pragmaticListener(utterance, subCatPrior, classPrior, ...)
+
+      mapData({data: data.expt1.subCat}, function(d){
+        observe(expt1predictions, d)
+        })
+
+      var expt2predictions = speaker2(utterance, subCatPrior, ...)
+
+      mapData({data: data.expt2.subCat}, function(d){
+        observe(expt2predictions, d)
+      })
+    })
+  })
+  return [expt1predictions, expt2predictions, alphas, ...]
+}
+~~~~

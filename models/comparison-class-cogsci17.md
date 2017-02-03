@@ -131,7 +131,7 @@ var literalListener = cache(
       condition(m);
       return state;
     }})
-  }
+  }, 10000
 )
 
 var speaker1 = cache(
@@ -142,10 +142,10 @@ var speaker1 = cache(
       factor( alphas.s1 * L0.score(state) );
       return utterance;
     }})
-  }
+  }, 10000
 )
 
-var pragmaticListener = function(utterance, form, subordinate, task) {
+var pragmaticListener = cache(function(utterance, form, subordinate, task) {
   Infer({model: function(){
     var explicitCC = utterance.split("_")[1];
     // listener knowledge: expt 1 === "sub"; expt 2 === "super"
@@ -162,7 +162,7 @@ var pragmaticListener = function(utterance, form, subordinate, task) {
     observe(S1, utterance);
     return { comparisonClass: c, state: state }
   }})
-}
+}, 10000)
 
 var speaker2 = function(form, subordinate){
   Infer({model: function(){

@@ -8,7 +8,7 @@ model-language: webppl
 model-language-version: v0.9.7
 ---
 
-This page shows the models used in Ref:YoonTessler2017cogsci.
+This page shows the model used in Ref:yoonTessler2017cogsci.
 
 ## Polite RSA
 ~~~~

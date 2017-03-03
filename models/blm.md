@@ -183,22 +183,22 @@ In this model, rather than assuming a particular QUD, we let the model infer the
 ~~~~
 var alpha = 1
 
-var statePrior = function() {
-  return Categorical({
-    ps: [.9,.04,.04,.02],
-    //     ps: [.25,.25,.25,.25],
-    //     ps: [.04,.04,.9,.02],
-    vs: [{black:true, white:true},{black:true, white:false},{black:false, white:true},{black:false, white:false}]})
-};
+var statePrior = Categorical({
+    // ps: [.9,.04,.04,.02],
+    ps: [.25,.25,.25,.25],
+    //ps: [.04,.04,.9,.02],
+    vs: [{black:true, white:true},
+         {black:true, white:false},
+         {black:false, white:true},
+         {black:false, white:false}]
+})
 
-var qudPrior = function() {
-  return Categorical({
+var qudPrior = Categorical({
     ps: [.5,.5],
     // ps: [.9,.1],
     // ps: [.1,.9],
     vs: ["do_blm","which_lm"]
-  });
-};
+});
 
 // possible utterances
 var utterancePrior = function() {
@@ -206,50 +206,48 @@ var utterancePrior = function() {
 };
 
 var qudFns = {
-  do_blm : function(black, white) {return { black: black } },
-  which_lm : function(black, white) {return {black: black, white: white} }
+  do_blm : function(state) {return { black: state['black'] } },
+  which_lm : function(state) {return state}
 };
 
 // meaning funtion to interpret the utterances
 var literalMeanings = {
   blm: function(state) { return state["black"] },
-  nblm: function(state) { return  !state["black"]  },
+  nblm: function(state) { return !state["black"]  },
   wlm: function(state) { return state["white"]},
   alm: function(state) { return state["black"] && state["white"] },
   nlm: function(state) { return !state["black"] && !state["white"] }
 };
 
 // literal listener
-var literalListener = cache(function(utt,qud) {
-  return Infer({method:"enumerate"},
-               function(){
-    var state = sample(statePrior())
+var literalListener = cache(function(utt) {
+  return Infer({method:"enumerate"}, function(){
+    var state = sample(statePrior)
     var meaning = literalMeanings[utt]
-    var qudFn = qudFns[qud]
     condition(meaning(state))
-    return qudFn(state["black"],state["white"])
+    return state;
   })
 });
 
 // pragmatic speaker
 var speaker = cache(function(state,qud) {
-  return Infer({method:"enumerate"},
-               function(){
+  var qudFn = qudFns[qud];
+  return Infer({method:"enumerate"}, function(){
     var utt = utterancePrior()
-    factor(alpha * literalListener(utt,qud).score(state))
+    var projectedListener = Infer({method: 'enumerate'}, function() {
+      return qudFn(sample(literalListener(utt)))
+    });
+    factor(alpha * projectedListener.score(qudFn(state)))
     return utt
   })
 });
 
 // pragmatic listener
 var pragmaticListener = cache(function(utt) {  
-  return Infer({method:"enumerate"},
-               function(){
-    var state = sample(statePrior())
-    var qud = sample(qudPrior())
-    var qudFn = qudFns[qud]
-    var qValue = qudFn(state["black"],state["white"])
-    observe(speaker(qValue,qud),utt)
+  return Infer({method:"enumerate"}, function(){
+    var state = sample(statePrior)
+    var qud = sample(qudPrior)
+    observe(speaker(state, qud), utt)
     return {state:state, qud:qud}
   })
 });
@@ -258,8 +256,7 @@ var joint = pragmaticListener("blm")
 var marginal_qud = marginalize(pragmaticListener("blm"),'qud')
 var marginal_state = marginalize(pragmaticListener("blm"),'state')
 
-// joint
-// marginal_qud
-marginal_state
+viz(marginal_qud)
+viz(marginal_state)
 ~~~~
 

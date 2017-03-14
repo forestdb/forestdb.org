@@ -10,6 +10,10 @@ Suppose there are $M$ restaurants, which generate noisy reward signals $r_j \in 
 ~~~~
 
 ///fold:
+var softplus = function(x) {
+    return Math.log(Math.exp(x) + 1);
+};
+
 var butLast = function(xs) {
   return xs.slice(0, xs.length - 1);
 };
@@ -22,34 +26,16 @@ var truncate = function(obj) {
   }, obj);
 };
 
-var normalize = function(xs) {
-  var Z = sum(xs);
-  return map(function(x) {
-    return x / Z;
-  }, xs);
-};
-
-var normalizeVals = function(agentVals){
-  var arr = _.values(agentVals);
-  return normalize(arr);
-};
-
-// Each agent soft-maxes utility
-var makeChoiceERP = function(utility) {
-  var ps = normalizeVals(utility);
+// Each agent chooses proportional to utility
+var choiceDist = function(utility) {
+  var ps = normalize(_.values(utility));
   var vs = _.keys(utility);
-  return categoricalERP(ps, vs);
-};
-
-var choiceLikelihood = function(ownUtility, choice) {
-  var choiceERP = makeChoiceERP(ownUtility);
-  return choiceERP.score([], choice);
+  return Categorical({ps, vs});
 };
 
 var otherLikelihoods = function(otherUtilities, otherChoices) {
   var likelihoods = map2(function(otherUtility, otherChoice) {
-    var otherChoiceERP = makeChoiceERP(otherUtility);
-    return otherChoiceERP.score([], otherChoice);
+    return choiceDist(otherUtility).score(otherChoice);
   }, otherUtilities, otherChoices);
   return sum(likelihoods);
 };
@@ -68,21 +54,31 @@ var sampleOtherUtilities = function(numAgents, groupParams) {
     return sampleAgentUtility(groupParams);
   })
 };
+
+var sampleGuidedBeta = function(id) {
+  return sample(Beta({a: 1, b: 1}), {
+    guide () {
+      return Beta({a: softplus(param({name: 'beta_a_' + id})),
+                   b: softplus(param({name: 'beta_b_' + id}))});
+    }
+  })
+};
 ///
 
 var numAgents = 3;
 
 var sampleGroupParams = function() {
   return {
-    groupMean : {"Burger Barn" : uniform(0,1),
-                 "Stirfry Shack" : uniform(0,1)},
-    groupSD : uniform(0, 0.15)
+    groupMean : {
+      "Burger Barn" : beta(1,1),//sampleGuidedBeta('burger'),
+      "Stirfry Shack" : beta(1,1)//sampleGuidedBeta('stirfry')
+    },
+    groupSD : uniform(0,.15)//sampleGuidedBeta('sd')
   };
 };
 
-var beliefPrior = function() {
-  var groupParams = sampleGroupParams();
-  
+var prior = function() {
+  var groupParams = sampleGroupParams(); 
   return {
     groupParams : groupParams,
     ownUtility: sampleAgentUtility(groupParams),
@@ -90,52 +86,44 @@ var beliefPrior = function() {
   };  
 };
 
-var infer = function(evidence) {
-  if(evidence.length === 0) {
-    return beliefPrior(); // Take a sample from prior
-  } else {
-    var newEvidence = last(evidence);
+// case 1
+// var data = [{self: {choice : "Burger Barn", rewardSignal : true},
+//              others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
+// case 2
+var data = [{self: {choice : "Burger Barn", rewardSignal : true},
+                 others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+                {self: {choice : "Burger Barn", rewardSignal : true},
+                 others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+                {self: {choice : "Burger Barn", rewardSignal : true},
+                 others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+                {self: {choice : "Burger Barn", rewardSignal : true},
+                 others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
+// case 3
+// var data = [{self: {choice : "Burger Barn", rewardSignal : true},
+//                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+//                 {self: {choice : "Burger Barn", rewardSignal : true},
+//                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+//                 {self: {choice : "Burger Barn", rewardSignal : true},
+//                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
+//                 {self: {choice : "Burger Barn", rewardSignal : false},
+//                  others : ["Burger Barn", "Burger Barn", "Stirfry Shack"]}];
 
-    // Recursively reason about what I would have believed last time step
-    var beliefs = infer(butLast(evidence));
-
+var model = function() {
+  var beliefs = prior();
+  mapData({data: data}, function(datum) {
     // What beliefs would make this reward signal most likely?
-    factor(bernoulliERP.score([beliefs.ownUtility[newEvidence.self.choice]],
-                              newEvidence.self.rewardSignal));
-
+    var rewardExpectation = beliefs.ownUtility[datum.self.choice];
+    observe(Bernoulli({p: rewardExpectation}), datum.self.rewardSignal)
+    
     // What beliefs would make my friend's choices most likely?
-    factor(otherLikelihoods(beliefs.otherUtilities, newEvidence.others));
-    return beliefs;
-  }
+    factor(otherLikelihoods(beliefs.otherUtilities, datum.others));
+  });
+  return beliefs;
 };
 
-var results = SMC(function() {
-  // evidence 1
-  var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
-                   others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
-  // evidence 2
-  // var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
-  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
-  //                 {self: {choice : "Burger Barn", rewardSignal : true},
-  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
-  //                 {self: {choice : "Burger Barn", rewardSignal : true},
-  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
-  //                 {self: {choice : "Burger Barn", rewardSignal : true},
-  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]}];
-  // evidence 3
-  // var evidence = [{self: {choice : "Burger Barn", rewardSignal : true},
-  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
-  //                 {self: {choice : "Burger Barn", rewardSignal : true},
-  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
-  //                 {self: {choice : "Burger Barn", rewardSignal : true},
-  //                  others : ["Stirfry Shack", "Stirfry Shack", "Stirfry Shack"]},
-  //                 {self: {choice : "Burger Barn", rewardSignal : false},
-  //                  others : ["Burger Barn", "Burger Barn", "Stirfry Shack"]}];
-  return infer(evidence);
-}, {particles : 10000});
-
-vizPrint(Enumerate(function() { return sample(results).ownUtility}));
-vizPrint(Enumerate(function() { return sample(results).groupParams.groupSD}));
+var results = Infer({method: 'MCMC', samples: 10000}, model);
+console.log(expectation(results, function(x) {return x['ownUtility']['Stirfry Shack']}))
+console.log(expectation(results, function(x) {return x['groupParams']['groupSD']}))
 ~~~~
 
 Despite the fact Alice doesn't explicitly observe any information about the Stirfry Shack, she nonetheless forms strong beliefs about it by observing the actions of agents that she believes belong to her group. By comparing evidence1 to evidence2, we see that additional evidence strengthens Alice's belief and also leads to an inference that the SD of her group must be quite large (otherwise it's hard to explain why no one else is choosing the Burger Barn). By comparing evidence2 to evidence3, we see that observing just a few mixed signals (i.e. a bad experience at Burger Barn herself, and social evidence of some other choosing Burger Barn), her beliefs about SD shift much lower.

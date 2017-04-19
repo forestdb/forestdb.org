@@ -460,6 +460,139 @@ vizPrint(Enumerate(function() {
 }));
 ~~~~
 
+Finally, we demonstrate a specific consequence of this model for social affiliation and rare overlaps of preferences. 
+Suppose you observe two agents in the population who always go to Burger Barn and two others who sometimes go to Burger Barn and sometimes go to Stirfry Shack. 
+In other words, Burger Barn is a common preference, but Stirfry Shack relatively rarer.
+Through direct reward signals you also find that you like both.
+After you have updated your joint beliefs about (1) which group you yourself are likely to belong to and (2) the properties of each group, you are shown a novel agent.
+Recent work by Velez, Bridgers, and Gweon (2016) has shown that adults are sensitive to the rarity of preference overlaps: 
+you are less likely to affiliate with a novel agent who shares a common preference (e.g. Burger Barn) than one who shares a rare preference (e.g. Stirfry Shack). 
+Our model formalizes the hypothesis that this difference derives from the relative diagnosticity of the two overlaps with respect to social group inference.
+If an agent holds a rare preference and believes that it is a property of the group they belong to, then observing actions derived from that preference in another agent is highly informative about that agent's underlying group membership. 
+
+~~~~
+
+///fold:
+var truncate = function(obj) {
+  return mapObject(function(key, val) {
+    return (val <= 0 ? 0.001 :
+            val >= 1 ? 0.999 :
+            val);
+  }, obj);
+};
+
+// Each agent chooses proportional to utility
+var choiceDist = function(utility) {
+  var ps = normalize(_.values(utility));
+  var vs = _.keys(utility);
+  return Categorical({ps, vs});
+};
+
+var otherLikelihoods = function(otherUtilities, otherChoices) {
+  var likelihoods = map2(function(otherUtility, otherChoice) {
+    return choiceDist(otherUtility).score(otherChoice);
+  }, otherUtilities, otherChoices);
+  return sum(likelihoods);
+};
+
+var sampleAgentUtility = function(groupParams) {
+  var mean = groupParams.groupMean;
+  var sd = groupParams.groupSD;
+  return truncate({
+    "Burger Barn" : gaussian(mean["Burger Barn"], sd),
+    "Stirfry Shack" : gaussian(mean["Stirfry Shack"], sd)
+  });
+};
+
+var sampleOtherUtilities = function(groupParams, groupMembership, numAgents) {
+  return map(function(agentIndex) {
+    var otherGroupParams = groupParams[groupMembership[agentIndex + 1]];
+    return sampleAgentUtility(otherGroupParams);
+  }, _.range(numAgents))
+};
+
+var sampleGroupParams = function(numGroups) {
+  return repeat(numGroups, function() {
+    return {groupMean : {"Burger Barn" : uniform(0,1),
+                         "Stirfry Shack" : uniform(0,1)},
+            groupSD : uniform(0, 0.1)};
+  });
+};
+
+// always put self in group 0 (for ease of analysis)
+var sampleGroupMembership = function(numAgents, numGroups) {
+  return [0].concat(repeat(numAgents, function() {
+    return randomInteger(numGroups);
+  }));
+};
+
+///
+
+// Two people always go to burger barn; two people go both there & stirfry shack
+var data = [{self: {choice : "Burger Barn", rewardSignal : true},
+             others : ["Burger Barn", "Burger Barn", "Burger Barn", "Burger Barn"]},
+            {self: {choice : "Stirfry Shack", rewardSignal : true},
+             others : ["Stirfry Shack", "Stirfry Shack", "Burger Barn", "Burger Barn"]},
+            {self: {choice : "Stirfry Shack", rewardSignal : true},
+             others : ["Burger Barn", "Burger Barn", "Burger Barn", "Burger Barn"]},
+            {self: {choice : "Stirfry Shack", rewardSignal : true},
+             others : ["Stirfry Shack", "Stirfry Shack", "Burger Barn", "Burger Barn"]}];
+
+var numAgents = 4;
+var numGroups = 2;
+var prior = function() {
+  var groupParams = sampleGroupParams(numGroups),
+      groupMembership = sampleGroupMembership(numAgents, numGroups);
+  
+  return {
+    groupParams: groupParams,
+    numGroups : numGroups,
+    groupMembership: groupMembership,
+    ownUtility: sampleAgentUtility(groupParams[groupMembership[0]]),
+    otherUtilities: sampleOtherUtilities(groupParams, groupMembership, numAgents)
+  };
+};
+
+var model = function() {
+  var beliefs = prior(); 
+  mapData({data: data}, function(datum) {
+    // What beliefs would make this reward signal most likely?
+    var rewardExpectation = beliefs.ownUtility[datum.self.choice];
+    observe(Bernoulli({p: rewardExpectation}), datum.self.rewardSignal)
+
+    // What beliefs would make my friend's choices most likely?
+    factor(otherLikelihoods(beliefs.otherUtilities, datum.others));    
+  });
+  return beliefs;
+};
+
+var posterior = Infer({method: 'SMC', particles: 5000}, model);
+var groupParamsPosterior = marginalize(posterior, 'groupParams');
+// console.log('estimation of own utility')
+// viz.marginals(marginalize(results, 'ownUtility'))
+// console.log('membership')
+// viz(marginalize(posterior, 'groupMembership'))
+// console.log('estimation of group params')
+map(function(i) {
+  var mu_bb = expectation(groupParamsPosterior, function(x) {return x[i]['groupMean']['Burger Barn']}).toFixed(3)
+  var mu_ss = expectation(groupParamsPosterior, function(x) {return x[i]['groupMean']['Stirfry Shack']}).toFixed(3)
+  var sigma = expectation(groupParamsPosterior, function(x) {return x[i]['groupSD']}).toFixed(3)
+  console.log('for group ' + i)
+  console.log('E[U(Burger Barn)] = ' + mu_bb + ' E[U(Stirfry Shack)] = ' + mu_ss + ' and SD = ' + sigma)
+}, _.range(numGroups))
+
+// Infer which group novel agent is likely to come from
+var newAgentChoice = 'Burger Barn'
+Infer({method: 'SMC', particles: 5000}, function() {
+  var groupMembership = uniformDraw([0,1]);
+  var groupParams = sample(groupParamsPosterior)[groupMembership];
+  var newAgentUtility = sampleAgentUtility(groupParams);
+  observe(choiceDist(newAgentUtility), newAgentChoice);
+  return groupMembership
+})
+~~~~
+
+
 <!---
 ~~~~
 ///fold:

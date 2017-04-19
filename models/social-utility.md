@@ -1,9 +1,12 @@
 ---
 layout: model
-title: Social Construction of Value
+title: Reasoning about social groups
 model-language: webppl
 model-language-version: v0.9.7
 ---
+
+Inferring properties of one group
+---------------------------------
 
 Suppose there are $M$ restaurants, which generate noisy reward signals
 $r_j \in \{0, 1\}$. Each agent $a_i$ in the population assigns some
@@ -130,6 +133,9 @@ console.log(expectation(results, function(x) {return x['groupParams']['groupSD']
 ~~~~
 
 Despite the fact Alice doesn't explicitly observe any information about the Stirfry Shack, she nonetheless forms strong beliefs about it by observing the actions of agents that she believes belong to her group. By comparing evidence1 to evidence2, we see that additional evidence strengthens Alice's belief and also leads to an inference that the SD of her group must be quite large (otherwise it's hard to explain why no one else is choosing the Burger Barn). By comparing evidence2 to evidence3, we see that observing just a few mixed signals (i.e. a bad experience at Burger Barn herself, and social evidence of some other choosing Burger Barn), her beliefs about SD shift much lower.
+
+Jointly inferring membership in & properties of multiple groups (broken)
+-----------------------------------------------------------
 
 In this first simulation, we assumed that all agents belong to the same group. In real social situations, however, there exist many groups with many different values and preferences. To formalize an intuitive theory about such situations, we extend our model with a simple hierarchical prior such that Alice can infer group membership in addition to utilities. First, we sample a number of groups between 1 and K. Next, we sample means and SDs for each of these groups independently. Finally, we sample an assignment of all agents in the population to one of K groups, such that that agent's utilities are drawn from that group's statistics. 
 
@@ -279,6 +285,9 @@ print(Enumerate(function() { return sample(results).numGroups;}));
 ~~~~
 
 Note that evidence2 now constitutes fairly strong evidence that there are two groups, one solely containing the agent and the other containing everyone else.
+
+Stereotyping (broken)
+---------------------------------
 
 Next, we add incidental features to the agents. In the real world, we don't always get to observe the choices of other agents, but we do observe perceptual features like skin color, hair color, and the team name on a sports jersey. Work on stereotyping and ingroup-outgroup perception suggests that we expect many groups to share such features. To incorporate this aspect of an intuitive theory of groups, we sample a "feature probability" for each group. If it is 1, then we expect all agents in the group to have that feature. If it is .5, we expect roughly half of the agents to have that features. Our agent then takes these stable perceptual traits into account when inferring group membership and utility.
 
@@ -459,6 +468,9 @@ vizPrint(Enumerate(function() {
           probList.length == 2 ? append(probList, [0]) : probList);
 }));
 ~~~~
+
+Rare preference overlap (Velez et al, 2016)
+-----------------------------------------
 
 Finally, we demonstrate a specific consequence of this model for social affiliation and rare overlaps of preferences. 
 Suppose you observe two agents in the population who always go to Burger Barn and two others who sometimes go to Burger Barn and sometimes go to Stirfry Shack. 

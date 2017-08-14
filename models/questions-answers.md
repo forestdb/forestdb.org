@@ -5,7 +5,215 @@ model-language: webppl
 model-language-version: v0.9.7
 ---
 
-### Clark (1979) whiskey example
+### Sensitivity to question
+
+Answerer should respond to 'what time do you close?' differently than 'what is the price of a fifth of Jim Beam?'
+
+~~~~
+///fold:
+var toPairs = function(obj){
+  return _.sortBy(_.toPairs(obj));
+}
+
+var toObject = function(pairs){
+  return _.zipObject(pairs);
+}
+
+var makeObjectScorer = function(dist) {
+  var newDist = Infer({method: 'enumerate'}, function(){
+    return toPairs(sample(dist));
+  });
+  return function(value) {
+    return newDist.score(toPairs(value));
+  }
+}
+
+var KL = function(erpTrue, erpApprox){                       
+  var values = erpTrue.support([]);                          
+  return sum(map(                                            
+    function(value){                                         
+      var scoreP = erpTrue.score(value);                     
+      var scoreQ = erpApprox.score(value);                   
+      var probP = Math.exp(scoreP);                          
+      return probP == 0.0 ? 0.0 : probP * (scoreP - scoreQ); 
+    }, values));                                             
+};                                                           
+///
+
+//   ---------------
+// | World knowledge |
+//   ---------------
+
+var prices = [4, 5, 6];
+var closingTimes = [8, 9];
+
+var worldPrior = function(){
+  return {price: uniformDraw(prices),
+          time: uniformDraw(closingTimes)}
+};
+
+//  -------------------
+// | Question knowledge |
+//  -------------------
+
+var timeQuestion = "What time do you close tonight?";
+var priceQuestion = "What is the price of a fifth of Jim Beam?";
+
+var timeQuestionMeaning = function(w) {return w.time}
+var priceQuestionMeaning = function(w) {return w.price}
+
+var questions = [timeQuestion, priceQuestion];
+var questionPrior = function(){return uniformDraw(questions)};
+
+//  -----------------
+// | Answer knowledge |
+//  -----------------
+
+var priceAnswers = map(function(p) {return "the whiskey costs $" + p;}, prices);
+var timeAnswers = map(function(t) {return "we close at " + t;}, closingTimes);
+
+// evenly distribute probability across response types
+var answerPrior = function(){
+  return flip(.5) ? uniformDraw(priceAnswers) : uniformDraw(timeAnswers)
+};
+
+var timeAnswerMeaning = function(time){
+  return function(world){return world.time == time};
+};
+
+var priceAnswerMeaning = function(price){
+  return function(world){return world.price == price};
+};
+
+//   -----------
+// | Interpreter |
+//   -----------
+
+var meaning = function(utterance){
+  return ((utterance === timeQuestion) ? timeQuestionMeaning :
+          (utterance === priceQuestion) ? priceQuestionMeaning :
+          _.includes(timeAnswers, utterance) ? timeAnswerMeaning(last(utterance.split(' '))*1.0) :
+          _.includes(priceAnswers, utterance) ? priceAnswerMeaning(last(utterance.split('$'))*1.0) :
+          console.error('unknown utterance!', utterance));
+};
+                                                                              
+var interpreter = cache(function(answer){                                     
+  return Infer({method: 'enumerate'}, function(){                             
+    var world = worldPrior();                                                 
+    var answerMeaning = meaning(answer);                                      
+    condition(answerMeaning(world));                                          
+    return world;                                                             
+  });                                                                         
+});                                                                           
+
+var makeTruthfulAnswerPrior = function(trueWorld) {
+  return Infer({method: 'enumerate', model: function(){
+    var answer = answerPrior();
+    var interpScorer = makeObjectScorer(interpreter(answer));
+    factor(interpScorer(trueWorld))
+    return answer;
+  }});
+};
+
+//  ------
+// | QUDs |
+//  ------
+
+var qudPrice = function(world){return world.price;};
+var qudTime = function(world){return world.time;};
+
+var qudPrior = function(){
+  return (flip(.5) ? "qudTime" : "qudPrice");
+};
+
+var QUDPosteriorFromMeaning = function(question) {
+  var correspondingQUD = question === 'timeQuestion' ? 'qudTime' : 'qudPrice';
+  return Delta({v: correspondingQUD})
+};
+
+var QUDPosteriorFromInference = function(question){
+  return Infer({method: 'enumerate'}, function() {
+    var qudName = qudPrior();
+    var q_erp = questioner('explicit', qudName);
+    observe(q_erp, question);
+    return qudName;
+  });
+};
+
+var nameToQUD = function(qudName){
+  return (qudName == "qudTime" ? qudTime :
+          qudName == "qudPrice" ? qudPrice :
+          qudName == "identity" ? function(v) {return v} :
+          console.error('unknown qud name', qudName));
+};
+
+//  -------
+// | Models |
+//  -------
+                                                                         
+var getProjectedWorldPrior = function(qudName) {                             
+  var qud = nameToQUD(qudName);                                              
+  return Infer({method: 'enumerate'}, function(){                            
+    return qud(worldPrior());                                                
+  });                                                                        
+};                                                                           
+
+var rationality = 1;
+
+var questioner = function(type, qudName) {
+  return Infer({method: 'enumerate'}, function() {
+    var question = questionPrior();
+    var possibleAnswer = Infer({method: 'enumerate'}, function(){
+      var trueWorld = worldPrior();
+      return sample(answerer(type, question, trueWorld));
+    });
+    var infGain = function(answer){
+      var prior = getProjectedWorldPrior(qudName);
+      var posterior = Infer({method: 'enumerate'}, function(){
+        var world = worldPrior();
+        observe(answerer(type, question, world), answer);
+        return nameToQUD(qudName)(world);
+      });
+      return KL(posterior, prior);
+    };
+    factor(expectation(possibleAnswer, infGain) * rationality);
+    return question;
+  });
+};
+
+var answerer = function(type, question, trueWorld) {
+  var truthfulAnswerPrior = makeTruthfulAnswerPrior(trueWorld);
+  var qudPosterior = (type === 'pragmatic' ? QUDPosteriorFromInference(question) :
+                      type === 'explicit' ? QUDPosteriorFromMeaning(question) :
+                      type === 'literal' ? Delta({v: 'identity'}) :
+                      console.error('type not recognized'));
+  return Infer({method: 'enumerate'}, function(){
+    var qud = nameToQUD(sample(qudPosterior));
+    var answer = sample(truthfulAnswerPrior);
+    var utility = expectation(interpreter(answer), function(possibleWorld) {
+      return _.isEqual(qud(possibleWorld), qud(trueWorld))
+    });
+    factor(Math.log(utility) * rationality);      
+    return answer;
+  });
+};
+
+var world = {price: 4, time: 8};
+
+print('A0:');
+viz.table(answerer('literal', timeQuestion, world))
+viz.table(answerer('literal', priceQuestion, world))
+
+print('A1:');
+viz.table(answerer('explicit', timeQuestion, world))
+viz.table(answerer('explicit', priceQuestion, world))
+
+print('A2:')
+viz.table(answerer('pragmatic', timeQuestion, world))
+viz.table(answerer('pragmatic', priceQuestion, world))
+~~~~
+
+### Sensitivity to context
 
 Depending on the context, liquor merchants will be more or less likely to give over-informative answers. Our model accounts for this via inference about the underlying goal, given the context.
 
@@ -30,18 +238,14 @@ var KL = function(erpTrue, erpApprox){
 var buyWhiskeyContext = "I'd like to buy some whiskey.";
 var spendFiveDollarsContext = "I only have $5 to spend.";
 
-var prices = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+var prices = [1,2,3,4, 5, 6,7,8,9,10];
 
 var isNumeric = function(x){
   return _.includes(prices, x);
 };
 
 var worldPrior = function(){
-  return [uniformDraw(prices)];
-};
-
-var price = function(world){
-  return world[0];
+  return uniformDraw(prices);
 };
 
 //  -------------------
@@ -51,7 +255,7 @@ var price = function(world){
 var isMoreThanFiveQuestion = "Does Jim Beam cost more than $5?";
 
 var isMoreThanFiveQuestionMeaning = function(world){
-  return price(world) < 5;
+  return world > 5;
 };
 
 var questions = [isMoreThanFiveQuestion];
@@ -64,8 +268,7 @@ var questionPrior = function(){
 // | Answer knowledge |
 //  -----------------
 
-var literalAnswers = ["yes, the whiskey costs more than $5",
-                      "no, the whiskey costs less than $5"];
+var literalAnswers = ["yes", "no"];
 
 var priceAnswers = map(function(p) {return "the whiskey costs $" + p;}, prices);
 
@@ -76,13 +279,13 @@ var answerPrior = function(){
 
 var numericAnswerMeaning = function(number){
   return function(world){
-    return price(world) == number;
+    return world == number;
   };
 };
 
 var booleanAnswerMeaning = function(bool){
   return function(world){
-    return (price(world) > 5) == bool;
+    return (world > 5) == bool;
   };
 };
 
@@ -91,10 +294,10 @@ var booleanAnswerMeaning = function(bool){
 //   -----------
 
 var meaning = function(utterance){
-  return ((utterance === "yes, the whiskey costs more than $5") ? booleanAnswerMeaning(true) :
-          (utterance === "no, the whiskey costs less than $5") ? booleanAnswerMeaning(false) :
+  return ((utterance === "yes") ? booleanAnswerMeaning(true) :
+          (utterance === "no") ? booleanAnswerMeaning(false) :
           (utterance === isMoreThanFiveQuestion) ? isMoreThanFiveQuestionMeaning :
-          _.includes(priceAnswers, utterance) ? numericAnswerMeaning(last(utterance.split('$'))*1) :
+          _.includes(priceAnswers, utterance) ? numericAnswerMeaning(last(utterance.split('$'))*1.0) :
           console.error('unknown utterance!', utterance));
 };
                                                                               
@@ -119,8 +322,8 @@ var makeTruthfulAnswerPrior = function(trueWorld) {
 // | QUDs |
 //  ------
 
-var qudPrice = function(world){return price(world);};
-var qudPriceGreaterThan5 = function(world){return price(world) > 5;};
+var qudPrice = function(world){return world;};
+var qudPriceGreaterThan5 = function(world){return world > 5;};
 
 var qudPrior = function(context){
   var p = ((context === buyWhiskeyContext) ? 0.5 :
@@ -129,25 +332,33 @@ var qudPrior = function(context){
   return (flip(p) ? "qudPriceGreaterThan5" : "qudPrice");
 };
 
+var QUDPosteriorFromMeaning = function(question) {
+  var questionMeaning = (question === isMoreThanFiveQuestion ? 
+                         "qudPriceGreaterThan5" : 
+                         console.error('unknown question'));
+  return Delta({v: questionMeaning})
+};
+
+var QUDPosteriorFromInference = function(question, context){
+  return Infer({method: 'enumerate'}, function() {
+    var qudName = qudPrior(context);
+    var q_erp = questioner('explicit', qudName);
+    observe(q_erp, question);
+    return qudName;
+  });
+};
+
 var nameToQUD = function(qudName){
   return (qudName == "qudPriceGreaterThan5" ? qudPriceGreaterThan5 :
           qudName == "qudPrice" ? qudPrice :
-          qudName == isMoreThanFiveQuestion ? isMoreThanFiveQuestionMeaning :
+          qudName == "identity" ? function(v) {return v} :
           console.error('unknown qud name', qudName));
 };
 
 //  -------
 // | Models |
 //  -------
-
-var getConsistentWorlds = function(answer, qudName) {                        
-  var qud = nameToQUD(qudName);                                              
-  return Infer({method: 'enumerate'}, function(){                            
-    var inferredWorld = sample(interpreter(answer));                         
-    return qud(inferredWorld);                                               
-  });                                                                        
-};                                                                           
-                                                                             
+                                                                         
 var getProjectedWorldPrior = function(qudName) {                             
   var qud = nameToQUD(qudName);                                              
   return Infer({method: 'enumerate'}, function(){                            
@@ -155,61 +366,388 @@ var getProjectedWorldPrior = function(qudName) {
   });                                                                        
 };                                                                           
 
-var explicitAnswerer = cache(function(question, trueWorld, rationality) {              
-  var qud = nameToQUD(question);                                                       
+var rationality = 1;
+
+var questioner = function(type, qudName) {
+  return Infer({method: 'enumerate'}, function() {
+    var question = questionPrior();
+    var possibleAnswer = Infer({method: 'enumerate'}, function(){
+      var trueWorld = worldPrior();
+      return sample(answerer(type, question, trueWorld));
+    });
+    var infGain = function(answer){
+      var prior = getProjectedWorldPrior(qudName);
+      var posterior = Infer({method: 'enumerate'}, function(){
+        var world = worldPrior();
+        observe(answerer(type, question, world), answer);
+        return nameToQUD(qudName)(world);
+      });
+      return KL(posterior, prior);
+    };
+    factor(expectation(possibleAnswer, infGain) * rationality);
+    return question;
+  });
+};
+
+var answerer = function(type, question, trueWorld, context) {
   var truthfulAnswerPrior = makeTruthfulAnswerPrior(trueWorld);
-  return Infer({method: 'enumerate'}, function(){                    
-    var answer = sample(truthfulAnswerPrior);                                                        
-    var consistentWorldDist = getConsistentWorlds(answer, question);                   
-    factor(consistentWorldDist.score(qud(trueWorld)) * rationality);                   
-    return answer;                                                                     
-  });                                                                                  
-});                                                                                    
-                                                                                       
-var explicitQuestioner = cache(function(qudName, rationality) {                        
-  return Infer({method: 'enumerate'}, function(){                                      
-    var question = questionPrior();                                                    
-    var prior = getProjectedWorldPrior(qudName);                                       
-    var informationGainDist = Infer({method: 'enumerate'}, function(){                 
-      var trueWorld = worldPrior();                                                    
-      var possibleAnswer = sample(explicitAnswerer(question, trueWorld, rationality)); 
-      var posterior = getConsistentWorlds(possibleAnswer, qudName);                    
-      return KL(posterior, prior);                                                     
-    });                                                                                
-    factor(expectation(informationGainDist) * rationality);                            
-    return question;                                                                   
-  });                                                                                  
-});                                                                                    
-                                                                                       
+  var qudPosterior = (type === 'pragmatic' ? QUDPosteriorFromInference(question, context) :
+                      type === 'explicit' ? QUDPosteriorFromMeaning(question) :
+                      type === 'literal' ? Delta({v: 'identity'}) :
+                      console.error('type not recognized'));
+  return Infer({method: 'enumerate'}, function(){
+    var qud = nameToQUD(sample(qudPosterior));
+    var answer = sample(truthfulAnswerPrior);
+    var utility = expectation(interpreter(answer), function(possibleWorld) {
+      return qud(possibleWorld) === qud(trueWorld);
+    });
+    factor(Math.log(utility) * rationality);      
+    return answer;
+  });
+};
 
-var inferQUD = cache(function(context, question, rationality){    
-  return Infer({method: 'enumerate'}, function() {                
-    var qudName = qudPrior(context);                              
-    var q_erp = explicitQuestioner(qudName, rationality);         
-    observe(q_erp, question);                                     
-    return qudName;                                               
-  });                                                             
-});                                                               
+var world = 4;
 
-var pragmaticAnswerer = cache(function(context, question, trueWorld, rationality){    
-  var qudPosterior = inferQUD(context, question, rationality);                        
-  var truthfulAnswerPrior = makeTruthfulAnswerPrior(trueWorld);
-  return Infer({method: 'enumerate'}, function(){                 
-    var qudName = sample(qudPosterior);                                               
-    var answer = sample(truthfulAnswerPrior);                                                        
-    var consistentWorldDist = getConsistentWorlds(answer, qudName);                   
-    factor(consistentWorldDist.score(nameToQUD(qudName)(trueWorld)) * rationality);   
-    return answer;                                                                    
-  });                                                                                 
-});     
+print('A0:');
+viz.table(answerer('literal', isMoreThanFiveQuestion, world,  buyWhiskeyContext))
+viz.table(answerer('literal', isMoreThanFiveQuestion, world,  spendFiveDollarsContext))
 
-var world = [4];
+print('A1:');
+viz.table(answerer('explicit', isMoreThanFiveQuestion, world,  buyWhiskeyContext))
+viz.table(answerer('explicit', isMoreThanFiveQuestion, world,  spendFiveDollarsContext))
 
-print(buyWhiskeyContext + " " + isMoreThanFiveQuestion);
-viz(pragmaticAnswerer(buyWhiskeyContext, isMoreThanFiveQuestion, world, 1));
+print('A2:')
+viz.table(answerer('pragmatic', isMoreThanFiveQuestion, world,  buyWhiskeyContext))
+viz.table(answerer('pragmatic', isMoreThanFiveQuestion, world,  spendFiveDollarsContext))
+~~~~
 
-print(spendFiveDollarsContext + " " + isMoreThanFiveQuestion);
-viz(pragmaticAnswerer(spendFiveDollarsContext, isMoreThanFiveQuestion, world, 1));
+### Clark (1979) credit cards example
+
+Our final example demonstrates how our pragmatic answerer can use Gricean reasoning to infer underlying goals directly from the question utterance (via a model of the questioner) instead of using broader context clues.
+
+~~~~
+///fold:
+var KL = function(erpTrue, erpApprox){
+  var values = erpTrue.support([]);
+  return sum(map(
+    function(value){
+      var scoreP = erpTrue.score(value);
+      var scoreQ = erpApprox.score(value);
+      var probP = Math.exp(scoreP);
+      return probP == 0.0 ? 0.0 : probP * (scoreP - scoreQ);
+    }, values));
+};
+
+var flatten = function(xs){
+  if (xs.length == 0) {
+    return [];
+  } else {
+    return xs[0].concat(flatten(xs.slice(1)));
+  }
+};
+
+var powerset = function(set) {
+  if (set.length == 0)
+    return [[]];
+  else {
+    var rest = powerset(set.slice(1));
+    return map(
+      function(element) {
+        return [set[0]].concat(element);
+      },
+      rest).concat(rest);
+  }
+}
+
+var getFilteredCardList = function(world) {
+  var cardList = map(function(value) {
+    var hasCard = world[value];
+    if(hasCard) {
+      return value;
+    } else {
+      return []
+    }
+  }, _.keys(world))
+
+  var filteredCardList = filter(function(val){
+    if(_.isEmpty(val))
+      return false
+    else
+      return true
+  }, cardList)
+
+  return filteredCardList;
+}
+
+var allFalse = function(boolList) {
+  return reduce(function(val, memo) {
+    return !val && memo;
+  }, true, boolList)
+}
+
+var butLast = function(xs){
+  return xs.slice(0, xs.length-1);
+};
+
+var checkExhaustive = function(answer, trueWorld) {
+  var cardsAccepted = filter(function(key){
+    return trueWorld[key];
+  }, _.keys(trueWorld));
+  return _.isEqual(answer, cardsAccepted);
+};
+
+var cardLikelihoods = {
+  'Visa' : 0.72,
+  'MasterCard' : 0.71,
+  'AmericanExpress' : 0.5,
+  'Diners' : 0.12,
+  'CarteBlanche' : 0.10
+};
+
+var cardSetLikelihood = function(cardSet) {
+  var cardsNotInSet = _.difference(cardTypes, cardSet);
+  var inSetScore = reduce(function(v, memo){
+    return memo * cardLikelihoods[v];
+  }, 1, cardSet);
+  var outOfSetScore = reduce(function(v, memo) {
+    return memo * (1 - cardLikelihoods[v]);
+  }, 1, cardsNotInSet);
+  return inSetScore * outOfSetScore;
+};
+
+var getCardFromQuestion = function(q) {
+  return butLast(last(q.split(' ')))
+}
+///
+
+
+// --------------------------------------------------------------------
+
+//   ---------------
+// | World knowledge |
+//   ---------------
+
+var cardTypes = ['Visa','MasterCard', 'AmericanExpress', 'Diners', 'CarteBlanche'];
+
+var cardPowerSet = powerset(cardTypes);
+
+// Reflect real probabilities of acceptance from Clark
+var worldPrior = function(){
+  return {
+    'Visa' : flip(cardLikelihoods['Visa']),
+    'MasterCard' : flip(cardLikelihoods['MasterCard']),
+    'AmericanExpress' : flip(cardLikelihoods['AmericanExpress']),
+    'Diners' : flip(cardLikelihoods['Diners']),
+    'CarteBlanche' : flip(cardLikelihoods['CarteBlanche'])
+  };
+};
+
+//  -------------------
+// | Question knowledge |
+//  -------------------
+
+var cardQuestions = map(function(s) {return "Do you accept " + s + "?"}, cardTypes);
+var cardQuestionMeaning = function(card) {
+  return function(world) {return world[card]}
+}
+
+var creditCardsQuestion = "Do you accept credit cards?";
+var creditCardsQuestionMeaning = function(world){
+  return _.some(_.values(world));
+};
+
+var questions = cardQuestions.concat([creditCardsQuestion])
+var questionPrior = function(){return uniformDraw(questions)};
+
+//  -----------------
+// | Answer knowledge |
+//  -----------------
+
+var cardAnswerSpace = powerset(cardTypes);
+var booleanAnswerSpace = ["yes", "no"];
+
+// 'yes' 'no' or some combination of cards
+var answerPrior = function(){
+  return (flip(0.5) ?
+          uniformDraw(booleanAnswerSpace) :
+          uniformDraw(cardAnswerSpace));
+};
+
+var cardAnswerMeaning = function(cardList){
+  return function(questionMeaning){
+    return function(world){
+      return _.every(map(function(card) {return world[card]}, cardList));
+    };
+  };
+};
+
+var booleanAnswerMeaning = function(bool){
+  return function(questionMeaning){
+    return function(world){return questionMeaning(world) == bool}
+  }
+}
+
+var cardUtterance = function(utterance) {
+  var filteredList = filter(function(x) {
+    return _.isEqual(x, utterance);
+  }, cardAnswerSpace);
+  return !_.isEmpty(filteredList);
+};
+
+var booleanUtterance = function(utterance) {
+  var filteredList = filter(function(x) {
+    return _.isEqual(x, utterance);
+  }, booleanAnswerSpace);
+  return !_.isEmpty(filteredList);
+};
+
+//   -----------
+// | Interpreter |
+//   -----------
+
+var meaning = function(utterance){
+  return (utterance === "yes" ? booleanAnswerMeaning(true) :
+          utterance === "no" ? booleanAnswerMeaning(false) :
+          cardUtterance(utterance) ? cardAnswerMeaning(utterance) :
+          _.includes(cardQuestions, utterance) ? cardQuestionMeaning(getCardFromQuestion(utterance)) :
+          utterance === creditCardsQuestion ? creditCardsQuestionMeaning :
+          console.error('unknown utterance in meaning!', utterance));
+};
+
+var interpreter = cache(function(question, answer){
+  return Infer({method: 'enumerate', model: function(){
+    var world = worldPrior();
+    var answerMeaning = meaning(answer);
+    var questionMeaning = meaning(question);
+    condition(answerMeaning(questionMeaning)(world));
+    return world;
+  }});
+}); 
+
+var makeTruthfulAnswerPrior = function(question, trueWorld) {
+  var truthfulAnswerPrior = Enumerate(function(){
+    var answer = answerPrior();
+    var possibleWorlds = interpreter(question, answer);
+    var containsTrueWorld = _.some(map(function(v){
+      return _.isEqual(trueWorld, v);
+    }, possibleWorlds.support()));
+    var exhaustive = (cardUtterance(answer)
+                      ? checkExhaustive(answer, trueWorld)
+                      : true);
+    condition(containsTrueWorld & exhaustive);
+    return answer;
+  });
+  return truthfulAnswerPrior;
+};
+
+//  ------
+// | QUDs |
+//  ------
+
+var qudPrior = function(){
+  var filteredPowerSet = filter(function(set){return !_.isEmpty(set)}, cardPowerSet);
+  var cardSet = uniformDraw(filteredPowerSet);
+  factor(cardSetLikelihood(cardSet));
+  return "QUD" + cardSet;
+};
+
+var nameToQUD = function(qudName) {
+  var cardList = qudName.slice(3).split(",");
+  return function(world){
+    return _.some(map(function(card){return world[card]}, cardList));
+  };
+};
+
+var QUDPosteriorFromInference = function(question){
+  return Infer({method: 'enumerate'}, function() {
+    var qudName = qudPrior();
+    var q_erp = questioner('explicit', qudName);
+    observe(q_erp, question);
+    return qudName;
+  });
+};
+
+var QUDPosteriorFromMeaning = function(question){
+  var correspondingQUD = (_.includes(cardQuestions, question) ?
+                          "QUD" + getCardFromQuestion(question) :
+                          "QUD" + cardTypes.join(','));
+  return Delta({v: correspondingQUD});
+};
+
+//  -------
+// | Models |
+//  -------
+
+var getProjectedWorldPrior = function(qudName) {
+  var qud = nameToQUD(qudName);
+  return Infer({method: 'enumerate'}, function(){return qud(worldPrior())});
+};
+
+var rationality = 10000;
+
+var questioner = function(type, qudName) {
+  return Infer({method: 'enumerate'}, function() {
+    var question = questionPrior();
+    var possibleAnswer = Infer({method: 'enumerate'}, function(){
+      var trueWorld = worldPrior();
+      return sample(answerer(type, question, trueWorld));
+    });
+    var infGain = function(answer){
+      var prior = getProjectedWorldPrior(qudName);
+      var posterior = Infer({method: 'enumerate'}, function(){
+        var world = worldPrior();
+        observe(answerer(type, question, world), answer);
+        return nameToQUD(qudName)(world);
+      });
+      return KL(posterior, prior);
+    };
+    factor(expectation(possibleAnswer, infGain) * rationality);
+    return question;
+  });
+};
+
+var answerer = dp.cache(function(type, question, trueWorld) {
+  var truthfulAnswerPrior = makeTruthfulAnswerPrior(question, trueWorld);
+  var qudPosterior = (type === 'pragmatic' ? QUDPosteriorFromInference(question) :
+                      type === 'explicit' ? QUDPosteriorFromMeaning(question) :
+                      type === 'literal' ? Delta({v: 'identity'}) :
+                      console.error('type not recognized'));
+  return Infer({method: 'enumerate'}, function(){
+    var qud = nameToQUD(sample(qudPosterior));
+    var answer = sample(truthfulAnswerPrior);
+    var utility = expectation(interpreter(question, answer), function(possibleWorld) {
+      return qud(possibleWorld) === qud(trueWorld);
+    });
+    factor(Math.log(utility) * rationality);      
+    return answer;
+  });
+})
+
+var world = {
+  'Visa' : false,
+  'MasterCard' : true,
+  'AmericanExpress' : false,
+  'Diners' : false,
+  'CarteBlanche' : false
+};
+
+var context = 'credit cards';
+var runModel = function(question) {
+  return expectation(Infer({method: 'enumerate', model: function(){
+    var trueWorld = worldPrior();
+    var ans = answerer('pragmatic', question, trueWorld);
+    return Math.exp(ans.score("yes")) + Math.exp(ans.score("no"));
+  }}));
+};
+
+print(questions[1]);
+print(runModel(questions[1]));
+
+print(questions[2]);
+print(runModel(questions[2]));
+
+print(last(questions))
+print(runModel(last(questions)));
 ~~~~
 
 ### Mention-some example
@@ -670,445 +1208,5 @@ viz(Infer({method: 'enumerate', model: function(){return qudPrior(appointmentCon
 
 print("early rounds p = " + runModel("early"));
 print("late rounds p = " + runModel("late"));
-~~~~
-
-### Clark (1979) credit cards example
-
-Our final example demonstrates how our pragmatic answerer can use Gricean reasoning to infer underlying goals directly from the question utterance (via a model of the questioner) instead of using broader context clues.
-
-~~~~
-///fold:
-var mean = function(thunk){
-  return expectation(Enumerate(thunk), function(v){return v;});
-};
-
-var KL = function(erpTrue, erpApprox){
-  var values = erpTrue.support([]);
-  return sum(map(
-    function(value){
-      var scoreP = erpTrue.score(value);
-      var scoreQ = erpApprox.score(value);
-      var probP = Math.exp(scoreP);
-      return probP == 0.0 ? 0.0 : probP * (scoreP - scoreQ);
-    }, values));
-};
-
-var flatten = function(xs){
-  if (xs.length == 0) {
-    return [];
-  } else {
-    return xs[0].concat(flatten(xs.slice(1)));
-  }
-};
-
-var powerset = function(set) {
-  if (set.length == 0)
-    return [[]];
-  else {
-    var rest = powerset(set.slice(1));
-    return map(
-      function(element) {
-        return [set[0]].concat(element);
-      },
-      rest).concat(rest);
-  }
-}
-
-var getFilteredCardList = function(world) {
-  var cardList = map(function(value) {
-    var hasCard = world[value];
-    if(hasCard) {
-      return value;
-    } else {
-      return []
-    }
-  }, _.keys(world))
-
-  var filteredCardList = filter(function(val){
-    if(_.isEmpty(val))
-      return false
-    else
-      return true
-  }, cardList)
-
-  return filteredCardList;
-}
-
-var allFalse = function(boolList) {
-  return reduce(function(val, memo) {
-    return !val && memo;
-  }, true, boolList)
-}
-
-var butLast = function(xs){
-  return xs.slice(0, xs.length-1);
-};
-
-var uniformDraw = function (xs) {
-  return xs[randomInteger(xs.length)];
-};
-
-///
-
-
-// --------------------------------------------------------------------
-
-//   ---------------
-// | World knowledge |
-//   ---------------
-
-var cardTypes = ['Visa','MasterCard', 'AmericanExpress', 'Diners', 'CarteBlanche'];
-
-var cardPowerSet = powerset(cardTypes);
-
-var cardLikelihoods = {
-  'Visa' : 0.72,
-  'MasterCard' : 0.71,
-  'AmericanExpress' : 0.5,
-  'Diners' : 0.12,
-  'CarteBlanche' : 0.10
-};
-
-// Reflect real probabilities of acceptance from Clark
-var worldPrior = function(){
-  return {
-    'Visa' : flip(cardLikelihoods['Visa']),
-    'MasterCard' : flip(cardLikelihoods['MasterCard']),
-    'AmericanExpress' : flip(cardLikelihoods['AmericanExpress']),
-    'Diners' : flip(cardLikelihoods['Diners']),
-    'CarteBlanche' : flip(cardLikelihoods['CarteBlanche'])
-  };
-};
-
-var interestedInCard = function(world, card) {
-  if(_.contains(_.keys(world), card))
-    return world[card];
-  else
-    return false;
-};
-
-//  -------------------
-// | Question knowledge |
-//  -------------------
-
-var masterCardQuestion = "Do you accept Master Card?";
-var masterCardQuestionMeaning = function(world){
-  return world['MasterCard'];
-};
-
-var VisaQuestion = "Do you accept Visa card?";
-var VisaQuestionMeaning = function(world){
-  return world['Visa'];
-};
-
-var dinersQuestion = "Do you accept Diners card?";
-var dinersQuestionMeaning = function(world){
-  return world['Diners'];
-};
-
-var carteBlancheQuestion = "Do you accept Carte Blanche?";
-var carteBlancheQuestionMeaning = function(world){
-  return world['CarteBlanche'];
-};
-
-var AmericanExpressQuestion = "Do you accept American Express?";
-var AmericanExpressQuestionMeaning = function(world){
-  return world['AmericanExpress'];
-};
-
-var creditCardsQuestion = "Do you accept credit cards?";
-var creditCardsQuestionMeaning = function(world){
-  return _.some(_.values(world));
-};
-
-var questions = [masterCardQuestion, AmericanExpressQuestion, VisaQuestion,
-                 dinersQuestion, carteBlancheQuestion,
-                 creditCardsQuestion];
-
-// Penalize questions for their length
-var questionPrior = function(){
-  var q = uniformDraw(questions);
-  factor(- Math.log(q.split(' ').length));
-  return q;
-};
-
-//  -----------------
-// | Answer knowledge |
-//  -----------------
-
-var cardAnswerSpace = powerset(cardTypes);
-
-var countAnswerCombinations = function(n) {
-  return filter(function(l) {return l.length == n;}, cardAnswerSpace).length;
-};
-
-var booleanAnswerSpace = ["yes", "no"];
-
-// Say 'yes' 'no' or some combination of cards
-var answerPrior = function(){
-  // prefer yes/no over detailed answer
-  return (flip(0.5) ?
-          uniformDraw(booleanAnswerSpace) :
-          uniformDraw(cardAnswerSpace));
-};
-
-var cardAnswerMeaning = function(cardList){
-  return function(questionMeaning){
-    return function(world){
-      return _.every(map(function(card) {
-        return world[card];
-      }, cardList));
-    };
-  };
-};
-
-var booleanAnswerMeaning = function(bool){
-  return function(questionMeaning){
-    return function(world){
-      if (questionMeaning == masterCardQuestionMeaning){
-        return (world['MasterCard'] == bool);
-      } else if (questionMeaning == VisaQuestionMeaning) {
-        return (world['Visa'] == bool);
-      } else if (questionMeaning == carteBlancheQuestionMeaning) {
-        return (world['CarteBlanche'] == bool);
-      } else if (questionMeaning == dinersQuestionMeaning) {
-        return (world['Diners'] == bool);
-      } else if (questionMeaning == AmericanExpressQuestionMeaning){
-        return (world['AmericanExpress'] == bool);
-      } else if (questionMeaning == creditCardsQuestionMeaning){
-        return (_.some(_.values(world)) == bool);
-      } else {
-        console.error("unknown question meaning");
-      }
-    };
-  };
-};
-
-var noneMeaning = function() {
-  return function(questionMeaning){
-    return function(world){
-      var areTheyInterestedInCards = map(function(card) {
-        isInterestedInCard(world, card);
-      }, cardTypes);
-      return allFalse(areTheyInterestedInCards);
-    };
-  };
-};
-
-var cardUtterance = function(utterance) {
-  var filteredList = filter(function(x) {
-    return _.isEqual(x, utterance);
-  }, cardAnswerSpace);
-  return !_.isEmpty(filteredList);
-};
-
-var booleanUtterance = function(utterance) {
-  var filteredList = filter(function(x) {
-    return _.isEqual(x, utterance);
-  }, booleanAnswerSpace);
-  return !_.isEmpty(filteredList);
-};
-
-//   -----------
-// | Interpreter |
-//   -----------
-
-var meaning = function(utterance){
-  return (utterance === "yes" ? booleanAnswerMeaning(true) :
-          utterance === "no" ? booleanAnswerMeaning(false) :
-          cardUtterance(utterance) ? cardAnswerMeaning(utterance) :
-          _.isEqual(utterance, [ "none" ]) ? noneMeaning() :
-          (utterance === masterCardQuestion) ? masterCardQuestionMeaning :
-          (utterance === VisaQuestion) ? VisaQuestionMeaning :
-          (utterance === dinersQuestion) ? dinersQuestionMeaning :
-          (utterance === carteBlancheQuestion) ? carteBlancheQuestionMeaning :
-          (utterance === AmericanExpressQuestion) ? AmericanExpressQuestionMeaning :
-          (utterance === creditCardsQuestion) ? creditCardsQuestionMeaning :
-          console.error('unknown utterance in meaning!', utterance));
-};
-
-var interpreter = cache(function(question, answer){
-  return Infer({method: 'enumerate', model: function(){
-    var world = worldPrior();
-    var answerMeaning = meaning(answer);
-    var questionMeaning = meaning(question);
-    condition(answerMeaning(questionMeaning)(world));
-    return world;
-  }});
-}); 
-
-var checkExhaustive = function(answer, trueWorld) {
-  var cardsAccepted = filter(function(key){
-    return trueWorld[key];
-  }, _.keys(trueWorld));
-  return _.isEqual(answer, cardsAccepted);
-};
-
-var makeTruthfulAnswerPrior = function(question, trueWorld) {
-  var truthfulAnswerPrior = Enumerate(function(){
-    var answer = answerPrior();
-    var possibleWorlds = interpreter(question, answer);
-    var containsTrueWorld = _.some(map(function(v){
-      return _.isEqual(trueWorld, v);
-    }, possibleWorlds.support()));
-    var exhaustive = (cardUtterance(answer)
-                      ? checkExhaustive(answer, trueWorld)
-                      : true);
-    condition(containsTrueWorld & exhaustive);
-    return answer;
-  });
-  return truthfulAnswerPrior;
-};
-
-//  ------
-// | QUDs |
-//  ------
-
-var qudFactory = function(cardString) {
-  var cardList = cardString.split(",");
-  return function(world){
-    return _.some(map(function(card){
-      return world[card];
-    }, cardList));
-  };
-};
-
-var cardSetLikelihood = function(cardSet) {
-  var cardsNotInSet = _.difference(cardTypes, cardSet);
-  var inSetScore = reduce(function(v, memo){
-    return memo * cardLikelihoods[v];
-  }, 1, cardSet);
-  var outOfSetScore = reduce(function(v, memo) {
-    return memo * (1 - cardLikelihoods[v]);
-  }, 1, cardsNotInSet);
-  return inSetScore * outOfSetScore;
-};
-
-var qudPrior = function(context){
-  return "QUD" + cardSetPrior();
-};
-
-var cardSetPrior = function(){
-  var filteredPowerSet = filter(function(cardSet){
-    return !_.isEmpty(cardSet);
-  }, cardPowerSet);
-  var cardSet = uniformDraw(filteredPowerSet);
-  factor(cardSetLikelihood(cardSet));
-  return cardSet;
-};
-
-var nameToQUD = function(qudName){
-  if (qudName == masterCardQuestion) {
-    return masterCardQuestionMeaning;
-  } else if (qudName == VisaQuestion) {
-    return VisaQuestionMeaning;
-  } else if (qudName == dinersQuestion) {
-    return dinersQuestionMeaning;
-  } else if (qudName == carteBlancheQuestion) {
-    return carteBlancheQuestionMeaning;
-  } else if (qudName == AmericanExpressQuestion) {
-    return AmericanExpressQuestionMeaning;
-  } else if (qudName == creditCardsQuestion) {
-    return creditCardsQuestionMeaning;
-  } else if (qudName.slice(0,3) === "QUD") {
-    return qudFactory(qudName.slice(3));
-  }
-};
-
-//  -------
-// | Models |
-//  -------
-
-var getConsistentWorlds = function(question, answer, qudName) {
-  var qud = nameToQUD(qudName);
-  return Infer({method: 'enumerate'}, function(){
-    var inferredWorld = sample(interpreter(question, answer));
-    return qud(inferredWorld);
-  });
-};
-
-var getProjectedWorldPrior = function(qudName) {
-  var qud = nameToQUD(qudName);
-  return Infer({method: 'enumerate'}, function(){
-    return qud(worldPrior());
-  });
-};
-
-var explicitAnswerer = cache(function(question, trueWorld, rationality) {
-  var qud = nameToQUD(question);
-  var truthfulAnswerPrior = makeTruthfulAnswerPrior(question, trueWorld)
-  return Infer({method: 'enumerate'}, function(){
-    var answer = sample(truthfulAnswerPrior);
-    var consistentWorldDist = getConsistentWorlds(question, answer, question);
-    factor(consistentWorldDist.score(qud(trueWorld)) * rationality);
-    return answer;
-  });
-});
-
-var explicitQuestioner = cache(function(qudName, rationality) {
-  return Infer({method: 'enumerate'}, function(){
-    var question = questionPrior();
-    var prior = getProjectedWorldPrior(qudName);
-    var informationGainDist = Infer({method: 'enumerate'}, function(){
-      var trueWorld = worldPrior();
-      var possibleAnswer = sample(explicitAnswerer(question, trueWorld, rationality));
-      var posterior = getConsistentWorlds(question, possibleAnswer, qudName);
-      return KL(posterior, prior);
-    });
-    factor(expectation(informationGainDist) * rationality);
-    return question;
-  });
-});
-
-var inferQUD = cache(function(context, question, rationality){
-  return Infer({method: 'enumerate'}, function() {
-    var qudName = qudPrior(context);
-    var q_erp = explicitQuestioner(qudName, rationality);
-    observe(q_erp, question);
-    return qudName;
-  });
-});
-
-var pragmaticAnswerer = cache(function(context, question, trueWorld, rationality){
-  var qudPosterior = inferQUD(context, question, rationality);
-  var truthfulAnswerPrior = makeTruthfulAnswerPrior(question, trueWorld);
-  return Infer({method: 'enumerate'}, function(){
-    var qudName = sample(qudPosterior);
-    var answer = sample(truthfulAnswerPrior);
-    var consistentWorldDist = getConsistentWorlds(question, answer, qudName);
-    factor(consistentWorldDist.score(nameToQUD(qudName)(trueWorld)) * rationality);
-    return answer;
-  });
-});
-
-var world = {
-  'Visa' : true,
-  'MasterCard' : false,
-  'AmericanExpress' : true,
-  'Diners' : false,
-  'CarteBlanche' : false
-};
-
-var context = 'credit cards';
-// // TODO: fix score argument here to sum over possible keys
-var runModel = function(question) {
-  return expectation(Infer({method: 'enumerate', model: function(){
-    var trueWorld = worldPrior();
-    var ansERP = pragmaticAnswerer(context, question, trueWorld, 10000);
-    return Math.exp(ansERP.score("yes")) + Math.exp(ansERP.score("no"));
-  }}));
-};
-
-print(masterCardQuestion);
-print(runModel(masterCardQuestion));
-
-print(AmericanExpressQuestion);
-print(runModel(AmericanExpressQuestion));
-
-print(creditCardsQuestion);
-print(runModel(creditCardsQuestion));
-
-inferQUD(context, AmericanExpressQuestion, 10000);
-inferQUD(context, creditCardsQuestion, 10000);
 ~~~~
 

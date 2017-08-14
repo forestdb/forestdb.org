@@ -2,7 +2,7 @@
 layout: model
 title: Urn model 
 model-language: webppl
-model-language-version: v0.9.6
+model-language-version: v0.9.9
 ---
 
 ~~~~

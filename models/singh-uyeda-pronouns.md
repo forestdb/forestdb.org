@@ -11,23 +11,16 @@ model-language: webppl
 When using language, the speaker follows principles that are identified as Gricean Maxims. The Maxims that are the most interesting in regards to pronouns are the Maxim of quality (making true statements) and the Maxim of manner (being perspicuous). The main use of pronouns is to make it easier for the speaker and listener to refer to a person (or a group of people) without needing to name him or her at each instance. However, with some sentences, different listeners can arrive at different interpretation.
 
 In the sentence, "John hit Fred and Ellen hit him" the pronoun 'him' can refer to John or Fred (without any extra context). How do we determine who 'him' is referring to?
-$$
-\text{John}_\text{subject} \text{ hit Fred}_\text{object} \text{ and Ellen hit } \text{[him]}_\text{?}
-$$
+
+  - John~subject hit Fred~object and Ellen hit **him**
 
 [Semick and Amsili (2017)](http://www.aclweb.org/anthology/E17-4006) looked at two different strategies:
 
-- Subject Assignment Strategy: resolves the pronoun to the referent in the subject position of the previous clause
+1. Subject Assignment Strategy: resolves the pronoun to the referent in the subject position of the previous clause
+  - John~subject hit Fred~object and Ellen hit him~subject
 
-  $$
-  \text{John}_\text{subject} \text{ hit Fred}_\text{object} \text{ and Ellen hit } \text{[him]}_\text{subject}
-  $$
-  
-- Parallel Function Strategy: resolves the pronoun to the referent with the same syntactic function
-
-  $$
-  \text{John}_\text{subject} \text{ hit Fred}_\text{object} \text{ and Ellen hit } \text{[him]}_\text{object}
-  $$
+2. Parallel Function Strategy: resolves the pronoun to the referent with the same syntactic function
+  - John~subject hit Fred~object and Ellen hit him~object
 
 
 

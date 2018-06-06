@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Daniel, Huynh & Zambrano Politeness QUD
+title: Ho, Huynh & Zambrano Politeness QUD
 model-language: webppl
 ---
 

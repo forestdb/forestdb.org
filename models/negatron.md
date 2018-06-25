@@ -15,15 +15,16 @@ To add:
 
 
 ~~~~
-var makeSingleContext = function(alternative_fruit, n_alternatives, n_with_apples) {
-  // alternative_fruit = {"oranges", false}
-  repeat(n_with_apples, function(){
-    return {fruit: "apples", shirt: "red"}
-  }).concat(
-    repeat(n_alternatives, function(){
-      return {fruit: alternative_fruit, shirt: "red"}
-    })
-  )
+var shirt_colors = ["red shirt", "blue shirt", "green shirt", "yellow shirt"]
+
+var makeSingleContext = function(alternative_fruit, n_with_apples, n_total) {
+  map(function(i){
+    if (i < n_with_apples) {
+      return {fruit: "apples", shirt: shirt_colors[i]}
+    } else {
+      return {fruit: alternative_fruit, shirt: shirt_colors[i]}
+    }
+  }, _.range(0, n_total))
 }
 
 var makeQuadrantContexts =  function(alternative_fruit){
@@ -39,8 +40,8 @@ var allContexts = {
 }
 
 var allReferents = {
-  nonexistence: {fruit: false, shirt: "blue"},
-  alternative: {fruit: "oranges", shirt: "blue"}
+  nonexistence: {fruit: false, shirt: "yellow shirt"},
+  alternative: {fruit: "oranges", shirt: "yellow shirt"}
 }
 
 var isNegation = function(utt){
@@ -48,12 +49,18 @@ var isNegation = function(utt){
 };
 
 // set of utterances
-var utterances = ["apples", "oranges", "no apples", "no oranges"]
-var cost_yes = 0;
-var cost_neg = 2;
+var utterances = [
+  "apples", "oranges", "no apples", "no oranges",
+  "red shirt", "blue shirt", "green shirt", "yellow shirt"
+]
+
+var cost_per_word = 1; // cost of saying 2 words
+var cost_neg = 0; // cost of saying negation (above and beyond cost of 2nd word)
 
 var uttProbs = map(function(u) {
-  return isNegation(u) ? Math.exp(-cost_neg) : Math.exp(-cost_yes)
+  var n_words = u.split(' ').length
+  var uttCost = (n_words - 1)*cost_per_word + isNegation(u)*cost_neg
+  return Math.exp(-uttCost)
 }, utterances)
 
 var utterancePrior = Categorical({
@@ -69,11 +76,15 @@ var objectPrior = function(objects) {
 
 // meaning function to interpret the utterances
 var meaning = function(utterance, obj){
-  var negation = utterance.indexOf("no") > -1; // utterance contains negation?
   // if utt has negation, split off the positive aspect of utterance
-  var u = negation ? utterance.split("no ")[1] : utterance;
+  var u = isNegation(utterance) ? utterance.split("no ")[1] : utterance;
+  // check to see if utt is about shirt or fruit
+  var referent_property = u.indexOf("shirt") > - 1 ? "shirt" : "fruit"
+  // does object have property?
+  var obj_property_val = obj[referent_property] == u? 1 : -1
   // if there's negation, multiply truth value by -1
-  ((negation ? -1 : 1) * ((obj.fruit == u) ? 1 : -1)) == 1 ? 0.999 : 0.001
+  var neg_val = isNegation(utterance) ? -1 : 1
+  return ((neg_val * obj_property_val) == 1) ? 0.999 : 0.001
 }
 
 var qudFns = {
@@ -88,7 +99,7 @@ var literalListener = function(utterance, qud, allObjects){
     var obj = objectPrior(allObjects);
     var qudFn = qudFns[qud]
     condition(flip(meaning(utterance, obj)))
-//     return [obj, qudFn(obj)]
+    //     return [obj, qudFn(obj)]
     return qudFn(obj)
   }})
 }
@@ -109,46 +120,45 @@ var speaker = function(obj, context, qud){
   }})
 }
 
-
-display("--Quadrant 1: nonexistence context, nonexistence referent--")
+display("===Quadrant 1: nonexistence context, nonexistence referent, apples? qud===")
 var allResults = mapIndexed(
   function(i, ctxt){
-    display(i + " out of 3 with apples")
-    viz.table(
-      speaker(allReferents.nonexistence, ctxt, "apples?")
-      )
+    display("----" + i + " out of 3 with apples")
+    var S1 = speaker(allReferents.nonexistence, ctxt, "apples?")
+    display('P(speaker says "no apples") = ' + Math.exp(S1.score("no apples")))
+//     viz.table(S1) // full model predictions
   }, allContexts.nonexistence
 )
 
-// display("--Quadrant 2: nonexistence context, alternative referent--")
-// var allResults = mapIndexed(
-//   function(i, ctxt){
-//     display(i + " out of 3 with apples")
-//     viz.table(
-//       speaker(allReferents.alternative, ctxt, "apples?")
-//       )
-//   }, allContexts.nonexistence
-// )
+display("===Quadrant 2: nonexistence context, alternative referent, apples? qud===")
+var allResults = mapIndexed(
+  function(i, ctxt){
+    display("----" + i + " out of 3 with apples")
+    var S1 = speaker(allReferents.alternative, ctxt, "apples?")
+    display('P(speaker says "no apples") = ' + Math.exp(S1.score("no apples")))
+//     viz.table(S1) // full model predictions
+  }, allContexts.nonexistence
+)
 
-// display("--Quadrant 3: alternative context, nonexistence referent--")
-// var allResults = mapIndexed(
-//   function(i, ctxt){
-//     display(i + " out of 3 with apples")
-//     viz.table(
-//       speaker(allReferents.nonexistence, ctxt, "apples?")
-//       )
-//   }, allContexts.alternative
-// )
+display("===Quadrant 3: alternative context, nonexistence referent, which fruit? qud===")
+var allResults = mapIndexed(
+  function(i, ctxt){
+    display("----" + i + " out of 3 with apples")
+    var S1 = speaker(allReferents.nonexistence, ctxt, "which fruit?")
+    display('P(speaker says "no apples") = ' + Math.exp(S1.score("no apples")))
+//     viz.table(S1) // full model predictions
+  }, allContexts.alternative
+)
 
-// display("--Quadrant 4: alternative context, alternative referent--")
-// var allResults = mapIndexed(
-//   function(i, ctxt){
-//     display(i + " out of 3 with apples")
-//     viz.table(
-//       speaker(allReferents.alternative, ctxt, "apples?")
-//       )
-//   }, allContexts.alternative
-// )
+display("===Quadrant 4: alternative context, alternative referent, which fruit? qud===")
+var allResults = mapIndexed(
+  function(i, ctxt){
+    display("----" + i + " out of 3 with apples")
+    var S1 = speaker(allReferents.alternative, ctxt, "which fruit?")
+    display('P(speaker says "no apples") = ' + Math.exp(S1.score("no apples")))
+//     viz.table(S1) // full model predictions
+  }, allContexts.alternative
+)
 
 ''
 

@@ -9,7 +9,6 @@ Past issues:
 - Issue with meaning fn + utterance prior: Speaker can say utterance that has no referent (e.g., "has oranges" when nobody has oranges). This makes literal listener crash. (Temporary-ish solution: noisy semantics + speaker conditions on saying true things)
 
 To add:
-- shirt support (speaker can talk about shirt color)
 - revisit: some QUD uncertainty (listener might not know it... look to context, but speaker's utterance might trigger the qud as well)
 
 

@@ -116,7 +116,7 @@ restrictedSet(
 
 We can check what happens when both adjectives are used by having them restrict the set of boxes one at a time. In the following code, we calculate the probability that the multi-adjective modification will have correctly classified the intended referent: `{"brown":true,"small":true}`. 
 
-*Note: In the paper, these calculations appear in (13) and (14).*
+*Note: In the paper, these calculations appear in (16) and (17).*
 
 ~~~~
 ///fold:

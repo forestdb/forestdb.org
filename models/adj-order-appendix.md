@@ -4,7 +4,7 @@ title: Adjective ordering parameter exploration
 model-language: webppl
 ---
 
-The following code recreates the exploration of parameter settings for multi-adjective modification from Scontras, Degen, and Goodman (2018).
+The following code implements the exploration of parameter settings for multi-adjective modification from Scontras, Degen, and Goodman (2018).
 
 First, we need a way to generate sets of boxes of varying cardinality. These sets are constrained to have just a single member that is both small and brown (i.e., the intended referent of our multi-adjective modification).
 
@@ -114,7 +114,9 @@ restrictedSet(
 )
 ~~~~
 
-We can check what happens when both adjectives are used by having them restrict the set of boxes one at a time. In the following code, we calculate the probability that the multi-adjective modification will have correctly classified the intended referent: `{"brown":true,"small":true}`.
+We can check what happens when both adjectives are used by having them restrict the set of boxes one at a time. In the following code, we calculate the probability that the multi-adjective modification will have correctly classified the intended referent: `{"brown":true,"small":true}`. 
+
+*Note: In the paper, these calculations appear in (13) and (14).*
 
 ~~~~
 ///fold:
@@ -156,8 +158,12 @@ var defaultOrder = function(objs,smallEps,brownEps) {
          }})
 }
 
+print('probability of correct classification of the intended referent:')
 print('default ordering (i.e., "small brown box"):')
-display(defaultOrder([{"brown":true,"small":true},{"brown":false,"small":true}], 0.64, 0.20))
+display(defaultOrder([{"brown":true,"small":true},
+                      {"brown":true,"small":false},
+                      {"brown":false,"small":true}],
+                     0.64, 0.20))
 
 // check the reverse order
 var reverseOrder = function(objs,smallEps,brownEps) {
@@ -171,10 +177,13 @@ var reverseOrder = function(objs,smallEps,brownEps) {
 }
 
 print('reverse ordering (i.e., "brown small box"):')
-display(reverseOrder([{"brown":true,"small":true},{"brown":false,"small":true}], 0.64, 0.20))
+display(reverseOrder([{"brown":true,"small":true},
+                      {"brown":true,"small":false},
+                      {"brown":false,"small":true}],
+                     0.64, 0.20))
 ~~~~
 
-We now have a way to generate different sets of boxes, and to restrictively modify those sets with multiple adjectives. In order to search the parameter space for those cases where the default order does not yield a higher probability of successful classification of the intended referent, we need a range of possible minimum values for `eps`. We also need a way of systematically checking all of the possible combinations of parameters.
+We now have a way to generate different sets of boxes, and to restrictively modify those sets with multiple adjectives. In order to search the parameter space for those cases where the default order does not yield a higher probability of successful classification of the intended referent, we need a range of possible minimum values for `eps`, `epsBins`. We also need a way of systematically checking all of the possible combinations of parameters, `subjCheck`.
 
 ~~~~
 ///fold:
@@ -397,7 +406,7 @@ When there are **more small objects than brown objects** (i.e., the blue dots in
 
 So far, we've only considered sets of boxes with cardinality 2, but these patterns hold for sets of greater sizes. The following code recreates the analysis reported in Scontras, Degen, and Goodman (2018), which looks at sets with cardinality 2 through 5. 
 
-*Note: this code will take some minutes to run.*
+*Note: This code will take some minutes to run.*
 
 ~~~~
 ///fold:
@@ -426,7 +435,7 @@ var objsGenerator = function(num,list) {
 // generate all the possible sets with a single unique referent
 var objSetsGenerator = function() {
   Infer({model: function() {
-    var cardinalities = [2,3] // check sets of size 2 through 5
+    var cardinalities = [2,3,4,5] // check sets of size 2 through 5
     var cardinality = uniformDraw(cardinalities)
     var objs = objsGenerator(cardinality)
     var refNumber = _.filter(objs, {"brown":true,"small":true}).length

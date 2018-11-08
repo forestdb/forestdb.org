@@ -88,7 +88,7 @@ viz(pragmaticListener("square","squares"))
 Next, we add in a `pragmaticSpeaker` who chooses an utterance, observes the listener's behavior (i.e., the object they think is being referenced), and infers the `belief` that listener used in making their choice.
 
 ~~~~
-/// fold:
+///fold:
 
 // set of states (here: objects of reference)
 // we represent objects as JavaScript objects to demarcate them from utterances
@@ -180,7 +180,7 @@ viz(pragmaticSpeaker("green","green square"))
 Finally, we wrap the model above in an additional layer of inference that calculates the best utterance to inform the `pragmaticSpeaker` about the `pragmaticListener`'s `belief`. This inference finds the utterance that maximizes the KL divergence between the `pragmaticListener` posterior and the flat `beliefPrior`.
 
 ~~~~
-/// fold:
+///fold:
 
 // get probabilities from a distribution
 var distProbs = function(dist, supp) {

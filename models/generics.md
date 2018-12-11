@@ -8,7 +8,7 @@ model-language: webppl
 model-language-version: v0.9.9
 ---
 
-This page is taken from the chapter on generic language from the online web-book [Probabilistic Language Understanding](http://www.problang.org).
+This page describes the model of Ref:tesslerGenerics and is taken from the chapter on generic language from the online web-book [Probabilistic Language Understanding](http://www.problang.org).
 
 Consider the following sentences:
 
@@ -51,8 +51,8 @@ display("Mosquitos carry malaria is true ? " + generic(number_of_mosquitos_that_
 ''
 ~~~~
 
-reft:tessler2016manuscript propose that the core meaning of a generic statement is in fact a threshold as in `generic` above, but underspecified (listener has uncertainty about `theta`).
-Then we can use a Bayesian model to resolve a more precise meaning in context.
+We propose that the core meaning of a generic statement is in fact a threshold function as in `generic` above, but underspecified (listener has uncertainty about `theta`).
+Then we can use a Bayesian model to resolve the threshold in context.
 
 ### Bayesian generic language interpretation
 
@@ -292,7 +292,7 @@ listener("generic")
 > 1. Come up with parameters for the prior that represent the *lays eggs* distribution. Test the listener's interpretation of a generic (*Wugs lay eggs*).
 > 1. Come up with parameters for the prior that represent the *are female* distribution. Test the listener's interpretation of a generic (*Wugs are female*).
 
-So we have a model that can interpret generic language (with a very simple semantics). We can now imagine a speaker who thinks about this type of listener, and decides if a generic utterance is a good thing to say. Speaker models are interpreted as models of utterance production, or endorsement (reft:DegenGoodman2014Cogsci; reft:Franke2014). If we specify the alternative utterance to be a *null* utterance (or, *silence*), we model the choice between uttering the generic (i.e., endorsing its truth) or nothing at all (i.e., not endorsing its truth). (Note: You could also think about truth judgments with the alternative of saying the negation, e.g., it's not the case that Ks have F. Model behavior is very similar using that alternative in this case.)
+So we have a model that can interpret generic language (with a very simple semantics). We can now imagine a speaker who thinks about this type of listener, and decides if a generic utterance is a good thing to say. Speaker models are interpreted as models of utterance production, or endorsement. If we specify the alternative utterance to be a *null* utterance (or, *silence*), we model the choice between uttering the generic (i.e., endorsing its truth) or nothing at all (i.e., not endorsing its truth). (Note: You could also think about truth judgments with the alternative of saying the negation, e.g., it's not the case that Ks have F. Model behavior is very similar using that alternative in this case.)
 
 ~~~~
 ///fold:

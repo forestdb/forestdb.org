@@ -5,7 +5,7 @@ model-status: code
 model-category: Reasoning about Reasoning
 model-tags: language, generics, vagueness, pragmatics
 model-language: webppl
-model-language-version: pre-v0.7
+model-language-version: v0.9.9
 ---
 
 <script src="http://web.stanford.edu/~erindb/webppl-viz/webppl.min.js"></script>  
@@ -13,37 +13,37 @@ model-language-version: pre-v0.7
 
 This is a model of generic language used in Ref:tesslerGenerics.
 
-The model takes the generic [[K has F]] to mean the prevalence of 
+The model takes the generic [[K has F]] to mean the prevalence of
 property F within kind K --- i.e., P(F | K) --- is above some threshold.
-This threshold --- `tau` --- is thought to be in general unknown 
-(`tau~uniform(0,1)`) and must be inferred in context. 
+This threshold --- `tau` --- is thought to be in general unknown
+(`tau~uniform(0,1)`) and must be inferred in context.
 
 Context here takes the form of the listener and speakers shared beliefs
 about the property in question. The shape of this distribution
-affects model predictions, because the threshold must be calibrated to make utterances 
-truthful and informative. The shape of this distribution varies significantly 
-among different properties (e.g. *lays eggs*, *carries malaria*), and may 
+affects model predictions, because the threshold must be calibrated to make utterances
+truthful and informative. The shape of this distribution varies significantly
+among different properties (e.g. *lays eggs*, *carries malaria*), and may
 be the result of a deeper conceptual model of the world. For instance,
 if speakers and listeners believe that some kinds have a causal mechanism that
 could give rise to the property, while others do not, then we would expect
-teh prior to be structured as a mixture distribution 
-(Cf. Griffiths & Tenenbaum, 2005). 
+teh prior to be structured as a mixture distribution
+(Cf. Griffiths & Tenenbaum, 2005).
 
 ## Prior model
 
 The following model `structuredPriorModel` instantiates this idea.
 `theta` is the potential of a property F to be present in a kind.
-This can also be thought of the prevalence of the property at a 
+This can also be thought of the prevalence of the property at a
 category levels (what % of kinds have this property present within the kind?).
 For example, "lays eggs" is present in ducks, swans, fish, but not kangaroos or giraffes.
 "Are female" is present in almost all kinds.
 "Carries malaria" is present in almost no kinds.
 `gamma` is the *mean prevelence when the property is present*.
-Knowing that the property is present in a kind, what % of the kind do you 
-expect to have it? 
+Knowing that the property is present in a kind, what % of the kind do you
+expect to have it?
 For example, about 50% of a kind "is female"; 100% has wings; malaria is a rare property within a kind.
 Finally, `delta` is the concentration (conceptually, the inverse variance) of that mean.
-It is high for properties that present in almost every kind in exactly the same proportion (e.g. "is female"). 
+It is high for properties that present in almost every kind in exactly the same proportion (e.g. "is female").
 It is lower when there is more uncertainty about exactly how many within a kind are expected to have the property.
 
 
@@ -68,8 +68,8 @@ var structuredPriorModel = function(params){
     var g = params["gamma"]
     var d = params["delta"]
     var propertyIsPresent = flip(theta)
-    var prevalence = propertyIsPresent ? 
-        bins[discrete(discretizeBeta(g,d))] : 
+    var prevalence = propertyIsPresent ?
+        bins[discrete(discretizeBeta(g,d))] :
     0
 
     return prevalence
@@ -128,8 +128,8 @@ var structuredPriorModel = function(params){
     var g = params["gamma"]
     var d = params["delta"]
     var propertyIsPresent = flip(theta)
-    var prevalence = propertyIsPresent ? 
-        bins[discrete(discretizeBeta(g,d))] : 
+    var prevalence = propertyIsPresent ?
+        bins[discrete(discretizeBeta(g,d))] :
     0
 
     return prevalence
@@ -228,7 +228,7 @@ vizPrint({
   "X are female": femalePosterior
 })
 
-// truth judgment task assumes the subjective prevalence of 
+// truth judgment task assumes the subjective prevalence of
 // F within K is known to the speaker
 // we measure these values empirically
 

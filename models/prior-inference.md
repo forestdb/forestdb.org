@@ -48,7 +48,7 @@ var meaning = function(utterance, obj){
 // literal listener
 var literalListener = function(utterance,belief){
   Infer({model: function(){
-    var obj = objectPrior(belief);
+    var obj = uniformDraw(objects).string // L0 has no preference
     condition(meaning(utterance, obj))
     return obj
   }})
@@ -128,7 +128,7 @@ var meaning = function(utterance, obj){
 // literal listener
 var literalListener = function(utterance,belief){
   Infer({model: function(){
-    var obj = objectPrior(belief);
+    var obj = uniformDraw(objects).string
     condition(meaning(utterance, obj))
     return obj
   }})
@@ -239,7 +239,7 @@ var meaning = function(utterance, obj){
 // literal listener
 var literalListener = function(utterance,belief){
   Infer({model: function(){
-    var obj = objectPrior(belief);
+    var obj = uniformDraw(objects).string
     condition(meaning(utterance, obj))
     return obj
   }})

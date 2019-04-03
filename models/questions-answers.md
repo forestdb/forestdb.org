@@ -421,9 +421,9 @@ viz.table(answerer('pragmatic', isMoreThanFiveQuestion, world,  buyWhiskeyContex
 viz.table(answerer('pragmatic', isMoreThanFiveQuestion, world,  spendFiveDollarsContext))
 ~~~~
 
-### Clark (1979) credit cards example
+### Sensitivity to question.
 
-Our final example demonstrates how our pragmatic answerer can use Gricean reasoning to infer underlying goals directly from the question utterance (via a model of the questioner) instead of using broader context clues.
+Our final example, using an experiment by Clark (1979) testing how merchants responded to different ways of asking about the credit cards they accept, demonstrates how our pragmatic answerer can use Gricean reasoning to infer underlying goals directly from the question utterance (via a model of the questioner) instead of using broader context clues.
 
 ~~~~
 ///fold:
@@ -510,14 +510,13 @@ var questionPrior = function(){return uniformDraw(questions)};
 // | Answer knowledge |
 //  -----------------
 
+
 var cardAnswerSpace = powerset(cardTypes);
 var booleanAnswerSpace = ["yes", "no"];
 
 // 'yes' 'no' or some combination of cards
 var answerPrior = function(){
-  return (flip(0.9) ?
-          uniformDraw(booleanAnswerSpace) :
-          uniformDraw(cardAnswerSpace));
+  return uniformDraw(booleanAnswerSpace.concat(cardAnswerSpace))
 };
 
 var cardAnswerMeaning = function(cardList){
@@ -554,6 +553,14 @@ var interpreter = cache(function(question, answer){
     var questionMeaning = meaning(question);
     condition(answerMeaning(questionMeaning)(world));
     return world;
+  }});
+});
+
+var makeTruthfulAnswerPrior = dp.cache(function(question, trueWorld) {
+  return Infer({method: 'enumerate', model: function(){
+    var answer = answerPrior();
+    factor(interpreter(question, answer).score(trueWorld));
+    return answer;
   }});
 });
 
@@ -627,15 +634,20 @@ var questioner = dp.cache(function(type, qudName) {
   });
 });
 
+var cost = function(answer) {
+  return _.includes(booleanAnswerSpace, answer) ? 0 : answer.length;
+}
+
 var answerer = dp.cache(function(type, question, trueWorld) {
+  var truthfulAnswerPrior = makeTruthfulAnswerPrior(question, trueWorld);
   var qudPosterior = inferQUD(type, question)
   return Infer({method: 'enumerate'}, function(){
     var qud = nameToQUD(sample(qudPosterior));
-    var answer = answerPrior();
+    var answer = sample(truthfulAnswerPrior);
     var utility = expectation(interpreter(question, answer), function(possibleWorld) {
       return qud(possibleWorld) === qud(trueWorld);
     });
-    factor(rationality * Math.log(utility));      
+    factor(rationality * Math.log(utility) - cost(answer));      
     return answer;
   });
 })
@@ -656,18 +668,19 @@ var runModel = function(question) {
   }}));
 };
 
+
 // Examine questioner behavior
 viz(questioner('explicit', "QUDAmericanExpress"))
 viz(questioner('explicit', "QUDAmericanExpress,Visa,MasterCard,Diners,CarteBlanche"))
 
-// Examine goal inference
+// // Examine goal inference
 viz(marginalize(inferQUD('pragmatic', first(questions)), function(x) {return x.slice(3).split(",").length}))
 viz(marginalize(inferQUD('pragmatic', last(questions)), function(x) {return x.slice(3).split(",").length}))
 viz(Infer({method: 'enumerate'}, function() {return qudPrior().slice(3).split(",").length}))
 
 // Examine answerer behavior
-viz(marginalize(answerer('pragmatic', questions[1], world), function(x) {return _.includes(['yes', 'no'], x) ? 'yes/no' : 'exhuastive'}));
-viz(marginalize(answerer('pragmatic', last(questions), world), function(x) {return _.includes(['yes', 'no'], x) ? 'yes/no' : 'exhuastive'}));
+viz.table(marginalize(answerer('pragmatic', questions[1], world), function(x) {return _.includes(['yes', 'no'], x) ? 'yes/no' : 'exhuastive'}));
+viz.table(marginalize(answerer('pragmatic', creditCardsQuestion, world), function(x) {return _.includes(['yes', 'no'], x) ? 'yes/no' : 'exhuastive'}));
 ~~~~
 
 ### Mention-some example

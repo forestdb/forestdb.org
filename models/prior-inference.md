@@ -291,3 +291,140 @@ var bestUtterance = function() {
 
 bestUtterance()
 ~~~~
+
+We could also relativize the utterance-selection process so that we choose utterances to reveal specific types of preferences. For example, maybe we want to know what sort of color preference a listener has, but aren't interested in shape preferences. In the following model, `bestUtterance()` takes `preferenceType` as an argument and selects the utterances that are most likely to inform the preferences in question.
+
+~~~~
+///fold:
+
+// get probabilities from a distribution
+var distProbs = function(dist, supp) {
+  return map(function(s) {
+    return Math.exp(dist.score(s))
+  }, supp)
+}
+
+// calculate KL divergence between two distributions
+var KL = function(p, q) {
+  var supp = sort(p.support());
+  var P = distProbs(p, supp), Q = distProbs(q, supp);
+  var diverge = function(xp,xq) {
+    return xp == 0 ? 0 : (xp * Math.log(xp / xq) );
+  };
+  return sum(map2(diverge,P,Q));
+};
+
+// Frank and Goodman (2012) RSA model
+
+// set of states (here: objects of reference)
+// we represent objects as JavaScript objects to demarcate them from utterances
+// internally we treat objects as strings nonetheless
+var objects = [
+  {color: "blue", shape: "square", string: "blue square"},
+  {color: "blue", shape: "circle", string: "blue circle"},
+  {color: "green", shape: "square", string: "green square"}
+]
+
+// set of utterances
+var utterances = ["blue", "green", "square", "circle"]
+
+var colorPreferences = ["blue_things", "green_things", "none"]
+var shapePreferences = ["squares", "circles", "none"]
+var anyPreferences = ["blue_things", "green_things", "squares", "circles", "none"]
+
+var preferenceTypes = {
+  color: colorPreferences,
+  shape: shapePreferences,
+  any: anyPreferences
+}
+
+var preferenceTable = {
+  blue_things : [4,4,2],
+  green_things : [1,1,8],
+  squares : [4,2,4],
+  circles : [1,8,1],
+  none : [1,1,1]
+}
+
+var preferencePrior = function(preferenceType) {
+  var preferences = preferenceTypes[preferenceType]
+  return uniformDraw(preferences)
+}
+
+// prior over world states
+var objectPrior = function(preference) {
+  var obj = categorical(preferenceTable[preference],objects)
+  return obj.string 
+}
+
+// meaning function to interpret the utterances
+var meaning = function(utterance, obj){
+  _.includes(obj, utterance)
+}
+
+// literal listener
+var literalListener = function(utterance){
+  Infer({model: function(){
+    var obj = uniformDraw(objects).string
+    condition(meaning(utterance, obj))
+    return obj
+  }})
+}
+
+// set speaker optimality
+var alpha = 1
+
+// pragmatic speaker
+var speaker = function(obj){
+  Infer({model: function(){
+    var utterance = uniformDraw(utterances)
+    factor(alpha * literalListener(utterance).score(obj))
+    return utterance
+  }})
+}
+
+// pragmatic listener
+var pragmaticListener = function(utterance,preference){
+  Infer({model: function(){
+    var obj = objectPrior(preference)
+    observe(speaker(obj),utterance)
+    return obj
+  }})
+}
+
+var pragmaticSpeaker = function(utterance,observation,preferenceType) {
+  Infer({model: function(){
+    var preference = preferencePrior(preferenceType)
+    var L1posterior = pragmaticListener(utterance,preference)
+    factor(L1posterior.score(observation))
+    return preference
+  }})
+}
+
+///
+
+var lambda = 10
+
+var bestUtterance = function(preferenceType) {
+  Infer({model: function() {
+    var utterance = uniformDraw(utterances)
+    var preference = uniformDraw(preferenceTypes[preferenceType])
+    var observation = uniformDraw(objects).string
+    condition(meaning(utterance, observation))
+    var S2posterior = pragmaticSpeaker(utterance, observation,preferenceType)
+    var prior = Infer({model: function() {preferencePrior(preferenceType)}})
+    factor(lambda * KL(prior,S2posterior))
+    return utterance
+  }})
+}
+
+// find the best utterance to reveal a color preference
+viz(bestUtterance("color"))
+
+// find the best utterance to reveal a shape preference
+viz(bestUtterance("shape"))
+
+// find the best utterance to reveal any preferences
+viz(bestUtterance("any"))
+
+~~~~

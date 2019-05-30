@@ -9,6 +9,85 @@ model-language: webppl
 *Authors: Abimael Hernandez Jimenez, Paula Aruby Marquez, and Cesar Manuel Rosales Jr.*
 
 ~~~~
+/old
+var states = ['terrible', 'ok', 'amazing']
+
+//new
+var states = ['terrible','bad','ok','good','amazing']
+~~~~
+
+In order to account for our 'continuous' arousal, we need to add additional states. In the original model, there are 3 states. We modified this in our model to 5 states.
+
+~~~~
+//old
+var statePrior = function() {
+  categorical([1, 50, 50], states)
+}
+
+//new
+var statePrior = function() {
+  categorical([1,20,50,50,50], states)
+}
+~~~~
+
+We expanded the number of priors corresponding to the states.
+
+~~~~
+//old
+var valencePrior = function(state) {
+  state === "terrible" ? flip(0.99) ? -1 : 1 :
+  state === "ok" ? flip(0.5) ? -1 : 1 :
+  state === "amazing" ? flip(0.01) ? -1 : 1 :
+  true
+}
+
+//new
+var valencePrior = function(state) {
+  state === "terrible" ? flip(0.99) ? -1 : 1 :
+  state === "bad" ? flip(0.90) ? -1 : 1 :
+  state === "ok" ? flip(0.5) ? -1 : 1 :
+  state === "good" ? flip(0.09) ? -1 : 1 :
+  state === "amazing" ? flip(0.01) ? -1 : 1 :
+  true
+}
+~~~~
+
+Due to adding new states, we added more valencePriors. Each state was assigned a probability of having a negative valence.
+
+~~~~
+
+//old
+var arousals = ["low", "high"]
+
+//new
+var arousals = [.1,.3,.5,.7,.9]
+~~~~
+
+The original computed arousal in a binary manner. We modified arousal to be "continuous." The intensity of arousal increases as the percentage increases.
+
+~~~~
+//old
+var arousalPrior = function(state) {
+  state === "terrible" ? categorical([0.1, 0.9], arousals) :
+  state === "ok" ? categorical([0.9, 0.1], arousals) :
+  state === "amazing" ? categorical([0.1, 0.9], arousals) :
+  true
+}
+
+//new
+var arousalPrior = function(state) {
+  state === "terrible" ? categorical([1,10,30,45,50], arousals) :
+  state === "bad" ? categorical([1,5,25,40,45], arousals) :
+  state === "ok" ? categorical([50,45,30,10,1], arousals) :
+  state === "good" ? categorical([1,5,25,40,45], arousals) :
+  state === "amazing" ? categorical([1,10,30,45,50], arousals) :
+  true
+}
+~~~~
+
+In the arousalPrior function we expanded the number of probabilities that map onto the state. For 'terrible' there is a greater chance of being assigned a higher level of arousal. In contrast, 'ok' has a lower chance of being assigned a higher level of arousal.
+
+~~~~
 // There are three possible states the weather could be in: 
 // terrible, ok, or amazing
 var states = ['terrible','bad','ok','good','amazing']
@@ -117,6 +196,5 @@ var pragmaticListener = function(utterance) {
   }})
 }
 
-viz.table(pragmaticListener('terrible'))  
-
+viz.table(pragmaticListener('terrible'))
 ~~~~

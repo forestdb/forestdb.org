@@ -4,11 +4,11 @@ title: Zhu Negated Antonyms Extension
 model-language: webppl
 ---
 
-###Understanding Negated Antonyms
+### Understanding Negated Antonyms
 
 *Author: Jun Zhu*
 
-###Model Description
+### Model Description
 This model aims to predict listeners' estimation on the price that the speaker paid when they hear the speaker's utterance about an item she bought, and the relevant threshold to the utterance (of a gradable adjective or negated antonyms). Prior measurement about an item will be available, and the utterance could be 'the item is expensive/inexpensive/not expensive/not inexpensive'.  
 Utterances with negated antonyms will be slightly more costly than the ordinary adjectival utterance, possibly because of the mental efforts or the extra utterance time of negations.
 The priors are defined below, which is similar to the model we covered in class:

@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Rationally redundant, not "overinformative" referring expressions
+title: Overinformativeness
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: language, pragmatics, overinformativeness

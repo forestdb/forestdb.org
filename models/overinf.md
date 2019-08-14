@@ -77,8 +77,8 @@ Change the cost. Convince yourself that increasing the cost of complex utterance
 
 ~~~~
 var alpha = 30
-var size_noise = 0.2
-var color_noise = 0.01
+var size_fidelity = 0.8
+var color_fidelity = 0.99
 var size_cost = 0
 var color_cost = 0
 
@@ -106,12 +106,12 @@ var meaning = function(utt, obj) {
   if (splitWords.length == 1) {
     var word = splitWords[0]
     if(_.includes(colors, word))
-      return word == obj.color ? 1-color_noise : color_noise;
+      return word == obj.color ? color_fidelity : 1-color_fidelity;
     else if (_.includes(sizes, word))
-      return word == obj.size ? 1-size_noise : size_noise;
+      return word == obj.size ? size_fidelity : 1-size_fidelity;
   } else if (splitWords.length == 2) {
-    var size_value = splitWords[0] == obj.size ? 1-size_noise : size_noise;
-    var color_value = splitWords[1] == obj.color ? 1-color_noise : color_noise;
+    var size_value = splitWords[0] == obj.size ? size_fidelity : 1-size_fidelity;
+    var color_value = splitWords[1] == obj.color ? color_fidelity : 1-color_fidelity;
     return size_value*color_value
   } else 
     console.error("bad utterance length: "+splitWords.length)
@@ -151,7 +151,7 @@ var speaker = cache(function(state) {
 viz(speaker({"size": "big", "color": "blue"}))
 ~~~~
 
-1. Play around with size and color noise. For what parameter values can you generate the reported size/color asymmetry in the probability of producing an "overinformative" expression? When does the asymmetry disappear or reverse?
+1. Play around with size and color fidelity. For what parameter values can you generate the reported size/color asymmetry in the probability of producing an "overinformative" expression? When does the asymmetry disappear or reverse?
 
 2. How does increasing size and color cost change speaker behavior?
 

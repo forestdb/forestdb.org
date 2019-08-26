@@ -19,6 +19,7 @@ We start with a model that has a Boolean semantics for color and size terms.
 
 ~~~~
 var alpha = 1
+var costWeight = 1
 var c = 0
 
 var states = ["big_blue","small_blue","small_red"]
@@ -77,6 +78,7 @@ Change the cost. Convince yourself that increasing the cost of complex utterance
 
 ~~~~
 var alpha = 30
+var costWeight = 1
 var size_semvalue = 0.8
 var color_semvalue = 0.99
 var size_cost = 0

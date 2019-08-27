@@ -10,6 +10,11 @@ model-language-version: v0.9.7
 
 This is a model of the production of referring expressions, based on the vanilla model of Frank & Goodman 2012, but equipped with a relaxed semantics. It is described further in [Degen et al (under review)](https://arxiv.org/abs/1903.08237). 
 
+The context assumed in the models below is the following: 
+
+![Image of critical context](../assets/img/size-sufficient.png "Fig 1a")
+
+The speaker's task is to produce a referring expression that allows a listener to identify the target, the small blue pin. A referring expression including a size adjective (*the small pin*) is strictly speaking sufficient for uniquely establishing reference to the target, yet speakers often "overmodify" with color, producing referring expressions like  *the small blue pin*. This overmodification phenomenon is what the second model below captures via the relaxed semantics mechanism.
 
 ## Model
 

@@ -27,9 +27,9 @@ var alpha = 1
 var costWeight = 1
 var c = 0
 
-var states = ["big_blue","small_blue","small_red"]
+var states = ["big_blue","big_red","small_blue"]
 
-var utterances = ["big", "small", "blue", "red", "big_blue", "small_blue", "small_red"]     	
+var utterances = ["big", "small", "blue", "red", "big_blue", "small_blue", "big_red"]     	
 
 var statePrior = function() {
 	return uniformDraw(states)
@@ -73,7 +73,7 @@ var speaker = cache(function(state) {
   })
 });
 
-speaker("big_blue")
+speaker("small_blue")
 ~~~~
 
 Change the cost. Convince yourself that increasing the cost of complex utterances quickly drives their probability to 0, i.e., "overinformative" expressions won't be produced.
@@ -92,9 +92,9 @@ var color_cost = 0
 var states = [
 	{size: "big", color: "blue"},
 	{size: "small", color: "blue"},
-	{size: "small", color: "red"}]
+	{size: "big", color: "red"}]
 
-var utterances = ["big", "small", "blue", "red", "big_blue", "small_blue", "small_red"]     
+var utterances = ["big", "small", "blue", "red", "big_blue", "small_blue", "big_red"]     
 
 var colors = ["red", "blue"]
 var sizes = ["big", "small"]	
@@ -155,7 +155,7 @@ var speaker = cache(function(state) {
 });
 
 
-viz(speaker({"size": "big", "color": "blue"}))
+viz(speaker({"size": "small", "color": "blue"}))
 ~~~~
 
 1. Play around with the semantic value of size and color. For what parameter values can you generate the reported size/color asymmetry in the probability of producing an "overinformative" expression? When does the asymmetry disappear or reverse?

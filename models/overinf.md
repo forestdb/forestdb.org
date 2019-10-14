@@ -131,7 +131,7 @@ var cost = {
 	red: color_cost,
 	big_blue: size_cost+color_cost,
 	small_blue: size_cost+color_cost,
-	small_red: size_cost+color_cost
+	big_red: size_cost+color_cost
 }
 
 // literal listener

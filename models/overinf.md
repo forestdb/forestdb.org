@@ -50,7 +50,7 @@ var cost = {
 	red: 0,
 	big_blue: c,
 	small_blue: c,
-	small_red: c
+	big_red: c
 }
 
 // literal listener
@@ -58,7 +58,7 @@ var literalListener = cache(function(utt) {
   return Infer({method:"enumerate"},
                function(){
     var state = statePrior()
-    condition(meaning(utt,state))
+    factor(meaning(utt,state))
     return state
   })
 });

@@ -1,3 +1,9 @@
+---
+layout: model
+title: heavy-or-not comparison class model
+model-language: webppl
+---
+
 ##"Heavy or not?": a comparison class model
 ### Zeinab Kachakeche
 

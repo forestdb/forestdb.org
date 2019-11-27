@@ -1,6 +1,6 @@
 ---
 layout: model
-title: "Heavy or not?": A comparison class model
+title: Heavy or not comparison classes
 model-language: webppl
 ---
 

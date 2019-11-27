@@ -1,10 +1,9 @@
 ---
 layout: model
-title: heavy-or-not comparison class model
+title: "Heavy or not?": A comparison class model
 model-language: webppl
 ---
 
-##"Heavy or not?": a comparison class model
 ### Zeinab Kachakeche
 
 Suppose that you hear an utterance "This box is heavy" from an adult, you're likely to infer that this box is actually heavy, and weighs between let's say 20 lbs and 100 lbs depending on your experience with heavy weights.
@@ -15,9 +14,9 @@ This might also be true if you hear a bodybuilder saying this box is "light". Be
 
 Children, adults, and body builders have different experiences with weights, so the listener's interpretation of the box weight after hearing the utterance "heavy" changes depending on who said the utterance.
 
-Tessler et. al (2017) present an adjective model that highly depends on our prior knowledge about the relevant comparison classes, with the presence of uncertainty about the comparison class. For example, the listener's interpretation of tall differs if he knows that the person is a basketball player, a gymnast, or a soccer player. Their example suggested 4 classes: a superordinate category (e.g. tall for all people), and 3 subordinate categories (e.g. tall for gymnasts, basketball player, or soccer player).
+Tessler et al. (2017) present an adjective model that highly depends on our prior knowledge about the relevant comparison classes, with the presence of uncertainty about the comparison class. For example, the listener's interpretation of tall differs if he knows that the person is a basketball player, a gymnast, or a soccer player. Their example suggested 4 classes: a superordinate category (e.g. tall for all people), and 3 subordinate categories (e.g. tall for gymnasts, basketball player, or soccer player).
  
-I use the model by Tessler et. al. (2017) to describe how listeners interpret "heavy" if they heard it from three different classes of people: a child, an adult, or a bodybuilder.  Each of these three comparison-classes have different experience with weights, i.e. different priors. For that reason, the listener's interpretation of the utterance "heavy" is going to be different depending on the who said the utterance. 
+I use the model by Tessler et al. (2017) to describe how listeners interpret "heavy" if they heard it from three different classes of people: a child, an adult, or a bodybuilder.  Each of these three comparison-classes have different experience with weights, i.e. different priors. For that reason, the listener's interpretation of the utterance "heavy" is going to be different depending on the who said the utterance. 
 
 To model this empirical phenomenon, I use the Rational Speech Act (RSA) framework. RSA views communication as recursive reasoning between a speaker and a listener. The listener interprets the utterance they heard by reasoning about the speaker. In this case, the listener reasons about who said the "box is heavy". The listener assumes that the speaker's intention is to inform a naive listener about the actual state of the world. Then the listener reasons about what the state of the world is likely to be given that a speaker produced some utterance, knowing that the speaker is reasoning about how a listener is most likely to interpret that utterance. So in this model, the listener reasons about the actual weight of the box, given that the speaker who said "the box is heavy" is cooperative and intends to deliver her utterance in a way that the listener interprets it correctly. 
 
@@ -596,3 +595,8 @@ viz.density(pragmaticListener("light","bodybuilder"))
 ~~~~
 
 As we can see from these results, the listener's interpretation is slightly different if he doesn't know what the speaker's intention is. So, if a child says the box is "heavy" and the listener doesn't actually know if the box is heavy for a child or heavy in general, the listener has to take into account the other comparison classes' priors. However, the listener would give more probability to child prior and less probability to the other two classes.
+
+
+**References:**
+
+Tessler, M. H., Lopez-Brau, M., & Goodman, N. D. (2017). Warm (for winter): Comparison class understanding in vague language. In 15th International Conference on Cognitive Modeling (p. 193).

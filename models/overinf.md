@@ -58,7 +58,7 @@ var literalListener = cache(function(utt) {
   return Infer({method:"enumerate"},
                function(){
     var state = statePrior()
-    factor(meaning(utt,state))
+    condition(meaning(utt,state))
     return state
   })
 });
@@ -73,7 +73,14 @@ var speaker = cache(function(state) {
   })
 });
 
-speaker("small_blue")
+display("speaker who wants to communicate big blue object:")
+viz.table(speaker("big_blue"))
+
+display("speaker who wants to communicate big red object:")
+viz.table(speaker("big_red"))
+
+display("speaker who wants to communicate small blue object:")
+viz.table(speaker("small_blue"))
 ~~~~
 
 Change the cost. Convince yourself that increasing the cost of complex utterances quickly drives their probability to 0, i.e., "overinformative" expressions won't be produced.
@@ -155,7 +162,35 @@ var speaker = cache(function(state) {
 });
 
 
-viz(speaker({"size": "small", "color": "blue"}))
+display("speaker who wants to communicate big blue object:")
+viz.table(speaker({size: "big", color: "blue"}))
+
+display("speaker who wants to communicate big red object:")
+viz.table(speaker({size: "big", color: "red"}))
+
+display("speaker who wants to communicate small blue object:")
+viz.table(speaker({size: "small", color: "blue"}))
+
+display("literal listener who observes 'big':")
+viz.table(literalListener("big"))
+
+display("literal listener who observes 'small':")
+viz.table(literalListener("small"))
+
+display("literal listener who observes 'blue':")
+viz.table(literalListener("blue"))
+
+display("literal listener who observes 'red':")
+viz.table(literalListener("red"))
+
+display("literal listener who observes 'big blue':")
+viz.table(literalListener("big_blue"))
+
+display("literal listener who observes 'big red':")
+viz.table(literalListener("big_red"))
+
+display("literal listener who observes 'small blue':")
+viz.table(literalListener("small_blue"))
 ~~~~
 
 1. Play around with the semantic value of size and color. For what parameter values can you generate the reported size/color asymmetry in the probability of producing an "overinformative" expression? When does the asymmetry disappear or reverse?

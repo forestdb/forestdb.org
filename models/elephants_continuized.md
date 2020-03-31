@@ -1,3 +1,10 @@
+---
+layout: model
+title: elephants
+model-language: webppl
+model-language-version: v0.9.13
+---
+
 The continuized _elephants_ model has several changes with respect to the original model:
 - The world knowledge is modified to include a *both* predicate, which represents the probability of an elephant living in both Africa and Asia. This represents a problem for inference because the size of the world state increases.
 - The semantic interpretation function does not perform type-checking in order to determine the direction of functional application. Rather, more of the responsibility of functional composition is delegated to the grammar. Concretely, the syntax tree is annotated at each branching node with the type of the constituent (e.g. S or VP). This contains the information needed to perform functional application at each node. It also enables the same phrase to be continuized in multiple ways. For example, the S node can either be annotated with _S1_ or _S2_, where _S1_ reflects the continuization where the NP is interpreted as the continuation of the VP (and > gen), and _S2_ reflects the continuization where the VP is interpreted as the continuation of the NP (gen > and).

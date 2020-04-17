@@ -141,6 +141,7 @@ var speaker2 = function(state, phi, weights) {
 };
 
 // Parameter values = Maximum A-Posteriori values inferred from full data set for each condition
+display('Listener gives presentation, worthy of 0 out of 4 hearts ("truly terrible")...')
 
 // informational
 display("Speaker wants to give Listener accurate and informative feedback")

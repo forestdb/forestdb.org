@@ -59,9 +59,10 @@ var quadraticScore = function(dist, event) {
   return 2 * prob(dist, event) - sum(squares);
 }
 
+var beliefDist = makeCategorical(['A', 'B', 'C'], [.3, .5, .2]);
+
 var agent = function(scoreFn){
   return Infer(function(){
-    var beliefDist = makeCategorical(['A', 'B', 'C'], [.3, .5, .2]);
     var reportDist = sample(distPrior);
     var expectedScore = Expectation(function(){
       var event = sample(beliefDist);
@@ -72,6 +73,9 @@ var agent = function(scoreFn){
     return reportDist;
   });
 }
+
+print('Actual belief distribution:');
+print(beliefDist)
 
 print('Reported distribution under LOG score:');
 print(agent(logScore).MAP().val)

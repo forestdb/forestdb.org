@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Inferring Nationality from GPA
+title: Grade Inflation
 model-status: code
 model-category: Miscellaneous
 model-tags: discrete, continuous

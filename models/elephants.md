@@ -314,8 +314,9 @@ var priorParameters = {
   "b": 1,
 }
 // makes 3-way joint on living in africa, living in asia, and living in both
-var makePrevalencePrior = function(me) {
+var makePrevalencePrior = function() {
   return Infer({model: function(){
+    var me = flip(0.99)
     // elephants living in Asia (or both)
     var asiaProb = sample(
       // binned beta distribution on prior prevalence of living in Asia
@@ -330,9 +331,10 @@ var makePrevalencePrior = function(me) {
     var p =  {
       asia: asiaProb,
       africa: africaProb,
-      both: totalPrevalence > 1 ? totalPrevalence - 1 : 0 // elephants live in both
+      both: totalPrevalence > 1 ? totalPrevalence - 1 : 0, // elephants live in both
       // prevalence cannot add up to greater than 1, so leftover prevalence must be
       // elephants living in both Africa and Asia
+      me: me
     } 
     // if correlated, force mutual exclusivity by decreasing probability of there
     // being elephants that live in both places
@@ -342,19 +344,19 @@ var makePrevalencePrior = function(me) {
 }
 
 print("prevalence prior")
-viz(marginalize(makePrevalencePrior(true), function(x) {
+viz(marginalize(makePrevalencePrior(), function(x) {
   return {
     africa: x.africa,
     asia: x.asia,
   }
 }))
-viz(marginalize(makePrevalencePrior(true), function(x) {
+viz(marginalize(makePrevalencePrior(), function(x) {
   return {
     africa: x.africa,
     both: x.both,
   }
 }))
-viz(marginalize(makePrevalencePrior(true), function(x) {
+viz(marginalize(makePrevalencePrior(), function(x) {
   return {
     both: x.both
   }
@@ -427,69 +429,383 @@ var pronounce = editor.get('pronounce')
 
 // PCFG
 
-var pcfgProbabilities = {
-  sentenceContinuization1: 0.5,
-  ppConjunction: 0.1,
-  vpConjunction: 0.1
+var pcfg = {
+  'QP': [
+    {
+      expansion: ['Q', 'N'], 
+      annotation: phrases.qp, 
+      p: 1,
+      recursive: false
+    }
+  ],
+  'PP': [
+    {
+      expansion: ['P', 'NP'], 
+      annotation: phrases.pp,
+      p: .9,
+      recursive: false
+    },
+    {
+      expansion: ['PP', 'connective', 'PP'], 
+      annotation: phrases.andP, 
+      p: .1,
+      recursive: true
+    }
+  ],
+  'VP': [
+    {
+      expansion: ['V', 'PP'],
+      annotation: phrases.vp, 
+      p: .9,
+      recursive: false
+    },
+    {
+      expansion: ['VP', 'connective', 'VP'],
+      annotation: phrases.andP, 
+      p: .1,
+      recursive: true
+    }
+  ],
+  'S': [
+    {
+      expansion: ['QP', 'VP'], 
+      annotation: phrases.s1, 
+      p: .4,
+      recursive: false
+    }, 
+    {
+      expansion: ['QP', 'VP'],
+      annotation: phrases.s2, 
+      p: .6,
+      recursive: false
+    }
+  ],
+  'N': [
+    {
+      expansion: lexicalEntries.elephants,
+      p: 1,
+      recursive: false
+    }
+  ],
+  'NP': [
+    {
+      expansion: lexicalEntries.africa,
+      p: 0.5,
+      recursive: false
+    },
+    {
+      expansion: lexicalEntries.asia,
+      p: 0.5,
+      recursive: false
+    }
+  ],
+  'Q': [
+    {
+      expansion: lexicalEntries.gen,
+      p: 0.4,
+      recursive: false
+    },
+    {
+      expansion: lexicalEntries.most,
+      p: 0.2,
+      recursive: false
+    },
+    {
+      expansion: lexicalEntries.all,
+      p: 0.2,
+      recursive: false
+    },
+    {
+      expansion: lexicalEntries.some,
+      p: 0.2,
+      recursive: false
+    }
+  ],
+  'V': [
+    {
+      expansion: lexicalEntries.live,
+      p: 1,
+      recursive: false
+    }
+  ],
+  'P': [
+    {
+      expansion: lexicalEntries.in,
+      p: 1,
+      recursive: false
+    }
+  ],
+  'connective': [
+    {
+      expansion: lexicalEntries.conj,
+      p: 1,
+      recursive: false
+    }
+  ]
 }
 
-var connectives = Categorical({
-  vs: [lexicalEntries.conj]
-})
-var QP = function() {
-  return [sample(Categorical({
-    vs: [
-      lexicalEntries.gen, 
-      lexicalEntries.most, 
-      lexicalEntries.some, 
-      lexicalEntries.all
-    ],
-    ps: [
-      .9,
-      .05,
-      .04,
-      .01
-    ]
-  })), lexicalEntries.elephants, phrases.qp]
-}
-var PP = function() {
-  var Ps = Categorical({
-    vs: [lexicalEntries.in]
-  })
-  var pNPs = Categorical({
-    vs: [lexicalEntries.africa, lexicalEntries.asia]
-  })
-  return !flip(pcfgProbabilities.ppConjunction) ? 
-    [sample(Ps), sample(pNPs), phrases.pp] : 
-  [PP(), lexicalEntries.conj, PP(), phrases.andP]
-}
-var VP = function() {
-  var Vs = Categorical({
-    vs: [lexicalEntries.live]
-  })
-  return !flip(pcfgProbabilities.vpConjunction) ? 
-    [sample(Vs), PP(), phrases.vp] : 
-  [VP(), lexicalEntries.conj, VP(), phrases.andP]
-}
-var S = function() {
-  return flip(pcfgProbabilities.sentenceContinuization1) ? 
-    [QP(), VP(), phrases.s1] : [QP(), VP(), phrases.s2]
+editor.put('pcfg', pcfg)
+~~~~
+
+The PCFG can generate an infinite number of sentences due to the recursive nature of coordination. Here we limit the space to a finite number of sentences by pruning the search space at every possible expansion to contain only the most likely trees.
+
+~~~~
+var phrases = editor.get('phrases')
+var pcfg = editor.get('pcfg')
+var lexicalEntries = editor.get('lexicalEntries')
+var pronounce = editor.get('pronounce')
+
+var deepExtendErrorMessage = 'ill-formed target/source for deepExtend'
+
+// helper for deepExtend
+var copyOver = function(target, obj) {
+  return reduce(function(x, acc) {
+    if (Array.isArray(obj[x])) {
+      if (x === 'children') {
+        return extend(acc, {
+          children: map(function(e) {
+            return deepExtend({}, e)
+          }, obj[x])
+        })
+      } else {
+        error(deepExtendErrorMessage)
+      }
+    } else if (typeof obj[x] === 'number') {
+      if (x === 'p') {
+        return extend(acc, {
+          p: obj[x]
+        })
+      } else if (x === 'tempP') {
+        return extend(acc, {
+          tempP: obj[x]
+        })
+      } else if (x === 'id') {
+        return extend(acc, {
+          id: obj[x]
+        })
+      } else {
+        error(deepExtendErrorMessage)
+      }
+    } else if (typeof obj[x] === 'string') {
+      if (x === 'label') {
+        return extend(acc, {
+          label: obj[x]
+        })
+      } else {
+        error(deepExtendErrorMessage)
+      }
+    } else if (obj[x].hasOwnProperty('label')) {
+      return extend(acc, deepExtend({}, obj[x]))
+    } else {
+      if (x === 'annotation') {
+        return extend(acc, {
+          annotation: obj[x]
+        })
+      } else if (obj[x].hasOwnProperty('pronunciation') & x === 'children') {
+        return extend(acc, {
+          children: obj[x]
+        })
+      } else {
+        error(deepExtendErrorMessage)
+      }
+    }
+  }, target, Object.keys(obj))
 }
 
-editor.put('S', S)
+// used to build up trees in expand
+var deepExtend = function(target, source) {
+  // consists of objects, arrays, strings, and numbers
+  // properties of source override those of target
+  var intermediateObject = copyOver({}, target)
+  return copyOver(intermediateObject, source)
+}
+
+var beamSize = 100
+
+// prune possible expansions to most likely ones
+var prune = function(expansions) {
+  return _.sortBy(
+    expansions, "p"
+  ).reverse().slice(
+    0, beamSize > expansions.length ? expansions.length : beamSize
+  )
+}
+
+// helper for expand
+var expandLabel = function(tree, possibleExpansions, depth) {
+  var expansions = _.flatten(map(function(possibleExpansion) {
+    if (possibleExpansion.expansion.hasOwnProperty('pronunciation')) {
+      return [deepExtend(
+        tree, {
+          children: extend(
+            possibleExpansion.expansion, {p: 1}
+          ),
+          p: possibleExpansion.p
+        }
+      )]
+    } else {
+      var newChildren = map(function(e) {
+        return {
+          label: e,
+        }
+      }, possibleExpansion.expansion)
+      return expand(deepExtend(tree, {
+        children: newChildren,
+        annotation: possibleExpansion.annotation,
+        tempP: possibleExpansion.p
+      }), depth + 1)
+    }
+  }, possibleExpansions), true)
+  return prune(expansions)
+}
+
+// recursively expands a tree until either the maximum recursion depth is reached
+// or all nodes have been fully expanded
+var expand = function(tree, depth) {
+  if (tree.hasOwnProperty('children')) {
+    if (tree.children.hasOwnProperty('pronunciation')) { // leaf node
+      return deepExtend(tree, {
+        p: tree.tempP
+      })
+    } else { // branching node
+      if (tree.children.length === 1) { // only one child to expand
+        var leftExpansions = expand(tree.children[0], depth + 1)
+        var expansions = map(function(l) {
+          return deepExtend(tree, {
+            children: [l],
+            p: l.p*tree.tempP
+          })
+        }, leftExpansions)
+        return prune(expansions)
+      } else { // multiple children to expand
+        var leftExpansions = expand(tree.children[0], depth + 1)
+        var restChildren = tree.children.slice(1, tree.children.length)
+        var restExpansions = expand(deepExtend(tree, {
+          children: restChildren
+        }), depth+1)
+        var expansions = _.flatten(map(function(l) {
+          return map(function(r) {
+            return deepExtend(tree, {
+              children: [l].concat(r.children),
+              p: l.p*product(map(function(x) {return x.p}, r.children))*tree.tempP
+            })
+          }, restExpansions)
+        }, leftExpansions), true)
+        return prune(expansions)
+      }
+    }
+  } else { // need to expand based on label of branching node (or preterminal)
+    if (depth > 5) {
+      var possibleExpansions = filter(function(e) {
+        return !e.recursive
+      }, pcfg[tree.label])
+      return expandLabel(tree, possibleExpansions, depth)
+    } else {
+      var possibleExpansions = pcfg[tree.label]
+      var result = expandLabel(tree, possibleExpansions, depth)
+      return result
+    }
+  }
+}
+
+// convert tree representation from object form to array form that is used by
+// the semantic interpretation function
+var convertTree = function(tree) {
+  if (tree.hasOwnProperty('pronunciation')) {
+    return tree
+  } else if (tree.hasOwnProperty('children')) {
+    if (tree.children.hasOwnProperty('pronunciation')) {
+      return tree.children
+    } else {
+      var intermediateResult = map(function(x) {
+        return convertTree(x)
+      }, tree.children)
+      return intermediateResult.concat([tree.annotation])
+    }
+  }
+}
+
+// array of most likely parses, with ids to differentiate them
+var likelyParses = map2(function(a,b) {
+  return deepExtend(a, {
+    id: b
+  })
+}, expand({
+  label: 'S'
+}, 0), _.range(0, beamSize))
+
+editor.put('expand', expand)
+editor.put('convertTree', convertTree)
+editor.put('likelyParses', likelyParses)
+~~~~
+
+Here we test that the likely parses obtained above have the correct probabilities according to the PCFG, for a small number of most likely cases.
+
+~~~~
+var likelyParses = editor.get('likelyParses')
+var convertTree = editor.get('convertTree')
+var pronounce = editor.get('pronounce')
+var phrases = editor.get('phrases')
+var pcfg = editor.get('pcfg')
+
+map(function(x) {
+  if ([
+    "elephants live in Africa", "elephants live in Asia"
+  ].includes(pronounce(convertTree(x)))) {
+    if (convertTree(x)[2] === phrases.s1) {
+      if (Math.abs(
+        x.p-pcfg.S[0].p*pcfg.Q[0].p*pcfg.VP[0].p*pcfg.PP[0].p*pcfg.NP[0].p
+      )>1e-10) {
+        error('wrong probability')
+      }
+    } else if (convertTree(x)[2] === phrases.s2) {
+      if (Math.abs(
+        x.p-pcfg.S[1].p*pcfg.Q[0].p*pcfg.VP[0].p*pcfg.PP[0].p*pcfg.NP[0].p
+      )>1e-10) {
+        error('wrong probability')
+      }
+    }
+  } else if ([
+    "all elephants live in Africa",
+    "all elephants live in Asia",
+    "most elephants live in Africa",
+    "most elephants live in Asia",
+    "some elephants live in Africa",
+    "some elephants live in Asia"
+  ].includes(pronounce(convertTree(x)))) {
+    if (convertTree(x)[2] === phrases.s1) {
+      if (Math.abs(
+        x.p-pcfg.S[0].p*pcfg.Q[1].p*pcfg.VP[0].p*pcfg.PP[0].p*pcfg.NP[0].p
+      )>1e-10) {
+        error('wrong probability')
+      }
+    } else if (convertTree(x)[2] === phrases.s2) {
+      if (Math.abs(
+        x.p-pcfg.S[1].p*pcfg.Q[1].p*pcfg.VP[0].p*pcfg.PP[0].p*pcfg.NP[0].p
+      )>1e-10) {
+        error('wrong probability')
+      }
+    }
+  }
+}, likelyParses)
+
+print('PCFG tested.')
 ~~~~
 
 Here we define the literal listener, which assumes that its input is a syntax tree (not a string).
 
 ~~~~
 var interpretSemanticsWithPrior = editor.get('interpretSemanticsWithPrior')
-var S = editor.get('S')
 var pronounce = editor.get('pronounce')
+var convertTree = editor.get('convertTree')
+var likelyParses = editor.get('likelyParses')
+var phrases = editor.get('phrases')
+var lexicalEntries = editor.get('lexicalEntries')
 
 // creates the world state, allowing for multiple kinds
 var getWorldState = function(makeFeaturePrior) {
   return {
-    "elephants": sample(makeFeaturePrior(true))
+    "elephants": sample(makeFeaturePrior())
   }
 }
 
@@ -505,30 +821,41 @@ var listener0Complete = function(utterance, makeFeaturePrior, thresholdPrior, qu
   }, method: 'enumerate'});
 }
 
+var possibleSentences = Categorical({
+  vs: likelyParses,
+  ps: map(function(y) {
+    return y.p
+  }, likelyParses)
+})
+
 var inferStructure = function(utteranceString) {
   Infer({model: function() {
-    var utteranceTree = S()
+    var unprocessedTree = sample(possibleSentences)
+    var utteranceTree = convertTree(unprocessedTree)
     if (utteranceString.endsWith('.')) {
-      condition(pronounce(utteranceTree) === utteranceString.slice(0, utteranceString.length-1))
+      condition(pronounce(utteranceTree) === utteranceString.slice(
+        0, utteranceString.length-1
+      ))
     } else {
       condition(pronounce(utteranceTree).startsWith(utteranceString))
     }
-    return utteranceTree
-  }, method: 'MCMC', samples: 30000, lag: 2})
+    return unprocessedTree
+  }, method: 'enumerate'})
 }
 
 var listener0 = function(utteranceString, makeFeaturePrior, thresholdPrior, qud) {
   Infer({model: function() {
     var state = getWorldState(makeFeaturePrior)
-    var utteranceTree = sample(inferStructure(utteranceString))
+    var utteranceTree = convertTree(sample(inferStructure(utteranceString)))
     var result = interpretSemanticsWithPrior(utteranceTree, state, thresholdPrior)
     condition(result)
     return state[qud]
-  }, method: 'MCMC', samples: 30000, lag: 2})
+  }, method: 'enumerate'})
 }
 
 editor.put('listener0Complete', listener0Complete)
 editor.put('listener0', listener0)
+editor.put('inferStructure', inferStructure)
 ~~~~
 
 The following example utterances are shown:
@@ -554,6 +881,10 @@ var plotPosteriors = function(dist) {
   // 2-way joint of Africa and Asia
   // single variable of both
   // plots the mean of the three marginal distributions
+  var marginalMe = marginalize(dist, function(x) {
+    return x.me
+  })
+  viz(marginalMe)
   var marginalBoth = marginalize(dist, function(x) {
     return x.both
   })
@@ -592,7 +923,7 @@ var plainUtterance = [
     ],
     phrases.vp
   ],
-  phrases.s1
+  phrases.s2
 ]
 
 print(pronounce(plainUtterance))
@@ -727,6 +1058,7 @@ var makePrevalencePrior = editor.get('makePrevalencePrior')
 var makeThetaPrior = editor.get('makeThetaPrior')
 var pronounce = editor.get('pronounce')
 var plotPosteriors = editor.get('plotPosteriors')
+var inferStructure = editor.get('inferStructure')
 
 print('example string utterances')
 
@@ -737,7 +1069,7 @@ var posteriorAmbiguous = listener0(
 )
 plotPosteriors(posteriorAmbiguous)
 
-print("elephants live in Africa...")
+print("elephants live in Africa and...")
 var posteriorIncomplete = listener0(
   "elephants live in Africa and", 
   makePrevalencePrior, makeThetaPrior(), "elephants"

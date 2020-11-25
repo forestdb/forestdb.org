@@ -11,6 +11,8 @@ A model of learning from social and direct evidence:
 
 The learner is tasked with learning the weight of a coin. She observes some number *n<sub>L</sub>* of flips. A second person, "Zach," sees *n<sub>Z</sub>* flips and then bets on the outcome of the next flip. The learner doesn't see the outcomes of Zach's *n<sub>Z</sub>* flips, but she does see how he bets.
 
+This is a reference implementation for https://doi.org/10.1037/dec0000088:
+
 ```scheme
 ;;; Helper functions
 

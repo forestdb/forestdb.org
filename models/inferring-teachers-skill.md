@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Inferring Teacher's Pedagogical Skill
+title: Inferring Pedagogical Skill
 model-status: code
 model-category: Reasoning about Reasoning
 model-tags: pedagogical reasoning

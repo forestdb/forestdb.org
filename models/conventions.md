@@ -5,6 +5,181 @@ model-language: webppl
 model-language-version: v0.9.7
 ---
 
+# Increase in efficiency
+
+~~~~
+var unconstrainedUtterances = ['word1', 'word2', 'word3', 'word4'];
+var derivedUtterances = ['word1_word2', 'word3_word4']; 
+var utterances = unconstrainedUtterances.concat(derivedUtterances);
+var objects = ['bluecircle', 'redsquare'];
+var meanings = ['bluecircle', 'redsquare'];
+var numMeanings = meanings.length;
+
+var getLexiconElement = function(utt, target, params) {
+  // use conjunction to evaluate truth conditions
+  var componentValues = map(function(word) {
+    return params.lexicon[word][target]
+  }, utt.split('_'));
+  return product(componentValues);
+};
+
+var getUttCost = function(utt) {
+  return utt.split('_').length;
+};
+
+var L0 = cache(function(utt, params) {
+  return Mixture({
+    dists: [
+      Categorical({vs: params.context}),
+      Infer({method: "enumerate"}, function() {
+        var obj = uniformDraw(params.context);
+        factor(Math.log(getLexiconElement(utt, obj, params)));
+        return obj;
+      })],
+    ps: [params.guessingEpsilon, 1 - params.guessingEpsilon]
+  });
+}, 1000);
+
+var S1 = cache(function(obj, params) {
+  return Mixture({
+    dists: [
+      Categorical({vs: params.utterances}),
+      Infer({method: "enumerate"}, function() {
+        var utt = uniformDraw(params.utterances);
+        var utility = ((1-params.costWeight) * L0(utt, params).score(obj)
+                       - params.costWeight * getUttCost(utt));
+        factor(params.speakerAlpha * utility);
+        return utt;
+      })],
+    ps: [params.guessingEpsilon, 1 - params.guessingEpsilon]
+  })
+}, 1000)
+
+var L1 = cache(function(utt, params) {
+  return Mixture({
+    dists: [
+      Categorical({vs: params.context}),
+      Infer({method: "enumerate"}, function() {
+        var obj = uniformDraw(params.context);
+        factor(params.listenerAlpha * S1(obj, params).score(utt));
+        return obj;
+      })],
+    ps: [params.guessingEpsilon, 1 - params.guessingEpsilon]
+  })
+}, 1000)
+
+var S_uncertain = function(object, posterior) {
+  return Infer({method: "enumerate"}, function() {
+    var utt = uniformDraw(params.utterances);
+    var inf = expectation(posterior, function(lexicon) {
+      var config = extend(params, {lexicon});
+      return L1(utt, config).score(object);
+    });
+    var utility = ((1-params.costWeight) * inf
+                   - params.costWeight * getUttCost(utt));
+
+    factor(params.speakerAlpha * utility);
+    return utt;
+  });
+};
+
+var L_uncertain = function(utt, posterior) {
+  return Infer({method: "enumerate"}, function() {
+    var object = uniformDraw(params.context);
+    var utility = expectation(posterior, function(lexicon) {
+      var config = extend(params, {lexicon})
+      return S1(object, config).score(utt);
+    });
+    factor(params.listenerAlpha * utility);
+    return object;
+  });
+};
+
+var params = {
+  speakerAlpha : 16,
+  listenerAlpha: 16,
+  discountFactor: 0.8,
+  costWeight: 0.2,
+  guessingEpsilon: 0.01,
+  numTrials: 10,
+  context: objects,
+  utterances: utterances,
+  objects: objects,
+  inferOptions: {method: 'enumerate'}
+};
+
+var sampleLexicon = function(obs) {
+  return _.zipObject(unconstrainedUtterances, map(function(utt) {
+    var blueProb = beta(obs[utt]['bluecircle'], obs[utt]['redsquare']);
+    return {'bluecircle' : blueProb, 'redsquare' : 1 - blueProb};
+  }, unconstrainedUtterances));
+};
+
+// for each point in data, we want the model's predictions
+var iterate = function(dataSoFar) {
+  globalStore.trialNum += 1;
+  var repNum =  Math.floor(globalStore.trialNum / 2);
+  var currTrial = {
+    trialNum: globalStore.trialNum,
+    intendedName: (globalStore.trialNum % 2) == 0 ? 'bluecircle' : 'redsquare',
+    context : objects,
+    speakerID: (repNum % 2) == 0 ? 1 : 2,
+    listenerID: (repNum % 2) == 0 ? 2 : 1
+  };
+
+  var speakerPosterior = Infer({method: 'forward', samples: 1000}, function() {
+    return sampleLexicon(dataSoFar[currTrial.speakerID]);
+  });
+  var listenerPosterior = Infer({method: 'forward', samples: 1000}, function() {
+    return sampleLexicon(dataSoFar[currTrial.listenerID]);
+  });
+  
+  // sample from speaker and listener agents
+  var speakerOutput = S_uncertain(currTrial.intendedName, speakerPosterior);
+  var speakerChoice =  sample(speakerOutput);
+  var listenerOutput = L_uncertain(speakerChoice, listenerPosterior);
+  var listenerChoice = sample(listenerOutput);
+  console.log('on trial', globalStore.trialNum, 'speaker says', speakerChoice, 'and listener responds', listenerChoice)
+  console.log(speakerOutput)
+  
+  // record outcomes & move to next trial
+  if(currTrial.trialNum < params.numTrials) {
+    var newData = _.zipObject([currTrial.speakerID, currTrial.listenerID], map(function(id) {
+      return _.zipObject(['word1', 'word2', 'word3', 'word4'], map(function(word) {
+        return _.zipObject(['bluecircle', 'redsquare'], map(function(obj) {
+          var objMatch = id == currTrial.speakerID ? listenerChoice : currTrial.intendedName;
+          var uttMatch = _.includes(speakerChoice.split('_'), word)
+          return (obj == objMatch && uttMatch) ? dataSoFar[id][word][obj] + 1 : dataSoFar[id][word][obj];
+        }, ['bluecircle', 'redsquare']));
+      }, ['word1', 'word2', 'word3', 'word4']));
+    }, [currTrial.speakerID, currTrial.listenerID]));
+    var longUtteranceProb = Math.exp(speakerOutput.score('word1_word2')) + Math.exp(speakerOutput.score('word3_word4'))
+    globalStore.longUtteranceProbs.push(longUtteranceProb)
+    console.log("P('long utterance') =", longUtteranceProb)
+    console.log('new counts are', JSON.stringify(newData, null, 1))
+    iterate(newData);
+  }
+};
+
+globalStore.trialNum = 0;
+globalStore.longUtteranceProbs = [];
+// initialize with pseudocounts
+iterate({
+  1: {word1 : {'bluecircle' : 1, 'redsquare' : 0.5},
+      word2: {'bluecircle' : 1, 'redsquare' : 0.5},
+      word3: {'bluecircle' : 0.5, 'redsquare' : 1},
+      word4: {'bluecircle' : 0.5, 'redsquare' : 1}},
+  2: {word1 : {'bluecircle' : 1, 'redsquare' : 0.5},
+      word2 : {'bluecircle' : 1, 'redsquare' : 0.5},
+      word3 : {'bluecircle' : 0.5, 'redsquare' : 1},
+      word4 : {'bluecircle' : 0.5, 'redsquare' : 1}}
+});
+viz.line(_.range(params.numTrials), globalStore.longUtteranceProbs)
+~~~~
+
+
+# Old versions
+
 Why do Americans drive on the right side of the road while the British drive on the left? Why do English speakers use 'cat' to refer to a pet that goes 'meow' while the French use the word `chat'? These conventions or norms govern much of our everyday behavior. While there is a substantial literature using simple agent-based models showing how these arbitrary but stable patterns can emerge in large populations, there has been comparatively less work on the cognitive underpinnings of conventions.
 
 Here, we focus on a classic case of conventionalization of language in a reference game (Clark & Wilkes-Gibbs, 1986). In the simplest version of this task, two players are presented with an array of objects constructed from tangrams which are not easily describable. One of them is designated as the 'target' for the speaker, and their goal is to produce an utterance that will allow the listener to distinguish the correct object from their array. 

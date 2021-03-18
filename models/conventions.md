@@ -8,12 +8,7 @@ model-language-version: v0.9.7
 # Increase in efficiency
 
 ~~~~
-var unconstrainedUtterances = ['word1', 'word2', 'word3', 'word4'];
-var derivedUtterances = ['word1_word2', 'word3_word4']; 
-var utterances = unconstrainedUtterances.concat(derivedUtterances);
-var objects = ['bluecircle', 'redsquare'];
-var meanings = ['bluecircle', 'redsquare'];
-var numMeanings = meanings.length;
+///fold:
 
 var getLexiconElement = function(utt, target, params) {
   // use conjunction to evaluate truth conditions
@@ -95,6 +90,16 @@ var L_uncertain = function(utt, posterior) {
   });
 };
 
+///
+
+var unconstrainedUtterances = ['word1', 'word2', 'word3', 'word4'];
+var derivedUtterances = ['word1_word2', 'word3_word4']; 
+var utterances = unconstrainedUtterances.concat(derivedUtterances);
+var objects = ['bluecircle', 'redsquare'];
+var meanings = ['bluecircle', 'redsquare'];
+var numMeanings = meanings.length;
+
+
 var params = {
   speakerAlpha : 16,
   listenerAlpha: 16,
@@ -115,7 +120,6 @@ var sampleLexicon = function(obs) {
   }, unconstrainedUtterances));
 };
 
-// for each point in data, we want the model's predictions
 var iterate = function(dataSoFar) {
   globalStore.trialNum += 1;
   var repNum =  Math.floor(globalStore.trialNum / 2);
@@ -127,6 +131,7 @@ var iterate = function(dataSoFar) {
     listenerID: (repNum % 2) == 0 ? 2 : 1
   };
 
+  // sample from beta using conjugate prior
   var speakerPosterior = Infer({method: 'forward', samples: 1000}, function() {
     return sampleLexicon(dataSoFar[currTrial.speakerID]);
   });
@@ -134,13 +139,13 @@ var iterate = function(dataSoFar) {
     return sampleLexicon(dataSoFar[currTrial.listenerID]);
   });
   
-  // sample from speaker and listener agents
+  // sample from speaker and listener agents with this posterior
   var speakerOutput = S_uncertain(currTrial.intendedName, speakerPosterior);
   var speakerChoice =  sample(speakerOutput);
   var listenerOutput = L_uncertain(speakerChoice, listenerPosterior);
   var listenerChoice = sample(listenerOutput);
   console.log('on trial', globalStore.trialNum, 'speaker says', speakerChoice, 'and listener responds', listenerChoice)
-  console.log(speakerOutput)
+  //console.log(speakerOutput)
   
   // record outcomes & move to next trial
   if(currTrial.trialNum < params.numTrials) {
@@ -156,7 +161,7 @@ var iterate = function(dataSoFar) {
     var longUtteranceProb = Math.exp(speakerOutput.score('word1_word2')) + Math.exp(speakerOutput.score('word3_word4'))
     globalStore.longUtteranceProbs.push(longUtteranceProb)
     console.log("P('long utterance') =", longUtteranceProb)
-    console.log('new counts are', JSON.stringify(newData, null, 1))
+    //console.log('new counts are', JSON.stringify(newData, null, 1))
     iterate(newData);
   }
 };

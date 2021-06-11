@@ -1,3 +1,9 @@
+---
+layout: model
+title: Dickson Speaker cost
+model-language: webppl
+---
+
 Every time we decide to speak, we exert effort to convey information or engage in social behavior. We can call this effort exerted the cost of the utterance. Intuitively, we know that every utterance is spoken with some cost, but how does cost influence our reasoning about the utterances of our conversational partner? How might we reason about the cost of the utterances we hear? In this Rational Speech Act (RSA) model, I explore how a listener might reason about the cost function that the speaker is using.
 
 We begin with an introduction to the RSA framework. The RSA framework posits that when comprehending utterances from a conversational partner, a listener performs a recursive reasoning process. This pragmatic listener reasons about a cooperative speaker who is trying to communicate a state of the world to a literal listener. This recursive reasoning relies on Bayesian inference which ultimately allows the pragmatic listener to reason about the state of the world based on an utterance. We will first set up the world of our model, then explain the behavior of the three main layers of our model (literal listener, pragmatic speaker, and pragmatic listener).

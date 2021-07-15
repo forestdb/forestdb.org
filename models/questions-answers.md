@@ -5,6 +5,177 @@ model-language: webppl
 model-language-version: v0.9.9
 ---
 
+### Pies & cakes
+
+~~~~
+///fold:
+var butLast = function(xs){
+  return xs.slice(0, xs.length-1);
+};
+
+var KL = function(dist1, dist2){                       
+  var values = dist1.support();
+  return sum(map(function(value){
+    var scoreP = dist1.score(value);
+    var scoreQ = dist2.score(value);
+    var probP = Math.exp(scoreP);
+    var probQ = Math.exp(scoreQ);
+    return (probP == 0.0 ? 0.0 :
+            probQ == 0.0 ? 100 :
+            probP * (scoreP - scoreQ));
+  }, values));
+};
+
+var powerset = function(set) {
+  if (set.length == 0) {
+    return [[]];
+  } else {
+    var rest = powerset(set.slice(1));
+    return map(function(element) {
+      return [set[0]].concat(element);
+    }, rest).concat(rest);
+  }
+};
+///
+var params = {
+  respondantAlpha : 1,
+  questionerAlpha : 1,  
+  relevanceBeta: 1
+};
+
+var bakedGoods = ['raspPie', 'raspCake', 'lemonPie', 'lemonCake'];
+var setsOfBakedGoods = map(function(v){return v.join('+');}, powerset(bakedGoods));
+var pieCakeContext = {
+  // worlds include all possible sub-sets of 0 < k < N pies and cakes
+  worlds : setsOfBakedGoods,
+
+  // actions include ordering 1 pie/cake
+  actions: bakedGoods,
+
+  // questions include yes/no question for each baked good
+  questions: [{type: 'polar', text: 'lemonPie?'},
+              {type: 'polar', text: 'lemonCake?'},
+              {type: 'polar', text: 'raspPie?'},
+              {type: 'polar', text: 'raspCake?'}],
+
+  // assume questioner is uncertain but answerer has Delta on true world (e.g. shopkeep)
+  questionerBeliefs: Categorical({vs: setsOfBakedGoods}),
+  respondantBeliefs: Delta({v: 'lemonPie+lemonCake'}),
+
+  // raspberry pie is #1 preference (U=5), lemon cake is #2 preference (U=3).
+  // otherwise U=1 if whatever you order is in stock and 0 if it's not in stock
+  decisionProblem: function(w, a) {
+    return _.includes(w, a) ? (a == 'raspPie' ? 5 : a == 'lemonCake' ? 4 : 1) : 0;
+  },
+  
+  // assume simplest meaning: 'yes' is true if item in question is available o.w. 'no' is true
+  meaning: function(world, question, response) {
+    return (response == 'yes' ?  _.includes(world, butLast(question.text)) :
+            response == 'no' ?  !_.includes(world, butLast(question.text)) :
+            console.error('unknown response', response));
+  }
+};
+
+// R0 chooses among responses licensed by the question
+var getLicensedResponses = function(question) {
+  if(question.type == 'polar') {
+    return ['yes', 'no'];
+  } else {
+    return console.error('non-polar questions not yet supported');
+  }
+};
+
+// response cost is proportional to length in words
+var cost = function(response) {
+  return response.split(' ').length;
+};
+
+// weight possible actions proportional 
+var relevanceProjection = function(beliefs, context) {
+  return Infer({method: 'enumerate'}, function() {
+    var action = uniformDraw(context.actions);
+    var world = sample(beliefs);
+    var decisionProblem = context.decisionProblem;
+    factor(Math.exp(decisionProblem(world, action)));
+    return action;
+  });
+};
+
+  // gives updated beliefs about world state after hearing response to question
+var updateBeliefs = function(beliefs, question, response, context) {
+  var meaning = context.meaning;
+  return Infer({method: 'enumerate'}, function() {
+    var world = sample(beliefs);
+    condition(meaning(world, question, response));
+    return world;
+  });
+};
+
+// agents weigh (1) general epistemic goal, (2) action-oriented goal, and (3) production cost
+var utility = function(type, utterance, beliefs1, beliefs2, context) {
+  // respondant wants to *minimize* KL b/w beliefs (bringing closer to own belief)
+  // questioner wants to *maximize* KL b/w old & new beliefs (asking informative Q)
+  var signFlip = type == 'R0' ? -1 : 1;
+  var epistemicUtility = KL(beliefs1, beliefs2) * signFlip;
+  var actionUtility = KL(relevanceProjection(beliefs1, context),
+                         relevanceProjection(beliefs2, context)) * signFlip;
+  console.log(type + ' considering utterance: ', utterance);
+  console.log('epistemic term:', epistemicUtility);
+  console.log('action-specific term:', actionUtility);
+  console.log('cost term:', cost(utterance));
+  console.log('--------------');
+  return ((1 - params.relevanceBeta) * epistemicUtility 
+          + params.relevanceBeta * actionUtility
+          - cost(utterance));
+};
+
+var R0 = cache(function(question, context) {
+  return Infer({method: 'enumerate'}, function(){
+    var response = uniformDraw(getLicensedResponses(question));
+    var ownBeliefs = context.respondantBeliefs;
+    var otherBeliefs = updateBeliefs(context.questionerBeliefs, question, response, context);
+    factor(params.respondantAlpha * utility('R0', response, ownBeliefs, otherBeliefs, context));
+    return response;
+  });
+});
+
+var Q1 = cache(function(context) {
+  return Infer({method: 'enumerate'}, function(){
+    var question = uniformDraw(context.questions);
+    var expectedUtility = expectation(context.questionerBeliefs, function(trueWorld) {
+      console.log(trueWorld)
+      var possibleResponses = R0(question, extend(context, {
+        respondantBeliefs: Delta({v: trueWorld})
+      }));
+      return expectation(possibleResponses, function(response) {
+        var currBeliefs = context.questionerBeliefs;
+        var updatedBeliefs = updateBeliefs(currBeliefs, question, response, context);
+	return utility('Q1', question.text, updatedBeliefs, currBeliefs, context);
+      });
+    });
+    factor(params.questionerAlpha * expectedUtility);
+    return question;
+  });
+});
+
+console.log('====================');
+console.log('R0 test 1: "do you have lemon pie?"');
+console.log('====================');
+var lemonPieQuestion = pieCakeContext.questions[0];
+console.log(R0(lemonPieQuestion, pieCakeContext));
+
+console.log('====================');
+console.log('R0 test 2: "do you have raspberry pie?"');
+console.log('====================');
+var raspberryPieQuestion = pieCakeContext.questions[2];
+console.log(R0(raspberryPieQuestion, pieCakeContext));
+
+console.log('====================');
+console.log('Q1 test');
+console.log('====================');
+console.log(Q1(pieCakeContext));
+~~~~
+
 ### Sensitivity to question
 
 Answerer should respond to 'what time do you close?' differently than 'what is the price of a fifth of Jim Beam?'

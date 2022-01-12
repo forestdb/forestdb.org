@@ -5,7 +5,6 @@ model-status: code
 model-category: Reasoning about Reasoning
 model-tags: language, pragmatics, sociolinguistics, social meaning
 model-language: webppl
-model-language-version: v0.9.7
 ---
 
 [Burnett (2019)](https://link.springer.com/article/10.1007/s10988-018-9254-y) combines insights from third-wave variationist sociolinguistics and Bayesian probabilistic pragmatics to model social inferences associated with the lingusitic variables (ING) (e.g. working vs. workin') and /t/ release.

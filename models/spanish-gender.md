@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Yeaton Muelas Gil Spanish gender
+title: Yeaton Muelas Gil - Spanish gender
 model-language: webppl
 ---
 

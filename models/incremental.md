@@ -105,7 +105,7 @@ var stringSemantics = function (context, state) {
   }, utterances);
   var trueContinuations = reduce(
     function (x, acc) {
-      return stringMeanings(x, state, semantics) + acc;
+      return stringMeanings(x, state) + acc;
     },
     0,
     allContinuations
@@ -115,12 +115,13 @@ var stringSemantics = function (context, state) {
 
 // the normal, utterance-level RSA literal listener
 var globalLiteralListener = function (utterance) {
-  return Infer(function () {
+  return Infer({model: function () {
     var state = uniformDraw(states);
-    var meaning = stringMeanings(utterance, state, semantics);
+    var meaning = stringMeanings(utterance, state);
     condition(meaning);
     return state;
-  });
+  }
+               });
 };
 
 // the normal, utterance-level RSA pragmatic speaker
@@ -128,7 +129,7 @@ var globalUtteranceSpeaker = cache(function (state) {
   return Infer({
     model: function () {
       var utterance = uniformDraw(utterances);
-      var listener = globalLiteralListener(utterance, semantics);
+      var listener = globalLiteralListener(utterance);
       factor(
         alpha * (listener.score(state) - stringCost(utterance.split(" ")))
       );
@@ -142,7 +143,7 @@ var incrementalLiteralListener = function (string) {
   return Infer({
     model: function () {
       var state = uniformDraw(states);
-      var meaning = Math.log(stringSemantics(string, state, semantics));
+      var meaning = Math.log(stringSemantics(string, state));
       factor(meaning);
       return state;
     },
@@ -159,10 +160,10 @@ var wordSpeaker = function (context, state) {
       condition(licitTransitions.includes(newContext.join(" ")));
       // note: condition basically goes away
       var result =
-        stringMeanings(context.join(" "), state, semantics) == 0
+        stringMeanings(context.join(" "), state) == 0
           ? 1
           : alpha *
-            (incrementalLiteralListener(newContext.join(" "), semantics).score(
+            (incrementalLiteralListener(newContext.join(" ")).score(
               state
             ) -
               stringCost(newContext));

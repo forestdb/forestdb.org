@@ -107,10 +107,9 @@ var speaker1 = cache(function(state, phi) {
 
 image?
 
-![Alt text](https://cdn.discordapp.com/attachments/700550857913270273/1379153139373969573/image.png?ex=683f33f3&is=683de273&hm=c7509c3d5a2e91545ffc9f6240e542cb253d728ff9a27401a9f3ace34d16a091&)
+<img src="https://cdn.discordapp.com/attachments/700550857913270273/1379153139373969573/image.png?ex=683f33f3&is=683de273&hm=c7509c3d5a2e91545ffc9f6240e542cb253d728ff9a27401a9f3ace34d16a091&" alt="Alt Text" style="width:70%; height:auto;">
+
 
 some Equation
 
-$$
-U(u;s;\varphi,\omega)=\omega_\text{epistemic}\cdot U_\text{epistemic}(u;s)+\omega_\text{social}\cdot U_\text{social}(u)+\omega_\text{presentational}\cdot U_\text{presentational}(u)
-$$
+<img src="https://cdn.discordapp.com/attachments/700550857913270273/1379175454371610694/image.png?ex=683f48bc&is=683df73c&hm=9a40ea22e370a5094b1732db5eec6d3166d8e91f25003757460504045cb696b9&" alt="Alt Text" style="width:70%; height:auto;">

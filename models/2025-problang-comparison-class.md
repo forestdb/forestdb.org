@@ -26,25 +26,20 @@ By capturing the uncertainty over which comparison class is being used (superord
 
 
 
-
-
-
+**Rational Speech Act Background** 
+- This model uses the Rational Speech Act (RSA) framework, which treats communication as a kind of recursive reasoning between speakers and listeners. This recursive structure means that a listener (L1) interprets an utterance by simulating a speaker (S1), who in turn is assumed to reason about a literal listener (L0). In this case, when someone says “John is tall,” the listener doesn't just guess how tall John is - they also think about who John is being compared to (like gymnasts or the general population). The model captures this by letting the listener infer both John’s height and the comparison group at the same time. This dual inference process is important in modeling the kind of nuanced interpretation humans perform effortlessly in everyday language use.
 
 **Helper Function**
-- A simple function to calculate the exponential of a number.
-- Used later for converting log-probabilities to probabilities.
-
+- First, the model defines a simple function that is used to convert log-probabilities (that are returned by Gaussian/normal distributions) into regular probabilities. This is done by calculating the exponential of a number.
 
 ~~~~
 var exp = function(x){ return Math.exp(x) }
 ~~~~
 
-
-
-**Height Space Discretization & Superordinate Params**
-- Controls how finely we discretize, or split up, the range of possible heights.
-- Defines the distribution for the general population (the "superordinate" comparison class). We have a mean of 0 and a standard deviation of 1, which is just a normal distribution. 
-- Heights are not used in a literal way***
+**Height Space Discretization**
+- Next, the binParam controls how finely we discretize, or split up, the range of possible heights. The reason the continuous variables are split up is to make the computation easier for WebPPL. 
+- The superordinate parameters are also introduced here. This defines the distribution for the general population (the "superordinate" comparison class). We have a mean of 0 and a standard deviation of 1, which is just a normal distribution. 
+- It's important to note that in this model, heights are not used in a literal way; instead, we have standardized values (or z-scores). This helps the model be more generalizable and not limited to height values only.
 
 ~~~~
 // discretization
@@ -53,16 +48,9 @@ var binParam = 3;
 var superordinate_params = {mu: 0, sigma: 1};
 ~~~~
 
-
-
-**Possible Height Values & Probabilities**
-- Create a list of possible heights that an individual might have 
-- Instead of looking at every number, we pick a range and break it into steps (binParam) 
-- The range is 3 standard deviations below and above the average. We use 3 standard deviations because in a normal curve, most values fall within 3 standard deviations from the mean. So, this range covers almost all the realistic heights someone could have.
-- For each possible height, we calculate how likely it is using a normal distribution (Gaussian).
-- The model first gets the log-probability for each height value.
-- We then apply the exponential function to convert those log values into regular probabilities.
-- This results in a probability distribution over all the possible heights we’re considering.
+**Possible Height Values & Probabilites**
+- The model begins by generating a list of possible height values that an individual might have. Rather than considering every real number, it selects a range spanning three standard deviations above and below the mean, capturing nearly all realistic values under a normal distribution, and divides this range into discrete steps, controlled by the binParam setting.
+- For each of these discretized height values, the model calculates the likelihood of occurrence using a Gaussian distribution. It first computes the log-probability for each height, then applies the exponential function to convert these into standard probabilities, resulting in a full probability distribution over the possible height values.
 
 
 ~~~~
@@ -76,46 +64,25 @@ var binParam = 3;
 // information about the superordinate category prior
 var superordinate_params = {mu: 0, sigma: 1};
 ///
+
 
 var stateVals = _.range(superordinate_params.mu - 3 * superordinate_params.sigma,
                         superordinate_params.mu + 3 * superordinate_params.sigma,
                         superordinate_params.sigma / binParam)
-stateVals
-~~~~
-~~~~
-///fold:
-// helper function
-var exp = function(x){return Math.exp(x)}
 
-// for discretization
-var binParam = 3;
-
-// information about the superordinate category prior
-var superordinate_params = {mu: 0, sigma: 1};
-
-// these values correspond to possible heights
-var stateVals = _.range(superordinate_params.mu - 3 * superordinate_params.sigma,
-                        superordinate_params.mu + 3 * superordinate_params.sigma,
-                        superordinate_params.sigma/binParam)
-///
-
-// for each possible height, calculate its probability of occurrence
 var stateProbs = cache(function(stateParams){
   return map(function(s){
     exp(Gaussian(stateParams).score(s))
   }, stateVals)
 });
 
+stateVals
 stateProbs({mu: 0, sigma: 1})
 ~~~~
 
-
-
 **Generate State Prior**
-- Here we create a pior distribution over possible heights using the values (vs) and their probabilities (ps).
-- What we believe about someone's height before hearing they are tall.
-
-
+- This function creates a full prior distribution over height values based on the probabilities computed above. Using Infer, it samples from a categorical distribution where the possible values are the discretized heights (stateVals) and the probabilities come from the Gaussian model (stateProbs). This gives us the prior belief about a person's height before hearing the adjective "tall."
+- *In both the adjectives model and this comparison class model, listeners infer both the state of the world (like a price or height) and some hidden parameter (such as a threshold or comparison class) based on the interpretation of terms like “expensive” or “tall.” They also both capture how listeners interpret adjectives depending on context.*
 
 ~~~~
 ///fold:
@@ -140,7 +107,6 @@ var stateProbs = cache(function(stateParams){
   }, stateVals)
 });
 ///
-
 
 var generateStatePrior = cache(function(stateParams) {
   return Infer({
@@ -153,14 +119,10 @@ var generateStatePrior = cache(function(stateParams) {
 generateStatePrior({mu: 0, sigma: 1})
 ~~~~
 
-
-
-**Tall Thresholds & Prior**
-- To decide if someone is tall, we need a threshold.
-- The bins are slightly adjusted from the height values to compute these thresholds.
-- Positive and negative thresholds model different assumptions (e.g., tall vs. short).
-- Samples a threshold uniformly from the defined bins.
-- Uncertainty about what "tall" actually means numerically.
+**Thresholds Bins & Priors**
+- To interpret an adjective like "tall," we need to define a threshold: a height above which a person is considered tall. The model does this by creating a range of possible threshold values. For "tall" (positive), it shifts each height bin slightly left; for "short" (negative), it shifts right. This adjustment prevents overlap between height values and threshold bins and allows for smooth probabilistic inference.
+- If we don’t shift the thresholds and just use the same values for height and threshold, then we might run into cases where the height is exactly equal to the threshold. Since the model checks if the height is greater than the threshold, not equal to it, these cases wouldn’t count, even though they’re right on the edge. That can make the model behave in weird or unrealistic ways. We could try using >= or <= in the meaning function to fix that, but then heights that are exactly on the boundary would be treated as clearly “tall” or “short,” which also isn’t quite right. Shifting the thresholds a little helps the model avoid these edge cases and gives more natural results.
+- The threshold prior then samples a threshold uniformly from the defined bins. This represents an uncertainty about what "tall" actually means numerically.
 
 ~~~~
 ///fold:
@@ -193,59 +155,12 @@ var generateStatePrior = cache(function(stateParams) {
     }
   })
 });
-///
+/// 
 
 var thresholdBins = {
   positive: map(function(x){ return x - (1/(binParam*2)); }, sort(stateVals)), //tall
   negative: map(function(x){ return x + (1/(binParam*2)); }, sort(stateVals)) //short
 };
-
-display(thresholdBins.positive)
-display(thresholdBins.negative)
-~~~~
-
-~~~~
-///fold:
-// helper function
-var exp = function(x){return Math.exp(x)}
-
-// for discretization
-var binParam = 3;
-
-// information about the superordinate category prior
-var superordinate_params = {mu: 0, sigma: 1};
-
-// these values correspond to possible heights
-var stateVals = _.range(superordinate_params.mu - 3 * superordinate_params.sigma,
-                        superordinate_params.mu + 3 * superordinate_params.sigma,
-                        superordinate_params.sigma/binParam)
-
-// for each possible height, calculate its probability of occurrence
-var stateProbs = cache(function(stateParams){
-  return map(function(s){
-    exp(Gaussian(stateParams).score(s))
-  }, stateVals)
-});
-
-// generate a statePrior using the possible heights and their probabilities
-var generateStatePrior = cache(function(stateParams) {
-  return Infer({
-    model: function(){
-      return categorical({vs: stateVals, ps: stateProbs(stateParams)})
-    }
-  })
-});
-
-// generate the uniform threshold prior
-var thresholdBins ={
-  positive: map(function(x){
-    return  x - (1/(binParam*2));
-  }, sort(stateVals)),
-  negative: map(function(x){
-    return  x + (1/(binParam*2));
-  }, sort(stateVals))
-};
-///
 
 var thresholdPrior = cache(function(form){
   return Infer({
@@ -253,17 +168,18 @@ var thresholdPrior = cache(function(form){
   });
 });
 
+display(thresholdBins.positive)
+display(thresholdBins.negative)
 viz.density(thresholdBins.positive)
 viz.density(thresholdBins.negative)
 ~~~~
-
-
 
 **Subordinate Category Priors**
 - Specific group priors over height.
 - Each group (gymnasts, soccer players, basketball players) has its own mean and standard deviation.
 - Just to point out, the specific athletic groups have smaller standard deviations, compared to the whole population, because of the fact that they are all doing the same activity.
 - Used when assuming the comparison class is the specific group (subordinate).
+- *The adjectives model uses empirical price priors based on real-world data for specific items, while this comparison model uses predefined priors not based on experimental data.* 
 
 ~~~~
 ///fold:
@@ -393,7 +309,7 @@ We have prior knowledge about the distribution of heights that various classes h
 This object is defined as follows:
 
 ~~~~
-///fold:
+/// fold:
 var classPrior = Infer({
   model: function(){return uniformDraw(["subordinate", "superordinate"])}
 });
@@ -610,7 +526,7 @@ viz(speaker
    )
 ~~~~
 
-Let's run a test case.
+Let's run a test case on the speaker.
 
 Below, the speaker function is run with fixed state (0.33333...) and subparameters (gymnasts). The thresholds are changed comparing the effect of comparison class selection on differing thresholds.
 
@@ -619,6 +535,7 @@ The **Tall Threshold** implements thresholds where the state would be considered
 Of course, the thresholds determine which informative utterance ("short"/"tall") is chosen, but here you see that the subordinate v.s. superordinate parameter distinction is important in determining whether the speaker would choose an informative utterance or silence. 
 
 For example, within the **Lower Short Threshold** distributions, a speaker would be less inclined to mention a person is short if they are considering their height relative to gymnasts (subordinate comparison), but there is much higher probability that the speaker would use the informative utterance if they are comparing to all people (superordinate comparison).
+
 
 ~~~~
 ///fold:
@@ -720,15 +637,14 @@ viz(speaker(testState, {tall: 0.8333333333333331, short: 1.1666666666666665}, te
 viz(speaker(testState, {tall: 0.8333333333333331, short: 1.1666666666666665}, superordinate_params))
 ~~~~
 
-Finally, the L₁. 
+One question that arises from the speaker model, whose goal is to be informative and truthful: **why choose silence?**
 
-Similar to many other models we've looked at, the L₁'s goal is to infer the state that the speaker is trying to communicate. In our model, the L₁ is also attempting to infer the comparison class (e.g. is the speaker saying that John is tall compared to all people, or just to gymnasts?) In doing so, it runs **Infer** over a function that returns a structured object with both the comparison class and state.
+Generally, you would think that most people are either short or tall. If someone were to fall in the unique case that they are exactly not tall or short, silence may be warranted. However, there are state/threshold/parameter combinations in our test cases that warrant the speaker to consider silence.
 
-The L₁ takes in two arguments: the **utterance** and the **subordinate category** (N.B. the L₁ is told the subordinate category and **not** the comparison class). It then generates a state prior from the given subordinate category, sampling a state from said prior. The thresholds are sampled like in the previous speaker and listener layers. Finally, the **comparisonClass** function is run, sampling either the subordinate or superordinate class.
+In our test cases we are looking at the subparameters for gymnasts (who are generally shorter than the superordinate population. If we look at our "lower SHORT threshold" speaker (listed below), where the state is lower than both the tall and the short threshold, the speaker is much more likely to consider uttering "short" when factoring in the superordinate parameters. This is because the state is much more likely to be interpreted as short (using the meaning function) compared to when subordinate parameters are used (i.e. you are more likely to consider someone who is short to be short when comparing them to all people than when comparing them to gymnasts). 
 
-With these variables defined, the L₁ function runs the speaker function with the sampled state, the sampled thresholds, and the sampled comparison class. The speaker function returns a distribution (since it runs **Infer** over a function) which it then runs through the **observe** function alongside the original utterance: this reweights the world state and comparison class hypothesis based on how likely a speaker with those parameters would have produced the observed utterance.
+So that begs the larger question: why, when comparing a short person to gymnasts, does the speaker think that silence is just as informative as uttering "short"? In this case, when the comparison class is gymnasts, and not all people, calling a person short may be uninformative, since compared to gymnasts they may be average, which leads the speaker to consider silence.
 
-*The L₁ uses **observe**, unlike the rest of the model (and unlike the adjective model) which uses **score** and **factor**.
 ~~~~
 ///fold:
 var exp = function(x){return Math.exp(x)}
@@ -801,9 +717,110 @@ var literalListener = cache(
     }})
   }, 10000 
 )
+
+var speaker = cache(
+  function(state, thresholds, comparisonClass) {
+    Infer({model: function(){
+      var utterance = uniformDraw(utterances);
+      var L0 = literalListener(utterance, thresholds, comparisonClass);
+      factor( alpha * L0.score(state) );
+      return utterance;
+    }})
+  }, 10000 
+)
 ///
 
+var testState = 0.3333333333333332
+var testSubParams = {mu: -1, sigma: 0.5}
+
+display("lower SHORT threshold")
+viz(speaker(testState, {tall: 0.4999999999999999, short: 0.8333333333333331}, testSubParams))
+viz(speaker(testState, {tall: 0.4999999999999999, short: 0.8333333333333331}, superordinate_params))
+~~~~
+
+Finally, the L₁. 
+
+Similar to many other models we've looked at, the L₁'s goal is to infer the state that the speaker is trying to communicate. In our model, the L₁ is also attempting to infer the comparison class (e.g. is the speaker saying that John is tall compared to all people, or just to gymnasts?) In doing so, it runs **Infer** over a function that returns a structured object with both the comparison class and state.
+
+The L₁ takes in two arguments: the **utterance** and the **subordinate category** (N.B. the L₁ is told the subordinate category and **not** the comparison class). It then generates a state prior from the given subordinate category, sampling a state from said prior. The thresholds are sampled like in the previous speaker and listener layers. Finally, the **comparisonClass** function is run, sampling either the subordinate or superordinate class.
+
+With these variables defined, the L₁ function runs the speaker function with the sampled state, the sampled thresholds, and the sampled comparison class. The speaker function returns a distribution (since it runs **Infer** over a function) which it then runs through the **observe** function alongside the original utterance: this reweights the world state and comparison class hypothesis based on how likely a speaker with those parameters would have produced the observed utterance.
+
+N.B. The L₁ uses **observe**, unlike the rest of the model (and unlike the adjective model) which uses **score** and **factor**. 
+
+~~~~
 ///fold:
+var exp = function(x){return Math.exp(x)}
+
+var binParam = 3;
+
+var superordinate_params = {mu: 0, sigma: 1};
+
+var stateVals = _.range(superordinate_params.mu - 3 * superordinate_params.sigma,
+                        superordinate_params.mu + 3 * superordinate_params.sigma,
+                        superordinate_params.sigma/binParam)
+
+var stateProbs = cache(function(stateParams){
+  return map(function(s){
+    exp(Gaussian(stateParams).score(s))
+  }, stateVals)
+});
+
+var generateStatePrior = cache(function(stateParams) {
+  return Infer({
+    model: function(){
+      return categorical({vs: stateVals, ps: stateProbs(stateParams)})
+    }
+  })
+});
+
+var thresholdBins ={
+  positive: map(function(x){
+    return  x - (1/(binParam*2));
+  }, sort(stateVals)),
+  negative: map(function(x){
+    return  x + (1/(binParam*2));
+  }, sort(stateVals))
+};
+
+var thresholdPrior = cache(function(form){
+  return Infer({
+    model: function() { return uniformDraw(thresholdBins[form]) }
+  });
+});
+
+var subParams = {
+  gymnasts: {mu: -1, sigma: 0.5},
+  soccerPlayers: {mu: 0, sigma: 0.5},
+  basketballPlayers: {mu: 1, sigma: 0.5}
+}
+
+var utterances = ["tall", "short", "silence"]
+
+var meaning = function(utterance, state, thresholds) {
+  utterance == "tall" ? state > thresholds.tall :
+  utterance == "short" ? state < thresholds.short :
+  true
+}
+
+var classPrior = Infer({
+  model: function(){return uniformDraw(["subordinate", "superordinate"])}
+});
+
+var alpha = 5;
+
+var literalListener = cache(
+  function(utterance, thresholds, comparisonClass) {
+    Infer({model: function(){
+      var StatePrior = generateStatePrior(comparisonClass)
+      var state = sample(StatePrior);
+      var m = meaning(utterance, state, thresholds);
+      condition(m);
+      return state;
+    }})
+  }, 10000 
+)
+
 var speaker = cache(
   function(state, thresholds, comparisonClass) {
     Infer({model: function(){
@@ -838,6 +855,7 @@ var pragmaticListener = cache(function(utterance, subordinate_params) {
 display("pragmatic listener")
 viz(pragmaticListener("tall", {mu: -1, sigma: 0.5}))
 ~~~~
+
 ~~~~
 ///fold:
 // helper function
@@ -1290,7 +1308,6 @@ returns:
 
 - the probability of the superordinate comparison class being used by taking the marginal distribution of comparison classes and the scoring the probability of "superordinate" 
 
-- Within L1predictions map applies the function stim to each condition within exptConditions, a structured object with an utterance and a subordinate paramater. 
 
 - what subordinate category was used and that the model is L1.
 
@@ -1447,24 +1464,58 @@ display("the basketball player is short")
 display("--> height = " + expectation(marginalize(pragmaticListener("short",{mu: 1, sigma: 0.5}), "state")))
 display("the basketball player is tall")
 display("--> height = " + expectation(marginalize(pragmaticListener("tall",{mu: 1, sigma: 0.5}), "state")))
-viz(pragmaticListener("tall",{mu: 1, sigma: 0.5}))
+
 //probability the pragmatic listener thinks the soccer player is tall or short
 display("the soccer player is short")
 display("--> height = " + expectation(marginalize(pragmaticListener("short",{mu: 0, sigma: 0.5}), "state")))
 display("the soccer player is tall")
 display("--> height = " + expectation(marginalize(pragmaticListener("tall",{mu: 0, sigma: 0.5}), "state")))
-viz(pragmaticListener("tall",{mu: 0, sigma: 0.5}))
+
 //probability the gymnast is tall or short short
 display("the gymnast is short")
 display("--> height = " + expectation(marginalize(pragmaticListener("short",{mu: -1, sigma: 0.5}), "state")))
 display("the gymnast is tall")
 display("--> height = " + expectation(marginalize(pragmaticListener("tall",{mu: -1, sigma: 0.5}), "state")))
-viz(pragmaticListener("tall",{mu: -1, sigma: 0.5}))
 ~~~~
 
 
 
-Above is the pragmatic listener's beliefs about the height of different sports. They hear that they are tall or short with the range of heights for that sport. 
+basketball players https://ibb.co/xqhsvyfC
+
+soccer players https://ibb.co/Zk4km17 
+
+gymnasts: https://ibb.co/nMS5Z2JN 
+
+Above is the pragmatic listener's beliefs about the height of different sports. They hear that they are tall or short with the range of heights for that sport. The line plots display the probabilities of which comparison class the pragmatic listener interprets when they hear that someone who plays a specific sport is tall as well as the height they interpret this to be. For each chart, the highest probability of height is at the upper end of the height ranges for a sport. For example, the highest probability of height for gymnasts is concentrated around -0.78, above average gymnast height of -1. In comparison to gymnasts and soccer players, basketball players have an expected height that is closer to their mean height. This is because saying tall to refer to a basketball player is less informative than it would be to call a gymnast or a soccer player tall, so the interpreted height for "tall" is closer to that of the average population.  
+
+So what does **L1predictions** do exactly? 
+
+The goal of the function is to return the probability that, when hearing the given utterance with the given comparison class, the speaker was comparing them to the superordinate class.
+
+In order to do so, it itemizes each utterance/subordinate-group combination, and then runs the pragmatic listener over each combination (which leads us to run the L₁ over 6 different combinations). Next, over each combination, it extracts the marginal probability that the L₁ listener assigns to the speaker using the superordinate comparison class.
+
+In running the function, it will return a probability distribution marginalized over the states “tall” and “short,” showing the probability that a certain subordinate class would considered tall or short compared to the superordinate population.
+
+~~~~
+var exptConditions = [
+  {utt: "tall", sub: "basketballPlayers"},
+  {utt: "short", sub: "basketballPlayers"},
+  {utt: "tall", sub: "soccerPlayers"},
+  {utt: "short", sub: "soccerPlayers"},
+  {utt: "tall",  sub: "gymnasts"},
+  {utt: "short", sub: "gymnasts"}
+];
+
+var L1predictions = map(function(stim){
+  var L1posterior = pragmaticListener(stim.utt, subParams[stim.sub])
+  return {
+    utterance: stim.utt,
+    "P(superordinate comparison class)": exp(marginalize(L1posterior, "comparisonClass").score("superordinate")),
+    "subordinate category": stim.sub,
+    model: "L1"
+  }
+}, exptConditions)
+~~~~
 
 ~~~~
 ///fold:
@@ -1618,4 +1669,5 @@ display("probability of superordinate comparison class (i.e., tall for all peopl
 viz.bar(L1predictions, {groupBy: "subordinate category"})
 ~~~~
 
-This displays the probability the pragmatic listener infers the speaker is referring to tall for the superordinate comparison class for each of the supordinate categories. Basketball players have the highest probability for being tall in the superordinate class and lowest probability for short due to their distribution of heights in subParams.
+This histogram shows the probability the pragmatic listener infers the speaker is referring to tall for the superordinate comparison class for each of the superordinate categories. Basketball players have the highest probability for being tall in the superordinate class and lowest probability for short due to their distribution of heights in subParams. This means a Basketball player would be more likely to be tall in the general population, so it is likely that someone is referring to them in the superordinate category. In contrast, gymnasts are very short so they are unlikely to be tall for the general population. As a result, it is likely the speaker is referring to the subordinate comparison class, or "tall for a gymnast". Soccer players have the same average height as the general population, so it is equally likely they will be short for all people, or tall for all people.
+

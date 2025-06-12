@@ -29,9 +29,10 @@ A new addition to this model is the *self-presentational* utility – a way that
 
 Prioritizing the *presentational* utility leads speakers to use indirect speech, realized as negated adjectival phrases in this model. There are 8 possible utterances: 4 without negation (*“terrible”*, *“bad”*, *“good”*, *“amazing”*) and 4 with negation (*“not terrible”*, *“not bad”*, *“not good”*, *“not amazing”*). The negated utterances are more difficult to comprehend than the unnegated utterances, so they have a higher cost of 0.35 while the unnegated utterances have a cost of 0.
 
-[Yoon et al. (2018)](https://psyarxiv.com/67ne8) obtained literal semantics of the utterances through an experiment probing participant judgments. They were presented with a state (0, 1, 2, 3) and an utterance (“Do you think Ann thought the presentation was [1 of 8 utterances]?”) and responded with “yes” or “no”.
+[Yoon et al. (2018)](https://psyarxiv.com/67ne8) obtained literal semantics of the utterances through an experiment probing participant judgments. They were presented with a state (0, 1, 2, 3) and an utterance (*“Do you think Ann thought the presentation was [1 of 8 utterances]?”*) and responded with *“yes”* or *“no”*.
 
 ## Literal Listener 0 (**L0**)
+
 Literal listener (**L0**) is the same from the vanilla RSA model. They only interpret the literal semantics of the utterances according to the meaning function. Running one of the new utterances *"not bad"* results in a probability distribution of states identical to *"not bad"* values in the literal semantics.
 ~~~~
 ///fold:
@@ -339,15 +340,13 @@ var speakerUtility = omega.epistemic * utilities.epistemic +
   omega.presentational * utilities.presentational - cost(utterance)
 ~~~
 
-In this updated model, function *speaker2* takes in a state (0, 1, 2, 3), a *φ* value (0-1), and a vector which contains weights (*ω*) for the utilities and returns a probability distribution of utterances which can best convey these information to the listener.
+In this updated model, function *speaker2* takes in a state (0, 1, 2, 3), a *φ* value (0-1), and a vector which contains weights (*ω*) for the utilities.
 ~~~
 var speaker2 = function(state, phi, weights){
-  ///fold:
   display("state = " + state)
   display("phi = " + phi)
   display("social weight = " + weights.soc + ", presentational weight = " + weights.pres 
           + ", informational weight = " + weights.inf)
-  ///
 }
 //calling the function
 speaker2(0, 0.5, {soc: 0.05, pres: 0.60, inf: 0.35})
@@ -376,13 +375,17 @@ var totalUtility = weights.soc * utilities.soc +
         weights.inf * utilities.inf - cost(utterance);
 ~~~
 
-This code splits the chosen utterance into two parts at the underscore ("_"). It then returns an object where the first part is labeled as the "utterance particle" and the second part as the main "utterance." This helps with visualizing the results by sorting the utterances into negated and not negated groups.
+**S2** returns a probability distribution of utterances which can best convey these information to the listener. This code splits the utterances into two parts at the underscore ("_"). It then returns an object where the first part is labeled as the "utterance particle" and the second part as the main "utterance." This helps with visualizing the results by sorting the utterances into negated and not negated groups.
 
 ~~~
-var utt = utterance.split("_")
-return {
-  "utterance particle": utt[0], utterance: utt[1]
+var utterance_split = function (utterance){
+  var utt = utterance.split("_")
+  return {
+    "utterance particle": utt[0], utterance: utt[1]
+  }
 }
+
+utterance_split("not_bad")
 ~~~
 
 Here's **S2** all together.
@@ -649,9 +652,9 @@ var speaker2 = function(state, phi, weights) {
 ///
 // Comparing presentational weights
 display("What happens as a speaker’s desire to save face increases?")
-display(“Speaker A:”)
+display("Speaker A:")
 viz(speaker2(1, 0.50, {soc: 0.5, pres: 0.0, inf: 0.5}))
-display(“Speaker B:”)
+display("Speaker B:")
 viz(speaker2(1, 0.50, {soc: 0.5, pres: 1, inf: 0.5}))
 ~~~
 

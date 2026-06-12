@@ -3,6 +3,7 @@ layout: model
 title: Adjectives + QUD - Frankie, Shane
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 ## Adjectives + QUD Model - Frankie & Shane

@@ -3,6 +3,7 @@ layout: model
 title: Ashqar, Sizemore, Telahun, Torres - Metaphor
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 The metaphor model uses non-literal language and deals with reasoning through uncertainty about what the speaker is trying to communicate. It describes a situation in which a speaker says “John is a whale”, and the listener has to reason if the speaker is saying that John is actually a whale or if he has qualities of a whale. The model implements this reasoning process by aligning utterances (e.g., “whale”, “person”) with stereotypical features (large, majestic, graceful), then introducing uncertainty about which feature is currently the topic of conversation.  

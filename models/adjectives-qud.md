@@ -3,6 +3,7 @@ layout: model
 title: Daniel, Hondel & Ramirez Adjectives QUD
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 Extending the Vagueness resolution with a QUD

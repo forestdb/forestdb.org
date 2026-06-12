@@ -3,6 +3,7 @@ layout: model
 title: RSA prior inference
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 

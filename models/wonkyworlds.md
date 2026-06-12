@@ -1,7 +1,8 @@
 ---
 layout: model
 title: Wonky worlds
-model-status: code
+model-status: code-fail
+model-status-verbose: Uses binomialERP, which does not exist in the webppl 0.9.7 this page pins (nor in earlier vendored versions).
 model-language: webppl
 model-language-version: v0.9.7
 model-category: Probabilistic Language Understanding

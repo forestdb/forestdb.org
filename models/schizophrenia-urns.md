@@ -4,6 +4,7 @@ title: Urn model
 model-language: webppl
 model-language-version: v0.9.9
 model-category: Miscellaneous
+model-status: code
 ---
 
 ~~~~

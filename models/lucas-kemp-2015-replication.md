@@ -4,6 +4,7 @@ title: Lucas & Kemp 2015 Replication
 model-language: webppl
 model-language-version: pre-v0.7
 model-category: Counterfactuals and Explanations
+model-status: code
 ---
 
 

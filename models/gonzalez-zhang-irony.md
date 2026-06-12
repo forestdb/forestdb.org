@@ -3,6 +3,7 @@ layout: model
 title: Gonzalez & Zhang Irony S2
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 The Original Irony Model

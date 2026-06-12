@@ -3,6 +3,7 @@ layout: model
 title: Buenagua, Kephart, Malone, Tran Scalar implicature
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 Markdown- puzzle and modeling approach

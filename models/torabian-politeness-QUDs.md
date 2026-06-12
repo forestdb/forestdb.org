@@ -3,6 +3,7 @@ layout: model
 title: Torabian Politeness + QUDs
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 In this project we look into social reasoning about social reasoning, and particularly extend the politeness model by Yoon, Tessler, et al. (2016) by adding a Question-Under-Discussion (QUD). This QUD is inspired by the irony model proposed by Kao and Goodman (2015).

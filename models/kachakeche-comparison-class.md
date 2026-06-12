@@ -3,6 +3,7 @@ layout: model
 title: Heavy or not comparison classes
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 ### Zeinab Kachakeche

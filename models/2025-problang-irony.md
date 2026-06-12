@@ -3,6 +3,7 @@ layout: model
 title: Irony - Annie, Jon, Stella
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 **Introduction to the RSA model**

@@ -3,6 +3,7 @@ layout: model
 title: Upadhye - Aspect
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 ## An RSA model of event interpretation

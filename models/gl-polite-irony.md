@@ -3,6 +3,7 @@ layout: model
 title: Gu, Li - Polite Irony
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 Let’s say you are a passionate baker, but your baking skills is not that sharp, so the quality of your cookies is unstable. Sometimes you bake pretty good ones, other times they are terrible. This time you baked really terrible cookies, and you invited a bunch of people to your place for a cookie tasting party. Person A tasted your cookies— you are naïve about the quality. You asked person A how she likes the cookies, and she answered "Oh they are amazing". 

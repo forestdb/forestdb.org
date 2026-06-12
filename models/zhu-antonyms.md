@@ -3,6 +3,7 @@ layout: model
 title: Zhu Negated Antonyms Extension
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 ### Understanding Negated Antonyms

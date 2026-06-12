@@ -52,4 +52,4 @@ Version 2:
 
     (car (reverse samples))
 
-Source: [shred](https://github.com/LFY/shred/blob/master/tests/ising.ss)      
+Source: [shred](https://web.archive.org/web/2015/https://github.com/LFY/shred/blob/master/tests/ising.ss)      

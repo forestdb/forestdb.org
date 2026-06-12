@@ -229,4 +229,4 @@ Terra version:
 References:
 
 - Cite:yeh2012synthesizing
-- [Daniel Ritchie](http://stanford.edu/~dritchie/) (2014)
+- [Daniel Ritchie](https://dritchie.github.io/) (2014)

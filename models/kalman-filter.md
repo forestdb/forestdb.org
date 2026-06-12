@@ -8,7 +8,7 @@ model-tags: gaussian
 model-language: church
 ---
 
-The Kalman filter (or Kalman smoother) is a Hidden Markov Model with Gaussian transition and observation functions. The model here is based on the [Kalman filter in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/examples/kalman_filter/).
+The Kalman filter (or Kalman smoother) is a Hidden Markov Model with Gaussian transition and observation functions. The model here is based on the [Kalman filter in Anglican](https://probprog.github.io/anglican/examples/viewer/?worksheet=kalman).
 
     (define xs '(1 2 3 4 5    7 8 9 10))
     (define ys '(0.38 0.49 0.47 0.28 0.24   0.33 0.47 0.40 0.44))
@@ -45,4 +45,4 @@ The Kalman filter (or Kalman smoother) is a Hidden Markov Model with Gaussian tr
 
 References:
 
-- [Kalman filter in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/examples/kalman_filter/)
+- [Kalman filter in Anglican](https://probprog.github.io/anglican/examples/viewer/?worksheet=kalman)

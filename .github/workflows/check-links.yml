@@ -6,31 +6,35 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
   issues: write
 
 jobs:
   link-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Install lychee
+        run: |
+          curl -sL https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-gnu.tar.gz | tar xz lychee
 
-      - name: Check links in model pages
+      - name: Check links on the live site
         id: lychee
-        uses: lycheeverse/lychee-action@v2
-        with:
-          args: >-
-            --no-progress
-            --max-concurrency 8
-            --timeout 20
-            --max-retries 2
-            --accept '100..=103,200..=299,403,429'
-            --exclude-path assets
-            --exclude-path scripts
-            --exclude-path index.md
-            --remap '^/(.*) https://forestdb.org/$1'
-            './**/*.md'
-          fail: false
+        run: |
+          curl -sf https://forestdb.org/models.json | jq -r '.models[].url' > urls.txt
+          echo "https://forestdb.org/" >> urls.txt
+          echo "Checking $(wc -l < urls.txt) pages"
+          set +e
+          ./lychee --no-progress \
+            --max-concurrency 8 \
+            --timeout 20 \
+            --max-retries 2 \
+            --accept '100..=103,200..=299,403,429' \
+            --exclude '^https://github\.com/forestdb/forestdb\.org/(edit|new|commits)/' \
+            --exclude '^https://web\.archive\.org/' \
+            --format markdown \
+            --output lychee-report.md \
+            $(cat urls.txt)
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          true
 
       - name: Report broken links in an issue (create or update)
         if: steps.lychee.outputs.exit_code != 0
@@ -42,7 +46,7 @@ jobs:
             --search "in:title \"$title\"" --json number,title \
             --jq ".[] | select(.title == \"$title\") | .number" | head -1)
           if [ -n "$num" ]; then
-            gh issue edit "$num" --repo "$GITHUB_REPOSITORY" --body-file ./lychee/out.md
+            gh issue edit "$num" --repo "$GITHUB_REPOSITORY" --body-file lychee-report.md
           else
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file ./lychee/out.md
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file lychee-report.md
           fi

@@ -34,4 +34,4 @@ What is the probability that in a room filled with 23 people, at least one pair 
     
 References:
 
-- [Birthday problem in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/examples/birthday/)
+- [Birthday problem in Anglican](https://probprog.github.io/anglican/examples/viewer/?worksheet=birthday)

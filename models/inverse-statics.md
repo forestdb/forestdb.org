@@ -72,4 +72,4 @@ Inference is over beam rotation angles that (approximately) satisfy static equil
 
 References:
 
-- [Daniel Ritchie](http://stanford.edu/~dritchie/) (2014)
+- [Daniel Ritchie](https://dritchie.github.io/) (2014)

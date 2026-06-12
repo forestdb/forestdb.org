@@ -43,4 +43,4 @@ This is an example of a mixed discrete-continuous model.
     
 References:
 
-- [American/Indian GPA example in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/examples/american_indian_gpa/)
+- [American/Indian GPA example in Anglican](https://probprog.github.io/anglican/examples/viewer/?worksheet=indian-gpa)

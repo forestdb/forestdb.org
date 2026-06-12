@@ -7,7 +7,7 @@ model-tags: shred, benchmark, machine learning
 model-language: church
 ---
 
-Version 1 (based on [Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/examples/linear_regression/)):
+Version 1 (based on [Anglican](https://probprog.github.io/anglican/examples/viewer/?worksheet=linear)):
 
     (define xs '(0 1 2 3))
     (define ys '(0 1 4 6))
@@ -69,4 +69,4 @@ Version 2 (based on [shred](http://lfy.github.io/shred.pdf)):
 References 
 
 - Cite:shred2014
-- [Linear regression in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/examples/linear_regression/)
+- [Linear regression in Anglican](https://probprog.github.io/anglican/examples/viewer/?worksheet=linear)

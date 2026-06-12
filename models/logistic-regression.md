@@ -7,7 +7,7 @@ model-tags: machine learning
 model-language: church
 ---
 
-Logistic regression predicts a discrete class probability based on a continuous input. The model below is based on the [Anglican implementation of logistic regression](http://www.robots.ox.ac.uk/~fwood/anglican/examples/logistic_regression/).
+Logistic regression predicts a discrete class probability based on a continuous input. The model below is based on the [Anglican implementation of logistic regression](https://probprog.github.io/anglican/examples/viewer/?worksheet=logistic-regression-iris).
 
     (define xs '(-10 -5 2 6 10))
     (define labels '(#f #f #t #t #t))
@@ -38,4 +38,4 @@ Logistic regression predicts a discrete class probability based on a continuous 
     
 References:
 
-- [Logistic Regression in Anglican](http://www.robots.ox.ac.uk/~fwood/anglican/examples/logistic_regression/)
+- [Logistic Regression in Anglican](https://probprog.github.io/anglican/examples/viewer/?worksheet=logistic-regression-iris)

@@ -4,6 +4,7 @@ layout: model
 author: Justine Kao, Kyle McDonald, Daniel Hawthorne, Gabriel Ben-Dorr, Erin Bennett
 model-language: church
 model-category: Reasoning about Reasoning
+model-status: code
 ---
 
 # Mindsets

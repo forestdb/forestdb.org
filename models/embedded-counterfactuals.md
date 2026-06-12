@@ -1,13 +1,14 @@
 ---
 layout: model
-title: Counterfactuals
+title: Embedded Counterfactuals
 model-language: church
 model-category: Counterfactuals and Explanations
+model-status: code
 ---
 
-Should counterfactual reasoning invlove an embedded query?
+Should counterfactual reasoning involve an embedded query?
 
-For the following background knowlege and counterfactual inference, these can give different counterfactual predicitons.
+For the following background knowledge and counterfactual inference, these can give different counterfactual predictions.
 
 Here's the functional causal model of the situation:
 

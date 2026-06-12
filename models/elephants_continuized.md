@@ -1,9 +1,10 @@
 ---
 layout: model
-title: elephants
+title: "Generics: Elephants (continuized semantics)"
 model-language: webppl
 model-language-version: v0.9.13
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 The continuized _elephants_ model has several changes with respect to the original model:

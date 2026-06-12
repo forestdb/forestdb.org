@@ -3,6 +3,7 @@ layout: model
 title: SFV for "some"
 model-language: church
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 Looking at the effect of a semantic free variable that can make "some" mean (lexically) some-not-all.

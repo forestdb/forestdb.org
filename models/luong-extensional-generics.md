@@ -3,6 +3,7 @@ layout: model
 title: Luong - Extensional Generics
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 Introduction
@@ -503,7 +504,7 @@ var sample_prev = prevalencePrior("wings", theWorld)
 speaker1(0.8, 0.2, sample_prev, "wings")
 ~~~~
 
-~~~~
+~~~~ norun
 // the old model
 var listener = function(utterance, statePrior) {
   Infer({model: function(){

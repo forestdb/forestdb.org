@@ -3,6 +3,7 @@ layout: model
 title: Cortes-Gress, Nguyen, Quinteros, Romano-Kwan - Comparison Class
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 Inferring the Comparison Class (Write-Up)
@@ -1082,7 +1083,7 @@ When the pragmatic listener hears the utterance “tall” being used to describ
 
 Regardless of the utterance, soccer players are equally likely to be compared to all people or just other soccer players. 
 
-~~~~
+~~~~ norun
 Similarities between other models.
 
 // Similarities Comparison Class 

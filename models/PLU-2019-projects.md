@@ -3,6 +3,7 @@ layout: model
 title: ProbLang 2019 class projects
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 ##Xirong Cao
@@ -298,7 +299,7 @@ The second model will analyze the effect of those the adjective in the first mod
 var grading = {
   "beauty": [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5,
              5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10],
-  "probabilities": 1, 1, 2, 2, 4, 4, 6, 6, 8, 8, 9, 9,
+  "probabilities": [1, 1, 2, 2, 4, 4, 6, 6, 8, 8, 9, 9,
                     10, 10, 10, 9, 8, 6, 4, 2, 1]
 }
 
@@ -518,6 +519,7 @@ var shapes = ["pointy","round"]
 
 var shapeprior = function() {
   return uniformDraw(shapes)
+}
 ~~~~
 
 Next, we define two variables: Vowels and Consonants. These are not yet utterances that directly correspond to possible states of the world. These variables are introduced as the componential strings that will later feed into our possibleUtterance function, previously named our “wordMaker” function. These values were found based on our own interpretation of each sound and the human data presented by Fort, Martin, and Peperkamp (2015). 
@@ -539,6 +541,7 @@ var shapes = ["pointy","round"]
 
 var shapeprior = function() {
   return uniformDraw(shapes)
+}
 
 
 var vowels = ["i","o"]
@@ -1555,7 +1558,7 @@ In our irony model, the arousalPrior is introduced. Arousal is used to describe 
 The following section discusses key differences between the original irony model and our revised one.
 
 ~~~~
-/old
+//old
 var states = ['terrible', 'ok', 'amazing']
 
 //new
@@ -1889,7 +1892,7 @@ possible states, will only score "accept" statement. The speaker will like to ch
 
 The utility model shows below. 
 
-~~~~
+~~~~ norun
 var utility = {
   True: L0_posterior.score(state),
   Polite: L0_posterior.score("accept")  

@@ -4,6 +4,7 @@ title: Habituals (CogSci 2016)
 model-language: webppl
 model-language-version: pre-v0.7
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 This is a model of habitual language used in Ref:tesslerHabitualsCogSci.
@@ -177,7 +178,7 @@ var structuredPriorModel = function(params){
 
 // "speaker optimality" parameters
 var alpha_1 = 5
-var alpha_1 = 1.25
+var alpha_2 = 1.25
 
 var thresholdPrior = function() {
   var threshold = uniformDraw(thresholdBins)

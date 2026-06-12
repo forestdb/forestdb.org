@@ -1,6 +1,7 @@
 ---
 layout: model
 title: Reasoning about social groups
+model-status: code
 model-language: webppl
 model-language-version: v0.9.7
 model-category: Reasoning about Reasoning
@@ -171,18 +172,18 @@ var normalizeVals = function(agentVals){
 var makeChoiceERP = function(utility) {
   var ps = normalizeVals(utility);
   var vs = _.keys(utility);
-  return categoricalERP(ps, vs);
+  return Categorical({ps: ps, vs: vs});
 };
 
 var choiceLikelihood = function(ownUtility, choice) {
   var choiceERP = makeChoiceERP(ownUtility);
-  return choiceERP.score([], choice);
+  return choiceERP.score(choice);
 };
 
 var otherLikelihoods = function(otherUtilities, otherChoices) {
   var likelihoods = map2(function(otherUtility, otherChoice) {
     var otherChoiceERP = makeChoiceERP(otherUtility);
-    return otherChoiceERP.score([], otherChoice);
+    return otherChoiceERP.score(otherChoice);
   }, otherUtilities, otherChoices);
   return sum(likelihoods);
 };
@@ -246,7 +247,7 @@ var infer = function(evidence) {
     var beliefs = infer(butLast(evidence));
 
     // What beliefs would make this reward signal most likely?
-    factor(bernoulliERP.score([beliefs.ownUtility[newEvidence.self.choice]],
+    factor(Bernoulli({p: beliefs.ownUtility[newEvidence.self.choice]}).score(
                               newEvidence.self.rewardSignal));
 
     // What beliefs would make my friend's choices most likely?
@@ -323,18 +324,18 @@ var normalizeVals = function(agentVals){
 var makeChoiceERP = function(utility) {
   var ps = normalizeVals(utility);
   var vs = _.keys(utility);
-  return categoricalERP(ps, vs);
+  return Categorical({ps: ps, vs: vs});
 };
 
 var choiceLikelihood = function(ownUtility, choice) {
   var choiceERP = makeChoiceERP(ownUtility);
-  return choiceERP.score([], choice);
+  return choiceERP.score(choice);
 };
 
 var otherChoiceLikelihoods = function(beliefs, otherChoices) {
   var likelihoods = map2(function(otherUtility, otherChoice) {
     var otherChoiceERP = makeChoiceERP(otherUtility);
-    return otherChoiceERP.score([], otherChoice);
+    return otherChoiceERP.score(otherChoice);
   }, beliefs.otherUtilities, otherChoices);
   return sum(likelihoods);
 };
@@ -343,7 +344,7 @@ var featureLikelihoods = function(groupParams, groupMembership, features) {
   var likelihoods = map2(function(agentID, feature) {
     var group = groupMembership[agentID];
     var featureProb = groupParams[group].groupFeatureProb;
-    return bernoulliERP.score([featureProb], feature);
+    return Bernoulli({p: featureProb}).score( feature);
   }, _.range(groupMembership.length), features);
   return sum(likelihoods);
 };
@@ -411,7 +412,7 @@ var infer = function(input) {
     var beliefs = infer(_.extend(input, {evidence : butLast(input.evidence)}));
 
     // What beliefs would make this reward signal most likely?
-    factor(bernoulliERP.score([beliefs.ownUtility[newEvidence.self.choice]],
+    factor(Bernoulli({p: beliefs.ownUtility[newEvidence.self.choice]}).score(
                               newEvidence.self.rewardSignal));
 
     // What beliefs would make my friend's choices most likely?
@@ -623,7 +624,7 @@ var utilityMean = function(knowledge) {
       return [v.utility[key]];
     });
   }, options);
-  return _.object(options, means);
+  return _.zipObject(options, means);
 };
 
 
@@ -641,7 +642,7 @@ var observe = function(utility, restaurant) {
 var makeChoiceERP = function(utility) {
   var ps = normalizeVals(utility);
   var vs = _.keys(utility);
-  return categoricalERP(ps, vs);
+  return Categorical({ps: ps, vs: vs});
 };
 
 // Sample a choice for all agents in the population
@@ -681,7 +682,7 @@ var infer = function(agent, ownChoice, otherChoices) {
     var expectedChoiceERP = makeChoiceERP(utility);
 
     // Take true reward signal into account
-    factor(bernoulliERP.score([utility[ownChoice.choice]],
+    factor(Bernoulli({p: utility[ownChoice.choice]}).score(
                               ownChoice.rewardSignal));
 
     // Try to maximize log-likelihood of others' choices,
@@ -691,7 +692,7 @@ var infer = function(agent, ownChoice, otherChoices) {
                              filter(function(a) {return a[1];},
                                     zip(otherChoices, groupAssignments)));
     var otherLikelihoods = map(function(otherChoice) {
-      return expectedChoiceERP.score([], otherChoice);
+      return expectedChoiceERP.score(otherChoice);
     }, relevantOthers);
     factor(otherLikelihoods.length === 0 ?
            -Infinity :
@@ -770,7 +771,7 @@ var utilityMean = function(utilityERP) {
       return [v[key]];
     });
   }, options);
-  return _.object(options, means);
+  return _.zipObject(options, means);
 };
 
 var normalizeVals = function(agentVals){
@@ -802,7 +803,7 @@ var observe = function(utility, restaurant) {
 var makeChoiceERP = function(utility) {
   var ps = normalizeVals(utility);
   var vs = _.keys(utility);
-  return categoricalERP(ps, vs);
+  return Categorical({ps: ps, vs: vs});
 };
 
 // Sample a choice for all agents in the population
@@ -824,12 +825,12 @@ var inferUtility = function(agent, ownChoice, otherChoices) {
       var expectedChoiceERP = makeChoiceERP(utility);
 
       // Take true reward signal into account
-      factor(bernoulliERP.score([utility[ownChoice.choice]],
+      factor(Bernoulli({p: utility[ownChoice.choice]}).score(
                                 ownChoice.rewardSignal));
 
       // Try to maximize log-likelihood of others' choices
       var otherLikelihoods = map(function(otherChoice) {
-        return expectedChoiceERP.score([], otherChoice);
+        return expectedChoiceERP.score(otherChoice);
       }, otherChoices);
       factor(sum(otherLikelihoods));
 
@@ -931,8 +932,8 @@ var restaurantPrior = map(function(restaurant) {
 var createAgent = function(name, agentNames) {
   var otherAgents = getOtherAgents(name, agentNames);
   var otherWeights = repeat(otherAgents.length, function(){return .5;});
-  var relationships = _.object(otherAgents, otherWeights);
-  return {values: _.object(restaurants, restaurantPrior), 
+  var relationships = _.zipObject(otherAgents, otherWeights);
+  return {values: _.zipObject(restaurants, restaurantPrior), 
           relationships: relationships};
 };
 
@@ -940,7 +941,7 @@ var initializeAgents = function(agentNames) {
   var agentProperties = map(function(agent) {
     return createAgent(agent, agentNames);
   }, agentNames);
-  return _.object(agentNames, agentProperties);
+  return _.zipObject(agentNames, agentProperties);
 };
 
 var observe = function(restaurant) {
@@ -1059,7 +1060,7 @@ var initSocWeight = .5;
 // initialize with uniform prior and neutral relationships ([1,1])
 var createAgent = function(name) {
   var otherAgents = getOtherAgents(agentList, name);
-  var relationships = _.object(otherAgents, [initSocWeight,initSocWeight]);
+  var relationships = _.zipObject(otherAgents, [initSocWeight,initSocWeight]);
   return {
     values: restaurantPrior,
     relationships: relationships
@@ -1070,7 +1071,7 @@ var initializeAgents = function() {
   var agentProperties = map(function(agent) {
     return createAgent(agent);
   }, agentList);
-  return _.object(agentList, agentProperties);
+  return _.zipObject(agentList, agentProperties);
 };
 
 var observe = function(restaurant) {
@@ -1115,7 +1116,7 @@ var calcUtility = function(possibility, info) {
 var updateRelationships = function(agentProps, info){
   return mapObject(function(otherName, otherWeight) {
     var otherObs = info.socialObs[otherName];
-    var choiceVal = Math.exp(agentProps.values.score([], otherObs.choice));
+    var choiceVal = Math.exp(agentProps.values.score(otherObs.choice));
     var newWeight = otherWeight * (choiceVal + 2/3);
     return newWeight > 1 ? 1 : newWeight;
   }, info.relationships);

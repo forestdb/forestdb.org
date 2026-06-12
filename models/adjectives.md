@@ -112,10 +112,10 @@ var speakerERP = cache(function(price, theta, item) {
 
 var listenerERP = function(utterance, item) {
   var price_prior = prior(item);
-  var theta_prior = theta_prior(item);
+  var thetaPrior = theta_prior(item);
   return ParticleFilter(function() {
     var price = price_prior();
-    var theta = theta_prior();
+    var theta = thetaPrior();
     factor( alpha * speakerERP(price, theta, item).score([], utterance) );
     return {
       price: price,

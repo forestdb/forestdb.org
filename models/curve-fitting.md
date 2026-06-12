@@ -1,8 +1,7 @@
 ---
 layout: model
 title: Curve Fitting
-model-status: code-fail
-model-status-verbose: The MH chain does not mix.
+model-status: code
 model-category: Miscellaneous
 model-tags: function learning, occam's razor
 model-language: church
@@ -54,9 +53,11 @@ preference for simpler models.
        10000 5
        
        (define poly-order (sample-integer 4))
+       ;; mem makes coefficients persist across order changes, so MH can
+       ;; move between orders without resampling all coefficients at once
+       (define coeff (mem (lambda (i) (gaussian 0 2))))
        (define coefficients
-         (repeat (+ poly-order 1)
-                 (lambda () (gaussian 0 2))))
+         (map coeff (iota (+ poly-order 1))))
        (define y-vals
          (map (make-poly coefficients) x-vals))
        

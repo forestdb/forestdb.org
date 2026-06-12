@@ -3,6 +3,7 @@ layout: model
 title: Jimenez, Marquez, Rosales Irony Extension
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 ### An extension of the Kao and Goodman (2015) Irony model
@@ -10,7 +11,7 @@ model-category: Probabilistic Language Understanding
 *Authors: Abimael Hernandez Jimenez, Paula Aruby Marquez, and Cesar Manuel Rosales Jr.*
 
 ~~~~
-/old
+//old
 var states = ['terrible', 'ok', 'amazing']
 
 //new

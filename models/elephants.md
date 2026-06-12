@@ -1,9 +1,10 @@
 ---
 layout: model
-title: elephants
+title: "Generics: Elephants"
 model-language: webppl
 model-language-version: v0.9.13
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 In the following box we define the semantics of the quantifiers, of conjunction, and of predicates (_live in Africa_ and _live in Asia_ but not _elephants_).

@@ -1,6 +1,7 @@
 ---
 layout: model
 title: Conventions
+model-status: code
 model-language: webppl
 model-language-version: v0.9.15
 model-category: Probabilistic Language Understanding
@@ -564,7 +565,7 @@ var lexiconPrior = Infer({method: 'enumerate'}, function(){
     var t1Prob = categorical({vs: [0.01, 0.25, .5, .75, .99], ps: t1Ps})
     return {'t1' : t1Prob, 't2' : 1-t1Prob};
   }, grammaticalUtts);
-  return _.object(grammaticalUtts, meanings);
+  return _.zipObject(grammaticalUtts, meanings);
 });
 
 // length-based cost 
@@ -606,7 +607,7 @@ var L0 = cache(function(utt, lexicon) {
     var state = sample(statePrior);
     var intendedUtt = sample(utterancePrior)
 
-    var noiseScore = (_.contains(noiseModel(intendedUtt).support(), utt) ?
+    var noiseScore = (_.includes(noiseModel(intendedUtt).support(), utt) ?
                       noiseModel(intendedUtt).score(utt) :
                       -100)
     factor(Math.log(lexicon[intendedUtt][state]) + noiseScore);

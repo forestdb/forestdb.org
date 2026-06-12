@@ -3,6 +3,7 @@ layout: model
 title: Politeness - Qiyan, Mackenzie, Caitlyn
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 # Politeness
@@ -335,7 +336,7 @@ This is how much the speaker wants to be seen as kind (*ω*_social) multiplied b
 This is how much the speaker cares about managing their image (*ω*_presentational) multiplied by how well the utterance helps them look like they balance both truth and kindness (*U*_presentational)
 
 Here is what *ω* would look like in the model.
-~~~
+~~~ norun
 var speakerUtility = omega.epistemic * utilities.epistemic +
   omega.social * utilities.social +
   omega.presentational * utilities.presentational - cost(utterance)
@@ -355,7 +356,7 @@ speaker2(0, 0.5, {soc: 0.05, pres: 0.60, inf: 0.35})
 
 Utilities calculations are based on how the listener interprets the utterance: **S2** runs **L1** and marginalizes over state (listener’s beliefs about the true state) and *φ* (listener’s beliefs about the speaker’s goals). 
 
-~~~
+~~~ norun
 var utterance = uniformDraw(utterances);
 var L1 = listener1(utterance);
 var L1_state = marginalize(L1, "state");
@@ -364,7 +365,7 @@ var L1_phi = marginalize(L1, "phi");
 
 Calculating the *informational* and *social* utilities uses state marginals, and calculating the presentational utility uses *φ* marginals. Then, Each utility is multiplied by its corresponding weight – determined by the input vector (*ω*). The total utility is then the sum of these weighted values minus the cost of the utterance – negated utterances are more costly. This total helps the speaker decide which utterance best suits their goals.
 
-~~~
+~~~ norun
 var utilities = {
       inf: L1_state.score(state), // log P(s | u)
       soc: expectation(L1_state), // E [s]

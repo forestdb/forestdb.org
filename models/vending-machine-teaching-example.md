@@ -3,6 +3,7 @@ layout: model
 title: SAILORS teaching example
 model-language: church
 model-category: Miscellaneous
+model-status: code
 ---
 ### Outline
 - Probability and why it's useful in a world where there is often uncertainty

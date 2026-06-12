@@ -1,6 +1,7 @@
 ---
 layout: model
 title: The Principal-Agent Problem for Delegation-as-Prediction
+model-status: code
 model-language: webppl
 model-language-version: pre-v0.7
 model-category: Miscellaneous

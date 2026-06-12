@@ -2,7 +2,7 @@
 layout: model
 title: Pitman-Yor N-Gram
 model-status: code-fail
-model-status-verbose: The program doesn't halt with probability 1?
+model-status-verbose: Errors at runtime in webchurch (the underlying Pitman-Yor machinery works; see the Pitman-Yor Process model).
 model-category: Nonparametric Models
 model-tags: dp, nonparametrics, language
 model-language: church

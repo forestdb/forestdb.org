@@ -1,8 +1,9 @@
 ---
 layout: model
-title: Cushman & Hii Generics Extension
+title: "Generics: Turning the Knob of the Threshold Prior (Hii)"
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 # Extension of Generic Model: Turning the knob of threshold prior 
@@ -13,7 +14,7 @@ Generics are utterances that express generalization on a category (Carlson, 1977
 
 Tessler & Goodman (2016) suggested that generics are not unique from other language components. Just as the other language components, modeling generics can be successful given we take into consideration the context a generic sentence refers. Defining generics as a simple threshold semantics, Tessler & Goodman (2016) captured endorsement behaviors of generic sentences by inferring the sentences in context. The authors incorporated context by introducing different prevalence priors (i.e. listener's knowledge of the world) upon hearing a generic sentence.
 
-~~~~
+~~~~ norun
 // prior distribution parameters resembling shared belief 
 // for context "carry malaria"
 var prior = priorModel({
@@ -204,7 +205,7 @@ Manipulating threshold prior from *thresholdPrior_baseline* to *thresholdPrior1*
 Specifically, comparing prevalence posterior of *thresholdPrior1* or "matters-if-any" threshold with the baseline uniform threshold prior, prevalence posterior and assenting prevalence upon hearing a generic decreased. Listener with the "matters-if-any" threshold prior arrived at a lower prevalence posterior and endorsed generics at a lower implied prevalence upon hearing a generic because of the shared knowledge on how the speaker chooses her utterance. Generics will be uttered at lower threshold levels. For prevalence prior of "about-half" and "matters-if-most," prevalence posterior and assenting prevalence upon hearing a generic are higher when compared to that of uniform threshold prior. The listener arrived at a higher prevalence posterior and endorsed generics at a higher implied prevalence if generics are uttered to describe majority or most Ks having the property F.   
 
 For ease of manipulation, we wrapped all three threshold priors into a helper function, which further allows combinations of threshold prior.
-~~~
+~~~ norun
 var sigPrior = function(){
   return categorical([1,1,1],["matters-if-any", "about-half", "matters-that-most"])
 }
@@ -224,7 +225,7 @@ var thresholdPrior = function(sig){
 
 Different threshold priors may interact with prevalence priors to model more specific instances of generics. For example, hypothetical prevalence priors for generic sentences "Ks have wings" and "Ks pose a threat" may share a similar bimodal prevalence prior.
 
-~~~
+~~~ norun
 // bimodal
 var prior = priorModel({
   potential: .5,

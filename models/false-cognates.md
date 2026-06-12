@@ -3,6 +3,7 @@ layout: model
 title: McNabb, Tran, Vargas Fuentes, You False cognates
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 ##Empirical Phenomenon of Interest 
@@ -184,7 +185,7 @@ var literalListener = cache(function(utterance) {
   }})
 })
 
-Savinelli et al.:
+// Savinelli et al.:
 
 // meaning function
 var meaning = function(utterance, state, scope) {

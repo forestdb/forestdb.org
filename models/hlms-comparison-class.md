@@ -3,6 +3,7 @@ layout: model
 title: Huang, Liu, Moreno, Scott - Comparison class
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 LSCI 107M Final Project Write-Up - Inferring the Comparison Class
@@ -61,7 +62,7 @@ In the structured object superordinate_params, mu corresponds to the mean of the
 stateVals is assigned to a list created by the _.range function. This function takes in 3 integer arguments. The first number is the start -3. The second number is the stop 3. The last number is the step. The returned list includes all the numbers from the start to the end with an internal of the step size 1/6.
 
 
-~~~~
+~~~~ norun
 // information about the superordinate category prior
 // e.g., the height distribution for all people
 var superordinate_params = {mu: 0, sigma: 1};
@@ -105,7 +106,7 @@ The value obtained by thresholdBins[form] is a list of the given adjective's thr
 Finally, the threshold prior will return a list that is uniformly drawn from the thresholdBins created in the previous chunk of code.
 
 
-~~~~
+~~~~ norun
 // generate the uniform threshold prior
 var thresholdBins ={
   positive: map(function(x){
@@ -249,7 +250,7 @@ The first four display statements print the pragmatic listener's predicted heigh
 
 The final line shows the graph of the probabilities that the superordinate class is the comparison class in describing each subordinate category as either "tall" or "short".
 
-~~~~
+~~~~ norun
 // the possible experiment conditions:
 // you hear that someone is a member of a subordinate category
 // then you are told that they are tall/short;

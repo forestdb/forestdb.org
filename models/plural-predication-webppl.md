@@ -1,15 +1,14 @@
 ---
 layout: model
 title: WebPPL version of Plural Predication model
-model-status: code-fail
-model-status-verbose: As noted on the page, this WebPPL port does not run (Enumerate finds only zero-probability paths).
+model-status: code
 model-language: webppl
 model-category: Probabilistic Language Understanding
 ---
 
-This is the WebPPL version of the original Church Plural Predication model. It doesn't run.
+This is the WebPPL version of the original Church Plural Predication model. As written, it does not run (the box below is shown statically; see the diagnosis after it).
 
-~~~~
+~~~~ norun
 // helper functions
 
 // error function
@@ -72,7 +71,7 @@ var pluralPredication = function(numberObjects,
   // possible object sizes
   var objects = [3,4];
   var objectPrior = function() {
-    uniformDraw(objects);
+    return uniformDraw(objects);
   }
 
   // build states with n many objects
@@ -180,6 +179,8 @@ print(pluralPredication(3,"high",true,"ambiguous-pos"))
 print(pluralPredication(3,"high",false,"ambiguous-pos"))
 ~~~~
 
+*Editorial note (2026):* the port originally had two separate problems. First, `objectPrior` was missing a `return`, so every sampled state was `[undefined, ...]` and *all* paths had probability zero (this is now fixed above and below). Second, with that fixed, the strict-semantics model still fails in WebPPL: when `distThetaPos` is 4, no state of 3s and 4s satisfies the `each` reading, so the literal listener's `Enumerate` has empty support, which WebPPL treats as a hard error while Church's enumeration tolerated it. That is the problem the rest of this page discusses.
+
 The problem is the deterministic semantics in the distributive interpretation, which creates zero-probability events (that Church, for some reason, can handle..):
 
 ~~~~
@@ -262,7 +263,7 @@ var pluralPredication = function(numberObjects,
   // possible object sizes
   var objects = [3,4];
   var objectPrior = function() {
-    uniformDraw(objects);
+    return uniformDraw(objects);
   }
 
   // build states with n many objects
@@ -294,7 +295,7 @@ var pluralPredication = function(numberObjects,
   }
 
   var distInterpretationPos = function(state, distTheta) {
-        return all(function(x){x > distTheta}, state) ? true : false
+     return all(function(x){x > distTheta}, state) ? flip(0.99) : flip(0.01)
   }
 
   // meaning function

@@ -5,23 +5,15 @@ model-language: webppl
 model-language-version: pre-v0.7
 model-category: Inverse Dynamics
 model-status: code-fail
-model-status-verbose: Depends on LiquidFun scripts formerly hosted at web.mit.edu/cjbates, which no longer exist.
+model-status-verbose: The 2014 Emscripten build of LiquidFun aborts in modern browsers (abort(13) in new b2World). Scripts are vendored under /assets/vendor/liquidfun/; the demo needs liquidfun.js rebuilt with a modern Emscripten to work again.
 ---
 
-<script src="http://web.mit.edu/cjbates/www/liquidfun/liquidfun/Box2D/lfjs/liquidfun.js"></script>
+<script src="/assets/vendor/liquidfun/liquidfun.js"></script>
 
 <!-- testbed code !-->
-<script src="http://web.mit.edu/cjbates/www/liquidfun/liquidfun/Box2D/lfjs/testbed/renderer.js"></script>
-<script src="http://web.mit.edu/cjbates/www/liquidfun/liquidfun/Box2D/lfjs/testbed/three.js"></script>
-<script src="http://web.mit.edu/cjbates/www/liquidfun/liquidfun/Box2D/lfjs/utils.js"></script>
-
-
-<script src="liquidfun.js"></script>
-
-<!-- testbed code !-->
-<script src="http://web.mit.edu/cjbates/www/liquidfun/liquidfun/Box2D/lfjs/testbed/renderer.js"></script>
-<script src="http://web.mit.edu/cjbates/www/liquidfun/liquidfun/Box2D/lfjs/testbed/three.js"></script>
-<script src="http://web.mit.edu/cjbates/www/liquidfun/liquidfun/Box2D/lfjs/testbed/utils.js"></script>
+<script src="/assets/vendor/liquidfun/testbed/renderer.js"></script>
+<script src="/assets/vendor/liquidfun/testbed/three.js"></script>
+<script src="/assets/vendor/liquidfun/testbed/utils.js"></script>
 
 <!-- *****************  modified testbed.js  *********************** !-->
 <script>

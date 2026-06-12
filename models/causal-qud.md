@@ -3,6 +3,7 @@ layout: model
 title: Causal QUD
 model-language: church
 model-category: Counterfactuals and Explanations
+model-status: code
 ---
 
 Wednesday found that the prior probability of an explanans had no effect on the goodness of an explanation in her experiment. I initially thought that if the QUD focused in on only the causal links, the prior wouldn't matter. But it seems like in the current model, it does matter.

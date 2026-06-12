@@ -230,7 +230,7 @@ The sketch of the model below is simply to illustrate the structure of the data 
 
 **Note: This model does not run.**
 
-~~~~
+~~~~ norun
 var dataAnalysis = function(){
   // speaker optimality parameters
   var alphas = {

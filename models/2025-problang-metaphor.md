@@ -3,6 +3,7 @@ layout: model
 title: Metaphor - Josh, Kayla, Lauren
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 The puzzle we are addressing is: How do listeners make sense of metaphorical or figurative
@@ -660,7 +661,7 @@ With respect to alpha = 3, reducing the value of alpha distributes probability m
 across the items in the table and increasing alpha pulls probability towards the already
 high-probability items.
 
-~~~~
+~~~~ norun
 // John could either be a whale or a person.
 var categories = ["whale", "person"]
 
@@ -904,7 +905,7 @@ below). This disparity can be attributed to the featureSetPrior, which itself pr
 four combinations which include the large feature over the sets of four which include the
 graceful and majestic features, especially in the whale category
 
-~~~~
+~~~~ norun
 // John could either be a whale or a person.
 var categories = ["whale", "person"]
 

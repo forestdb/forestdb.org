@@ -3,6 +3,7 @@ layout: model
 title: Lai - Irony
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 It is a irony model that the utterances meaning intended to describe the opposite of the real meaning. For instance, today is a beautiful day but I tell you the weather is "terrible", you will not think that I am trying the convey the information literally. You realize that I am trying to convey the information ironically, so I am actually telling you the weather is really good. The following model have three conversational goals: communicating about the true state, communicating about the speaker’s valence (i.e., whether they feel positively or negatively toward the state), and communicating about the speaker’s arousal (i.e., how strongly they feel about the state).
@@ -61,7 +62,7 @@ Infer(arousalPrior)
 
 There are arousals "low" and "high" to describe how people feel about the state. If the state is "terrible" or "amazing", it is a categorical draw that there are much more probabilities to have a strong feeling, so the probability is 0.9 for "high" and 0.1 for "low". If the state is "ok", it reverses, the probability is 0.1 for "high" and 0.9 for "low". 
 
-~~~~
+~~~~ norun
 // Define goals and goal priors. Could want to communicate state of the world,    
 // valence about it, or arousal (intensity of feeling) about it.
 var goals = ["goalState", "goalValence", "goalArousal"]

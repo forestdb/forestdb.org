@@ -1,8 +1,7 @@
 ---
 layout: model
 title: Wonky worlds
-model-status: code-fail
-model-status-verbose: Uses binomialERP, which does not exist in the webppl 0.9.7 this page pins (nor in earlier vendored versions).
+model-status: code
 model-language: webppl
 model-language-version: v0.9.7
 model-category: Probabilistic Language Understanding
@@ -39,7 +38,7 @@ var meaning = function(utt,world) {
 ///
 var binomialMarbles = function(theta){
   return map(function(x){
-    return Math.exp(binomialERP.score([theta, 15], x))
+    return Math.exp(Binomial({p: theta, n: 15}).score(x))
   },_.range(0,16))
 }
 
@@ -60,7 +59,7 @@ var speaker = cache(function(world, priorParams) {
   Enumerate(function(){
     var utterance = utterancePrior()
     var L = literalListener(utterance, priorParams)
-    factor(L.score([],world))
+    factor(L.score(world))
     return utterance
   })
 })
@@ -75,7 +74,7 @@ var listener= function(utterance,speakerOptimality, priorParams) {
 
     var S = speaker(world, priorParams)
 
-    factor(speakerOptimality*S.score([],utterance))
+    factor(speakerOptimality*S.score(utterance))
 
     var queryStatement = {"world":world,
                           "wonky":1-primary,
@@ -131,8 +130,8 @@ var meaning = function(utt,world) {
 var doubleBinomialMarbles = function(theta1, theta2, mix){
   return map(
     function(x){
-      return mix*Math.exp(binomialERP.score([theta1, 15], x)) +
-      	 (1-mix)*Math.exp(binomialERP.score([theta2, 15], x))
+      return mix*Math.exp(Binomial({p: theta1, n: 15}).score(x)) +
+      	 (1-mix)*Math.exp(Binomial({p: theta2, n: 15}).score(x))
     },
     _.range(0,16))
 }
@@ -150,7 +149,7 @@ var speaker = cache(function(world, prior) {
   Enumerate(function(){
             var utterance = utterancePrior()
             var L = literalListener(utterance, prior)
-            factor(L.score([],world))
+            factor(L.score(world))
             return utterance
             })
 })
@@ -161,7 +160,7 @@ var listener= function(utterance,speakerOptimality, prior) {
 
                   var S = speaker(world, prior)
 
-                  factor(speakerOptimality*S.score([],utterance))
+                  factor(speakerOptimality*S.score(utterance))
 
                   var queryStatement = {"world":world,
                                         "nextWorld": discrete(prior)}

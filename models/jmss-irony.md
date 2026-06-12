@@ -3,6 +3,7 @@ layout: model
 title: Jin, Mai, Saavedra, Syracuse - Irony
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 
@@ -44,7 +45,7 @@ viz(Infer(statePrior))
 ### Utterances
 The utterances in this model are the same as the states. UtterancePrior uses uniformDraw to take an equal probability sample from the utterances in the function. The previous hyperbole model also used uniformDraw to sample from it's utterances, but the utterances in that model matched to a price rather than a state of the world. 
 
-~~~~
+~~~~ norun
 // Assume possible utterances are identical to possible states
 var utterances = states
 

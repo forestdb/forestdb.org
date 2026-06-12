@@ -3,6 +3,7 @@ layout: model
 title: TextAdventure
 model-language: church
 model-category: Miscellaneous
+model-status: code
 ---
 
 <h3>Alice is in the park.<br/>

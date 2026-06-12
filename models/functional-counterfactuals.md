@@ -3,6 +3,7 @@ title: "Functional Explanations: Designer's Beliefs"
 layout: model
 model-language: church
 model-category: Counterfactuals and Explanations
+model-status: code
 ---
 
 # Functional Explanations

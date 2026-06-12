@@ -3,6 +3,7 @@ layout: model
 title: Ho, Huynh & Zambrano Politeness QUD
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 
@@ -343,7 +344,7 @@ var pragmaticListener = function(utterance) {
 
 Similarly, the pragmatic listener in the Politeness QUD Hybrid Model formulates samples for the state, phi, and QUD for it to run the model's speaker function. It then returns a distribution over what it believes the actual state of the cookies are, the phi value it believes was used by the speaker and the QUD answered by the speaker on the basis of the utterance given by the speaker.
 
-~~~~
+~~~~ norun
 ///fold: 
 var states = [1,2,3,4,5]
 var utterances = ["terrible","bad","okay","good","amazing"]
@@ -447,7 +448,7 @@ General Results for Politeness QUD Hybrid Model:
 
 
 
-~~~~
+~~~~ norun
 //Original Chapter 9 Politeness Model
 ///fold: 
 var states = [1,2,3,4,5]

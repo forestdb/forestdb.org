@@ -3,6 +3,7 @@ layout: model
 title: Explanations with 'because'
 model-language: church
 model-category: Counterfactuals and Explanations
+model-status: code
 ---
 
 ### Pragmatic explainer

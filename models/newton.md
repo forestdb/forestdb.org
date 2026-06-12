@@ -2,7 +2,7 @@
 layout: model
 title: Newtonian Dynamics
 model-status: code-fail
-model-status-verbose: Undefined primitives
+model-status-verbose: Written for desktop Church (Bher/Ikarus); uses internal defines and other forms webchurch does not support, and the Runge-Kutta-inside-MH inference is too heavy for the in-browser engine.
 model-category: Inverse Dynamics
 model-tags: dynamics, physics
 model-language: church
@@ -395,16 +395,6 @@ model-language: church
     (define F5 collision-F)
     
     
-    ;; Other write to file methods throw errors if the file exists. 
-    ;; This makes sure that if the file exists, it gets erased/written over
-    (define (write-to-file output filename)
-      (begin
-       (if (file-exists? filename)
-           (delete-file filename)
-           '())
-       (let ((output-port (open-output-file filename)))
-         (write output output-port))))
-    
     ;; observation noise function
     
     (define (add-noise l observation-noise)
@@ -507,10 +497,7 @@ model-language: church
        
        
        ;; query over
-       (begin
-        (display inferred-Fl)
-        (display "\n")
-        (list mass1 mass2))
+       (list mass1 mass2)
        ;; (begin
        ;;   (display (list mass1 mass2 elastic))
        ;;   (display "\n")

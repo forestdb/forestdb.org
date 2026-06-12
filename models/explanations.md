@@ -277,6 +277,11 @@ var vars = stories.bacon.vars;
 // for counterfactual simulation,
 // sometimes (with probability "stickiness") sample the actual
 // random statue variable. othertimes, sample a new one from the prior
+var mapObj = function(fn, obj) {
+  return _.object(map(function(kv) { return [kv[0], fn(kv[1], kv[0])]; },
+                      _.pairs(obj)));
+};
+
 var stickyRand = function(actualRVs) {
   var freshRVs = rand();
   return mapObject(function(key, val) {
@@ -479,6 +484,11 @@ var vars = function(rVs) {
 // parameter for how similar counterfactual world is to actual world
 var stickiness = 0.5;
 
+var mapObj = function(fn, obj) {
+  return _.object(map(function(kv) { return [kv[0], fn(kv[1], kv[0])]; },
+                      _.pairs(obj)));
+};
+
 var stickyRand = function(actualRVs) {
   var freshRVs = rand();
   return mapObj(function(val, key) {
@@ -550,6 +560,11 @@ var vars = function(rVs) {
 
 // parameter for how similar counterfactual world is to actual world
 var stickiness = 0.5;
+
+var mapObj = function(fn, obj) {
+  return _.object(map(function(kv) { return [kv[0], fn(kv[1], kv[0])]; },
+                      _.pairs(obj)));
+};
 
 var stickyRand = function(actualRVs) {
   var freshRVs = rand();
@@ -691,6 +706,11 @@ var vars = function(rVs) {
 
 // parameter for how similar counterfactual world is to actual world
 var stickiness = 0.5;
+
+var mapObj = function(fn, obj) {
+  return _.object(map(function(kv) { return [kv[0], fn(kv[1], kv[0])]; },
+                      _.pairs(obj)));
+};
 
 var stickyRand = function(actualRVs) {
   var freshRVs = rand();
@@ -967,6 +987,11 @@ var vars = function(rVs) {
 // parameter for how similar counterfactual world is to actual world
 var stickiness = 0.5;
 
+var mapObj = function(fn, obj) {
+  return _.object(map(function(kv) { return [kv[0], fn(kv[1], kv[0])]; },
+                      _.pairs(obj)));
+};
+
 var stickyRand = function(actualRVs) {
   var freshRVs = rand();
   return mapObj(function(val, key) {
@@ -1223,6 +1248,11 @@ var vars = function(rVs) {
 
 // parameter for how similar counterfactual world is to actual world
 var stickiness = 0.5;
+
+var mapObj = function(fn, obj) {
+  return _.object(map(function(kv) { return [kv[0], fn(kv[1], kv[0])]; },
+                      _.pairs(obj)));
+};
 
 var stickyRand = function(actualRVs) {
   var freshRVs = rand();

@@ -3,6 +3,7 @@ layout: model
 title: Comparison Class - Kiara, Noah, Kiley
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 
@@ -309,7 +310,7 @@ We have prior knowledge about the distribution of heights that various classes h
 
 This object is defined as follows:
 
-~~~~
+~~~~ norun
 /// fold:
 var classPrior = Infer({
   model: function(){return uniformDraw(["subordinate", "superordinate"])}
@@ -1497,7 +1498,7 @@ In order to do so, it itemizes each utterance/subordinate-group combination, and
 
 In running the function, it will return a probability distribution marginalized over the states “tall” and “short,” showing the probability that a certain subordinate class would considered tall or short compared to the superordinate population.
 
-~~~~
+~~~~ norun
 var exptConditions = [
   {utt: "tall", sub: "basketballPlayers"},
   {utt: "short", sub: "basketballPlayers"},

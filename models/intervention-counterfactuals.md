@@ -3,6 +3,7 @@ layout: model
 title: Intervention and counterfactuals
 model-language: church
 model-category: Counterfactuals and Explanations
+model-status: code
 ---
 
 *This page argues that a counterfactual model in Church should be based on intervention rather than querying.*

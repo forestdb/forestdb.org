@@ -3,6 +3,7 @@ title: "Motivated Belief: The 49ers Are Going To Win"
 layout: model
 model-language: church
 model-category: Reasoning about Reasoning
+model-status: code
 ---
 
 # The 49ers are *going* to win
@@ -22,7 +23,7 @@ Imagine people believe what they want to believe, or at least are more *likely* 
 (barplot (biased-beliefs 'whatevs) "my prior beliefs if i don't care")
 ~~~~
 
-Even with this preference, they can still infer that an undesired outcome has occured if they have enough evidence.
+Even with this preference, they can still infer that an undesired outcome has occurred if they have enough evidence.
 
 ~~~~
 ;;;fold:

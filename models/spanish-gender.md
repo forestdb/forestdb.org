@@ -3,6 +3,7 @@ layout: model
 title: Yeaton Muelas Gil - Spanish gender
 model-language: webppl
 model-category: Probabilistic Language Understanding
+model-status: code
 ---
 
 ### Introduction
@@ -105,7 +106,7 @@ For the purposes of this paper, we selected three exemplar professions:
 
 Prevalence is indicated as **percent women**. A prevalence of `0` would indicate all men, prevalence of `1` would indicate all women. We will sometimes intermix this by making reference to the prevalence of men going up which would simply be `1 - prevalence`.
 
-~~~~
+~~~~ norun
 // Prior model
 // Modified from Ch. 7 Generics for stable distribution only
 var priorModel = function(params){

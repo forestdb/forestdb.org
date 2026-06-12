@@ -197,21 +197,24 @@ function load_contributors(url) {
     $.getJSON(url, function(data) {
         var consumed_authors = {};
         $.each(data, function(index, item) {
-            if (item.author) {
-                // item is a commit object
-                var author = item.author;
-            } else {
-                // item is a user object
-                var author = item;
+            // The commits endpoint returns commit objects (GitHub user in
+            // `.author`, which is null for email-only commits); the
+            // contributors endpoint returns user objects directly.
+            var author = item.author || (item.login ? item : null);
+            // Skip commits with no linked GitHub account: they have no
+            // avatar or profile, and rendered as a broken thumbnail before.
+            if (!author || !author.avatar_url) {
+                return;
             };
             var id = author.login || author.email;
             if (consumed_authors[id]) {
                 return;
             };
             consumed_authors[id] = true;
+            var sep = author.avatar_url.indexOf("?") === -1 ? "?" : "&";
             var author_ref_html = $("<span />");
             author_ref_html.append($("<img />", {
-                "src" : author.avatar_url + "s=16",
+                "src" : author.avatar_url + sep + "s=16",
                 "class" : "avatar",
                 "width" : "16px",
                 "height" : "16px",

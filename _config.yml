@@ -3,3 +3,4 @@ exclude:
   - scripts
   - README.md
   - LICENSE.md
+  - MAINTENANCE.md

@@ -109,12 +109,15 @@ async function testModel(filename, tmpDir) {
     // shares one JS heap in the browser. Mirror that headless by prepending
     // the earlier boxes (where the matching put lives) into one program.
     const chained = /editor\.get\s*\(/.test(boxes[i]);
+    // Boxes that drive the vendored LiquidFun/WebGL testbed need real browser
+    // globals (Testbed, b2World, a canvas) that can't be stubbed headless.
+    const needsWebGL = /\b(Testbed|b2World)\b/.test(boxes[i]);
     const code = chained ? boxes.slice(0, i + 1).join('\n') : boxes[i];
     const r = await runBox(bin, code, tmpDir, `${filename}-${i}`);
     // Editor-chained boxes depend on the browser's shared wpEditor heap;
     // when concatenation can't reconstruct that headless, treat it as a
     // browser-only box rather than a failure (these run on the live site).
-    if (!r.ok && chained) r.browserOnly = true;
+    if (!r.ok && (chained || needsWebGL)) r.browserOnly = true;
     results.push(r);
   }
   return {
@@ -166,7 +169,7 @@ async function main() {
   lines.push('');
   lines.push(`A headless failure does not always mean the model is broken in the browser ` +
     `(timeouts and editor-specific features are common causes), but compile errors are real. ` +
-    `${browserOnly} box(es) chain state through the browser-only wpEditor and can only run on the live site.`);
+    `${browserOnly} box(es) depend on browser-only globals (wpEditor state chaining, WebGL/LiquidFun) and can only run on the live site.`);
   lines.push('');
   if (failed.length > 0) {
     lines.push(`## Failures`);

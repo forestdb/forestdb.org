@@ -4,8 +4,7 @@ title: LiquidFun Example
 model-language: webppl
 model-language-version: pre-v0.7
 model-category: Inverse Dynamics
-model-status: code-fail
-model-status-verbose: The 2014 Emscripten build of LiquidFun aborts in modern browsers (abort(13) in new b2World). Scripts are vendored under /assets/vendor/liquidfun/; the demo needs liquidfun.js rebuilt with a modern Emscripten to work again.
+model-status: code
 ---
 
 <script src="/assets/vendor/liquidfun/liquidfun.js"></script>

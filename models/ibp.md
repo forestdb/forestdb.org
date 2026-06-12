@@ -1,7 +1,7 @@
 ---
 layout: model
 title: Indian Buffet Process
-model-status: code-fail
+model-status: static
 model-status-verbose: This procedure deliberately does not halt; it is shown as an illustration, not a runnable model.
 model-category: Nonparametric Models
 model-tags: dp, nonparametrics

@@ -1,13 +1,14 @@
 ---
 layout: model
 title: Bayesian Data Analysis
+model-status: code
 model-language: church
 model-category: Bayesian Data Analysis
 ---
 
 By: Michael Henry Tessler and Noah D. Goodman
 
-In this book we are primarily concerned with probabilistic models of cognition: understanding inferences that people draw as Bayesian conditioning given a generative model that captures a persons models of the world. Bayesian statistics are equally useful to us as scientists, when we are trying to understand what our data means about psychological hypotheses. This can become confusing: a particular modeling assumption can be something we hypothesize that people assume about the world, or can be something that we as scientists want to assume (but don't assume that people assume). A pithy way of saying this is that we can make assumptions about "Bayes in the head" or about "Bayes in the notebook". We will illustrate by considering cognitive models of randomness judgements, as explored in Chapter 5.
+In this book we are primarily concerned with probabilistic models of cognition: understanding inferences that people draw as Bayesian conditioning given a generative model that captures a person's models of the world. Bayesian statistics are equally useful to us as scientists, when we are trying to understand what our data means about psychological hypotheses. This can become confusing: a particular modeling assumption can be something we hypothesize that people assume about the world, or can be something that we as scientists want to assume (but don't assume that people assume). A pithy way of saying this is that we can make assumptions about "Bayes in the head" or about "Bayes in the notebook". We will illustrate by considering cognitive models of randomness judgements, as explored in Chapter 5.
 
 Imagine that you are asked to judge whether a sequence of coin flips came from a fair coin or a trick (weighted) coin. The sequence "TTTTT" probably strikes you as almost certainly trick, while the sequence "THHTH" probably strikes you as likely coming from a fair coin. The sequence "HHHTT" may seem more ambiguous.
 Cognitive scientists like to confirm such intuitions, and explore the borderline cases in a quantitative way. So we did an experiment asking 30 participants to make this judgement for a number of different sequences.
@@ -95,7 +96,7 @@ Another (more Bayesian) way to approach this is to say we (as scientists) have u
 
 Here is a sketch of this model (it doesn't run efficiently---we'll fix that shortly):
 
-~~~
+~~~~ norun
 ;;;fold:
 (define biascoin-model 
   (lambda (sequence bias-weight)
@@ -227,7 +228,7 @@ Here is a sketch of this model (it doesn't run efficiently---we'll fix that shor
                 data-for-one-sequence))
              all-responses
              cognitive-model-predictions))))))
-~~~
+~~~~
 
 Notice that there are two queries: one as part of the cognitive model ('in the head') and one as part of the data analysis model ('in the notebook').
 
@@ -578,14 +579,14 @@ To gain more intuition, play with the following data set, adjusting the response
     (list #f #f #f))))
 ~~~
 
-What is the posterior over the `bias weight`? (Query for: `biased-weight` and call `barplot` and the output). How does the posterior predictive look? What can you conclude about our bias coin model (with respect to this data)?
+What is the posterior over the `bias weight`? (Query for: `biased-weight` and call `barplot` on the output). How does the posterior predictive look? What can you conclude about our bias coin model (with respect to this data)?
 
 ## Response noise
 
 Perhaps the cognitive model differs from the data in ways that aren't 'central' to the theory, that is in ways that we wouldn't want to include in the cognitive model per se, but would like to account for. A common case is *random guessing*: participants sometimes respond randomly, instead of attending to the task. 
 We can capture this *response noise* by simply extending our model with the possibility that each response came from a random guess:
 
-~~~
+~~~~ norun
 (define data-analysis
   (query
     (define cognitive-model-predictions (bc-model ...))
@@ -602,7 +603,7 @@ We can capture this *response noise* by simply extending our model with the poss
 
     (condition 
       (equal? data (thinking-plus-guessing guessing-parameter)))))
-~~~
+~~~~
 
 This pseudo-code is saying there is some probability (or, equivalently, proportion of responses) that is attributable to response noise, or guessing; 
 this probability is captured by `guessing-parameter`. It is the amount of the data that is better captured by guessing behavior than our cognitive model predictions.
@@ -866,7 +867,7 @@ What is our problem again? Our model makes good predictions for most of these se
 Why might this be the case? To gain an intuition, let's reexamine the bias-weight parameter value. 
 The biased-weight is peaked at 0.9 now. What does this mean in terms of our cognitive model?
 Recall the biased-coin-model: it is a psychological theory that says subjects compare the sequence a fair coin would generate vs. one that a biased-coin would generate.
-The biased-coin sequence has it's own weight, in this case the sequences it prefers are going to be sequences with lots of Heads (since our inferred weight is = 0.9).
+The biased-coin sequence has its own weight, in this case the sequences it prefers are going to be sequences with lots of Heads (since our inferred weight is = 0.9).
 This hints at a fundamental flaw of this model: it can only predict biased-sequences in one direction; 'unfair coin' responses for sequences going the other way have to get attributed to random response noise! How could we get around this issue? 
 
 
@@ -1365,7 +1366,7 @@ Here's a model extended to capture uncertainty about the biases of participants.
 
 Does it appear that participants in our experiment have an overall bias toward heads or tails?
 While this model does even better at predicting the data, it is not perfect.
-Let's see what happens when we factor in response noise to determine whether thats a better explanation for some of the data.
+Let's see what happens when we factor in response noise to determine whether that's a better explanation for some of the data.
 Note: This will also take a while. Chrome may ask you to kill the page; power through.
 
 ~~~
@@ -1646,14 +1647,14 @@ Note: This will also take a while. Chrome may ask you to kill the page; power th
 
 How much of the data must be explained as noise in this extended model?
 
-The posteriors over the mean and variance of the biased-weight are interesting. These are parameters of a [beta](http://en.wikipedia.org/wiki/Beta_distribution) distribution. The mean value tells us that the there might be a bias towards seeing more Heads as more biased.  The variance value is small, which indicates that the resulting distribution is U-shaped, with peaks at high values and low values. This should match your intuition for the underlying cognitive model. The true prior over biased-coin rates is peaked at the extremes; and we've backed that out from our data!
+The posteriors over the mean and variance of the biased-weight are interesting. These are parameters of a [beta](http://en.wikipedia.org/wiki/Beta_distribution) distribution. The mean value tells us that there might be a bias towards seeing more Heads as more biased.  The variance value is small, which indicates that the resulting distribution is U-shaped, with peaks at high values and low values. This should match your intuition for the underlying cognitive model. The true prior over biased-coin rates is peaked at the extremes; and we've backed that out from our data!
 
 ## Model selection
 
 We've explored a number of different models and seen that some seem better, explaining more of the data, though they differ in their complexity. How can we quantify which model is  better? We can set up the question like this: we, as scientists, are a priori uncertain which cognitive model actually gave rise to the data we have collected; after seeing the data, how do our beliefs about the correct model change? In a way, this is no different than the inference problems we've faced before.
 In pseudocode this might look like:
 
-~~~
+~~~~ norun
 (define model-comparion
   (query
     (define model-1 (simple-bc-model ...))
@@ -1670,7 +1671,7 @@ In pseudocode this might look like:
 
     (condition 
       (equal? data (best-model)))))
-~~~
+~~~~
 
 
 Let's try to write this in full:
@@ -1902,7 +1903,7 @@ Just as a reminder, the illusion is observed in the model when we condition on t
 **C.** Replace the hard-coded parameters of this model with variables, defined outside the query. Give them the most intuitive names you can fashion. Use this starter (pseudo) code.
 	
 	
-~~~
+~~~~ norun
 (define parameter1 ...)
 (define parameter2 ...)
 ;...
@@ -1918,15 +1919,15 @@ Just as a reminder, the illusion is observed in the model when we condition on t
  reflectance
 
  (= luminance (gaussian observed-luminance 0.1))))
-~~~
+~~~~
 	
-**D. Are all of these parameters independent?** (If you had to specify values for them, would you have to consider values of other parameters when specifying them?) If two are not independent, can you think of a reparameterization that would be more independent? (Hint: If you have two non-independent parameters, you could keep only one of them and introduce a parameter specifying the relation between the two. E.g., two points that are linearly associated can be expressed as an one of them and the distance between them).
+**D. Are all of these parameters independent?** (If you had to specify values for them, would you have to consider values of other parameters when specifying them?) If two are not independent, can you think of a reparameterization that would be more independent? (Hint: If you have two non-independent parameters, you could keep only one of them and introduce a parameter specifying the relation between the two. E.g., two points that are linearly associated can be expressed as one of them and the distance between them).
 	
-**E.** Writing data analysis models requires specifying priors over parameters. Without much prior knowledge in a domain, we want to pick priors that make the fewest assumptions. A good place to start is to think about the possible values the parameter could take on. **For each parameter, write down what you know about the possible values it could take on.
+**E.** Writing data analysis models requires specifying priors over parameters. Without much prior knowledge in a domain, we want to pick priors that make the fewest assumptions. A good place to start is to think about the possible values the parameter could take on. **For each parameter, write down what you know about the possible values it could take on.**
 	
 **F.** We're now in a position to write a data analysis model. The most common distributional forms for priors are [uniform](http://en.wikipedia.org/wiki/Uniform_distribution_(continuous)), [gaussian](http://en.wikipedia.org/wiki/Normal_distribution), [beta](http://en.wikipedia.org/wiki/Beta_distribution), and [exponential](http://en.wikipedia.org/wiki/Exponential_distribution). Put priors on your parameters from part C. Use this starter (pseudo) code.
 	
-~~~
+~~~~ norun
 (define perceptual-model
   (lambda (parameter1 parameter2 ...))
   (query
@@ -1958,16 +1959,16 @@ Just as a reminder, the illusion is observed in the model when we condition on t
    (condition (= experimental-data perceptual-model-predictions))))
 
 
-~~~ 
+~~~~
 	
-**G.** What are you going to query for? Add it to your pseudocode above. What do each of things that you are querying for in the data analysis model represent?
+**G.** What are you going to query for? Add it to your pseudocode above. What do each of the things that you are querying for in the data analysis model represent?
 
 
-**3. Parameter fitting vs. Parameter integration** One of the strongest motivations for using Bayesian techniques for model-data evaluation is in how "nuisance" parameters are treated. "Nuisance" parameters are parameters of no theoretical interest; their only purpose is to fill in a necessary slot in the model. Classically, the most prominant technique (from the frequentist tradition) for dealing with these parameters is to fit them to the data, i.e., to set their value equal to whatever value maximizes the model-data fit (or, equivalently, minimizes some cost function). 
+**3. Parameter fitting vs. Parameter integration** One of the strongest motivations for using Bayesian techniques for model-data evaluation is in how "nuisance" parameters are treated. "Nuisance" parameters are parameters of no theoretical interest; their only purpose is to fill in a necessary slot in the model. Classically, the most prominent technique (from the frequentist tradition) for dealing with these parameters is to fit them to the data, i.e., to set their value equal to whatever value maximizes the model-data fit (or, equivalently, minimizes some cost function). 
 
-The Bayesian approach is different. Since we have *a priori* uncertainty about the value of our parameter (e.g. as you specified in Part F of Exercise 2), we will also have *a posteriori* uncertainty about the value (though hopefully the uncertainty will be a little less). What the Bayesian does is *integrate* over her posterior distribution of parameter values to make predictions. Intuitively, rather than taking the value corresponding to the peak of the distribution, she's considering all values with their respective probabilites.
+The Bayesian approach is different. Since we have *a priori* uncertainty about the value of our parameter (e.g. as you specified in Part F of Exercise 2), we will also have *a posteriori* uncertainty about the value (though hopefully the uncertainty will be a little less). What the Bayesian does is *integrate* over her posterior distribution of parameter values to make predictions. Intuitively, rather than taking the value corresponding to the peak of the distribution, she's considering all values with their respective probabilities.
 	
-Why might this be important for model assessment? Imagine the following situation. You are piloting a task. You think that the task you've design is a little too difficult for subjects. (Let's imagine that you're a psychophysicist, and your task pertains to contrast discriminiation in the periphery.) You think the current task design is too difficult, but you're uncertain. It may well be that it's fine for subjects. We're going to think about this in terms of subjects ability with respect to your task. Here is your prior.
+Why might this be important for model assessment? Imagine the following situation. You are piloting a task. You think that the task you've designed is a little too difficult for subjects. (Let's imagine that you're a psychophysicist, and your task pertains to contrast discrimination in the periphery.) You think the current task design is too difficult, but you're uncertain. It may well be that it's fine for subjects. We're going to think about this in terms of subjects' ability with respect to your task. Here is your prior.
 
 ~~~
 ;; Prior on task diffuclty is uniform on 0..0.9, with a spike on 0.9
@@ -2048,7 +2049,7 @@ One way to address this is to look at the posterior over your `task-difficulty` 
 
 **B.**  In part A, you probably used either a value of `task-difficulty` or the full distribution of values to decide about whether to continue data collection or tweak the paradigm. We find ourselves with a similar decision when we have models of psychological phenomena and want to decide whether or not the model has fit the data (or, equivalently, whether our psychological theory is capturing the phenomenon). The traditional approach is the value (or "point-wise estimate") approach: take the value that corresponds to the best fit (e.g. by using least-squares or maximum-likelihood estimation; here, you would have taken the *Maximum A Posteriori (or, MAP)* estimate, which would be 0.9). **Why might this not be a good idea? Provide two answers. One that applies to the data collection situation above, and one that applies to the metaphor of model or theory evaluation.**
 
-**4**. Let's continue to explore the inferences you (as a scientist) can draw from the posterior over parameter values. This posterior can give you an idea of whether or not your model is well-behaved. In other words, do the predictoins of your model depend heavily on the exact parameter value?
+**4**. Let's continue to explore the inferences you (as a scientist) can draw from the posterior over parameter values. This posterior can give you an idea of whether or not your model is well-behaved. In other words, do the predictions of your model depend heavily on the exact parameter value?
 
 To help us understand how to examine posteriors over parameter settings, we're going to revisit the [example of the blicket detector](https://probmods.org/patterns-of-inference.html#example-of-blickets-and-blocking) from Chapter 4.
 
@@ -2328,7 +2329,7 @@ Before running this program, answer the following question:
 **G.** Now, we're going to examine the predictions of the model if we had done a more traditional analysis of point-estimates of parameters (i.e. fitting parameters).
 Examine your histograms and determine the "maximum a posteriori" (MAP) value for each parameter. Plug those into the code below and run it.
 
-~~~
+~~~~ norun
 ;;;fold:
 (define (get-indices needle haystack)
   (define (loop rest-of-haystack index)
@@ -2433,7 +2434,7 @@ Examine your histograms and determine the "maximum a posteriori" (MAP) value for
 (scatter model-data "data vs. cognitive model")
 (barplot (list possible-evidence-streams best-fit-model-predictions) "cognitive model: probability of blicket?")
 (barplot data-summary "data: proportion of 'A is a Blicket!' responses")
-~~~
+~~~~
 
 **H.** What can you conclude about the two ways of looking at parameters in this model's case? Do you think the model is relatively robust to different parameter settings?
 

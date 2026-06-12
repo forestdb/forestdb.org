@@ -2,6 +2,7 @@
 layout: model
 title: Adjective ordering parameter exploration
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 The following code implements the exploration of parameter settings for multi-adjective modification from Scontras, Degen, and Goodman (2018).

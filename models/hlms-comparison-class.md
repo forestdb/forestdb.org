@@ -2,6 +2,7 @@
 layout: model
 title: Huang, Liu, Moreno, Scott - Comparison class
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 LSCI 107M Final Project Write-Up - Inferring the Comparison Class

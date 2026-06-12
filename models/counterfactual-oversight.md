@@ -3,6 +3,7 @@ layout: model
 title: Counterfactual Oversight
 model-language: webppl
 model-language-version: pre-v0.7
+model-category: Miscellaneous
 ---
 
 Follow-up to:

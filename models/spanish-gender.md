@@ -2,6 +2,7 @@
 layout: model
 title: Yeaton Muelas Gil - Spanish gender
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 ### Introduction

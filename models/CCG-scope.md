@@ -2,6 +2,7 @@
 layout: model
 title: CCG scope ambiguity
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 **A model of scope ambiguity using a combinatory categorical grammar and the RSA framework, by Carina Kaltenbach and Nicola Estrefallaces.**

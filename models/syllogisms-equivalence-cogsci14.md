@@ -2,6 +2,7 @@
 layout: model
 title: Syllogisms [equivalence] (CogSci14)
 model-language: church
+model-category: Reasoning about Reasoning
 ---
 
 A model of syllogistic reasoning as communication.

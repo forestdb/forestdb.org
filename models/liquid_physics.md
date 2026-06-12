@@ -3,6 +3,9 @@ layout: model
 title: LiquidFun Example
 model-language: webppl
 model-language-version: pre-v0.7
+model-category: Inverse Dynamics
+model-status: code-fail
+model-status-verbose: Depends on LiquidFun scripts formerly hosted at web.mit.edu/cjbates, which no longer exist.
 ---
 
 <script src="http://web.mit.edu/cjbates/www/liquidfun/liquidfun/Box2D/lfjs/liquidfun.js"></script>

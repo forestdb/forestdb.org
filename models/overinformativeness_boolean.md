@@ -3,6 +3,7 @@ layout: model
 title: Overinformativeness model with Boolean properties
 model-status: code
 model-language: church
+model-category: Probabilistic Language Understanding
 ---
 
 # A pragmatic speaker that can do basic composition and takes into account predicate noise. 

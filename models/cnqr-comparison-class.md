@@ -2,6 +2,7 @@
 layout: model
 title: Cortes-Gress, Nguyen, Quinteros, Romano-Kwan - Comparison Class
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 Inferring the Comparison Class (Write-Up)

@@ -2,6 +2,7 @@
 layout: model
 title: TextAdventure
 model-language: church
+model-category: Miscellaneous
 ---
 
 <h3>Alice is in the park.<br/>

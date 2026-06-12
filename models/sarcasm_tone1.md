@@ -3,6 +3,7 @@ layout: model
 title: Sarcasm with tone as goal signal
 model-status: code
 model-language: church
+model-category: Probabilistic Language Understanding
 ---
     ; Five possible movie states
     (define states

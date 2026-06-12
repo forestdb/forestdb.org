@@ -2,6 +2,7 @@
 layout: model
 title: Bilingual Word Choice - Moldir, Seojin
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 

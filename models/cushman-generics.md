@@ -2,6 +2,7 @@
 layout: model
 title: Cushman & Hii Generics Extension
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 # Introducing variable threshold priors to the generics model

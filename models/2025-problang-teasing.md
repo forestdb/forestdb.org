@@ -2,6 +2,7 @@
 layout: model
 title: Teasing - Amina, Elina
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 By: Amina M. Pasha and Elina Haghighi

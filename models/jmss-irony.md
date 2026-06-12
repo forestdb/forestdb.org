@@ -2,6 +2,7 @@
 layout: model
 title: Jin, Mai, Saavedra, Syracuse - Irony
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 

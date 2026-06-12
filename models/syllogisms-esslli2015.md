@@ -4,6 +4,7 @@ title: Syllogistic reasoning with real-world content
 model-status: code
 model-language: webppl
 model-language-version: pre-v0.7
+model-category: Reasoning about Reasoning
 ---
 
 A model of content effects in syllogistic reasoning.

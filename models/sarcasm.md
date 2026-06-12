@@ -3,6 +3,7 @@ layout: model
 title: Basic sarcasm
 model-status: code
 model-language: church
+model-category: Probabilistic Language Understanding
 ---
 
       ; Five possible movie states

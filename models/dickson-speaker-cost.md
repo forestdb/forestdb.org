@@ -2,6 +2,7 @@
 layout: model
 title: Dickson Speaker cost
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 Every time we decide to speak, we exert effort to convey information or engage in social behavior. We can call this effort exerted the cost of the utterance. Intuitively, we know that every utterance is spoken with some cost, but how does cost influence our reasoning about the utterances of our conversational partner? How might we reason about the cost of the utterances we hear? In this Rational Speech Act (RSA) model, I explore how a listener might reason about the cost function that the speaker is using.

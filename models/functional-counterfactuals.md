@@ -1,6 +1,8 @@
 ---
+title: "Functional Explanations: Designer's Beliefs"
 layout: model
 model-language: church
+model-category: Counterfactuals and Explanations
 ---
 
 # Functional Explanations

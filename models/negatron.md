@@ -3,6 +3,7 @@ layout: model
 title: Negatron (in prep)
 model-language: webppl
 model-language-version: v0.9.9
+model-category: Probabilistic Language Understanding
 ---
 
 Past issues:

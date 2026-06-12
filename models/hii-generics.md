@@ -2,6 +2,7 @@
 layout: model
 title: Cushman & Hii Generics Extension
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 # Extension of Generic Model: Turning the knob of threshold prior 

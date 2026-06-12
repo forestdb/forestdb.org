@@ -3,6 +3,7 @@ layout: model
 title: Multi-Agent LDA
 model-language: webppl
 model-language-version: pre-v0.7
+model-category: Machine Learning
 ---
 
 ~~~~

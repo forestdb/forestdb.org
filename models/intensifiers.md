@@ -8,8 +8,6 @@ model-language: webppl
 model-language-version: pre-v0.7
 ---
 
-<script src="http://web.stanford.edu/~erindb/webppl-viz/webppl.min.js"></script>  
-<link rel="stylesheet" href="http://web.stanford.edu/~erindb/webppl-viz/viz.css">
 
 A model for intensifying degree adverbs based on Ref:Lassiter2013adj, as presented in Ref:Bennett2015int.
 

@@ -3,6 +3,7 @@ layout: model
 title: Hyperbolic quantifiers with domain restriction
 model-status: code
 model-language: church
+model-category: Probabilistic Language Understanding
 ---
 
         (define num-A 3)

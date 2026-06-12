@@ -2,6 +2,7 @@
 layout: model
 title: Ho, Huynh & Zambrano Politeness QUD
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 

@@ -2,6 +2,7 @@
 layout: model
 title: McNabb, Tran, Vargas Fuentes, You False cognates
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 ##Empirical Phenomenon of Interest 

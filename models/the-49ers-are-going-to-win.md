@@ -1,6 +1,8 @@
 ---
+title: "Motivated Belief: The 49ers Are Going To Win"
 layout: model
 model-language: church
+model-category: Reasoning about Reasoning
 ---
 
 # The 49ers are *going* to win

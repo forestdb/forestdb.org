@@ -2,6 +2,7 @@
 layout: model
 title: Luong - Extensional Generics
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 Introduction

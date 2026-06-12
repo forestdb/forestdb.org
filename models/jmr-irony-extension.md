@@ -2,6 +2,7 @@
 layout: model
 title: Jimenez, Marquez, Rosales Irony Extension
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 ### An extension of the Kao and Goodman (2015) Irony model

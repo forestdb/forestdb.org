@@ -3,6 +3,7 @@ layout: model
 title: elephants
 model-language: webppl
 model-language-version: v0.9.13
+model-category: Probabilistic Language Understanding
 ---
 
 The continuized _elephants_ model has several changes with respect to the original model:

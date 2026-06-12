@@ -2,6 +2,7 @@
 layout: model
 title: Bayesian Data Analysis
 model-language: church
+model-category: Bayesian Data Analysis
 ---
 
 By: Michael Henry Tessler and Noah D. Goodman

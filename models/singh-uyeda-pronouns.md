@@ -2,6 +2,7 @@
 layout: model
 title: Singh & Uyeda Pronoun Uncertainty
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 ### Resolving Pronoun Ambiguity Using Subject and Parallel Strategies

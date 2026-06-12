@@ -2,6 +2,7 @@
 layout: model
 title: Gore, Libucha - Codenames
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 Codenames is a team party game where cards with a single word on them are laid out on a table. Teams are comprised of two members. One who is trying to get their teammate to guess a word, and another who guesses depending on their teammates speech. The speaker is allowed to say one word and a number corresponding to how many words that word corresponds to. For the sake of our model, we restrict the number to 2 in order to simplify the model. 

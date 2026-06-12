@@ -2,6 +2,7 @@
 layout: model
 title: Pronouns
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 A model of pronoun ambiguity resolution by Alandi Bates and Cheryl Choi:

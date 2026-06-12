@@ -3,6 +3,7 @@ layout: model
 title: Sarcasm with tone as nonliteral-ness
 model-status: code
 model-language: church
+model-category: Probabilistic Language Understanding
 ---
     
     ; Five possible movie states

@@ -4,10 +4,9 @@ title: Explanations Model in WebPPL
 model-status: code
 model-language: webppl
 model-language-version: pre-v0.7
+model-category: Counterfactuals and Explanations
 ---
 
-<script src='http://web.stanford.edu/~erindb/webppl-viz/webppl.min.js'></script>  
-<link rel='stylesheet' href='http://web.stanford.edu/~erindb/webppl-viz/viz.css'>
 
 <script src='https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML'></script>
 

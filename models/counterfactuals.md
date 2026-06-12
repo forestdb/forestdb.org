@@ -2,6 +2,7 @@
 layout: model
 title: Counterfactuals
 model-language: church
+model-category: Counterfactuals and Explanations
 ---
 
 ### Pragmatic explainer

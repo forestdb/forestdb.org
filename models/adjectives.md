@@ -8,8 +8,6 @@ model-language: webppl
 model-language-version: pre-v0.7
 ---
 
-<script src="http://web.stanford.edu/~erindb/webppl-viz/webppl.min.js"></script>  
-<link rel="stylesheet" href="http://web.stanford.edu/~erindb/webppl-viz/viz.css">
 
 A model for the adjective "expensive" for coffee makers, headphones, laptops, sweaters, and headphones, as presented in Ref:Lassiter2013adj.
 

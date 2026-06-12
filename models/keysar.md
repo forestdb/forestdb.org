@@ -3,6 +3,7 @@ layout: model
 title: RSA with Context Uncertainty (Keysar)
 model-language: webppl
 model-language-version: v0.9.6
+model-category: Probabilistic Language Understanding
 ---
 
 Suppose the speaker has no uncertainty about the environment; they pretend as though the things they see are all the things.

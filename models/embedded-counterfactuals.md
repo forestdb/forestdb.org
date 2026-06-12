@@ -2,6 +2,7 @@
 layout: model
 title: Counterfactuals
 model-language: church
+model-category: Counterfactuals and Explanations
 ---
 
 Should counterfactual reasoning invlove an embedded query?

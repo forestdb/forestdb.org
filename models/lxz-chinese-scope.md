@@ -2,6 +2,7 @@
 layout: model
 title: Li, Xu, Zhi - Chinese scope
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 

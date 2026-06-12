@@ -2,6 +2,7 @@
 layout: model
 title: kids-scope
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 **A model of scope ambiguity resolution for *every-not* and *two-not* utterances.**

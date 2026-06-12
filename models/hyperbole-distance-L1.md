@@ -3,6 +3,7 @@ layout: model
 title: Hyperbole with uncertainty about speaker's priors
 model-status: code
 model-language: church
+model-category: Probabilistic Language Understanding
 ---
 	(define (raise-to-power speaker-distribution alpha)
 	  (list (first speaker-distribution)

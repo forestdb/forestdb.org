@@ -2,6 +2,7 @@
 layout: model
 title: Caouette, Corpening, Gil, Nishikawa - Metaphor
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 This model aims to explore the use of metaphors in our speech. For example, imagine you hear “John is a whale”, what do you infer about John? It’s unlikely that you’d assume John is a physical whale.  More reasonably, you’d think along the lines of John being a person who has whale-like qualities. That is the phenomenon being investigated. 

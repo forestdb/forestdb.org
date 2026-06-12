@@ -2,6 +2,7 @@
 layout: model
 title: Lai - Irony
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 It is a irony model that the utterances meaning intended to describe the opposite of the real meaning. For instance, today is a beautiful day but I tell you the weather is "terrible", you will not think that I am trying the convey the information literally. You realize that I am trying to convey the information ironically, so I am actually telling you the weather is really good. The following model have three conversational goals: communicating about the true state, communicating about the speaker’s valence (i.e., whether they feel positively or negatively toward the state), and communicating about the speaker’s arousal (i.e., how strongly they feel about the state).

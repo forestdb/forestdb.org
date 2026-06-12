@@ -2,6 +2,7 @@
 layout: model
 title: Comparison Class - Kiara, Noah, Kiley
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 

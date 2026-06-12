@@ -2,6 +2,7 @@
 layout: model
 title: Politeness - Qiyan, Mackenzie, Caitlyn
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 # Politeness

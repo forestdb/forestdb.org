@@ -2,6 +2,7 @@
 layout: model
 title: ProbLang 2019 class projects
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 ##Xirong Cao

@@ -4,10 +4,9 @@ title: Wonky worlds
 model-status: code
 model-language: webppl
 model-language-version: v0.9.7
+model-category: Probabilistic Language Understanding
 ---
 
-<!-- <script src="http://web.stanford.edu/~erindb/webppl-viz/webppl.min.js"></script>  
-<link rel="stylesheet" href="http://web.stanford.edu/~erindb/webppl-viz/viz.css"> -->
 
 ## Regular RSA, v.1
 
@@ -89,7 +88,7 @@ var posterior = listener("Some", 5, {mix: 0.9, theta1:0.99, theta2:0.5})
 print("expected value of world state = "+expectation(marginalize(posterior, "world")))
 print("expected value of next world state = "+expectation(marginalize(posterior, "nextWorld")))
 print("expected value of wonkiness = "+expectation(marginalize(posterior, "wonky")))
-vizPrint(posterior)
+viz(posterior)
 ~~~~
 
 ## Regular RSA, v.2
@@ -173,7 +172,7 @@ var posterior = listener("Some", 5, prior)
 
 print("expected value of world state = "+expectation(marginalize(posterior, "world")))
 print("expected value of next world state = "+expectation(marginalize(posterior, "nextWorld")))
-vizPrint(posterior)
+viz(posterior)
 ~~~~
 
 ## Wonky RSA

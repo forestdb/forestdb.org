@@ -3,9 +3,8 @@ layout: model
 title: Politeness (CogSci 2016)
 model-language: webppl
 model-language-version: pre-v0.7
+model-category: Probabilistic Language Understanding
 ---
-<script src="http://web.stanford.edu/~erindb/webppl-viz/webppl.min.js"></script>  
-<link rel="stylesheet" href="http://web.stanford.edu/~erindb/webppl-viz/viz.css">
 
 This is a model of polite language used in Ref:yoonTesslerPolitenessCogSci.
 

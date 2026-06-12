@@ -1,9 +1,10 @@
 ---
 layout: model
 title: WebPPL version of Plural Predication model
-model-status: code
+model-status: code-fail
+model-status-verbose: As noted on the page, this WebPPL port does not run (Enumerate finds only zero-probability paths).
 model-language: webppl
-model-language-version: pre-v0.7
+model-category: Probabilistic Language Understanding
 ---
 
 This is the WebPPL version of the original Church Plural Predication model. It doesn't run.

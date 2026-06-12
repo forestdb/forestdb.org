@@ -2,6 +2,7 @@
 layout: model
 title: Metaphor - Josh, Kayla, Lauren
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 The puzzle we are addressing is: How do listeners make sense of metaphorical or figurative

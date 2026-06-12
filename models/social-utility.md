@@ -3,6 +3,7 @@ layout: model
 title: Reasoning about social groups
 model-language: webppl
 model-language-version: v0.9.7
+model-category: Reasoning about Reasoning
 ---
 
 Inferring properties of one group

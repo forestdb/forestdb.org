@@ -2,6 +2,7 @@
 layout: model
 title: Progressive shift
 model-language: webppl
+model-category: Probabilistic Language Understanding
 ---
 
 A model of progressive vs. imperfective aspect by Becky Jarvis and Gunnar Lund:

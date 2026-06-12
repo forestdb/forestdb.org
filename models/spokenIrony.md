@@ -3,6 +3,7 @@ layout: model
 title: Spoken irony and common ground inference
 model-status: code
 model-language: church
+model-category: Probabilistic Language Understanding
 ---
 
 ~~~

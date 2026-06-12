@@ -1,10 +1,12 @@
 ---
 layout: model
-title: McNabb, Tran, Vargas Fuentes, You False cognates
+title: False Cognates and Speaker Competence
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
 ---
+
+*By McNabb, Tran, Vargas Fuentes, You*
 
 ##Empirical Phenomenon of Interest 
 
@@ -14,7 +16,7 @@ Cognates are words of two different languages that are similar in spelling and m
 
 False cognates are words of two different languages that have similar spelling but do not hold the same meaning (Otwinowska & Szewczyk, 2017). When a non-fluent person looks at false cognates, they might immediately assume that they have the same meaning because of the similarities in their spelling. The English word “embarrassed” and the Spanish word “embarazada” are a false cognate pair. They have five consecutive letters that are the same but carry completely different definitions. When someone feels embarrassed, they feel self-conscious or ashamed. When someone is embarazada, they are pregnant. These false cognates often betray people that are learning a second language.
  
-The model that we wanted to see came from instances of confusion with the use of these false cognates. The scenario would arise in a highschool context. The speaker is feeling embarrassed because they tripped in front of their crush. They then exclaim to their Spanish speaking friend “I was so embarazada”. The speaker is either a speaker with a high or low competency in Spanish. Their utterance is a sentence with the incorrect use of a word that is a part of a false cognate pair. The pragmatic listener will then take the competence of the speaker and interpret whether the speaker intended the utterance or was tricked by a false friend. 
+The model that we wanted to see came from instances of confusion with the use of these false cognates. The scenario would arise in a high school context. The speaker is feeling embarrassed because they tripped in front of their crush. They then exclaim to their Spanish speaking friend “I was so embarazada”. The speaker is either a speaker with a high or low competency in Spanish. Their utterance is a sentence with the incorrect use of a word that is a part of a false cognate pair. The pragmatic listener will then take the competence of the speaker and interpret whether the speaker intended the utterance or was tricked by a false friend. 
 
 ##Modeling Approach: Rational Speech Act (RSA) Model
 
@@ -32,7 +34,7 @@ From developing an understanding behind how each of these layers of reasoning in
 
 Models are at the mercy of the linguistic scenario they are born from. Our model follows the basic structure of the original RSA framework with a literal listener, speaker, and pragmatic listener, but because our chosen scenario involves translation into another language, and inference on a unique competence variable, aspects of our model look similar to more advanced editions of the RSA framework or completely depart from what has been seen thus far. 
 
-Beginning with the setup of our model, our statePrior(), makes use of a weighted categorical draw in order to reflect a real world scenario where certain states of being are more likely than others. The details of our states will be explained later. See our statePrior() below:
+Beginning with the setup of our model, our statePrior() makes use of a weighted categorical draw in order to reflect a real world scenario where certain states of being are more likely than others. The details of our states will be explained later. See our statePrior() below:
 
 ~~~~
 var states = 
@@ -86,7 +88,7 @@ var translate = function(utterance, competence){
 }
 ~~~~
 
-translate() is called at the level of the speaker, changing how the speaker would ordinarily function in the original RSA framework. Usually, the RSA speaker reasons about the literal listener's interpretations of utterances and then generates a best-fit utterance for a given state.Comparatively, our speaker does this same thing, but then goes on to translate that best-fit utterance into Spanish. See how our speaker calls the translate() function below:
+translate() is called at the level of the speaker, changing how the speaker would ordinarily function in the original RSA framework. Usually, the RSA speaker reasons about the literal listener's interpretations of utterances and then generates a best-fit utterance for a given state. Comparatively, our speaker does this same thing, but then goes on to translate that best-fit utterance into Spanish. See how our speaker calls the translate() function below:
 
 ~~~~
 var speaker = function(state, competence) {
@@ -99,7 +101,7 @@ var speaker = function(state, competence) {
 }
 ~~~~
 
-Additionally, our translate() function works by calling other unique function we have implemented such as the chunkMaker() function and the similarity() function:
+Additionally, our translate() function works by calling other unique functions we have implemented such as the chunkMaker() function and the similarity() function:
 
 ~~~~
 var chunkMaker = function(nChunksLeft,word,chunksSoFar) {
@@ -166,7 +168,7 @@ var speaker = cache(function(scope,state) {
 })
 ~~~~
 
-The above model reasons over the additional variable scope however our model is still unique because the effects of this competence variable is not seen in our literal listener or meaning function because, like stated before, the competence variable is not introduced to our model until the level of the speaker. See our meaning and literal listener functions compared to the Jointly inferring parameters and interpretations model (Savinelli et al. 2017) meaning and literal listener functions below:
+The above model reasons over the additional variable scope, however our model is still unique because the effects of this competence variable are not seen in our literal listener or meaning function because, like stated before, the competence variable is not introduced to our model until the level of the speaker. See our meaning and literal listener functions compared to the Jointly inferring parameters and interpretations model (Savinelli et al. 2017) meaning and literal listener functions below:
 
 ~~~~
 // Our model:
@@ -242,7 +244,7 @@ To construct our model, we first established the necessary components to build o
 
 For our possible set of utterances, the speaker can intend to mean either ‘pregnant’ or ‘embarrassed’. Both utterances are as likely to be uttered, which we implemented by using uniformDraw in the utterancePrior, and they are equally as costly (see cost function). Finally, we created a meaning function which takes in an utterance and a state. If the utterance is ‘pregnant’ it will only return true when the property of pregnant is 1 and if the utterance is not ‘pregnant’ (meaning ‘embarrassed’) it will only return true if the property of embarrassed is 1. With these components in place, we can create the first layer of our RSA model: the literal listener.
 
-The literal listener function takes in an utterance and it will return a probability distribution over states. As other RSA models, the literal listener samples a state from the statePrior and runs it through the meaning function with the utterance given in the argument. It is important to note that the literal listener is reasoning over the literal interpretation of English utterances. Below is the code for the previous components up to the literal listener.
+The literal listener function takes in an utterance and it will return a probability distribution over states. As in other RSA models, the literal listener samples a state from the statePrior and runs it through the meaning function with the utterance given in the argument. It is important to note that the literal listener is reasoning over the literal interpretation of English utterances. Below is the code for the previous components up to the literal listener.
 
 ~~~~
 var states =
@@ -291,11 +293,11 @@ viz(literalListener("embarrassed"))
 
 Now that we have our literal listener layer, we move on to our speaker. At this layer, the speaker will return a probability distribution over English utterances reasoning of whether the literal listener will arrive at that state given an utterance while minimizing the cost. Ultimately, those utterances will be translated to Spanish. Our speaker takes in two arguments. First, it knows the state of the world which they wish to communicate. Second, they know whether they have high or low competence in Spanish. This ‘competence’ variable will be resolved at the layer of the pragmatic listener, but it is an important component when the speaker translates the utterance to Spanish.
 
-The translate function takes in two arguments: the English utterance (‘pregnant’ or ‘embarrassed’) and the competence of the speaker (‘high’ or ‘low’). If the competence is high, the translate function will always return the correct Spanish translation (‘pregnant’ = ‘embarazada’; ‘embarrassed’ = ‘avergonzada’). However, if the speaker’s competence is low, the translation function will return the Spanish word whose orthography is more similar with the English utterance. This means that they are likely to fall into the trap of false friends. The way that we measure orthographic similarity is using the DICE index (Inkpen, Frunza, & Kondrak, 2005). DICE bases similarity by looking at the sequence of bigrams shared between two words. The number of intersected bigrams is multiplied by 2 and divided by the total number of bigrams in the two words.
+The translate function takes in two arguments: the English utterance (‘pregnant’ or ‘embarrassed’) and the competence of the speaker (‘high’ or ‘low’). If the competence is high, the translate function will always return the correct Spanish translation (‘pregnant’ = ‘embarazada’; ‘embarrassed’ = ‘avergonzada’). However, if the speaker’s competence is low, the translation function will return the Spanish word whose orthography is more similar to the English utterance. This means that they are likely to fall into the trap of false friends. The way that we measure orthographic similarity is using the DICE index (Inkpen, Frunza, & Kondrak, 2005). DICE bases similarity by looking at the sequence of bigrams shared between two words. The number of intersected bigrams is multiplied by 2 and divided by the total number of bigrams in the two words.
 
 DICE (x,y) = 2|bigrams(x)bigrams(y)||bigrams(x)|+|bigrams(y)|
 
-To implement this measure, we created three functions (chunkmaker, chunker and similarity). The first two functions create the bigrams needed to use the similarity measure. The chunker takes in a word, splits it into individual letters and then creates bigrams. However, the bigrams created by the chunker function have the following format ([“e”, “m”]) which is not ideal to run the intersection tool in the similarity function. To fix this problem, those bigrams are run through the chunkmaker function which ultimately returns all the bigrams in the following format ([“em”]). Finally, the similarity function takes in two words and runs them through the chuker function. Then it follows the DICE equation described above. The similarity function returns a numeric value between 0 (no similarity) and 1 (identical).
+To implement this measure, we created three functions (chunkmaker, chunker and similarity). The first two functions create the bigrams needed to use the similarity measure. The chunker takes in a word, splits it into individual letters and then creates bigrams. However, the bigrams created by the chunker function have the following format ([“e”, “m”]) which is not ideal to run the intersection tool in the similarity function. To fix this problem, those bigrams are run through the chunkmaker function which ultimately returns all the bigrams in the following format ([“em”]). Finally, the similarity function takes in two words and runs them through the chunker function. Then it follows the DICE equation described above. The similarity function returns a numeric value between 0 (no similarity) and 1 (identical).
 
 ~~~~
 var states =
@@ -508,7 +510,7 @@ var pragmaticListener = cache(function(translation) {
 
 When we run the pragmaticListener over the Spanish word “embarazada”, the listener reasons two different scenarios depending on the speaker’s competence in Spanish. If the competence is ‘high’, the listener believes the speaker meant to indicate they were actually pregnant. In this case, the intuition is that a highly competent Spanish speaker is unlikely to fall into the false friend’s trap. Meanwhile, if the speaker has low competence, the pragmatic listener believes it is more likely the speaker meant to say they are embarrassed (which is congruent with the false friend’s mistake). However, they still assign some probability to the literal interpretation of the Spanish translation (pregnant).
 
-When we call the function of pragmaticListener on the Spanish word ‘avergonzada’, the listener only believes the speaker intends the literal interpretation of ‘embarrassed’(code box below). There is also no consideration of the scenario where the speaker has low competence. Given that ‘avergonzada’ and ‘pregnant’ are not a pair of false cognates, there is not a scenario where the two will be confused in the translation. Thus, based on the way the model is built, the pragmatic listener has no reason to believe the speaker has low competence and will mean the non-literal interpretation (pregnant).
+When we call the function of pragmaticListener on the Spanish word ‘avergonzada’, the listener only believes the speaker intends the literal interpretation of ‘embarrassed’ (code box below). There is also no consideration of the scenario where the speaker has low competence. Given that ‘avergonzada’ and ‘pregnant’ are not a pair of false cognates, there is not a scenario where the two will be confused in the translation. Thus, based on the way the model is built, the pragmatic listener has no reason to believe the speaker has low competence and will mean the non-literal interpretation (pregnant).
 
 ~~~~
 ///fold:
@@ -617,7 +619,7 @@ var pragmaticListener = cache(function(translation) {
  viz(pragmaticListener("avergonzada"))
 ~~~~
 
-The current model permits us to see what variables are weighting on the pragmatic listener’s beliefs about the world after hearing the utterance. For example, the prior beliefs about the state play a substantial role on the posterior beliefs. In the original model, the embarrassed state is slightly likelier than the pregnant state (60 > 40). Making the former state even more likelier makes the listener give even more probability to the embarrassed interpretation given the ‘embarazada’ translation as is shown in the following code box.
+The current model permits us to see what variables are weighing on the pragmatic listener’s beliefs about the world after hearing the utterance. For example, the prior beliefs about the state play a substantial role in the posterior beliefs. In the original model, the embarrassed state is slightly likelier than the pregnant state (60 > 40). Making the former state even likelier makes the listener give even more probability to the embarrassed interpretation given the ‘embarazada’ translation as is shown in the following code box.
 
 ~~~~
 ///fold: 
@@ -944,7 +946,7 @@ var pragmaticListener = cache(function(translation) {
 
 ##Conclusion
 
-Speaking in a second language presents various problems that make communication difficult. One of those problems occurs with the case of false cognates. Less proficient speakers might misuse these words given the meaning of their false friend pair. Our current model simulates this communicative scenario. The listener has different posterior beliefs about the state depending on the inferred competence of the speaker. The speaker in turns uses two different mechanisms to translate the utterances in English to Spanish depending on their competence in the latter. While a speaker with high competence will correctly translate the English utterance, a low competence speaker chooses a translation based on the similarity to the English utterance. We recognize our translate function makes binary choices instead of assigning different probabilities to the possible Spanish translations. It is possible, high competence second language speakers might also misuse false cognate pairs. However, given the objective is to model comprehension, we believe this is a promising model for this scenario. 
+Speaking in a second language presents various problems that make communication difficult. One of those problems occurs with the case of false cognates. Less proficient speakers might misuse these words given the meaning of their false friend pair. Our current model simulates this communicative scenario. The listener has different posterior beliefs about the state depending on the inferred competence of the speaker. The speaker in turn uses two different mechanisms to translate the utterances in English to Spanish depending on their competence in the latter. While a speaker with high competence will correctly translate the English utterance, a low competence speaker chooses a translation based on the similarity to the English utterance. We recognize our translate function makes binary choices instead of assigning different probabilities to the possible Spanish translations. It is possible that high competence second language speakers might also misuse false cognate pairs. However, given the objective is to model comprehension, we believe this is a promising model for this scenario. 
 
 Note: Nicole A. Vargas Fuentes, Stephanie Joah You, Mulan McNabb, and Jessica Tran worked on the code for this false cognates model. Stephanie wrote about the empirical phenomenon of interest, Jessica wrote about the modeling approach taken, Nicole wrote about how the model was built and the results of the model, and Mulan wrote about the similarities and differences between the RSA model and our false cognates model. Outside of our group meetings, Nicole added more to the code and Jessica coordinated the times for group meetings.
 

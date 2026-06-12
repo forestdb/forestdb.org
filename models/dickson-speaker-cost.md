@@ -1,10 +1,12 @@
 ---
 layout: model
-title: Dickson Speaker cost
+title: Inferring the Speaker's Cost Function
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
 ---
+
+*By Dickson*
 
 Every time we decide to speak, we exert effort to convey information or engage in social behavior. We can call this effort exerted the cost of the utterance. Intuitively, we know that every utterance is spoken with some cost, but how does cost influence our reasoning about the utterances of our conversational partner? How might we reason about the cost of the utterances we hear? In this Rational Speech Act (RSA) model, I explore how a listener might reason about the cost function that the speaker is using.
 
@@ -81,7 +83,7 @@ var literalListener = function(utterance){
 literalListener("blue")
 ~~~~
 
-We don't have any reason to believe that one of the objects is more likely to be referenced than another, so the prior belief specifies that the objects are equally likely. The meaning function simply checks whether an utterance can literally refer to an object. Finally, our literal listener hears an utterance and returns a distribution of utterances that the utterance can literally refer to using Bayesian inference (implemented with the Infer function).
+We don't have any reason to believe that one of the objects is more likely to be referenced than another, so the prior belief specifies that the objects are equally likely. The meaning function simply checks whether an utterance can literally refer to an object. Finally, our literal listener hears an utterance and returns a distribution of objects that the utterance can literally refer to using Bayesian inference (implemented with the Infer function).
 
 Next, we introduce our pragmatic speaker. The pragmatic speaker knows the object they want to communicate and the cost parameter that they are using, and they return a distribution of utterances proportional to the probability that the literal listener would arrive at the intended object after hearing the utterance.
 
@@ -162,7 +164,7 @@ var pragmaticListener = function(utterance){
 }
 ~~~~
 
-Here, we can see the pragmatic listener is updating their beliefs from object prior and the cost parameter prior based on the utterance and the speaker's behavior. Jointly reasoning about the world state and another parameter appeared in a few other models throughout the course (namely the pragmatic listener reasoned about scope in the Quantifier Scope Ambiguity model, about theta in the vagueness model, and about phi in the politeness model), but none of the pragmatic listeners reasoned about the cost function as seen in the current model.
+Here, we can see the pragmatic listener is updating their beliefs from the object prior and the cost parameter prior based on the utterance and the speaker's behavior. Jointly reasoning about the world state and another parameter appeared in a few other models throughout the course (namely the pragmatic listener reasoned about scope in the Quantifier Scope Ambiguity model, about theta in the vagueness model, and about phi in the politeness model), but none of the pragmatic listeners reasoned about the cost function as seen in the current model.
 
 Now putting it all together, we present the full model.
 
@@ -249,7 +251,7 @@ viz(marginalize(listenerPosteriorBlueSquare, "costParameter"))
 
 From the visualizations, we can see what the pragmatic listener learns about the cost parameter based on the utterances "blue" and "blue square." The learning can be determined by the change in beliefs from the cost parameter prior to the marginal distribution of the cost parameter posterior. After the pragmatic listener hears the one-word utterance "blue," they believe that the cost parameter is higher than the prior would suggest (evidenced by the shift in probability mass to the right). Alternatively, after the pragmatic listener hears the two-word utterance "blue square," they believe that the cost parameter is dramatically lower than the prior would suggest. Intuitively, the directions of these shifts of beliefs make sense because if you hear a one-word utterance, you can assume that the more informative two-word utterance was costly, and if you hear a two-word utterance, you can assume the two-word utterance was not much more costly than the one-word utterance. But the degree of the shift for the two-word utterance does not match my intuitions because it suggests that the listener was surprised to hear a two-word utterance. In a real reference game with informative two-word utterances, I would expect to hear the two-word utterances often. This mismatch between the results and my intuitions suggests that a simple notion of cost may not have a substantial impact on a listener's reasoning during a reference game.
 
-We will now make a slight adjustment to the world of our model in order to investigate another intuition. Up until now, we have been implementing a slightly revised vanilla model to understand how a pragmatic listener may reason about the speaker's cost. But, I want to investigate if the ambiguity of the utterance influence's our pragmatic listener's beliefs about the cost parameter. The intuition behind this investigation is the following. If I am reasoning about the cost of the utterance and the intended object, and I hear a one-word utterance that is ambiguous (refers to more than one object) when an unambiguous two-word utterance is available. Then, I will be more likely to reason that the cost parameter is high than in the unambiguous one-word utterance case. To test if we can see this effect with this implementation of the cost function, we simplify the world to include only a "blue square" and a "green square." Now our utterances contains one ambiguous one-word utterance, "square," and one unambiguous one-word utterance, "blue."
+We will now make a slight adjustment to the world of our model in order to investigate another intuition. Up until now, we have been implementing a slightly revised vanilla model to understand how a pragmatic listener may reason about the speaker's cost. But, I want to investigate if the ambiguity of the utterance influences our pragmatic listener's beliefs about the cost parameter. The intuition behind this investigation is the following. If I am reasoning about the cost of the utterance and the intended object, and I hear a one-word utterance that is ambiguous (refers to more than one object) when an unambiguous two-word utterance is available, then I will be more likely to reason that the cost parameter is high than in the unambiguous one-word utterance case. To test if we can see this effect with this implementation of the cost function, we simplify the world to include only a "blue square" and a "green square." Now our utterances contain one ambiguous one-word utterance, "square," and one unambiguous one-word utterance, "blue."
 
 ~~~~
 // set of states

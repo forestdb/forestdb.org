@@ -9,7 +9,7 @@ model-status: code
 
 Suppose the speaker has no uncertainty about the environment; they pretend as though the things they see are all the things.
 
-Then speakers prefer to say the shorter utterance (i.e. 'fish') because it's sufficiently information but less costly, and listeners also pick the thing in shared context because it's the only possible referent. 
+Then speakers prefer to say the shorter utterance (i.e. 'fish') because it's sufficiently informative but less costly, and listeners also pick the thing in shared context because it's the only possible referent. 
 
 ~~~~
 var possibleUtterances = _.flatten(map(function(modifier) {
@@ -166,7 +166,7 @@ console.log("listener response after hearing (underinformative) 'fish'")
 viz.table(L2('fish', exampleContext));
 ~~~~
 
-Finally, recent work by Rubio-Fernandez (2016) has shown that upon hearing over-informative utterances, players make inferences about deception on the part of the experimenter. We incorporate this into the model as a joint inference on the part of the pragmatic listener about what the *speaker* can see, and what they are trying to refer to (note that this is more experimental!)
+Finally, recent work by Rubio-Fernandez (2016) has shown that upon hearing over-informative utterances, players make inferences about deception on the part of the experimenter. We incorporate this into the model as a joint inference on the part of the pragmatic listener about what the *speaker* can see, and what they are trying to refer to (note that this is more experimental!).
 
 ~~~~
 var possibleUtterances = _.flatten(map(function(modifier) {

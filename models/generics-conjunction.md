@@ -23,7 +23,7 @@ I think the uncertain threshold view can deal with this okay, provided we extend
 After hearing the first utterance, "Elephants live in Africa", the listener forms some posterior belief distribution over the threshold.
 For the second utterance, we use a different threshold.
 The interesting inference comes out of the fact that living in Africa and living in Asia are mutually exclusive properties.
-The inference should be that at least that:
+The inference should be at least that:
 (a) some live in Africa and some live in Asia, and more elaborately:
 (b) possibly most live in Africa, and if so, fewer live in Asia, or
 (c) possibly most in Asia, and if so, fewer live in Africa  

@@ -1,10 +1,12 @@
 ---
 layout: model
-title: Cushman & Hii Generics Extension
+title: Generics with Variable Threshold Priors
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
 ---
+
+*By Cushman & Hii*
 
 # Introducing variable threshold priors to the generics model
 ---
@@ -32,7 +34,7 @@ Exploiting common knowledge and mutual informativity allow Tessler and Goodman, 
 
 The generics model is built around two key ingredients: a state space consisting of possible prevalence levels, and a threshold semantics.
 
-A given feature F could exist in a variable proportion of the population of K, ranging from 0.01 to 1. The possible values that proportion could take is our prevalence state space, which we segment into increments of  0.1
+A given feature F could exist in a variable proportion of the population of K, ranging from 0.01 to 1. The possible values that proportion could take are our prevalence state space, which we segment into increments of 0.1.
 
 ~~~~
 var bins = map(function(x){
@@ -40,7 +42,7 @@ var bins = map(function(x){
 },  _.range(0.01, 1., 0.1));
 ~~~~
 
-Now, we may wish to say that “K have F” is true only if that proportion exceeds some threshold value. Under a threshold semantics, the literal truth of a generic utterance is determined by comparing a prevalence level from out state space against a particular threshold value. If the threshold is exceeded, the generic statement is regarded as true. In this model, this meaning function is evaluated only when the utterance is a generic.
+Now, we may wish to say that “K have F” is true only if that proportion exceeds some threshold value. Under a threshold semantics, the literal truth of a generic utterance is determined by comparing a prevalence level from our state space against a particular threshold value. If the threshold is exceeded, the generic statement is regarded as true. In this model, this meaning function is evaluated only when the utterance is a generic.
 
 ~~~~
 var meaning = function(utterance, prevalence, threshold) {
@@ -128,7 +130,7 @@ var literalListener = cache(function(utterance, threshold, statePrior) {
 })
 ~~~~
 
-Above all of this exists an S2 layer, which accepts a specific prevalence, and compares which utterance would cause L1 to produce assign higher probability to that prevalence. This final step is what we can think of as “endorsement” — ultimately, does the model believe that the generic is a good way to describe the state of the world to a savvy listener.
+Above all of this exists an S2 layer, which accepts a specific prevalence, and compares which utterance would cause L1 to assign higher probability to that prevalence. This final step is what we can think of as “endorsement” — ultimately, does the model believe that the generic is a good way to describe the state of the world to a savvy listener?
 
 ~~~~
 var speaker2 = function(prevalence, statePrior){
@@ -180,7 +182,7 @@ var pragmaticListener = cache(function(utterance, statePrior) {
 
 When all of these components are compiled together, we get a model that lets us show a few simple intuitions, now capturable in the model:
 
-1. Fixing all beliefs about the actual prevalence of features among kinds, generics endorsement about those features and kinds can be increased by biasing the threshold priors lower or higher. If, say, having poisonous barbs and having prehensile toes had the same estimated prevalence distributions, yet distinct endorsement rates this bias could capture that.
+1. Fixing all beliefs about the actual prevalence of features among kinds, generics endorsement about those features and kinds can be increased by biasing the threshold priors lower or higher. If, say, having poisonous barbs and having prehensile toes had the same estimated prevalence distributions, yet distinct endorsement rates, this bias could capture that.
 2. Given observed usage of the generic, our model can infer not only that the threshold for generics usage was lower, but that perhaps the threshold was biased to be lower. If the model observed “K have poisonous barbs” being endorsed at higher rates, it could now infer that even low rates of poisonous barbs are noteworthy.
 
 The following code will illustrate these two points when executed.

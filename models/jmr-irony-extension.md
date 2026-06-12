@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Jimenez, Marquez, Rosales Irony Extension
+title: Irony with Continuous Arousal
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code

@@ -104,7 +104,7 @@ Lucas & Kemp reported 0.43 as the prediction of their model in this case.
 
 ## Notes/Questions
 
-* How do we deal with somehting like, "A because (B because C)" if we don't have an embedded inference?
+* How do we deal with something like, "A because (B because C)" if we don't have an embedded inference?
 	- Maybe we could have `shadow-vars` *and* `shadow-shadow-vars`.
 * In what kinds of situations would there be a greater difference between the two kinds of models? What's driving this difference?
 * Which of these is a better fit to the data?

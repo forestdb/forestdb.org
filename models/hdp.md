@@ -7,7 +7,7 @@ model-tags: mem, nonparametrics, dp
 model-language: church
 ---
 
-In a Hierarchical Dirchlet Process (HDP), multiple DPs share another (top-level) DP as their base measure.
+In a Hierarchical Dirichlet Process (HDP), multiple DPs share another (top-level) DP as their base measure.
 
     (define base-measure (lambda () (poisson 20)))
     (define top-level  (DPmem 10.0 base-measure))

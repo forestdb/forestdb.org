@@ -30,7 +30,7 @@ A **tree** with five nodes, two forks:
     (define c2 (flip (if b2 .5 .6)))
     c2
 
-An **inverse tree** with five nodes, two joins.
+An **inverse tree** with five nodes, two joins:
 
     (define a1 (flip))
     (define a2 (flip))

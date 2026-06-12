@@ -14,7 +14,7 @@ Suppose there are $M$ restaurants, which generate noisy reward signals
 $r_j \in \{0, 1\}$. Each agent $a_i$ in the population assigns some
 subjective utility $u_j$ to each restaurant $j$, such that $u_j =
 P(r_j = 1)$. These subjective utilities are drawn from a shared normal
-distribution, so all agents have relatively similar utilities
+distribution, so all agents have relatively similar utility
 functions. We will model a particular agent, Alice, as she infers her
 own utility function. She uses two sources of information. First,
 Alice assumes that all other agents know their own utility and decide
@@ -134,7 +134,7 @@ console.log(expectation(results, function(x) {return x['groupParams']['groupMean
 console.log(expectation(results, function(x) {return x['groupParams']['groupSD']}))
 ~~~~
 
-Despite the fact Alice doesn't explicitly observe any information about the Stirfry Shack, she nonetheless forms strong beliefs about it by observing the actions of agents that she believes belong to her group. By comparing evidence1 to evidence2, we see that additional evidence strengthens Alice's belief and also leads to an inference that the SD of her group must be quite large (otherwise it's hard to explain why no one else is choosing the Burger Barn). By comparing evidence2 to evidence3, we see that observing just a few mixed signals (i.e. a bad experience at Burger Barn herself, and social evidence of some other choosing Burger Barn), her beliefs about SD shift much lower.
+Despite the fact Alice doesn't explicitly observe any information about the Stirfry Shack, she nonetheless forms strong beliefs about it by observing the actions of agents that she believes belong to her group. By comparing evidence1 to evidence2, we see that additional evidence strengthens Alice's belief and also leads to an inference that the SD of her group must be quite large (otherwise it's hard to explain why no one else is choosing the Burger Barn). By comparing evidence2 to evidence3, we see that after observing just a few mixed signals (i.e. a bad experience at Burger Barn herself, and social evidence of some others choosing Burger Barn), her beliefs about SD shift much lower.
 
 Jointly inferring membership in & properties of multiple groups (broken)
 -----------------------------------------------------------
@@ -291,7 +291,7 @@ Note that evidence2 now constitutes fairly strong evidence that there are two gr
 Stereotyping (broken)
 ---------------------------------
 
-Next, we add incidental features to the agents. In the real world, we don't always get to observe the choices of other agents, but we do observe perceptual features like skin color, hair color, and the team name on a sports jersey. Work on stereotyping and ingroup-outgroup perception suggests that we expect many groups to share such features. To incorporate this aspect of an intuitive theory of groups, we sample a "feature probability" for each group. If it is 1, then we expect all agents in the group to have that feature. If it is .5, we expect roughly half of the agents to have that features. Our agent then takes these stable perceptual traits into account when inferring group membership and utility.
+Next, we add incidental features to the agents. In the real world, we don't always get to observe the choices of other agents, but we do observe perceptual features like skin color, hair color, and the team name on a sports jersey. Work on stereotyping and ingroup-outgroup perception suggests that we expect many groups to share such features. To incorporate this aspect of an intuitive theory of groups, we sample a "feature probability" for each group. If it is 1, then we expect all agents in the group to have that feature. If it is .5, we expect roughly half of the agents to have that feature. Our agent then takes these stable perceptual traits into account when inferring group membership and utility.
 
 ~~~~
 

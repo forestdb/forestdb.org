@@ -9,7 +9,7 @@ model-language-version: pre-v0.7
 ---
 
 
-A model for the adjective "expensive" for coffee makers, headphones, laptops, sweaters, and headphones, as presented in Ref:Lassiter2013adj.
+A model for the adjective "expensive" for coffee makers, headphones, laptops, sweaters, and watches, as presented in Ref:Lassiter2013adj.
 
 ## Adjective model
 

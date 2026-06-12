@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Adjectives + QUD - Frankie, Shane
+title: Vague Adjectives with QUD and Valence
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
@@ -33,7 +33,7 @@ _______
 #### To begin, we turned to the hyperbole model:
 - Defined here are the possible utterances, utterance priors, and the "meaning" function.
  
-- The possible utterances are same as the price states.
+- The possible utterances are the same as the price states.
 
 
 ~~~~
@@ -57,7 +57,7 @@ var meaning = function(utterance, price) {
 
 #### ...and changed the possible utterances.
 
-- We changed possible utterances from integers corresponding to kettle prices to the adjective "expensive" and it's negated version, "not expensive." This list of utterances echoes the utterances in the vagueness model, except that we substituted "null" with "not expensive" in this iteration.
+- We changed possible utterances from integers corresponding to kettle prices to the adjective "expensive" and its negated version, "not expensive." This list of utterances echoes the utterances in the vagueness model, except that we substituted "null" with "not expensive" in this iteration.
 
 
 - We did away with the hyperbole model's meaning function altogether.
@@ -79,7 +79,7 @@ var utterancePrior = function() {
 
 - Because we are incorporating the threshold variable theta, we took the theta prior from the vagueness model. 
 
-- This meaning function uses theta to moderate interpretation of ambiguous adjectives. We ours identical to that of the vagueness model in ch. 5, except that we added a "notExpensive" utterance. This function returns "expensive" if the price is greater than or equal to theta and "notExpensive" if the price is less than or equal to theta.
+- This meaning function uses theta to moderate interpretation of ambiguous adjectives. We made ours identical to that of the vagueness model in ch. 5, except that we added a "notExpensive" utterance. This function returns "expensive" if the price is greater than or equal to theta and "notExpensive" if the price is less than or equal to theta.
 
 - The cost function assigns a higher cost to the utterance with more words.
 
@@ -245,7 +245,7 @@ print('The joint distribution on price and valence:')
 #### Our model’s QUDs:
 - QUD = question under discussion.
 
-- We have the same QUDs as original hyperbole model but without the “approxPrice” and the “approxPriceValence” QUDs.
+- We have the same QUDs as the original hyperbole model but without the “approxPrice” and the “approxPriceValence” QUDs.
 
 
 ~~~~
@@ -382,10 +382,10 @@ viz(literalListener("expensive", "priceValence", 500))
 
 
 ### *Comparing L0 between models* 
-- We can our literal listener's predictions (above) to the hyperbole model predictions (below) under similar parameters to observe what has changed. 
+- We can compare our literal listener's predictions (above) to the hyperbole model predictions (below) under similar parameters to observe what has changed. 
 
 - The original L0 is being run on an utterance of 500, under the priceValence QUD. 
- - In the original hyperbole model, the literal listener is only capable of displaying a value equal to the specified price. Because it is literal, it can only interpret the utterance as meaning literally what it is stated. Therefore, all probability lies on the price of 500.
+ - In the original hyperbole model, the literal listener is only capable of displaying a value equal to the specified price. Because it is literal, it can only interpret the utterance as meaning literally what is stated. Therefore, all probability lies on the price of 500.
 - In both models, the valence associated with the price can be seen in the priors, which are similar between both models. 
 
 

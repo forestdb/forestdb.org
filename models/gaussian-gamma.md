@@ -8,7 +8,7 @@ model-language: church
 ---
 
 One-dimensional Gaussian distribution with mean and variance
-sampled from Gaussian/gamma priors
+sampled from Gaussian/gamma priors.
 
 ~~~~
 (define xdata '(1 1.2 1.5 0.8 0.9 1 1.3 0.9))

@@ -1,10 +1,12 @@
 ---
 layout: model
-title: Metaphor - Josh, Kayla, Lauren
+title: Metaphor with Varying Priors and Goals
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
 ---
+
+*By Josh, Kayla, Lauren*
 
 The puzzle we are addressing is: How do listeners make sense of metaphorical or figurative
 utterances, such as “John is a whale,” when those utterances are not literally true?
@@ -14,7 +16,7 @@ commenting on John’s size, not that he’s actually a marine mammal. This mode
 pragmatic reasoning allows listeners to arrive at that kind of inference by modeling the beliefs,
 goals, and choices of both the speaker and the listener.
 
-In the very first part of the code, we define the categoryPrior. John can either be a whale or a
+In the very first part of the code, we define the categoriesPrior. John can either be a whale or a
 person, but there’s only a 1% probability that he’s actually a whale. This reflects our
 common-sense belief that people are typically people.
 
@@ -44,7 +46,7 @@ categorical([1,1], utterances)
 ~~~~
 
 Now we move to featureSets, which lay out eight possible combinations of features John might
-have. These features are: large, graceful, and majestic. Each one of these features are
+have. These features are: large, graceful, and majestic. Each one of these features is
 represented in binary numbers.
 
 The featureSetPrior function then assigns probabilities to each combination based on whether
@@ -86,7 +88,7 @@ true
 
 Now we model what the speaker might be trying to communicate, which is the role of the
 goalPrior. Here, we assume the speaker could be trying to highlight any one of the three traits:
-large, graceful, or majestic. Additionally, each of these traits have equal probability. So the model
+large, graceful, or majestic. Additionally, each of these traits has equal probability. So the model
 starts out with no bias about which trait the speaker is focused on.
 
 We then define a goalState function, which checks if a given set of features satisfies a goal. For
@@ -129,8 +131,8 @@ true
 In the case of the literal listener, it hears an utterance like “whale,” starts by considering both
 categories equally, and samples a feature set based on the category.
 
-Then, it begins to filter responses, it only keeps interpretations where the category matches the
-utterance. Hence, so “whale” means John must be a whale.
+Then, it begins to filter responses: it only keeps interpretations where the category matches the
+utterance. Hence, “whale” means John must be a whale.
 
 Finally, it checks whether the sampled features satisfy the communicative goal using goalState.
 
@@ -201,9 +203,9 @@ Infer({model: function() {
 }
 ~~~~
 
-Both the hyperbole and metaphor model involve the use of a speaker, pragmatic listener, factor,
-and alpha. The speaker in both models chooses what to say would get the listener to get to the
-point. The pragmatic listener hears the utterances infers what is being said, along with the
+Both the hyperbole and metaphor models involve the use of a speaker, pragmatic listener, factor,
+and alpha. The speaker in both models chooses what to say that would get the listener to get to the
+point. The pragmatic listener hears the utterances and infers what is being said, along with the
 reasoning behind it. In terms of factor and observe, the speaker utilizes factor to score each
 utterance, with more informative ones being scored higher. Observe is used by the listener as it
 runs the speaker model, depending on which utterance was actually said.
@@ -400,6 +402,8 @@ var pragmaticListener = function(utterance) {
 
 viz.hist(pragmaticListener("whale"))
 ~~~~
+
+~~~~
 // John could either be a whale or a person.
 var categories = ["whale", "person"]
 
@@ -506,7 +510,7 @@ var pragmaticListener = function(utterance) {
 
 viz.table(pragmaticListener("whale"))
 viz.marginals(pragmaticListener("whale"))
-
+~~~~
 
 Above is the default prediction of the metaphor model
 (viz.table(pragmaticListener("whale"))) and visualizations of its marginal
@@ -530,7 +534,7 @@ assumed that the speaker is always trying to be as informative as possible. This
 also supported by the marginal distributions of the features. For all features, the pragmatic
 listener believes that it is more likely the feature is true of the subject than not true. It would not
 make sense for “not true” to be the more likely belief, because that would make the utterance
-more uninformative
+more uninformative.
 
 ~~~~
 // John could either be a whale or a person.
@@ -903,7 +907,7 @@ However, when privileging the other goals, we do not observe the same feature do
 graceful and majestic as we do for large in the pragmatic listener predictions (see
 below). This disparity can be attributed to the featureSetPrior, which itself privileges the
 four combinations which include the large feature over the sets of four which include the
-graceful and majestic features, especially in the whale category
+graceful and majestic features, especially in the whale category.
 
 ~~~~ norun
 // John could either be a whale or a person.

@@ -1,11 +1,12 @@
 ---
 layout: model
-title: Comparison Class - Kiara, Noah, Kiley
+title: Comparison Class Inference for 'Tall'
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
 ---
 
+*By Kiara, Noah, Kiley*
 
 ***Comparison Class Model:***
 
@@ -15,7 +16,7 @@ But, what if we don't know the comparison class?
 
 For this model, we are considering the adjective *tall*:
 - "John is a basketball player, and he is tall."
-- "John is a gymnast, and he is tall".
+- "John is a gymnast, and he is tall."
 - "John is a soccer player, and he is tall."
 
 You likely have different ideas of which comparison class is used for each statement. For John, being a basketball player, we're likely to think that he is being compared to all people or the general population. When John is a gymnast, his being tall is likely a comparison to gymnasts specifically, so he would be short relative to all people. And when John is a soccer player, we might infer that it is just for soccer players and not the general population. 
@@ -24,7 +25,7 @@ These different comparison classes can be defined as:
 - *Superordinate* or the general population 
 - *Subordinate* or the specific group (basketball players, gymnasts, soccer players)
 
-By capturing the uncertainty over which comparison class is being used (superordinate vs. subordinate), Tessler et. al (2017) extend the adjective model to account for this ambiguity. We will point out the similarities and differences between the two models as we go through.  
+By capturing the uncertainty over which comparison class is being used (superordinate vs. subordinate), Tessler et al. (2017) extend the adjective model to account for this ambiguity. We will point out the similarities and differences between the two models as we go through.  
 
 
 
@@ -50,7 +51,7 @@ var binParam = 3;
 var superordinate_params = {mu: 0, sigma: 1};
 ~~~~
 
-**Possible Height Values & Probabilites**
+**Possible Height Values & Probabilities**
 - The model begins by generating a list of possible height values that an individual might have. Rather than considering every real number, it selects a range spanning three standard deviations above and below the mean, capturing nearly all realistic values under a normal distribution, and divides this range into discrete steps, controlled by the binParam setting.
 - For each of these discretized height values, the model calculates the likelihood of occurrence using a Gaussian distribution. It first computes the log-probability for each height, then applies the exponential function to convert these into standard probabilities, resulting in a full probability distribution over the possible height values.
 
@@ -243,7 +244,7 @@ Let's move on to the utterance and meaning functions, adapted from the basic adj
 
 For the utterance model, there are three possible utterances, characterized as positive ("tall"), negative ("short"), and null ("silence").
 
-For the meaning function, the goal is to return a boolean (*true* or *false*) that reflects whether the given utterance correctly describes the given state's relationship to the given threshold. *In the basic adjective model, our meaning function was similar, where it took in utterance, price, and theta. In our model, price is similar to state and theta provided a relevant threshold, like our thresholds object*
+For the meaning function, the goal is to return a boolean (*true* or *false*) that reflects whether the given utterance correctly describes the given state's relationship to the given threshold. *In the basic adjective model, our meaning function was similar, where it took in utterance, price, and theta. In our model, price is similar to state and theta provided a relevant threshold, like our thresholds object.*
 
 ~~~~
 var utterances = ["tall", "short", "silence"]
@@ -306,7 +307,7 @@ var literalListener = cache(
 
 Let's break down exactly what the comparison class argument is. In the model, it is defined as an object that is passed into the L₀ from the L₁, through the S₁.
 
-We have prior knowledge about the distribution of heights that various classes have (i.e. gymnasts are usually shorter than basketball players, and the probability distributions of their heights reflects that knowledge). The reason behind including this **comparisonClass** object is to code in the idea that a listener may be uncertain about whether a statement like "John is tall" means that John is tall *compared to all people* or *compared to basketball players*. 
+We have prior knowledge about the distribution of heights that various classes have (i.e. gymnasts are usually shorter than basketball players, and the probability distributions of their heights reflect that knowledge). The reason behind including this **comparisonClass** object is to code in the idea that a listener may be uncertain about whether a statement like "John is tall" means that John is tall *compared to all people* or *compared to basketball players*. 
 
 This object is defined as follows:
 
@@ -534,7 +535,7 @@ Below, the speaker function is run with fixed state (0.33333...) and subparamete
 
 The **Tall Threshold** implements thresholds where the state would be considered tall. The **Lower Short Threshold** implements thresholds where the state is short, but closer to the threshold compared to the **Higher Short Threshold**. 
 
-Of course, the thresholds determine which informative utterance ("short"/"tall") is chosen, but here you see that the subordinate v.s. superordinate parameter distinction is important in determining whether the speaker would choose an informative utterance or silence. 
+Of course, the thresholds determine which informative utterance ("short"/"tall") is chosen, but here you see that the subordinate vs. superordinate parameter distinction is important in determining whether the speaker would choose an informative utterance or silence. 
 
 For example, within the **Lower Short Threshold** distributions, a speaker would be less inclined to mention a person is short if they are considering their height relative to gymnasts (subordinate comparison), but there is much higher probability that the speaker would use the informative utterance if they are comparing to all people (superordinate comparison).
 
@@ -643,7 +644,7 @@ One question that arises from the speaker model, whose goal is to be informative
 
 Generally, you would think that most people are either short or tall. If someone were to fall in the unique case that they are exactly not tall or short, silence may be warranted. However, there are state/threshold/parameter combinations in our test cases that warrant the speaker to consider silence.
 
-In our test cases we are looking at the subparameters for gymnasts (who are generally shorter than the superordinate population. If we look at our "lower SHORT threshold" speaker (listed below), where the state is lower than both the tall and the short threshold, the speaker is much more likely to consider uttering "short" when factoring in the superordinate parameters. This is because the state is much more likely to be interpreted as short (using the meaning function) compared to when subordinate parameters are used (i.e. you are more likely to consider someone who is short to be short when comparing them to all people than when comparing them to gymnasts). 
+In our test cases we are looking at the subparameters for gymnasts (who are generally shorter than the superordinate population). If we look at our "lower SHORT threshold" speaker (listed below), where the state is lower than both the tall and the short threshold, the speaker is much more likely to consider uttering "short" when factoring in the superordinate parameters. This is because the state is much more likely to be interpreted as short (using the meaning function) compared to when subordinate parameters are used (i.e. you are more likely to consider someone who is short to be short when comparing them to all people than when comparing them to gymnasts). 
 
 So that begs the larger question: why, when comparing a short person to gymnasts, does the speaker think that silence is just as informative as uttering "short"? In this case, when the comparison class is gymnasts, and not all people, calling a person short may be uninformative, since compared to gymnasts they may be average, which leads the speaker to consider silence.
 
@@ -993,11 +994,11 @@ thresholds for tall and short:
 - var thresholds is a structured object with two properties: tall which samples from the threshold prior of positive and short which samples from the threshold prior of negative. These thresholds are drawn from a uniform distribution. 
 
 Uncertainty About Comparison Class:
-- If c, or a sample of classPrior, is subordinate then subordinate params is used if not then superordinate params are used 
+- If c, or a sample of classPrior, is subordinate then subordinate params is used; if not, then superordinate params are used 
 
 
 Simulating Speaker 1
-- Simulates the behavior of speaker 1, modeling how likely the speaker is to choose an utterance based on how likely that utterance would make the lister arrive at the correct understanding. 
+- Simulates the behavior of speaker 1, modeling how likely the speaker is to choose an utterance based on how likely that utterance would make the listener arrive at the correct understanding. 
 
 - Chooses an utterance based on state, thresholds, and comparison class
 
@@ -1009,7 +1010,7 @@ Return
 
 Comparison to Price Estimate Model
 
- - In contrast to the price estimate model which uses factor, this model uses observe to condition on the utterance. Observe functions as factor when alpha is 1. This model contains uncertainty about comparison class and height while the price uncertainty model only has uncertainty about the price. There is also 2 thresholds in this model. One for short and one for tall while the price uncertainty model only has a threshold for expensive. 
+ - In contrast to the price estimate model which uses factor, this model uses observe to condition on the utterance. Observe functions as factor when alpha is 1. This model contains uncertainty about comparison class and height while the price uncertainty model only has uncertainty about the price. There are also 2 thresholds in this model. One for short and one for tall while the price uncertainty model only has a threshold for expensive. 
 
 ~~~~
 ///fold:
@@ -1148,7 +1149,7 @@ var exptConditions = [
 ];
 ~~~~
 
-exptConditions creates the experimental conditions. This is an array with 6 elements. Each element is a structured object representing an experimental condition with two properties: utterance of tall or short and the subordinate param of each sport 
+exptConditions creates the experimental conditions. This is an array with 6 elements. Each element is a structured object representing an experimental condition with two properties: utterance of tall or short and the subordinate param of each sport. 
 
 ~~~~
 ///fold:
@@ -1300,15 +1301,15 @@ var L1predictions = map(function(stim){
 ~~~~
 
 - creates a prediction for how the pragmatic listener interprets tall or short based on what category they are in and what comparison class the speaker is likely referring to
-- Within L1predictions map applies the function stim to each condition within exptConditions, a structured object with an utterance and a subordinate paramater. For example tall gymnast.
+- Within L1predictions map applies the function stim to each condition within exptConditions, a structured object with an utterance and a subordinate parameter. For example, tall gymnast.
 
-- L1 posterior runs the pragmatic listener over stim, taking in an utterance and the subordinate paramaters for a group 
+- L1 posterior runs the pragmatic listener over stim, taking in an utterance and the subordinate parameters for a group 
 
 returns:
 - the utterance. 
 
 
-- the probability of the superordinate comparison class being used by taking the marginal distribution of comparison classes and the scoring the probability of "superordinate" 
+- the probability of the superordinate comparison class being used by taking the marginal distribution of comparison classes and then scoring the probability of "superordinate" 
 
 
 - what subordinate category was used and that the model is L1.
@@ -1482,13 +1483,13 @@ display("--> height = " + expectation(marginalize(pragmaticListener("tall",{mu: 
 
 
 
-basketball players https://ibb.co/xqhsvyfC
+[basketball players](https://ibb.co/xqhsvyfC)
 
-soccer players https://ibb.co/Zk4km17 
+[soccer players](https://ibb.co/Zk4km17) 
 
-gymnasts: https://ibb.co/nMS5Z2JN 
+[gymnasts](https://ibb.co/nMS5Z2JN) 
 
-Above is the pragmatic listener's beliefs about the height of different sports. They hear that they are tall or short with the range of heights for that sport. The line plots display the probabilities of which comparison class the pragmatic listener interprets when they hear that someone who plays a specific sport is tall as well as the height they interpret this to be. For each chart, the highest probability of height is at the upper end of the height ranges for a sport. For example, the highest probability of height for gymnasts is concentrated around -0.78, above average gymnast height of -1. In comparison to gymnasts and soccer players, basketball players have an expected height that is closer to their mean height. This is because saying tall to refer to a basketball player is less informative than it would be to call a gymnast or a soccer player tall, so the interpreted height for "tall" is closer to that of the average population.  
+Above are the pragmatic listener's beliefs about the height of different sports. They hear that they are tall or short with the range of heights for that sport. The line plots display the probabilities of which comparison class the pragmatic listener interprets when they hear that someone who plays a specific sport is tall as well as the height they interpret this to be. For each chart, the highest probability of height is at the upper end of the height ranges for a sport. For example, the highest probability of height for gymnasts is concentrated around -0.78, above average gymnast height of -1. In comparison to gymnasts and soccer players, basketball players have an expected height that is closer to their mean height. This is because saying tall to refer to a basketball player is less informative than it would be to call a gymnast or a soccer player tall, so the interpreted height for "tall" is closer to that of the average population.  
 
 So what does **L1predictions** do exactly? 
 
@@ -1496,7 +1497,7 @@ The goal of the function is to return the probability that, when hearing the giv
 
 In order to do so, it itemizes each utterance/subordinate-group combination, and then runs the pragmatic listener over each combination (which leads us to run the L₁ over 6 different combinations). Next, over each combination, it extracts the marginal probability that the L₁ listener assigns to the speaker using the superordinate comparison class.
 
-In running the function, it will return a probability distribution marginalized over the states “tall” and “short,” showing the probability that a certain subordinate class would considered tall or short compared to the superordinate population.
+In running the function, it will return a probability distribution marginalized over the states “tall” and “short,” showing the probability that a certain subordinate class would be considered tall or short compared to the superordinate population.
 
 ~~~~ norun
 var exptConditions = [
@@ -1671,5 +1672,5 @@ display("probability of superordinate comparison class (i.e., tall for all peopl
 viz.bar(L1predictions, {groupBy: "subordinate category"})
 ~~~~
 
-This histogram shows the probability the pragmatic listener infers the speaker is referring to tall for the superordinate comparison class for each of the superordinate categories. Basketball players have the highest probability for being tall in the superordinate class and lowest probability for short due to their distribution of heights in subParams. This means a Basketball player would be more likely to be tall in the general population, so it is likely that someone is referring to them in the superordinate category. In contrast, gymnasts are very short so they are unlikely to be tall for the general population. As a result, it is likely the speaker is referring to the subordinate comparison class, or "tall for a gymnast". Soccer players have the same average height as the general population, so it is equally likely they will be short for all people, or tall for all people.
+This histogram shows the probability the pragmatic listener infers the speaker is referring to tall for the superordinate comparison class for each of the superordinate categories. Basketball players have the highest probability for being tall in the superordinate class and lowest probability for short due to their distribution of heights in subParams. This means a basketball player would be more likely to be tall in the general population, so it is likely that someone is referring to them in the superordinate category. In contrast, gymnasts are very short so they are unlikely to be tall for the general population. As a result, it is likely the speaker is referring to the subordinate comparison class, or "tall for a gymnast". Soccer players have the same average height as the general population, so it is equally likely they will be short for all people, or tall for all people.
 

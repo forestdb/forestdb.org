@@ -34,7 +34,7 @@ vizPrint(Enumerate(BCN));
 
 ### Functional Causal Models
 
-A *Functional Causal Model* (FCM) assumes that all causes are actually determinisitic, but some are unknown. Every observable variable $$X$$ is a deterministic function of its parent observable variables $$par(X)$$ and an exogenous random variable $$U_{X}$$. The randomness of the system lies in the unobserved and unobservable variables $$U_{X}$$.
+A *Functional Causal Model* (FCM) assumes that all causes are actually deterministic, but some are unknown. Every observable variable $$X$$ is a deterministic function of its parent observable variables $$par(X)$$ and an exogenous random variable $$U_{X}$$. The randomness of the system lies in the unobserved and unobservable variables $$U_{X}$$.
 
 ![0.9 --> Ux ; Ux --> X ; X --> Y ; Uy --> Y](../assets/img/FCM.png)
 
@@ -118,9 +118,9 @@ vizPrint(baconERP);
 
 ## Representing Counterfactual Simulation: Extended Structural Model
 
-The logic behind Lucas & Kemp's Extended Structural Model (ESM) is that wen thinking counterfactually, we keep a lot of the random state of the actual world, but perturb it slightly to get slightly different worlds.
+The logic behind Lucas & Kemp's Extended Structural Model (ESM) is that when thinking counterfactually, we keep a lot of the random state of the actual world, but perturb it slightly to get slightly different worlds.
 
-For example, in the situation whether we cooked bacon, the smoke alarm went off and the neighbors are angry, we can imagine what would have happened if the smoke alarm hadn't gone off. How likely is it that we would still have been cooking bacon? This depends on the causal link between cooking bacon and the smoke alarm going off. It depends on what the prior probability of cooking bacon was. It also depends on the fact that in the actually world *we actually did* cook bacon.
+For example, in the situation where we cooked bacon, the smoke alarm went off and the neighbors are angry, we can imagine what would have happened if the smoke alarm hadn't gone off. How likely is it that we would still have been cooking bacon? This depends on the causal link between cooking bacon and the smoke alarm going off. It depends on what the prior probability of cooking bacon was. It also depends on the fact that in the actual world *we actually did* cook bacon.
 
 The model includes a parameter for the degree of dependence on the actual world. This parameter, s (for "stickiness"), determines whether the parts of *random state* get resampled. The random state variables are independent from one another and the causal information is encoded in the function that maps from the random state to the world state. Therefore, the "sticky" dependence of the counterfactual world on the actual world can be separated in the model from the dependence of downstream variables in the world on their causes (and the "backtracking" statistical dependence of the value of upstream variables on the values of their observed consequents).
 
@@ -371,7 +371,7 @@ In this situation, all of the variables (A, B, C, D) happen to be false.
 
 #### story 5: multiple causes with different strengths
 
-A and B are both somewhat likely *a priori*. A always causes C, but in the absense of A B usually causes C. C always causes D.
+A and B are both somewhat likely *a priori*. A always causes C, but in the absence of A, B usually causes C. C always causes D.
 In this situation, all of the variables happen to be true.
 
 *Note:* We're not sure whether the link between B and C is on in this case, because either way, A would have caused C.
@@ -793,7 +793,7 @@ print('finished');
 // results are shown in the graphs below.
 ~~~
 
-L&K used a simple grid search to find parameter values that minimized sum squared error. They considered considered 1000 uniformly spaced parameter values between 0 and 1. Best-fit parameter was s=0.53.
+L&K used a simple grid search to find parameter values that minimized sum squared error. They considered 1000 uniformly spaced parameter values between 0 and 1. Best-fit parameter was s=0.53.
 
 Our model simulations show the same results as Lucas & Kemp 2015. ([caveat](./lucas-kemp-2015-replication.html#embedded-counterfactuals))
 

@@ -18,7 +18,7 @@ You can vary:
 
 - context (lists of features)
 
-This model is specifically to explore the interaction of noise, cost, and optimality parameters for a fixed context of interest from the Gatt et al. 2011 paper (big red, small red, small yellow)
+This model is specifically to explore the interaction of noise, cost, and optimality parameters for a fixed context of interest from the Gatt et al. 2011 paper (big red, small red, small yellow).
 
 ~~~
 (define (power dist a) (list (first dist) 
@@ -1123,7 +1123,7 @@ This model is specifically to explore the effect of varying color predictability
 
 You can vary:
 
-- color, size, and type noise/fidelity (tbut these don't do anything in this model)
+- color, size, and type noise/fidelity (but these don't do anything in this model)
 
 - color, size, and type cost (though size cost doesn't do anything)
 
@@ -1327,9 +1327,9 @@ You can vary:
 
 - what the target and competitors are
 
-This model is specifically to test the PRO predictions and compare with versions of RSA for the lightbulb-style contexts reported by Gatt et al 2011. They use x = .87 and y = -.05
+This model is specifically to test the PRO predictions and compare with versions of RSA for the lightbulb-style contexts reported by Gatt et al 2011. They use x = .87 and y = -.05.
 
-A weird thing that results from the way they set this up is that in their second selection step, they sum up the preference for the feature (a probability) and the eagerness to overspecify (supposedly also a probability) -- but with particular settings of parameters (eg color-preference 0 and negative eagerness to overspecify, given the standard "lightbulb" context, this results in a negative "probability". This is awful.
+A weird thing that results from the way they set this up is that in their second selection step, they sum up the preference for the feature (a probability) and the eagerness to overspecify (supposedly also a probability) -- but with particular settings of parameters (eg color-preference 0 and negative eagerness to overspecify), given the standard "lightbulb" context, this results in a negative "probability". This is awful.
 
 ~~~
 ; Stuff to vary: free parameters

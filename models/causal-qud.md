@@ -165,7 +165,7 @@ Then the most probable state is one where B is false and everything else (causal
 
 ~~~~
 
-When the literal listener hears, "C because A", that's consistent with his prior distribution (If A hadn't happened, C would not have happened -- B was not there to trigger C), except that the a priori unlikely situations where B and bt happened to both be true are now impossible. This strengthens the most likely world state, which is still one in which everything except B is true.
+When the literal listener hears "C because A", that's consistent with his prior distribution (If A hadn't happened, C would not have happened -- B was not there to trigger C), except that the a priori unlikely situations where B and bt happened to both be true are now impossible. This strengthens the most likely world state, which is still one in which everything except B is true.
 
 ~~~~
 
@@ -283,9 +283,9 @@ When the literal listener hears, "C because A", that's consistent with his prior
 
 The a priori most likely world state is not, however, consistent with "C because B". If the listener hears "C because B", he will infer that either A was false or at was false. He won't necessarily infer that bt is true (since maybe bt was false, but in the counterfactual world A and at both got turned on), but he's very likely to. The listener has about a 50% chance of inferring at is true, since at being false is just as likely as A being false and both are possible reasons why B being false would result in C being false.
 
-#Speaker
+# Speaker
 
-So if the speaker has two choices of what to say ("C because A" or "C because B") and the speaker wants to communicate that both at and bt are turned on, she should choose the "C because A" more often, because then the listener will more likely infer her intended meaning.
+So if the speaker has two choices of what to say ("C because A" or "C because B") and the speaker wants to communicate that both at and bt are turned on, she should choose "C because A" more often, because then the listener will more likely infer her intended meaning.
 
 ~~~~
 
@@ -395,7 +395,7 @@ So if the speaker has two choices of what to say ("C because A" or "C because B"
 
 So even if we *only* care about communicating the causal links, we can still be affected by the prior probabilities of the explanantia.
 
-# common ground
+# Common ground
 
 Even if we set the values of A, B, and C in the actual world to be in common ground, the counterfactual world still samples from the prior distribution in order to make the counterfactual condition true, and so the priors will affect the speaker's choice.
 

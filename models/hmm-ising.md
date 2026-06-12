@@ -8,7 +8,7 @@ model-language: church
 ---
 
 A doubly-intractable HMM, meant as a toy model for speech
-recognition with articulatory contraints.
+recognition with articulatory constraints.
 
     (define (drop-right lst n)
       (reverse (drop (reverse lst) n)))

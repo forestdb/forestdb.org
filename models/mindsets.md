@@ -26,7 +26,7 @@ Different factors might play a role in someone's theory of intelligence and how 
 
 * **ability**: a person may have different degrees of ability in a certain domain. This could be a latent or observed variable (i.e. a person may or may not have knowledge of their own degree of ability).
 
-* **effort**: a person may exert different degrees of effort on a certain task. A person probably knows how much effort they exerted in a task, but an outside observer may or may not know. An agent probably has control over the degree of effort the exert on a task, and so they can choose between different degrees of effort based on their relative utilities.
+* **effort**: a person may exert different degrees of effort on a certain task. A person probably knows how much effort they exerted in a task, but an outside observer may or may not know. An agent probably has control over the degree of effort they exert on a task, and so they can choose between different degrees of effort based on their relative utilities.
 
 * **task difficulty**: different tasks have different levels of difficulty. The difficulty of a task might be an inherent property of that task, or it might be relative to a person's current abilities or preferences. In some situations, a person might be able to choose the difficulty of the task they will do, and in other situations they might not have this choice. The level of difficulty might be known or unknown to the person or to an observer.
 
@@ -73,7 +73,7 @@ A person may have different theories about how their abilities can improve in a 
 
 Even considering only theories of improvement where improvement is a function of effort and no other variables, there are many different kinds of such functions. One's ability might increase linearly, with no upper bound; it might increase asymptotically to some "perfect" level; or it might increase exponentially, such that having a higher current ability allows one to improve more quickly.
 
-And within each of these functions, are many different ways of formulating an entity theory. Perhaps different individuals have different rates of improvement, or some ability "cap" after which this individual can no longer improve but others could, or perhaps individuals improve at similar rates but start off at different levels of ability. Any combination of these sources of individual differences could describe a new theory in which intelligence is, in some sense, "fixed".
+And within each of these functions, there are many different ways of formulating an entity theory. Perhaps different individuals have different rates of improvement, or some ability "cap" after which this individual can no longer improve but others could, or perhaps individuals improve at similar rates but start off at different levels of ability. Any combination of these sources of individual differences could describe a new theory in which intelligence is, in some sense, "fixed".
 
 Out of this huge combinatorial space of possible theories, we model two improvement theories: one where ability stays completely stable (`stable`), and one where improvement is a function of effort and difficulty (`incremental`). We choose the stable theory as the strongest possible entity theory and the other as a simple but somewhat plausible incremental theory.
 
@@ -1195,7 +1195,7 @@ WARNING ABOUT RUNNING THE CODE ABOVE! It may take about 2 minutes to run.
 
 With a uniform prior over goals, we can see which goals an agent will work towards, given their theory of how their effort affects their performance and improvement.
 
-WARNING ABOUT RUNNING THE CODE BELOW! It may take about 2 minues to run.
+WARNING ABOUT RUNNING THE CODE BELOW! It may take about 2 minutes to run.
 
 ~~~
 ;;;fold:
@@ -1371,6 +1371,6 @@ WARNING ABOUT RUNNING THE CODE BELOW! It may take about 2 minues to run.
 #### Learning goal or discounting? -->
 
 ## Notes
-<sup id="footnote1"><a href="#ref1">[1]</a> Though later we will use the prior over effort to reflect a cost function. So that for an agent, their *prior* over efforts favors less effort.
+<sup id="footnote1"><a href="#ref1">[1]</a> Though later we will use the prior over effort to reflect a cost function. So that for an agent, their *prior* over efforts favors less effort.</sup>
 
 <sup id="footnote2"><a href="#ref2">[2]</a> This perception could be their own, or an outside observer's. Here we simply assume that the observer has the same theory, but it is possible that the student could imagine that this person has a different theory, which might change their perception.</sup>

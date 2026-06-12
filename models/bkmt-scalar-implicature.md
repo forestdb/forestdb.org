@@ -1,12 +1,14 @@
 ---
 layout: model
-title: Buenagua, Kephart, Malone, Tran Scalar implicature
+title: Scalar Implicature with Uncertain Speaker Access
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
 ---
 
-Markdown- puzzle and modeling approach
+*By Buenagua, Kephart, Malone, Tran*
+
+Markdown - puzzle and modeling approach
 
 The most basic idea these models are trying to communicate is, out of 3 apples how 
 many are red by using an utterance and the prior world knowledge that 80% of all 
@@ -42,7 +44,7 @@ the speaker has no information to work with it's better to say nothing rather th
 possibly leading the listener astray. Other than that, the framework is just a few 
 steps out from the vanilla RSA model and looks a lot more confusing due to how the 
 math is implemented even though the effects are the same. So, the big idea to 
-solve this puzzle with all these unknown variables is the listeners' joint 
+solve this puzzle with all these unknown variables is the listener's joint 
 inference over those unknowns.
 
 
@@ -77,7 +79,7 @@ are from what the speaker can see). Because the pragmatic listener in the joint
 inference model isn’t sure whether the speaker is fully competent or not, the 
 listener has to put in more work to infer what they believe the speaker sees. 
 These extra inferences the pragmatic listener makes are introduced via the 
-observePrior and the accessPrior –– two functions that were lacking in the 
+observePrior and the accessPrior — two functions that were lacking in the 
 knowledge model. On top of implementing new access and observed inferences, the 
 joint inference model also differs from the knowledge model in that it utilizes a 
 hypergeometric distribution, which factors in the possibility that the speaker may 
@@ -144,7 +146,7 @@ var hypergeometricPMF = function(k,N,K,n) {
 
 Factorial() and binom() are helper functions for the hypergeometricPMF(). 
 
-Factorial will return the factorial product of its input (ie. the factorial of 3 = 
+Factorial will return the factorial product of its input (i.e., the factorial of 3 = 
 3*2*1 = 6). 
 
 Binom() sets up a fraction framework for the factorials of two inputs. 
@@ -341,7 +343,7 @@ In our world, the speaker is equally likely to use none, some, or all, but is
 extremely unlikely to not say an utterance at all (null). 
 
 The literalMeanings() function will define the states in which the utterance is 
-true. “All'' is only true when three apples are red, “some” is only true when at 
+true. “All” is only true when three apples are red, “some” is only true when at 
 least one apple is red, “none” is only true when no apples are red, and “null” can 
 be applied to any state. This is because at any time the speaker can choose to not 
 say an utterance, which cannot be incorrect, though it is highly uninformative. 
@@ -544,7 +546,7 @@ speaker will use to convey to a pragmatic speaker about how many apples are red.
 The speaker will use the information known from how many apples they can see 
 (access) and how many of those apples are red (observed). An utterance will be 
 generated from the utterancePrior(), the utility of this utterance will be 
-calculated (get_Eus), then the resulting utility will be factored by the 
+calculated (get_EUs), then the resulting utility will be factored by the 
 optimality of the speaker (alpha). Infer() will run over this process to return 
 the utterance that generates the highest utility, which is ultimately the 
 utterance that the speaker will use.  
@@ -987,7 +989,7 @@ how many they observed to be red, so the pragmatic listener is unwilling to
 believe that “all” could mean anything other than a full access speaker who saw 
 three red apples.
 
-In a situation where a pragmatic listener hears the “null” utterance many 
+In a situation where a pragmatic listener hears the “null” utterance, many 
 assumptions have to be made based on the prior world knowledge in the model. It is 
 easiest to explain this bottom-up because each step helps to explain the next, so 
 we are starting with the explanation of visualizing the observed red apples. It is 
@@ -995,7 +997,7 @@ also helpful to remember the reason why the “null” utterance was introduced 
 first place; since the joint inference model restricts knowledge the speaker needs 
 a way to circumvent the issue of accidentally providing false information. That 
 being said, what situation presents this issue? A situation in which the speaker 
-has observed 0 red apples of course. We can see this is exactly what the pragmatic 
+has observed 0 red apples, of course. We can see this is exactly what the pragmatic 
 listener believes when we visualize observed with the “null” utterance.
  
 When we visualize access (or total observed) the pragmatic listener already knows 
@@ -1005,7 +1007,7 @@ amount of probability is placed on 2, which makes sense because while it is
 possible that the speaker saw two of the apples, it is highly unlikely that 
 neither of them were red due to the base rate. Some more probability is placed on 
 the 1 state, but this is still a low amount, again due to such a high base rate. 
-Finally, the 0 state is by far the most likely reflecting the base rate at .80 
+Finally, the 0 state is by far the most likely, reflecting the base rate at .80 
 probability.
  
 Looking at the beliefs of the true world state can seem a bit confusing at first 
@@ -1013,7 +1015,7 @@ glance, as one might expect to see more probability put on the lower states like
 the other graphs, but after going through the aforementioned analysis it becomes 
 much more intuitive. All this graph really does is reflect the prior knowledge of 
 the world in this model. Due to the base rate of red apples being 80% it is very 
-unlikely the true world state to have 0 or 1 red apples. The pragmatic listener 
+unlikely for the true world state to have 0 or 1 red apples. The pragmatic listener 
 knows this and assumes it is very likely that 2 or 3 of the apples will be red, 
 and again the addition of these two states nearly reflects the base rate, coming 
 in at just over 80%.
@@ -1036,7 +1038,7 @@ speaker is able to access, and the number of apples that the speaker has observe
 to be red. This is due to the fact that the state of there being no apples that 
 are red is not covered by how the "some" utterance is defined in the 
 literalMeaning function. With that out of the way, a discussion on what happens 
-when the pragmatic listener hears the "some" utterance in this model, can now 
+when the pragmatic listener hears the "some" utterance in this model can now 
 proceed in earnest.
 
 Looking at the graph of the marginal distribution of the pragmatic listener's 
@@ -1059,7 +1061,7 @@ probability of the speaker having access to all 3 apples. There are three reason
 for these results. The first reason is that as mentioned earlier, the "all" 
 utterance is defined in the literalMeaning function as the state in which all 3 
 apples are red and that the pragmatic listener would have inferred that the 
-speaker has access to all 3 apples if the latter have said the "all" utterance, 
+speaker has access to all 3 apples if the latter had said the "all" utterance, 
 hence the pragmatic listener's inferring that the speaker has access to all 3 
 apples if the latter says the "some" utterance having the lowest probability. The 
 second reason is that as mentioned in the previous paragraph, the base rate is set 
@@ -1090,7 +1092,7 @@ which results in the probability that the pragmatic listener infers that the
 speaker has observed only 1 apple to be red being the highest among all 
 probabilities visualized in the aforementioned graph.
 
-Let us now compare the results of the p1 function (which utilizes the 
+Let us now compare the results of the pl function (which utilizes the 
 pragmaticListener function) in the joint inference model with the results of the 
 pragmaticListener function in the knowledge model. Note once again that in 
 contrast with the joint inference model, the listener in the knowledge model knows 
@@ -1129,7 +1131,7 @@ probability of the pragmatic listener assuming that the speaker saw that 2 of th
 third and final thing we notice is that the respective probabilities of the 
 pragmatic listener assuming that the speaker saw that all 3 apples are red and of 
 the pragmatic listener assuming that the speaker saw that only 1 of the 3 apples 
-are red are more or less the same. There are several reasons for these findings. 
+is red are more or less the same. There are several reasons for these findings. 
 The first reason is that there is a chance, however small, that the third apple 
 (the apple that the speaker does not have access to) is not actually red. The 
 second reason is that the "some" utterance may cover scenarios in which the 
@@ -1198,7 +1200,7 @@ of having none of the 3 apples be red to a probability of slightly over 0.50 tha
 all 3 apples are red; that the highest probabilities are given for both the state 
 of having 2 of the 3 apples be red and the state of having all 3 apples be red, 
 with the probability that all 3 apples are red being significantly higher than the 
-probability that 2 of the 3 apples are red); and that the respective probabilities 
+probability that 2 of the 3 apples are red; and that the respective probabilities 
 for those states are each substantially higher than the combined probability of 
 having either none or only 1 of the 3 apples be red. These results reflect the 
 value of the base rate shown in the above code, which is also the reason why the 

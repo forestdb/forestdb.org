@@ -272,7 +272,7 @@ vizPrint(Enumerate(inference));
 
 ## Pragmatics
 
-As we add pragmatics and increase rationality and cost of explaining, the probabitliy that Alice is weak and Bob is strong increases.
+As we add pragmatics and increase rationality and cost of explaining, the probability that Alice is weak and Bob is strong increases.
 
 Our alternative utterances include a bunch of different explanations for why Alice won.  Here are the different explanations and my intuition of what they mean:
 

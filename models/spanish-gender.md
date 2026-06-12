@@ -1,29 +1,30 @@
 ---
 layout: model
-title: Yeaton Muelas Gil - Spanish gender
+title: Gender Inference from Spanish Masculine Generics
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
 ---
 
+*By Yeaton Muelas Gil*
+
 ### Introduction
 
-Introduction
 We shall start by looking at an example from a news report informing on a group of researchers from Spain who developed a virtual coach to prevent depression with the headline:
 
 _Médicos salmantinos crean un entrenador virtual que previene la depresion laboral_ (La Gaceta, 10/04/2021. Page 4)
 
 [Doctors from Salamanca create a virtual coach that prevents depression at work]
 
-If only the translation is observed, there is no indication of the gender of the doctors and researchers involved in the project; however, such gender is indicated in the original version (namely, the masculine generic). The difference simply comes from the way the English and Spanish languages indicate (or not) gender in their system: while the former is what is called a _natural gender language_, where most role nouns are not morphologically marked, the latter is a _grammatical gender language_, where nouns are usually marked for gender and therefore carry an additional cue to referential gender (Reali 2015). In other words, while Spanish language indicates the gender of words by means of an ending vowel (mainly -o for masculine, -a for feminine), there is no such marking in English. 
+If only the translation is observed, there is no indication of the gender of the doctors and researchers involved in the project; however, such gender is indicated in the original version (namely, the masculine generic). The difference simply comes from the way the English and Spanish languages indicate (or not) gender in their system: while the former is what is called a _natural gender language_, where most role nouns are not morphologically marked, the latter is a _grammatical gender language_, where nouns are usually marked for gender and therefore carry an additional cue to referential gender (Reali 2015). In other words, while the Spanish language indicates the gender of words by means of an ending vowel (mainly -o for masculine, -a for feminine), there is no such marking in English. 
 
-While this may seem a simple linguistic norm, it is of great importance for linguistic studies. When more than one gender is involved in a communicative or discursive situation in Spanish, or the gender is unknown or irrelevant, the Real Academia de la Lengua Española states that the masculine generic shall be used and is equally inclusive of all genders. However, many studies have proved that the use of the masculine generics inherently implies a lower depiction and projection of women in all situations. Scholars have recently investigated the consequences of using it in comparison to other more inclusive alternatives, such as the double form with a slash (_médicos/as_), the complete form of feminine and masculine gender (_médicas y medicos_) or even emerging options like the vowel _-e_ or the consonant _-x_. 
+While this may seem a simple linguistic norm, it is of great importance for linguistic studies. When more than one gender is involved in a communicative or discursive situation in Spanish, or the gender is unknown or irrelevant, the Real Academia de la Lengua Española states that the masculine generic shall be used and is equally inclusive of all genders. However, many studies have proved that the use of the masculine generics inherently implies a lower depiction and projection of women in all situations. Scholars have recently investigated the consequences of using it in comparison to other more inclusive alternatives, such as the double form with a slash (_médicos/as_), the complete form of feminine and masculine gender (_médicas y médicos_) or even emerging options like the vowel _-e_ or the consonant _-x_. 
 
-With the intention of continuing this line of research, a preliminary behavioral study was carried out to confirm whether participants do project a higher proportion of women when using the alternative forms in comparison to the normative one. Thus, 117 university students used a Likert scale to rate a list of 60 jobs as “mainly male” or “mainly women”; there were 3 different options of the survey, all containing the same jobs but presented in a different form (survey A: médicos, survey B: médicos/as; survey C: médicas y medicos”) and each participant would only answer one of the options. 
+With the intention of continuing this line of research, a preliminary behavioral study was carried out to confirm whether participants do project a higher proportion of women when using the alternative forms in comparison to the normative one. Thus, 117 university students used a Likert scale to rate a list of 60 jobs as “mainly male” or “mainly women”; there were 3 different options of the survey, all containing the same jobs but presented in a different form (survey A: médicos, survey B: médicos/as; survey C: médicas y médicos) and each participant would only answer one of the options. 
 
-The results of this preliminary study show two main outcomes: there is a trend in general that shows how more women are in fact included in the scale when the job is presented in the alternative forms, compared to the masculine generic option; moreover, this trend is reversed for the jobs which are stereotypically female in society (such as hairdresser, nurse, nanny, etc.), meaning fewer women (or more men) are included in the alternative forms. This seems to agree and confirm the previous studies claiming that the use of inclusive language reduces the stereotype regardless of which gender is involved, and therefore should be used if the gender gap is to be more widely or easily accepted. 
+The results of this preliminary study show two main outcomes: there is a trend in general that shows how more women are in fact included in the scale when the job is presented in the alternative forms, compared to the masculine generic option; moreover, this trend is reversed for the jobs which are stereotypically female in society (such as hairdresser, nurse, nanny, etc.), meaning fewer women (or more men) are included in the alternative forms. This seems to agree with and confirm the previous studies claiming that the use of inclusive language reduces the stereotype regardless of which gender is involved, and therefore should be used if the gender gap is to be more widely or easily accepted. 
 
-Still, these preliminary results obtained in the behavioral study were nonetheless limited to a small part of Spanish population. For the purpose of this subject and this project, the present study applies the Rational Speech Act (RSA) framework to this problem and builds the semantics into a computational model that aims at confirming the aforementioned trend. The objective is not only to compare behavioral with computational results and therefore achieve a stronger statement, but also to be able to provide more general, applicable, justified and comparable model. 
+Still, these preliminary results obtained in the behavioral study were nonetheless limited to a small part of the Spanish population. For the purpose of this subject and this project, the present study applies the Rational Speech Act (RSA) framework to this problem and builds the semantics into a computational model that aims at confirming the aforementioned trend. The objective is not only to compare behavioral with computational results and therefore achieve a stronger statement, but also to be able to provide a more general, applicable, justified and comparable model. 
 ____
 
 ### The model
@@ -39,7 +40,7 @@ NB: For the purposes of this project, we assume that all group members are drawn
 
 Whereas the previous generics model had only two utterances (`generic` and `null`), we define four possible utterances:
 - `mascpl`: masculine plural -- the so-called default
-- `mslashf`: masculine/ feminine (e.g.: médicos/médicas) which is much higher cost than `mascpl` but can be applied to the same groups
+- `mslashf`: masculine/feminine (e.g.: médicos/médicas) which is much higher cost than `mascpl` but can be applied to the same groups
 - `fem`: feminine plural -- theoretically licensed only when the group contains exactly zero men (but we relax this condition as shown below)
 - `uttnull`: the null utterance (silence)
 
@@ -67,9 +68,9 @@ Infer(utterancePrior)
 
 #### Semantics
 
-With the exception of the null utterance (which always returns `true`), the truth value of each of our utterances is defined according to some thresholds `thresholdM` or `thresholdF`. The parameters for these threshold are currently rather arbitrary, with `thresholdM` doing a uniform draw from the threshold bins (also more or less arbitrary), and `thresholdF` drawing from the same bins (for more discussion on this distribution, see [here](http://www.problang.org/chapters/07-generics.html)). In the future, we hope to estimate these thresholds empirically, but given the speaker intuition that the threshold for a `fem` utterance must be near `1`, we provide a potential parameterization of this distribution with a relatively high concentration of `50` and a mean of `0.85` , but for the purposes of simplicity, we use the same prior for both `thresholdM` and `thresholdF`.
+With the exception of the null utterance (which always returns `true`), the truth value of each of our utterances is defined according to some thresholds `thresholdM` or `thresholdF`. The parameters for these thresholds are currently rather arbitrary, with `thresholdM` doing a uniform draw from the threshold bins (also more or less arbitrary), and `thresholdF` drawing from the same bins (for more discussion on this distribution, see [here](http://www.problang.org/chapters/07-generics.html)). In the future, we hope to estimate these thresholds empirically, but given the speaker intuition that the threshold for a `fem` utterance must be near `1`, we provide a potential parameterization of this distribution with a relatively high concentration of `50` and a mean of `0.85`, but for the purposes of simplicity, we use the same prior for both `thresholdM` and `thresholdF`.
 
-We then define the truth conditions for the `mascpl` utterance as `true` when the observed prevalence is less than or equal to `thresholdM`. In the same way, `fem` is `true` when the observed prevalence is greater than or equal to `thresholdF`. The truth value of our high-cost `mslashf` utterance is defined as `true` when the observed prevalence is *either* less than or equal to `thresholdM` *or* greater than or equal to `thresholdF`--the disjunction of the other two utterances. A previous version used strictly greater than or less than operations for this utterance, but using those the greater than or equal to or less than or equal to operators does not seem to meaningfully impact the results.
+We then define the truth conditions for the `mascpl` utterance as `true` when the observed prevalence is less than or equal to `thresholdM`. In the same way, `fem` is `true` when the observed prevalence is greater than or equal to `thresholdF`. The truth value of our high-cost `mslashf` utterance is defined as `true` when the observed prevalence is *either* less than or equal to `thresholdM` *or* greater than or equal to `thresholdF`--the disjunction of the other two utterances. A previous version used strictly greater than or less than operations for this utterance, but using the greater than or equal to or less than or equal to operators does not seem to meaningfully impact the results.
 
 Our `meaning` function therefore looks up the conditions based on the utterance and returns the corresponding truth value.
 
@@ -101,7 +102,7 @@ We then incorporate this into the prior model from Chapter 7 on generics. Wherea
 
 For the purposes of this paper, we selected three exemplar professions:
 - Truck drivers (_camioneros/as_) -- stereotypically male: 0.21
-- Doctors (_medicos/as_) -- approximately even stereotype: 0.51
+- Doctors (_médicos/as_) -- approximately even stereotype: 0.51
 - Hairdressers (_peluqueros/as_) -- stereotypically female: 0.79
 
 Prevalence is indicated as **percent women**. A prevalence of `0` would indicate all men, prevalence of `1` would indicate all women. We will sometimes intermix this by making reference to the prevalence of men going up which would simply be `1 - prevalence`.
@@ -268,7 +269,7 @@ Our speaker, too, is based on the speaker from the generics model in Chapter 7, 
 
 Whereas in the original generics model, the costs of the utterances were constant, we now weight cost by strength of stereotype, i.e.: utterances used to describe states near the extremes (0 or 1) are costlier than utterances used to describe states near 0.5. We operationalize this by introducing `strength` which takes the absolute value of the `prevalence - 0.5` such that `prevalence` values near 0 or 1 will produce `strength` values close to 0.5, and `prevalence` values near 0.5 will produce `strength` values near 0.
 
-This new `strength` value is then multiplied by the utterance's `cost` thus amplifying utterance cost more at the periphery.
+This new `strength` value is then multiplied by the utterance's `cost`, thus amplifying utterance cost more at the periphery.
 
 ~~~~
 // Speaker (S)
@@ -419,7 +420,7 @@ Importantly, under these conditions for the speaker and literal listener, there 
 ---
 
 #### Pragmatic listener
-We base our Pragmatic listener ($L_1$) on the pragmatic listener from the Chapter 5 vagueness model. Whereas in that case, the $L_1$ was trying to infer the speaker's threshold for "expensiveness" and an item's true price. Here, the $L_1$ is attempting to infer the speaker's `thresholdM` and `thresholdF` values, as well as the true prevalence of women among the group of professionals that the speaker is talking about.
+We base our Pragmatic listener ($L_1$) on the pragmatic listener from the Chapter 5 vagueness model. Whereas in that case, the $L_1$ was trying to infer the speaker's threshold for "expensiveness" and an item's true price, here the $L_1$ is attempting to infer the speaker's `thresholdM` and `thresholdF` values, as well as the true prevalence of women among the group of professionals that the speaker is talking about.
 
 The pragmatic listener first draws a sample from its prior model for that profession, and then samples a `thresholdM` and a `thresholdF` which are passed to the speaker which returns the log odds for the observed utterance under that prevalence and those thresholds. The pragmatic listener then returns a 3-tuple object which contains the estimated prevalence and the two thresholds.
 
@@ -441,7 +442,7 @@ var pragmaticListener = function(utterance,prior) {
 ~~~~
 
 #### Pragmatic listener behavior
-As we incorporate the pragmatic listener, we now have a complete model which will infer the prevalence of women in some professional group based on their priors for that profession and its knowledge of the possible utterances.
+As we incorporate the pragmatic listener, we now have a complete model which will infer the prevalence of women in some professional group based on its priors for that profession and its knowledge of the possible utterances.
 
 Below, we run a simulation over the three professions (truck driver -- `camio`, doctor -- `medic`, hairdresser -- `peluq`) for two of the possible utterances: the "default" `mascpl` utterance, and the higher-cost `mslashf` utterance.
 
@@ -623,11 +624,11 @@ In order to achieve these effects, we have specifically innovated in two ways: s
 
 In class, the question was raised as to whether the cost weighting was necessary to produce the observed behavioral results. We found that without the cost weighting, the model always predicted a greater prevalence of women under the `mslashf` utterance relative to the `mascpl` one (this can be observed by commenting out the `factor` statement in the speaker and uncommenting the line above). In essence, the `mslashf` utterance was serving as an intermediate point between the `mascpl` (lower prevalence of women) and `fem` (higher prevalence of women) utterances. It is unclear whether the mechanism we have implemented here is cognitively plausible, but it functions as needed for now.
 
-In a previous version of the model which was presented in class, we used a higher prior for `thresholdF`, however this does not appear to be necessary to produce the observed results (but sometimes makes the differences larger).
+In a previous version of the model which was presented in class, we used a higher prior for `thresholdF`; however, this does not appear to be necessary to produce the observed results (but sometimes makes the differences larger).
 
 ### Conclusions and future directions
 In short, we have a functioning model to capture an interesting pattern of human linguistic behavior. More work is needed, however, to work out some of the specifics and fit it more accurately to human behavior. One element of this would be a behavioral study which asked participants how many out of a set number (e.g.: 5) of professionals are women given the utterances. In this task we would also need to include a `fem` utterance in order to round out the priors of the model. This task would help provide a more direct mapping from human behavior to model predictions. 
 
 On the modeling side, we hope to implement a pragmatic speaker which will select appropriate utterances for `{profession, prevalence}` pairs to match up with the pragmatic listener. An initial attempt was made at implementing this speaker but it did not immediately produce the desired effects so it was scrapped for the sake of time. 
 
-In addition, we hope to further explore the parameter space for `thresholdM`, and `thresholdF` to understand how they impact model predictions and interact with one another. We also hope to include an even higher-cost utterance of the form _peluqueras o peluqueros_ which even more explicitly encodes the disjunction implemented in the semantics of the `mslashf` utterance here.
+In addition, we hope to further explore the parameter space for `thresholdM` and `thresholdF` to understand how they impact model predictions and interact with one another. We also hope to include an even higher-cost utterance of the form _peluqueras o peluqueros_ which even more explicitly encodes the disjunction implemented in the semantics of the `mslashf` utterance here.

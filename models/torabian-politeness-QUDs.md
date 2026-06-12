@@ -1,10 +1,12 @@
 ---
 layout: model
-title: Torabian Politeness + QUDs
+title: Politeness with an Arousal QUD
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
 ---
+
+*By Torabian*
 
 In this project we look into social reasoning about social reasoning, and particularly extend the politeness model by Yoon, Tessler, et al. (2016) by adding a Question-Under-Discussion (QUD). This QUD is inspired by the irony model proposed by Kao and Goodman (2015).
 
@@ -22,7 +24,7 @@ var statePrior = function() {
 
 Also, we assume that Sajjad is a rather skillful baker, therefore states of 3, 4, and 5 receive more prior weight. Note that the state prior was absent in the original model, and we add it as the pragmatic listener in the new model needs to make inferences based upon it; the pragmatic listener will be discussed later.
 
-We, next, introduce our QUD (also referred to as "goal") which include emotions into the model. There are various ways through which emotions are modeled. One common way is to map emotions onto two dimensions of valence of arousal. While valence indicates whether a person feels positive or negative, arousal (as its name represents) shows how aroused the person is. For example, when you experience astonishment, you are highly aroused and are feeling positive valence. Or, when you are angry, you are again highly aroused, but with negative valence.
+We, next, introduce our QUD (also referred to as "goal") which includes emotions into the model. There are various ways through which emotions are modeled. One common way is to map emotions onto two dimensions of valence and arousal. While valence indicates whether a person feels positive or negative, arousal (as its name represents) shows how aroused the person is. For example, when you experience astonishment, you are highly aroused and are feeling positive valence. Or, when you are angry, you are again highly aroused, but with negative valence.
 
 Here we use the same direction to incorporate emotions into the model, specifically by adding the dimension of arousal:
 
@@ -52,7 +54,7 @@ var utterancePrior = function() {
 }
 ~~~~
 
-Next, we define prior arousal probabilities conditioned on state. Under states 1 and 5, where Sarah very much dislikes the cookies and really likes them respectively, we set %90 prior weight on high arousal. With states 2 and 4 which are not as extreme as states 1 and 5, the aforementioned weight is degraded to %70, and it is set to %10 for state 3. Note that these values are based on the writer's intuition, and are not empirically derived:
+Next, we define prior arousal probabilities conditioned on state. Under states 1 and 5, where Sarah very much dislikes the cookies and really likes them respectively, we set 90% prior weight on high arousal. With states 2 and 4 which are not as extreme as states 1 and 5, the aforementioned weight is degraded to 70%, and it is set to 10% for state 3. Note that these values are based on the writer's intuition, and are not empirically derived:
 
 ~~~~
 // Sample arousal given a state.
@@ -118,7 +120,7 @@ var literalListener = cache(function(utterance, goal) {
 })
 ~~~~
 
-The speaker function is modified as follows. As we learned from the original model, this speaker can either take an epistemic stance or a social one, and that is implemented through the parameter phi. Phi varies between 0 and 1, and the higher the phi, the more epistemic the speaker will be. More epistemic values mean more directness and less politeness. For example, if Sajjad has made terrible cookies which deserve 1 out of 5 stars on Sarah's mind, then Sarah would tend more towards uttering "terrible" if phi is closer to 1. State and this phi value will be passed to the speaker as before. However, we now have arousal and goal as additional arguments.
+The speaker function is modified as follows. As we learned from the original model, this speaker can either take an epistemic stance or a social one, and that is implemented through the parameter phi. Phi varies between 0 and 1, and the higher the phi, the more epistemic the speaker will be. More epistemic values mean more directness and less politeness. For example, if Sajjad has made terrible cookies which deserve 1 out of 5 stars in Sarah's mind, then Sarah would tend more towards uttering "terrible" if phi is closer to 1. State and this phi value will be passed to the speaker as before. However, we now have arousal and goal as additional arguments.
 
 The speaker makes inferences about the literal listener by looking particularly into its state and arousal. Then, utility is defined as a list which includes epistemic and social, as structured in the original model. We set epistemic to I) the literal listener's score over state if the goal is to report state, and to II) literal listener's score over arousal otherwise (if the goal is to show arousal). Everything else remains similar to before.
 

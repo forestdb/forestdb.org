@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Jin, Mai, Saavedra, Syracuse - Irony
+title: Irony with and without Arousal
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
@@ -8,7 +8,7 @@ model-status: code
 
 
 # Irony
-Probabalistic Language Understanding  
+Probabilistic Language Understanding  
 Spring 2023  
 - Ky-Vinh Mai  
 - Soleil Saavedra  
@@ -16,7 +16,7 @@ Spring 2023
 - Shannon Syracuse
 
 ## Empirical Phenomenon of Interest
-Built on top of the hyperbole model, the Irony Model accounts for a situation where the speaker's intended meaning is the opposite of the utterance’s literal interpretation. In other words, the literal meaning of an utterance does not match the speaker's intended meaning. This violates the Gricean Principle's maxim of quality, which refers to remaining truthful in conversation. One would imagine that this complication would confuse the listener. While it may initially, this model explores how it provides insight into the real feelings had by the speaker. The irony model is unique in how it approaches non-literal interpretations, despite still utilizing the Question-Under-Discussion (QUD), state of the world, and valence, all of which are pre-established in the hyperbole model. Its uniqueness is contributed to a new factor: arousal, which measures how intensely a speaker feels about a state.
+Built on top of the hyperbole model, the Irony Model accounts for a situation where the speaker's intended meaning is the opposite of the utterance’s literal interpretation. In other words, the literal meaning of an utterance does not match the speaker's intended meaning. This violates the Gricean Principle's maxim of quality, which refers to remaining truthful in conversation. One would imagine that this complication would confuse the listener. While it may initially, this model explores how it provides insight into the real feelings had by the speaker. The irony model is unique in how it approaches non-literal interpretations, despite still utilizing the Question-Under-Discussion (QUD), state of the world, and valence, all of which are pre-established in the hyperbole model. Its uniqueness is attributed to a new factor: arousal, which measures how intensely a speaker feels about a state.
 
 ## Modeling Approach Taken
 The Rational Speech Act framework views communication as reasoning between a speaker and a listener. There are three levels of inference, the most sophisticated being the pragmatic listener. The pragmatic listener interprets an utterance given by the speaker to a naive listener about some state of the world. This pragmatic listener uses Bayesian inference to reason what state of the world the speaker is trying to convey to the literal listener given that this speaker is reasoning about how the literal listener will interpret that utterance. The speaker infers the state of the world and chooses to produce an utterance for the literal listener, maximizing the probability that the literal listener will correctly infer the state of the world. The literal listener only has its priors and the utterance of the speaker to infer the state of the world.
@@ -43,7 +43,7 @@ viz(Infer(statePrior))
 ~~~~
 
 ### Utterances
-The utterances in this model are the same as the states. UtterancePrior uses uniformDraw to take an equal probability sample from the utterances in the function. The previous hyperbole model also used uniformDraw to sample from it's utterances, but the utterances in that model matched to a price rather than a state of the world. 
+The utterances in this model are the same as the states. UtterancePrior uses uniformDraw to take an equal probability sample from the utterances in the function. The previous hyperbole model also used uniformDraw to sample from its utterances, but the utterances in that model matched to a price rather than a state of the world. 
 
 ~~~~ norun
 // Assume possible utterances are identical to possible states
@@ -85,7 +85,7 @@ Arousal is recorded in the code as ```"low"``` or ```"high"```. The lower the ar
 var arousals = ["low", "high"]
 ~~~~
 
-```arousalPrior``` is not a function that we have seen in previous models. As explained before, Arousal means how passionate or how strongly someone feels about the state of the weather, which is different from Valence. Valence is how upset the speaker feels about the weather (or the speakers attitude toward the state of the world). The categorical draw here in this function serves to choose whether the arousal will be low or high. In the states ```"terrible"``` and ```"amazing"```, the probability of high arousal is 0.9 (or 90%) while the probability for low is on 0.1 (or 10%). The state for ```"ok"``` has a 90% probability for low arousal with the 10% for high arousal. This function is intuitive because you can guess that the highest arousals would be for the utterances ```"amazing"``` and ```"terrible"``` since those are words we would choose to use to describe something we feel strongly about over a word like ```"ok"```.
+```arousalPrior``` is not a function that we have seen in previous models. As explained before, Arousal means how passionate or how strongly someone feels about the state of the weather, which is different from Valence. Valence is how upset the speaker feels about the weather (or the speaker's attitude toward the state of the world). The categorical draw here in this function serves to choose whether the arousal will be low or high. In the states ```"terrible"``` and ```"amazing"```, the probability of high arousal is 0.9 (or 90%) while the probability for low is 0.1 (or 10%). The state for ```"ok"``` has a 90% probability for low arousal with 10% for high arousal. This function is intuitive because you can guess that the highest arousals would be for the utterances ```"amazing"``` and ```"terrible"``` since those are words we would choose to use to describe something we feel strongly about over a word like ```"ok"```.
 
 ~~~~
 // Sample arousal given a state.
@@ -112,7 +112,7 @@ var goalPrior = function() {
 ~~~~
 
 ### Literal Interpretation
-The ```literalInterpretation``` function takes the utterance and the state of the world as arguments, and if they are the same, then the function is true. I have run the function with the ```"amazing"``` utterance and state, and when ran, it returns true. 
+The ```literalInterpretation``` function takes the utterance and the state of the world as arguments, and if they are the same, then the function is true. I have run the function with the ```"amazing"``` utterance and state, and when run, it returns true. 
 
 ~~~~
 var literalInterpretation = function(utterance, state) {
@@ -413,7 +413,7 @@ display("\nviz(marginalize(pragmaticListener(\"terrible\"), \"valence\"))")
 viz(marginalize(pragmaticListener("terrible"), "valence"))
 ~~~~
 
-Without arousal to account for, the pragmatic listener accounts for the miniscule likelihood of ```"terrible"``` state, high likelihood of ```"ok"```state, and the high likelihood for ```"terrible"```state along with the moderate likelihood for ```"ok"``` state to produce negative valance. They then infer that the speaker most likely wants to convey whether they feel positively or negatively about the weather (```"goalValence"```) and infer the weather is likely ```"ok"``` and the speaker has negative valence. This would be a hyperbolic interpretation because the utterance ```"terrible"``` and the inferred state ```"ok"``` both have high likelihoods of negative valence (compared to the ```"amazing"``` state).
+Without arousal to account for, the pragmatic listener accounts for the miniscule likelihood of ```"terrible"``` state, high likelihood of ```"ok"``` state, and the high likelihood for ```"terrible"``` state along with the moderate likelihood for ```"ok"``` state to produce negative valence. They then infer that the speaker most likely wants to convey whether they feel positively or negatively about the weather (```"goalValence"```) and infer the weather is likely ```"ok"``` and the speaker has negative valence. This would be a hyperbolic interpretation because the utterance ```"terrible"``` and the inferred state ```"ok"``` both have high likelihoods of negative valence (compared to the ```"amazing"``` state).
 
 # References
 G. Scontras, M. H. Tessler, and M. Franke. Probabilistic language understanding: An introduction to the Rational Speech Act framework. Retrieved 2023-6-14 from https://www.problang.org

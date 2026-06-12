@@ -8,7 +8,7 @@ model-status: code
 
 ### Zeinab Kachakeche
 
-Suppose that you hear an utterance "This box is heavy" from an adult, you're likely to infer that this box is actually heavy, and weighs between let's say 20 lbs and 100 lbs depending on your experience with heavy weights.
+Suppose that you hear an utterance "This box is heavy" from an adult. You're likely to infer that this box is actually heavy, and weighs between let's say 20 lbs and 100 lbs depending on your experience with heavy weights.
 
 If you hear a child saying this box is heavy, however, you might infer that this box is heavy relative to the boxes that this child has lifted. It might be true that this box weighs 100 lbs, but there is a chance that this box is not heavy for you and weighs as little as 2 lbs. 
 
@@ -18,7 +18,7 @@ Children, adults, and body builders have different experiences with weights, so 
 
 Tessler et al. (2017) present an adjective model that highly depends on our prior knowledge about the relevant comparison classes, with the presence of uncertainty about the comparison class. For example, the listener's interpretation of tall differs if he knows that the person is a basketball player, a gymnast, or a soccer player. Their example suggested 4 classes: a superordinate category (e.g. tall for all people), and 3 subordinate categories (e.g. tall for gymnasts, basketball player, or soccer player).
  
-I use the model by Tessler et al. (2017) to describe how listeners interpret "heavy" if they heard it from three different classes of people: a child, an adult, or a bodybuilder.  Each of these three comparison-classes have different experience with weights, i.e. different priors. For that reason, the listener's interpretation of the utterance "heavy" is going to be different depending on the who said the utterance. 
+I use the model by Tessler et al. (2017) to describe how listeners interpret "heavy" if they heard it from three different classes of people: a child, an adult, or a bodybuilder.  Each of these three comparison-classes has different experience with weights, i.e. different priors. For that reason, the listener's interpretation of the utterance "heavy" is going to be different depending on who said the utterance. 
 
 To model this empirical phenomenon, I use the Rational Speech Act (RSA) framework. RSA views communication as recursive reasoning between a speaker and a listener. The listener interprets the utterance they heard by reasoning about the speaker. In this case, the listener reasons about who said the "box is heavy". The listener assumes that the speaker's intention is to inform a naive listener about the actual state of the world. Then the listener reasons about what the state of the world is likely to be given that a speaker produced some utterance, knowing that the speaker is reasoning about how a listener is most likely to interpret that utterance. So in this model, the listener reasons about the actual weight of the box, given that the speaker who said "the box is heavy" is cooperative and intends to deliver her utterance in a way that the listener interprets it correctly. 
 
@@ -94,8 +94,8 @@ display("hypothetical bodybuilders experience with heavy weights")
 viz.density(generateStatePrior(speakerParams["bodybuilder"]))
 ~~~~
 
-These results match intuitions: children experience with weights is mostly with very light to light weights, while adults have more experience with heavier weights, and bodybuilders have experience with very heavy weights.
-After we've seen the experience (or the listener's prior) for each of the speakers, let's see how would the listener interpret the adjective "heavy" after hearing it from each one of the speakers.
+These results match intuitions: children's experience with weights is mostly with very light to light weights, while adults have more experience with heavier weights, and bodybuilders have experience with very heavy weights.
+After we've seen the experience (or the listener's prior) for each of the speakers, let's see how the listener would interpret the adjective "heavy" after hearing it from each one of the speakers.
 
 ~~~~
 // helper function
@@ -297,7 +297,7 @@ display("Listener's interpretation after hearing a body builder  saying 'this bo
 viz.density(pragmaticListener("light","bodybuilder"))
 ~~~~
 
-Similar to what one would expect, the listener's interpretation of the adjectives "heavy" and "light" are different depending on who said the utterance and on the listener's prior knowledge about each speaker . But with this previous code, we only considered one threshold for both adjective. If the actual weight of the box was less than threshold then the box is interpreted as "light", and if the actual weight of the box was more than threshold then the box is interpreted as "heavy". However, in the real world the area in which we consider boxes to be heavy or light is grey and not binary. So, for the following code, we consider two different thresholds for "heavy" and "light".
+Similar to what one would expect, the listener's interpretation of the adjectives "heavy" and "light" is different depending on who said the utterance and on the listener's prior knowledge about each speaker. But with this previous code, we only considered one threshold for both adjectives. If the actual weight of the box was less than the threshold then the box is interpreted as "light", and if the actual weight of the box was more than the threshold then the box is interpreted as "heavy". However, in the real world the area in which we consider boxes to be heavy or light is grey and not binary. So, for the following code, we consider two different thresholds for "heavy" and "light".
 
 ~~~~
 // helper function
@@ -596,7 +596,7 @@ display("Listener's interpretation after hearing a bodybuilder  saying 'this box
 viz.density(pragmaticListener("light","bodybuilder"))
 ~~~~
 
-As we can see from these results, the listener's interpretation is slightly different if he doesn't know what the speaker's intention is. So, if a child says the box is "heavy" and the listener doesn't actually know if the box is heavy for a child or heavy in general, the listener has to take into account the other comparison classes' priors. However, the listener would give more probability to child prior and less probability to the other two classes.
+As we can see from these results, the listener's interpretation is slightly different if he doesn't know what the speaker's intention is. So, if a child says the box is "heavy" and the listener doesn't actually know if the box is heavy for a child or heavy in general, the listener has to take into account the other comparison classes' priors. However, the listener would give more probability to the child prior and less probability to the other two classes.
 
 
 **References:**

@@ -49,7 +49,7 @@ The designer will choose their actions based on their beliefs and their goal.
 (barplot designer-action "will the designer act?")
 ~~~~
 
-The actual world may or may not work the way the designer thinks. We can predict the designers actions based on their beliefs, but we can predict the results of their actions based on how the world actually works.
+The actual world may or may not work the way the designer thinks. We can predict the designer's actions based on their beliefs, but we can predict the results of their actions based on how the world actually works.
 
 ~~~~
 (define (action-prior) (flip))
@@ -150,7 +150,7 @@ We can infer the designer's goal rather than setting it as a known variable.
 
 ## Counterfactuals
 
-Let's look at the counterfactual for (what I think is) a functional explanation: "The action happened becasue the designer wanted the effect to happen."
+Let's look at the counterfactual for (what I think is) a functional explanation: "The action happened because the designer wanted the effect to happen."
 
 The counterfactual for this would be: "If the designer didn't want the effect to happen, then the action would not have happened."
 
@@ -404,9 +404,9 @@ Here are the counterfactual versions of those explanations:
 
 1. If Sally hadn't wanted her phone to charge, she wouldn't have plugged it in.
 2. --
-3. If wouldn't have caused her phone to charge, Sally wouldn't have plugged the phone in.
+3. If it wouldn't have caused her phone to charge, Sally wouldn't have plugged the phone in.
 4. If Sally hadn't thought it would charge her phone, she wouldn't have plugged her phone in.
-4. If it weren't the case that in general plugging phones in causes them to charge, Sally would not have plugged her phone in.
+5. If it weren't the case that in general plugging phones in causes them to charge, Sally would not have plugged her phone in.
 
 These also seem fine.
 
@@ -527,17 +527,17 @@ Here are some explanations for Sally's behavior:
 4. Sally plugged in her phone because she thought that would cause it to charge.
 5. Sally plugged in her phone because in general, plugging in phones causes them to charge.
 
-All of these seem to me like good explanations *except* #3. Plugging in her phone would't cause it to charge, so "Sally plugged in her phone because that would cause it to charge" seems like a bad explanation.
+All of these seem to me like good explanations *except* #3. Plugging in her phone wouldn't cause it to charge, so "Sally plugged in her phone because that would cause it to charge" seems like a bad explanation.
 
 Here are the counterfactual versions of those explanations:
 
 1. If Sally hadn't wanted her phone to charge, she wouldn't have plugged it in.
 2. --
-3. If wouldn't have caused her phone to charge, Sally wouldn't have plugged the phone in.
+3. If it wouldn't have caused her phone to charge, Sally wouldn't have plugged the phone in.
 4. If Sally hadn't thought it would charge her phone, she wouldn't have plugged her phone in.
-4. If it weren't the case that in general plugging phones in causes them to charge, Sally would not have plugged her phone in.
+5. If it weren't the case that in general plugging phones in causes them to charge, Sally would not have plugged her phone in.
 
-Here, counterfactual #3 is blatently false. It doesn't cause her phone to charge, and yet Sally did plug her phone in.
+Here, counterfactual #3 is blatantly false. It doesn't cause her phone to charge, and yet Sally did plug her phone in.
 
 Here are the model's ratings for the first counterfactual:
 
@@ -664,9 +664,9 @@ Here are the counterfactual versions of those explanations:
 
 1. If Sally hadn't wanted her phone to charge, she wouldn't have plugged it in.
 2. --
-3. If wouldn't have caused her phone to charge, Sally wouldn't have plugged the phone in.
+3. If it wouldn't have caused her phone to charge, Sally wouldn't have plugged the phone in.
 4. If Sally hadn't thought it would charge her phone, she wouldn't have plugged her phone in.
-4. If it weren't the case that in general plugging phones in causes them to charge, Sally would not have plugged her phone in.
+5. If it weren't the case that in general plugging phones in causes them to charge, Sally would not have plugged her phone in.
 
 These are all false. Sally's plugging the phone in has nothing to do with it charging (modulo the caveat above).
 
@@ -789,9 +789,9 @@ or the counterfactuals:
 
 1. If Sally hadn't wanted her phone to charge, she wouldn't have plugged it in.
 2. --
-3. If wouldn't have caused her phone to charge, Sally wouldn't have plugged the phone in.
+3. If it wouldn't have caused her phone to charge, Sally wouldn't have plugged the phone in.
 4. If Sally hadn't thought it would charge her phone, she wouldn't have plugged her phone in.
-4. If it weren't the case that in general plugging phones in causes them to charge, Sally would not have plugged her phone in.
+5. If it weren't the case that in general plugging phones in causes them to charge, Sally would not have plugged her phone in.
 
 Here are the model's ratings for the first counterfactual:
 

@@ -18,11 +18,11 @@ model-status: code
 - Bayes' rule is used A LOT in both AI and cognitive science
   * Medical diagnosis
   * Spam detection
-  * etc
+  * etc.
 
 ### Motivation
 
-Humans are very quite good at reasoning about other people. In particular, humans are very good at reasoning about other people's goals and preferences, even when these goals and preferences are not directly observable. How are people so good at this? If we understand how *people* do it, maybe we would be able to build smarter machines that can learn about people's goals and preferences and respond to them in smarter ways.
+Humans are quite good at reasoning about other people. In particular, humans are very good at reasoning about other people's goals and preferences, even when these goals and preferences are not directly observable. How are people so good at this? If we understand how *people* do it, maybe we would be able to build smarter machines that can learn about people's goals and preferences and respond to them in smarter ways.
 
 ### Generative Model of a Vending Machine
 
@@ -74,7 +74,7 @@ What is the probability that Amy gets a cookie?
           (condition #t)))
 ~~~
 
-### Bayes Rule! Conditioning on observations.
+### Bayes' Rule! Conditioning on observations.
 
 Let's say Amy pressed a button and got a cookie. We want to guess what button she pressed.
 

@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Huang, Liu, Moreno, Scott - Comparison class
+title: "Comparison Class Inference: Superordinate vs. Subordinate"
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
@@ -27,12 +27,12 @@ This adjective model reasons about these inferences that hold uncertainty about 
 
 The RSA Framework
 ------------------------------------------------------------------
-The Bayesian Rational Speech Act framework outlines that speakers and listeners reason about each other’s reasoning about the literal interpretations of utterances. Language heavily relies on context–this is why the RSA framework puts semantics at the forefront of calculating meaning and understanding. Being able to reason about likely interpretations, provides an explanation to something like our model of specifying the thresholds in degree semantics.
+The Bayesian Rational Speech Act framework outlines that speakers and listeners reason about each other’s reasoning about the literal interpretations of utterances. Language heavily relies on context—this is why the RSA framework puts semantics at the forefront of calculating meaning and understanding. Being able to reason about likely interpretations provides an explanation to something like our model of specifying the thresholds in degree semantics.
 
 
 Similarities between this Model and Others
 ------------------------------------------------------------------
-Compared to the gradable adjectives model (Chapter 5 Application 1), in the first model we test to see what the word expensive means in between two different contexts. We take the adjective expensive for a sweater vs expensive for a laptop, however, these two phrases hold a different meaning depending on their context. (Expensive means more than the given price.) In our model we use the adjective tall: “tall for a basket player” and “tall for a gymnast.” In these models the adjectives (expensive and tall)  hold different meanings depending on context. Additionally, both of these models use prior knowledge like knowing the range of prices of items and the height of people. Compared to Application 1 in this chapter, both speakers could choose the utterance “ ” = “silence”, as remaining in silence is never wrong.
+Compared to the gradable adjectives model (Chapter 5 Application 1), in the first model we test to see what the word expensive means in between two different contexts. We take the adjective expensive for a sweater vs expensive for a laptop, however, these two phrases hold a different meaning depending on their context. (Expensive means more than the given price.) In our model we use the adjective tall: “tall for a basketball player” and “tall for a gymnast.” In these models the adjectives (expensive and tall)  hold different meanings depending on context. Additionally, both of these models use prior knowledge like knowing the range of prices of items and the height of people. Compared to Application 1 in this chapter, both speakers could choose the utterance “ ” = “silence”, as remaining in silence is never wrong.
 
 
 Differences between this Model and Others
@@ -42,7 +42,7 @@ As for differences, in this model we have uncertainty surrounding the comparison
 
 The Model - Simulating the Heights of Each Comparison Class
 ------------------------------------------------------------------
-Math.exp(x) will return a number representing e^x, where e is Euler's number and x is the argument. This function just makes numbers bigger and later cancels out a log() answer in var stateProbs. We can check this value and what it does by running it exp(some number).
+Math.exp(x) will return a number representing e^x, where e is Euler's number and x is the argument. This function just makes numbers bigger and later cancels out a log() answer in var stateProbs. We can check this value and what it does by running exp(some number).
 
 The graph is continuous, binParam just helps us with visualizing it. Discretization is the process through which we can transform continuous variables, models or functions into a discrete form. We do this by creating a set of contiguous intervals (or bins) that go across the range of our desired variable/model/function.
 
@@ -57,9 +57,9 @@ var binParam = 3;
 ~~~~
 
 
-In the structured object superordinate_params, mu corresponds to the mean of the distribution of heights for the subordinate category of all people, and sigma to the standard deviation of that distribution.
+In the structured object superordinate_params, mu corresponds to the mean of the distribution of heights for the superordinate category of all people, and sigma to the standard deviation of that distribution.
 
-stateVals is assigned to a list created by the _.range function. This function takes in 3 integer arguments. The first number is the start -3. The second number is the stop 3. The last number is the step. The returned list includes all the numbers from the start to the end with an internal of the step size 1/6.
+stateVals is assigned to a list created by the _.range function. This function takes in 3 integer arguments. The first number is the start -3. The second number is the stop 3. The last number is the step. The returned list includes all the numbers from the start to the end with an interval of the step size 1/6.
 
 
 ~~~~ norun
@@ -101,7 +101,7 @@ var generateStatePrior = cache(function(stateParams) {
 
 This next part handles simulating the thresholds of each adjective, which are unique to this model. The form parameter in the thresholdPrior function could be seen as the locus of what distinguishes this model from the model in Application 1 of Chapter 5. Used as the name of a property inside thresholdBins, form can be either "positive" or "negative", with the former corresponding to the "tall" adjective and the latter to "short". 
 
-The value obtained by thresholdBins[form] is a list of the given adjective's thresholds corresponding to each state in stateVals. map() takes in a state value and subtracts 1/6 from the positive state value and adds ⅙ from the negative state value. Ultimately, to assign a ‘tall’ or ‘short’ characteristic to the state (height), we need some kind of boundary or marker to characterize that state. To have a state be considered ‘tall’, the threshold value should be below that actual state so that anything above the threshold is considered tall; the same goes for a state being considered ‘short’--you would need a threshold value above the actual state so anything below that is considered short.
+The value obtained by thresholdBins[form] is a list of the given adjective's thresholds corresponding to each state in stateVals. map() takes in a state value and subtracts 1/6 from the positive state value and adds ⅙ to the negative state value. Ultimately, to assign a ‘tall’ or ‘short’ characteristic to the state (height), we need some kind of boundary or marker to characterize that state. To have a state be considered ‘tall’, the threshold value should be below that actual state so that anything above the threshold is considered tall; the same goes for a state being considered ‘short’—you would need a threshold value above the actual state so anything below that is considered short.
 
 Finally, the threshold prior will return a list that is uniformly drawn from the thresholdBins created in the previous chunk of code.
 
@@ -125,7 +125,7 @@ var thresholdPrior = cache(function(form){
 ~~~~
 
 
-The values inside subParams indicate that gymnasts have a lower height on average compared to regular people, soccer players are the same but their distribution is different (more centrated at the mean), and basketball players are on average taller than regular people– “regular or all” people refers to the superordinate category.
+The values inside subParams indicate that gymnasts have a lower height on average compared to regular people, soccer players are the same but their distribution is different (more centrated at the mean), and basketball players are on average taller than regular people — “regular or all” people refers to the superordinate category.
 
 Inside the list of possible utterances, the null utterance is “silence” which is not saying anything at all.
 
@@ -241,9 +241,9 @@ var pragmaticListener = cache(function(utterance, subordinate_params) {
 
 Pragmatic Listener's (L1) Predictions
 ------------------------------------------------------------------
-L1predictions generates a set of prediction using map(), which takes a list over exptConditions, run the stim function over the first object  {utt: "tall", sub: "basketballPlayers"}, second object {utt: "short", sub: "basketballPlayers"} to the last object, then visualize them together in a plot. stim refers to each structured object in exptConditions.
+L1predictions generates a set of predictions using map(), which takes a list over exptConditions, runs the stim function over the first object  {utt: "tall", sub: "basketballPlayers"}, second object {utt: "short", sub: "basketballPlayers"} to the last object, then visualizes them together in a plot. stim refers to each structured object in exptConditions.
 
-In the pragmatic listener posterior, pragmatic listener takes into an utterance and the mu/sigma structured object associated with the a sub category from exptConditions. The L1predictions function returns that utterance and prints out “P(superordinate comparison class)”, it will jointly infer the L1 posterior and marginalize out the comparison class variable from the L1 posterior distribution. 
+In the pragmatic listener posterior, pragmatic listener takes in an utterance and the mu/sigma structured object associated with a sub category from exptConditions. The L1predictions function returns that utterance and prints out “P(superordinate comparison class)”, it will jointly infer the L1 posterior and marginalize out the comparison class variable from the L1 posterior distribution. 
 It looks up and returns the probability associated with superordinate class in the marginalized L1 posterior distribution, along with the subordinate category (stim.sub), and the name of the model ("L1").
 
 The first four display statements print the pragmatic listener's predicted heights of a basketball player when they are said to be either "tall" or "short".
@@ -444,4 +444,4 @@ viz.bar(L1predictions, {groupBy: "subordinate category"})
 
 Discussion of Results
 ------------------------------------------------------------------
-According to the visualization, when the pragmatic listener hears “The basketball player is tall”, the probability that the comparison class is the superordinate category (of all people) is higher than if they had heard “The basketball player is short”. The opposite is the same for when “The gymnast is tall” is said; the probability that the height is being compared to the superordinate category is lower than if the //pragmaticListener were to hear “The gymnast is short”. For “The soccer player is short/tall” – there is an equal probability that the comparison class is either the superordinate or subordinate. If we take a look at the visualization as a table instead of a bar graph (commented out within the code), there is an ever-so-slightly higher probability for the “short” utterance. “The soccer player is short” would have a slightly higher chance of the comparison class being the superordinate instead of the subordinate.
+According to the visualization, when the pragmatic listener hears “The basketball player is tall”, the probability that the comparison class is the superordinate category (of all people) is higher than if they had heard “The basketball player is short”. The opposite is the same for when “The gymnast is tall” is said; the probability that the height is being compared to the superordinate category is lower than if the pragmaticListener were to hear “The gymnast is short”. For “The soccer player is short/tall” – there is an equal probability that the comparison class is either the superordinate or subordinate. If we take a look at the visualization as a table instead of a bar graph (commented out within the code), there is an ever-so-slightly higher probability for the “short” utterance. “The soccer player is short” would have a slightly higher chance of the comparison class being the superordinate instead of the subordinate.

@@ -10,15 +10,15 @@ model-category: Reasoning about Reasoning
 A model of content effects in syllogistic reasoning.
 
 Ref:tessler2014syllogisms presented a model of argument strength for syllogistic reasoning. 
-Argument strength is calculating by a generative model of idealized situations: situations are composed of objects with (Boolean) properties.
+Argument strength is calculated by a generative model of idealized situations: situations are composed of objects with (Boolean) properties.
 For simplicity, properties were assumed to be *independent and identically distributed*.
 Here, we relax that assumption and measure the prior over properties empirically. 
 
 The original model also accounted for pragmatic effects in syllogistic reasoning. 
 That model uses an inference-about-inference setup to explicitly model the premises as coming from an (informative) experimenter.
-That model, written in Church, can be found here: [here](http://forestdb.org/models/syllogisms-cogsci14.html).
+That model, written in Church, can be found [here](http://forestdb.org/models/syllogisms-cogsci14.html).
 
-This model doesn't include the pragmatic compoenent as of yet, focusing instead on the computation of argument strength.
+This model doesn't include the pragmatic component as of yet, focusing instead on the computation of argument strength.
 This model is written in WebPPL.
 
 ~~~~

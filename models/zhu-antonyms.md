@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Zhu Negated Antonyms Extension
+title: Understanding Negated Antonyms
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
@@ -11,8 +11,8 @@ model-status: code
 *Author: Jun Zhu*
 
 ### Model Description
-This model aims to predict listeners' estimation on the price that the speaker paid when they hear the speaker's utterance about an item she bought, and the relevant threshold to the utterance (of a gradable adjective or negated antonyms). Prior measurement about an item will be available, and the utterance could be 'the item is expensive/inexpensive/not expensive/not inexpensive'.  
-Utterances with negated antonyms will be slightly more costly than the ordinary adjectival utterance, possibly because of the mental efforts or the extra utterance time of negations.
+This model aims to predict listeners' estimation of the price that the speaker paid when they hear the speaker's utterance about an item she bought, and the relevant threshold to the utterance (of a gradable adjective or negated antonyms). Prior measurement about an item will be available, and the utterance could be 'the item is expensive/inexpensive/not expensive/not inexpensive'.  
+Utterances with negated antonyms will be slightly more costly than the ordinary adjectival utterance, possibly because of the mental effort or the extra utterance time of negations.
 The priors are defined below, which is similar to the model we covered in class:
 
 ~~~~
@@ -60,7 +60,7 @@ var meaning = function(utterance, price, theta) {
 };
 ~~~~
 
-The pragmatic listener exhibits a certain amount of uncertainty (e.g. flip(0.2) ) when hearing negated antonyms. In some cases, there will be an individual threshold for the antonyms (known as inexpensive_threshold), and in other cases, the threshold will be the same as the expensive one. The 'theta' variable in my model will be a lookup table to handle both situations which will be interpreted properly by the meaning function.
+The pragmatic listener exhibits a certain amount of uncertainty (e.g. flip(0.2)) when hearing negated antonyms. In some cases, there will be an individual threshold for the antonyms (known as inexpensive_threshold), and in other cases, the threshold will be the same as the expensive one. The 'theta' variable in my model will be a lookup table to handle both situations which will be interpreted properly by the meaning function.
 
 ~~~~
 var literalListener = cache(function(utterance, theta, item) {

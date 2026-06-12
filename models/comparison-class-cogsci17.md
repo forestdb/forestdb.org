@@ -19,14 +19,14 @@ When the utterance does use an explicit comparison class (e.g., "He's short for 
 
 In this task, participants are told that the target is a member of the subordinate category (e.g., "John sees a basketball player").
 The listener then hears the ambiguous utterance "He's tall".
-Listener reasons about the likely comparison class.
+The listener reasons about the likely comparison class.
 We model this with the `pragmaticListener` given the underspecified utterance.
 
 ### Experiment 2: Adjective production
 
 In this task, participants are told that the target is a member of the subordinate category (e.g., "John sees a basketball player").
 They are asked to endorse the adjective sentence with the comparison class explicitly the superordinate category (e.g., "He's tall relative to other people").
-We model this as the `speaker2` who can say either the adjective sentence with an explicit comparison class or remain silent.
+We model this as the `speaker2` who can either say the adjective sentence with an explicit comparison class or remain silent.
 
 Links to experiments and project repository can be found [here](https://mhtess.github.io).
 

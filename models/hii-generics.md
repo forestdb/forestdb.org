@@ -1,6 +1,6 @@
 ---
 layout: model
-title: "Generics: Turning the Knob of the Threshold Prior (Hii)"
+title: "Generics: Turning the Knob of the Threshold Prior"
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
@@ -12,7 +12,7 @@ model-status: code
 ___
 Generics are utterances that express generalization on a category (Carlson, 1977; Leslie, 2008). Generics have been considered the special cases of utterance due to their amazing flexibility when it comes to truth judgement. For example, people endorse generics with varying prevalences. Generally, both generic sentences "Swans are white" and "Mosquitoes carry malaria" are endorsed although their conjecture prevalences are θ ≈ .5 and θ ≈ .01 respectively. However, generics are not as flexible at other times as in the case of sentence pair "Robins lay eggs" (θ ≈ .5) and "Robins are females" (θ ≈ .5) where the underlying prevalences are comparable. People generally endorse the former but not the latter. 
 
-Tessler & Goodman (2016) suggested that generics are not unique from other language components. Just as the other language components, modeling generics can be successful given we take into consideration the context a generic sentence refers. Defining generics as a simple threshold semantics, Tessler & Goodman (2016) captured endorsement behaviors of generic sentences by inferring the sentences in context. The authors incorporated context by introducing different prevalence priors (i.e. listener's knowledge of the world) upon hearing a generic sentence.
+Tessler & Goodman (2016) suggested that generics are not unique from other language components. Just as the other language components, modeling generics can be successful given we take into consideration the context a generic sentence refers to. Defining generics as a simple threshold semantics, Tessler & Goodman (2016) captured endorsement behaviors of generic sentences by inferring the sentences in context. The authors incorporated context by introducing different prevalence priors (i.e. listener's knowledge of the world) upon hearing a generic sentence.
 
 ~~~~ norun
 // prior distribution parameters resembling shared belief 
@@ -31,14 +31,14 @@ var prior = priorModel({
   concentrationWhenPresent: 5
 })
 ~~~~
-The incorporation of relevant priors coupled with an underspecified threshold semantics successfully modeled human prevalence posterior beliefs and endorsement behaviors upon hearing generics. Since the goal was to justify that generics are sensitive to context (captured as prevalence priors), the authors did not include any adjustments of what could be a powerful "dial" on the model: manipulating the threshold prior, θ. For simplicity, they kept threshold prior, θ uniform. 
+The incorporation of relevant priors coupled with an underspecified threshold semantics successfully modeled human prevalence posterior beliefs and endorsement behaviors upon hearing generics. Since the goal was to justify that generics are sensitive to context (captured as prevalence priors), the authors did not include any adjustments of what could be a powerful "dial" on the model: manipulating the threshold prior, θ. For simplicity, they kept threshold prior, θ, uniform. 
 
 >"In principle, thresholds could be learned over time for different contexts, but here we assume the listener has no informative knowledge about the semantic variable: θ ∼ Uniform([0, 1])." (Tessler & Goodman, 2016). 
 
 We investigated the independent contribution of manipulating threshold priors as well as the interaction between threshold priors and prevalence priors. 
 
 ***
-Cognitively, threshold prior represents the shared prior knowledge on the genre of the generics under discussion. For example, accidental or striking generics (such as "Ks eat people") may assume a lower threshold value θ than majority characteristics or body parts generics (such as "Ks have wings"). In an extreme case of striking generic, it will be informative for a speaker to utter a generic sentence even if there exist only 1 K that eats people. On the other extreme, a generic sentence about body parts will be informative only if almost all Ks have wings. Different genres of generics assume different threshold priors.
+Cognitively, threshold prior represents the shared prior knowledge on the genre of the generics under discussion. For example, accidental or striking generics (such as "Ks eat people") may assume a lower threshold value θ than majority characteristics or body parts generics (such as "Ks have wings"). In an extreme case of striking generic, it will be informative for a speaker to utter a generic sentence even if there exists only 1 K that eats people. On the other extreme, a generic sentence about body parts will be informative only if almost all Ks have wings. Different genres of generics assume different threshold priors.
 
 Without loss of generality, we can simplify the space of possible thresholds to 10 bins where the thresholds change in increments of 0.1. We reduced the number of possible bins to obtain a more intuitive and manageable size for threshold manipulation.
 ~~~~
@@ -82,7 +82,7 @@ var thresholdPrior3 = function(){
 ~~~
 To independently examine the effect of manipulating threshold prior, we assumed a uniform prevalence prior while varying the threshold prior. 
 
-We defined generics by a simple threshold semantics as implemented by the original model. Literal listener (L0), speaker (S1), pragmatic listener (L1), and pragmatic speaker (S2) perform the same computations with that of the original model except pragmatic listener (L1) samples a threshold prior from informative threshold prior instead of a uniform threshold prior. 
+We defined generics by a simple threshold semantics as implemented by the original model. Literal listener (L0), speaker (S1), pragmatic listener (L1), and pragmatic speaker (S2) perform the same computations as that of the original model except pragmatic listener (L1) samples a threshold prior from an informative threshold prior instead of a uniform threshold prior. 
 
 ~~~~
 ///fold:
@@ -200,9 +200,9 @@ print (expectation(marginalize(L1Results, "prevalence")))
 print('implied threshold')
 print (expectation(marginalize(L1Results, "threshold")))
 ~~~~
-Manipulating threshold prior from *thresholdPrior_baseline* to *thresholdPrior1*, *thresholdPrior2* and *thresholdPrior3* while keeping prevalence prior constant results in different prevalence posterior. We verified the effect of manipulating threshold prior since it is able to affect prevalence posterior. 
+Manipulating threshold prior from *thresholdPrior_baseline* to *thresholdPrior1*, *thresholdPrior2* and *thresholdPrior3* while keeping prevalence prior constant results in different prevalence posteriors. We verified the effect of manipulating threshold prior since it is able to affect prevalence posterior. 
 
-Specifically, comparing prevalence posterior of *thresholdPrior1* or "matters-if-any" threshold with the baseline uniform threshold prior, prevalence posterior and assenting prevalence upon hearing a generic decreased. Listener with the "matters-if-any" threshold prior arrived at a lower prevalence posterior and endorsed generics at a lower implied prevalence upon hearing a generic because of the shared knowledge on how the speaker chooses her utterance. Generics will be uttered at lower threshold levels. For prevalence prior of "about-half" and "matters-if-most," prevalence posterior and assenting prevalence upon hearing a generic are higher when compared to that of uniform threshold prior. The listener arrived at a higher prevalence posterior and endorsed generics at a higher implied prevalence if generics are uttered to describe majority or most Ks having the property F.   
+Specifically, comparing prevalence posterior of *thresholdPrior1* or "matters-if-any" threshold with the baseline uniform threshold prior, prevalence posterior and assenting prevalence upon hearing a generic decreased. The listener with the "matters-if-any" threshold prior arrived at a lower prevalence posterior and endorsed generics at a lower implied prevalence upon hearing a generic because of the shared knowledge on how the speaker chooses her utterance. Generics will be uttered at lower threshold levels. For prevalence prior of "about-half" and "matters-if-most," prevalence posterior and assenting prevalence upon hearing a generic are higher when compared to that of uniform threshold prior. The listener arrived at a higher prevalence posterior and endorsed generics at a higher implied prevalence if generics are uttered to describe majority or most Ks having the property F.   
 
 For ease of manipulation, we wrapped all three threshold priors into a helper function, which further allows combinations of threshold prior.
 ~~~ norun
@@ -394,7 +394,7 @@ print(expectation(speakerExpectation(prior,bins)))
 
 In the original model, Tessler & Goodman (2016) modeled generics in the format "Ks have F," where Ks were restricted to animals and Fs were properties of animals. It was consequential to restrict the space as it removed possible complication for cases when a shared prevalence prior was not obvious, as in the case of "human activities cause global warming." 
 
-However, a possible workaround to the divergent prevalence prior is to manipulate threshold prior. The question for threshold prior focuses on the usefulness of generics under different circumstances rather than the correctness of generics under different prevalence levels. It may be that people have stable threshold priors regarding different contexts (e.g. a left-skewed distribution generally resembles striking properties). The divergence of prevalence priors emerge because of different categorization of the property (some categorize "cause global warming" as matters-if-any or striking and others categorized it as matters-if-most). 
+However, a possible workaround to the divergent prevalence prior is to manipulate threshold prior. The question for threshold prior focuses on the usefulness of generics under different circumstances rather than the correctness of generics under different prevalence levels. It may be that people have stable threshold priors regarding different contexts (e.g. a left-skewed distribution generally resembles striking properties). The divergence of prevalence priors emerges because of different categorization of the property (some categorize "cause global warming" as matters-if-any or striking and others categorized it as matters-if-most). 
 
 To gather empirical data for threshold priors, a hypothetical experiment will be to ask "From a scale of 1-10, would you rather generic sentence on 'K cause global warming' be uttered under circumstance: (A) matters if any (B) about half (C\) matters if most?" Threshold priors may be modeled as multinomial distribution to capture the different threshold priors across participants.
 
@@ -409,9 +409,9 @@ var sigPrior = function(){
 ~~~
 Comparing the above threshold distribution with the original model's uniform threshold prior (and assuming an uninformative prevalence prior), `var thresholdPrior = function() { return uniformDraw(thresholdBins) };` individuals modeled with the multinomial distributed threshold prior arrived at a higher prevalence posterior and assenting prevalence upon hearing a generic sentence. 
 
-In this world, listeners are more reluctant to endorse the generic at a lower prevalence level. However, if the world concerns only extreme environmentalists, (i.e. sigPrior distribution is `return categorical([10,0,0],["matters-if-any", "about-half", "matters-that-most"])` listeners are more willing to endorse generic at lower prevalence level.
+In this world, listeners are more reluctant to endorse the generic at a lower prevalence level. However, if the world concerns only extreme environmentalists, (i.e. sigPrior distribution is `return categorical([10,0,0],["matters-if-any", "about-half", "matters-that-most"])`) listeners are more willing to endorse the generic at a lower prevalence level.
 
-Manipulating threshold prior independently affects prevalence posterior and generic endorsement. For cases where informative prevalence priors are unavailable, manipulating threshold prior (if collecting threshold priors are reasonable) brings us closer to the picture. On the other hand, for cases where informative prevalence priors are available, manipulating threshold prior distinguishes properties that may share similar prevalence priors.
+Manipulating threshold prior independently affects prevalence posterior and generic endorsement. For cases where informative prevalence priors are unavailable, manipulating threshold prior (if collecting threshold priors is reasonable) brings us closer to the picture. On the other hand, for cases where informative prevalence priors are available, manipulating threshold prior distinguishes properties that may share similar prevalence priors.
 
 ~~~~
 ///fold:

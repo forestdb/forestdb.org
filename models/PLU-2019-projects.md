@@ -25,7 +25,7 @@ var statePrior = function() {
 }
 ~~~~
 
-The possible utterances that  could affect girlfriend's mood
+The possible utterances that could affect the girlfriend's mood
 
 ~~~~
 // possible utternaces, "null" means slient
@@ -36,7 +36,7 @@ var utterancePrior = function(){
 }
 ~~~~
 
-There is a situation that the girlfriend could be asking comments on the dress or on the person herself. Therefore, the meaning function should include interpretations between the dress and the person.
+There is a situation that the girlfriend could be asking for comments on the dress or on the person herself. Therefore, the meaning function should include interpretations between the dress and the person.
 
 ~~~~
 // meaning function: interpretation = scope, different interpretation for listener to choose
@@ -56,7 +56,7 @@ var guessPrior = function() {
 }
 ~~~~
 
-cost function is meant to measure the strength needed for utter a word or a sentence physically
+The cost function is meant to measure the strength needed to utter a word or a sentence physically
 
 ~~~~
 // the cost function:
@@ -289,7 +289,7 @@ viz(pragmaticListener("null"))
 
 What should we say in the first model in order to have the effect of praising a lady? 
 
-The second model will analyze the effect of those the adjective in the first model
+The second model will analyze the effect of those adjectives in the first model.
 
 ~~~~
 // Given a grading scale from 0 - 10, we are able to assign a score to either person or dress
@@ -482,19 +482,19 @@ viz.density(marginalize(CUTE, "theta"))
 
 The “Kiki/Bouba” effect is a phenomenon in language reasoning wherein the vast majority of humans hold the preference for phrases like “kiki” to visibly ‘pointy’ shapes, and “bobo” to visibly ‘rounded’ shapes. This was first recorded by Wolfgang Kohler in 1929 and has been extensively researched ever since. Here, we have modeled this behavior using an RSA model to portray how a certain combination of sounds can elicit a preference for certain shapes. 
    
-This effect pertains to two regions of linguistics primarily:  Iconicity; which is role shapes/imagery play in semantics; and Arbitrariness: which is the role of ambiguity. The Kiki/Bobo effect supports the notion that language is not so arbitrary; that it is formed and understood on conditional bases that are barely context dependent. In other words; some meanings are formed or restricted due to universal forces such as dimensionality, geometry, human anatomy-- what have you. 
+This effect pertains to two regions of linguistics primarily:  Iconicity; which is the role shapes/imagery play in semantics; and Arbitrariness: which is the role of ambiguity. The Kiki/Bobo effect supports the notion that language is not so arbitrary; that it is formed and understood on conditional bases that are barely context dependent. In other words; some meanings are formed or restricted due to universal forces such as dimensionality, geometry, human anatomy-- what have you. 
 
 
-Conditions that contribute to the effect include the phonetic capabilities of the human vocal tract (all possible sounds humans can physically make) and the muscle movements required to produce such sounds. These movements potentially delineable associations to shapes. Moreover, consonants are distinct sounds that guide when words begin/end, and consonants vary in average loudness, pitch, length, etc,  ergo some consonants such as “k” or “z” are perceivably more “loud” or harsh than “b” or “l”. 
+Conditions that contribute to the effect include the phonetic capabilities of the human vocal tract (all possible sounds humans can physically make) and the muscle movements required to produce such sounds. These movements potentially delineable associations to shapes. Moreover, consonants are distinct sounds that guide when words begin/end, and consonants vary in average loudness, pitch, length, etc., ergo some consonants such as “k” or “z” are perceivably more “loud” or harsh than “b” or “l”. 
 
 
-Understanding contributing mechanisms allowed us to infer better ways to tweak our model so that it could reflect “real” human intuitions. It is also helped us in building the model, to begin with. 
+Understanding contributing mechanisms allowed us to infer better ways to tweak our model so that it could reflect “real” human intuitions. It also helped us in building the model, to begin with. 
 
 
 Before diving into the model; it is important to discuss what is known as RSA; or “The Rational Speech Act framework”. RSA is a hypothetical simulatory design that effectively models communicative inference. It is a simulation because it is constructed in the form of code which exists solely in a probabilistic program (WebPPL). It is also hypothetical in that it simplifies reality and makes mathematical assumptions about human language reasoning. Despite this; RSA has a great deal of utility in language research because it provides scholars a closed (albeit “faux”) sample space that can closely capture “real” experimental results. Moreover, it provides an adjustable tool that can capably represent virtually any scenario in communication, and it can do so with large sample sizes (unattainable in reality). Thus the “imaginary data” that comes from skilled/careful RSA modelers can ultimately guide real experimental designs in future language studies. 
 
 
-The code was designed as a “simple referential communication game” wherein synthetic speakers or listeners engage in recursive reasoning. In order to “build reason”; the framework employs a “reasoning hierarchy” that builds . In the simplest model, there are 3 levels to the hierarchy required for it to function: first exists the literal listener who hears a defined utterance and reasons about the state it conveys using the meaning function directly. Second is the pragmatic speaker that hears that state; then relies on Bayesian inference to choose an utterance corresponding to that state based on its utility (utility varies by cost, meaning, and other functions, as well as the data itself). The third is a pragmatic listener that calculates the probability of a state of the world given an utterance the pragmatic speaker would choose. 
+The code was designed as a “simple referential communication game” wherein synthetic speakers or listeners engage in recursive reasoning. In order to “build reason”; the framework employs a “reasoning hierarchy” that builds. In the simplest model, there are 3 levels to the hierarchy required for it to function: first exists the literal listener who hears a defined utterance and reasons about the state it conveys using the meaning function directly. Second is the pragmatic speaker that hears that state; then relies on Bayesian inference to choose an utterance corresponding to that state based on its utility (utility varies by cost, meaning, and other functions, as well as the data itself). The third is a pragmatic listener that calculates the probability of a state of the world given an utterance the pragmatic speaker would choose. 
 
 
 This framework requires some input of probabilities (as numerical data)  in order to approximately imitate as well as predict human behavior in various instances of pragmatic reasoning. These probabilities are defined by priors that interact with the set of states, utterances, or other variables. 
@@ -503,7 +503,7 @@ This framework requires some input of probabilities (as numerical data)  in orde
 When brainstorming for this project; we quickly turned to the Kiki/Bouba effect as a phenomenon to model inside of RSA because we knew it offered a very specific experimental design and dataset that we thought would be easy to work with. 
 
 
-Although the model has a lot of information to work with; much of which fit smoothly into the RSA framework; some aspects of the model were difficult to capture and required thinking outside of the box! 
+Although the model has a lot of information to work with; much of which fits smoothly into the RSA framework; some aspects of the model were difficult to capture and required thinking outside of the box! 
 
 
 So now for the code:
@@ -529,7 +529,7 @@ We chose “i” and “o” as our vowels to keep the model simple, as opposed 
 
 
 We chose "b","z","n","k","l" as our consonants to keep things simple; our set contains only 5 instead of a possible 20+ consonant sounds.  Moreover, this set contains a super pointy letter “z”, a rather pointy letter “k”, a fringe letter “n”, a rather round letter “l”, and a super round letter “b”. This made it easy to estimate corresponding probabilities for each consonant from high roundness (b =0.9) and low roundness (z=0.05) that we thought would closely reflect human intuition. This also allowed us to create a polar relationship between states in the model; so that: cR closer to 0; utterance is perceivably more “pointy”
-cR closer to 1; utterance is perceivable more “round”
+cR closer to 1; utterance is perceivably more “round”
 
 
 ~~~~
@@ -705,7 +705,7 @@ display("Literal Listener's posterior for 'zizi'")
 viz(literalListener("zizi"))
 ~~~~
 
-Now we introduce the speaker; who takes in information from the literal listener. The speaker considers what the literal listener would infer the shape to be from the sound, and thereby chooses a sound based on the shape. The speaker must choose from all possibleUtterances simultaneously, and then distributes probability across each utterance depending on which are more “round” or “pointy”. Also, the cost function is set to 0, because we assume no difference in the cost of uttering the words themselves as they are all the same number of letters.
+Now we introduce the speaker; who takes in information from the literal listener. The speaker considers what the literal listener would infer the shape to be from the sound, and thereby chooses a sound based on the shape. The speaker must choose from all possibleUtterances simultaneously, and then distribute probability across each utterance depending on which are more “round” or “pointy”. Also, the cost function is set to 0, because we assume no difference in the cost of uttering the words themselves as they are all the same number of letters.
 
 
 The probability can be shifted either by the optimality value by making the speaker more tuned towards giving a more accurate utterance to convey the best shape. In addition, composite roundiness can be changed to make the model more accurate. Also, the values for the vowels can also be toggled to create a more accurate model, such that the closer they are in value, the better they represent the sharper and rounder consonant sounds, but the farther they are from each other, the better they represent the consonant phonemes in the middle such as /n/. Lastly, the speaker's optimality can also be changed to affect the roundiness/pointiness probability of each utterance, such that the higher the alpha value is, the probability of each utterance's shape quality shifts towards the extremes. We have found that an alpha value of 3 seems to best represent the data collected from the Fort, Martin, and Peperkamp (2015) paper. 
@@ -946,17 +946,17 @@ display("Pragmatic Listener's posterior for 'zizi'")
 viz(pragmaticListener("zizi"))
 ~~~~
 
-This model is similar to those discussed in class only in that it utilizes the RSA framework. It tackles a unique phenomenon with niche qualities that requires for us to think outside the box.  
+This model is similar to those discussed in class only in that it utilizes the RSA framework. It tackles a unique phenomenon with niche qualities that requires us to think outside the box.  
 
 
-One difference from other models is how we do the meaning function: rather than a clean mapping from utterances to states as seen in the vanilla model; our mapping is more indirect . 
+One difference from other models is how we do the meaning function: rather than a clean mapping from utterances to states as seen in the vanilla model; our mapping is more indirect. 
 In our model; possible utterances are not explicitly defined; but rather “generated” simultaneously.
 
 ##Zeinab Kackakeche
 
 ###"Heavy or not?": a comparison class model
 
-Suppose that you hear an utterance "This box is heavy" from an adult, you're likely to infer that this box is actually heavy, and  weighs between let's say 20 lbs and 100 lbs depending on your experience with heavy weights.
+Suppose that you hear an utterance "This box is heavy" from an adult, you're likely to infer that this box is actually heavy, and weighs between let's say 20 lbs and 100 lbs depending on your experience with heavy weights.
 
 If you hear a child saying this box is heavy, however, you might infer that this box is heavy relative to the boxes that this child has lifted. It might be true that this box weighs 100 lbs, but there is a chance that this box is not heavy and weighs as little as 2 lbs. 
 
@@ -968,7 +968,7 @@ I model this empirical phenomenon using the Rational Speech Act (RSA) framework.
 I chose to use a comparison-class model from chapter 5. The model discusses gradable adjectives, for example: "tall". The listener has uncertainty about the relevant comparison class: superordinate (e.g., tall compared to all people) or subordinate (e.g., compared to gymnasts or soccer players or basketball players). And this reasoning depends on prior knowledge about the relevant categories.
 
 
-In my model, the listener's prior knowledge about the comparison class is the experience of each speaker with weights. We have three comparison classes: a child, an adult, and a bodybuilder. Each of these three comparison-classes have different experience with weights, i.e. different priors.
+In my model, the listener's prior knowledge about the comparison class is the experience of each speaker with weights. We have three comparison classes: a child, an adult, and a bodybuilder. Each of these three comparison-classes has different experience with weights, i.e. different priors.
 
 
 ~~~~
@@ -1040,8 +1040,8 @@ display("hypothetical bodybuilders experience with heavy weights")
 viz.density(generateStatePrior(speakerParams["bodybuilder"]))
 ~~~~
 
-These results match intuitions: children experience with weights is mostly with very light to light weights, while adults have more experience with heavier weights, and bodybuilders have experience with very heavy weights.
-After we've seen the experience (or the listener's prior) for each of the speakers, let's see how would the listener interpret the adjective "heavy" after hearing it from each one of the speakers.
+These results match intuitions: children's experience with weights is mostly with very light to light weights, while adults have more experience with heavier weights, and bodybuilders have experience with very heavy weights.
+After we've seen the experience (or the listener's prior) for each of the speakers, let's see how the listener would interpret the adjective "heavy" after hearing it from each one of the speakers.
 
 ~~~~
 // helper function
@@ -1243,7 +1243,7 @@ display("Listener's interpretation after hearing a body builder  saying 'this bo
 viz.density(pragmaticListener("light","bodybuilder"))
 ~~~~
 
-Similar to what one would expect, the listener's interpretation of the adjectives "heavy" and "light" are different depending on who said the utterance and on the listener's prior knowledge about each speaker . But with this previous code, we only considered one threshold for both adjective. If the actual weight of the box was less than threshold then the box is interpreted as "light", and if the actual weight of the box was more than threshold then the box is interpreted as "heavy". However, in the real world the area in which we consider boxes to be heavy or light is grey and not binary. So, for the following code, we consider two different thresholds for "heavy" and "light".
+Similar to what one would expect, the listener's interpretation of the adjectives "heavy" and "light" is different depending on who said the utterance and on the listener's prior knowledge about each speaker . But with this previous code, we only considered one threshold for both adjectives. If the actual weight of the box was less than the threshold then the box is interpreted as "light", and if the actual weight of the box was more than the threshold then the box is interpreted as "heavy". However, in the real world the area in which we consider boxes to be heavy or light is grey and not binary. So, for the following code, we consider two different thresholds for "heavy" and "light".
 
 ~~~~
 // helper function
@@ -1542,14 +1542,14 @@ display("Listener's interpretation after hearing a bodybuilder  saying 'this box
 viz.density(pragmaticListener("light","bodybuilder"))
 ~~~~
 
-As we can see from these results, the listener's interpretation is slightly different if he doesn't know what the speaker's intention is. So, if a child says the box is "heavy" and the listener doesn't actually know if the box is heavy for a child or heavy in general, the listener has to take into account the other comparison classes' priors. However, the listener would give more probability to child prior and less probability to the other two classes.
+As we can see from these results, the listener's interpretation is slightly different if he doesn't know what the speaker's intention is. So, if a child says the box is "heavy" and the listener doesn't actually know if the box is heavy for a child or heavy in general, the listener has to take into account the other comparison classes' priors. However, the listener would give more probability to the child prior and less probability to the other two classes.
 
 
 ##Abimael Hernandez Jimenez, Paula Aruby Marquez, and Cesar Manuel Rosales Jr.
 
 The Rational Speech Act framework views language as recursive reasoning between a literal listener, speaker, and a pragmatic listener. Using Bayesian inference, the pragmatic listener updates their prior beliefs about the state of the world by reasoning over an utterance given by a cooperative speaker. The speaker selects an utterance based on the probability of a literal listener arriving at the correct state of the world given the literal meaning of an utterance.
 
-Models have been created to depict non-literal language. Non-literal language refers to when the utterance is false. There are several forms of non-literal language, including hyperbole, metaphor, and irony, the latter which is the focus of this chapter. Irony is when a person states an utterance but means the opposite of what is said. In our example, we describe individuals conversing about the weather in a sunny context i.e. California. An ironic expression in this model is conveyed when the individual complains about the weather when in fact the weather is nice or pleasant. Irony is depicted because the speaker says something but means the opposite. 
+Models have been created to depict non-literal language. Non-literal language refers to when the utterance is false. There are several forms of non-literal language, including hyperbole, metaphor, and irony, the latter of which is the focus of this chapter. Irony is when a person states an utterance but means the opposite of what is said. In our example, we describe individuals conversing about the weather in a sunny context i.e. California. An ironic expression in this model is conveyed when the individual complains about the weather when in fact the weather is nice or pleasant. Irony is depicted because the speaker says something but means the opposite. 
 
 The original irony model shares characteristics with the hyperbole model. The hyperbole model introduced and implemented QUD manipulation into its code. The pricePrior in the hyperbole model depicts how much is spent, i.e. state of the world. It parallels the purpose of the statePrior in the irony model, which identifies the status of the weather. Further, the valencePrior points out how the speaker feels toward the state in both models. In the hyperbole model, it demonstrates how the speaker feels toward the amount spent. And in the irony model, it showcases how the speaker feels about the weather. 
 
@@ -1645,7 +1645,7 @@ var goalPrior = function() {
 }
 ~~~~
 
-The purpose of the goalState is for the speaker to be able to communicate to the literalListener what the question under discussion is (the topic of conversation). The value of this function is that it aids in the pragmatic listener’s ability to interpret non-literal language by running through every possible question under discussion that the speaker could be referring to. The addition of the two affect dimensions (valence and arousal) provide the speaker with additional pieces of information that can be conveyed in order to produce ironic utterances. For example, a speaker may wish to convey how they feel about the weather over simply describing the state of the weather. The goalState allows the speaker to determine exactly what topic of conversation is.
+The purpose of the goalState is for the speaker to be able to communicate to the literalListener what the question under discussion is (the topic of conversation). The value of this function is that it aids in the pragmatic listener’s ability to interpret non-literal language by running through every possible question under discussion that the speaker could be referring to. The addition of the two affect dimensions (valence and arousal) provides the speaker with additional pieces of information that can be conveyed in order to produce ironic utterances. For example, a speaker may wish to convey how they feel about the weather over simply describing the state of the weather. The goalState allows the speaker to determine exactly what the topic of conversation is.
 
 Below is the full model.
 
@@ -1761,11 +1761,11 @@ var pragmaticListener = function(utterance) {
 viz.table(pragmaticListener('terrible'))
 ~~~~
 
-Our model was successful in capturing irony. When the speaker utters "terrible," the most likely state that the pragmatic listener predicts that the speaker actually means to say is "amazing." This is supported by the fact that it associates "amazing" with positive valence and 0.9 arousal. Positive valence indicates that the pragmatic listener infers that the speaker feels positively about the state. Additionally, an arousal level of 0.9 demonstrates that it thinks the speaker feels very strongly about the state. In this case, the pragmatic listener understands that the speaker does not actually mean that the weather is terrible. Their valence and arousal indicate that they understand the speaker is talking about good weather. The rest of the results also illustrate an understanding of irony. The second state predicted was "ok," with negative valence and 0.3 arousal. In this instance, the pragmatic listener is saying that the speaker does not feel that the state is unpleasant, but rather that the weather is neither good or bad. 
+Our model was successful in capturing irony. When the speaker utters "terrible," the most likely state that the pragmatic listener predicts that the speaker actually means to say is "amazing." This is supported by the fact that it associates "amazing" with positive valence and 0.9 arousal. Positive valence indicates that the pragmatic listener infers that the speaker feels positively about the state. Additionally, an arousal level of 0.9 demonstrates that it thinks the speaker feels very strongly about the state. In this case, the pragmatic listener understands that the speaker does not actually mean that the weather is terrible. Their valence and arousal indicate that they understand the speaker is talking about good weather. The rest of the results also illustrate an understanding of irony. The second state predicted was "ok," with negative valence and 0.3 arousal. In this instance, the pragmatic listener is saying that the speaker does not feel that the state is unpleasant, but rather that the weather is neither good nor bad. 
 
 This section provides a summary and discussion. Our revised model added two states: "bad" and "good," leading to a total of five states. The original model also saw arousal as a binary option: "low" or "high." Our model revised this to include a continuous view of arousal. The effect this had on our results was that there was now much more probability to distribute as there were more states and arousals that were possible. 
 
-The priors in our model play a major role in determining what the model concludes from an utterance. In this scenario, our five states correspond to the states of the world in California. Most of the time the weather will be “ok”, “good”, or “amazing.” Therefore, we assign more probability to these states apriori. Meaning, these are the more likely utterances given the current state of the world. These states are then used by the speaker to reason about the probability of a literalListener arriving at the correct state of the world. The pragmaticListener takes into account the speaker’s utterance and may infer that the speaker is selecting a certain state to convey arousal or valence. By considering valence, the model is able to infer a positive state from an utterance such as "terrible" or "bad" (Kao et. al., 2015).
+The priors in our model play a major role in determining what the model concludes from an utterance. In this scenario, our five states correspond to the states of the world in California. Most of the time the weather will be “ok”, “good”, or “amazing.” Therefore, we assign more probability to these states a priori. Meaning, these are the more likely utterances given the current state of the world. These states are then used by the speaker to reason about the probability of a literalListener arriving at the correct state of the world. The pragmaticListener takes into account the speaker’s utterance and may infer that the speaker is selecting a certain state to convey arousal or valence. By considering valence, the model is able to infer a positive state from an utterance such as "terrible" or "bad" (Kao et al., 2015).
 
 
 ##Yongjia Song
@@ -1775,20 +1775,20 @@ The priors in our model play a major role in determining what the model conclude
 Sometimes, people choose utterances to express their thoughts clearly. However, 
 sometimes, people like to choose utterances that may not directly express their 
 real thoughts. Politeness is one example of this kind of indirect expression. In the 
-process of learning politeness model, we know that people choose utterances 
+process of learning the politeness model, we know that people choose utterances 
 that express the opposite meaning of what the speaker is truly thinking. For 
 example, when people are rating a terrible bread baked by their friend, people 
-would like to say "it's amazing" instead of " it's terrible" to show their politeness. 
+would like to say "it's amazing" instead of "it's terrible" to show their politeness. 
 People also need to be polite when they accept or refuse a gift. We assume that 
 one person gives a gift to another person, who is a speaker. In general, the 
-speaker need to choose either "Thanks" as acceptance or "No thanks" as refusal. 
+speaker needs to choose either "Thanks" as acceptance or "No thanks" as refusal. 
 However, if a speaker doesn't like this gift but, at the same time, he or she also 
-need to be polite, what utterance will the speaker choose? To show politeness, 
+needs to be polite, what utterance will the speaker choose? To show politeness, 
 the speaker is more likely to choose to accept the gift. And based on his or her 
 statement on the gift, he or she would choose an appropriate utterance to let the 
 pragmatic listener understand. After hearing the words, the pragmatic listener, 
-who gave the gift to the speaker, will estimate whether the speaker accept the 
-gift or refuse it based on the utterance and the potential politeness that the 
+who gave the gift to the speaker, will estimate whether the speaker accepts the 
+gift or refuses it based on the utterance and the potential politeness that the 
 speaker has.  
 
 The Basic RSA Model
@@ -1797,20 +1797,20 @@ model has the same structure as we learned about the RSA model of choosing a
 word (either the color or the shape) to describe an object with blue/green color 
 and square/circle shape. 
 
-In my model, there are two statement ("accept" and "refuse") to state the attitude 
-of the speaker. The speaker have two choice of utterance: "thanks" and "no 
+In my model, there are two statements ("accept" and "refuse") to state the attitude 
+of the speaker. The speaker has two choices of utterance: "thanks" and "no 
 thanks" to express their statement. 
 I considered some complex language situations that people use "thanks" or "no 
 thanks" to express the meaning opposite to its common meaning. For example, 
 people may use very ambiguous words to express their appreciation, but with 
 indirect refusal. In this case, the word "thanks" for the speaker would be refusal 
 meaning. Therefore, in the meaning function, "thanks" strongly suggests 
-acceptance, but there is possibility that it also means refusal. The similar 
-condition also happens on "no thanks" utterance. Therefore, "no thanks" strongly 
+acceptance, but there is a possibility that it also means refusal. The similar 
+condition also happens on the "no thanks" utterance. Therefore, "no thanks" strongly 
 suggests refusal, but the possibility to express acceptance will also be 
 considered. 
 
-The Basic RSA model shows below
+The Basic RSA model is shown below
 
 ~~~~
 //state
@@ -1875,8 +1875,8 @@ viz(pragmaticListener("no thanks"))
 
 From the result, we can see that when people say "thanks", it will be 0.75 
 probability that the speaker wants to accept the gift, and 0.25 probability that the 
-speaker want to refuse it. When people say "no thanks", the probability of two 
-statement shifts.
+speaker wants to refuse it. When people say "no thanks", the probability of the two 
+statements shifts.
 
 Then I added the speaker's utility to adjust the politeness of the speaker. 
 
@@ -1885,12 +1885,12 @@ social. The speaker will be more likely to express truth when he or she is
 epistemic. And the speaker will be more likely to choose the statement to make 
 the listener happy if he or she is social. 
 
-In my model, I also set up two similar utilities. The true utility is exactly same as 
+In my model, I also set up two similar utilities. The true utility is exactly the same as 
 the epistemic utility in the original model. The polite utility, instead of scoring all 
-possible states, will only score "accept" statement. The speaker will like to choose 
+possible states, will only score the "accept" statement. The speaker will like to choose 
 "accept" more to show their politeness. 
 
-The utility model shows below. 
+The utility model is shown below. 
 
 ~~~~ norun
 var utility = {
@@ -1901,7 +1901,7 @@ var speakerUtility = phi * utility.True +
                         (1 - phi) * utility.Polite
 ~~~~
 
-The full model of acceptance and refusal with politeness shows below
+The full model of acceptance and refusal with politeness is shown below
 
 ~~~~
 ////////////////////////////western condiiton////////////////////////////
@@ -1980,25 +1980,25 @@ In this model, I added politeness in the speaker part. People who are polite
 would be more likely to accept the gift. Therefore, we can see from the figures 
 that the probability of accepting shifted a little bit to refusing, which means that 
 when people hear "thanks", the probability of refusal increases. The similar 
-situation happened for the utterance"no thanks". When people hear "no thanks", 
+situation happened for the utterance "no thanks". When people hear "no thanks", 
 the probability of acceptance increases a little compared to the basic RSA model. 
 
-In previous model, we assume that people more like to choose to accept the gift 
+In the previous model, we assume that people are more likely to choose to accept the gift 
 to show their politeness. However, it is not always true for all people. People in 
-different culture have different sense of politeness. In western culture, people 
+different cultures have a different sense of politeness. In western culture, people 
 think that acceptance shows politeness. However, people in eastern culture 
 consider refusal as a kind of politeness. For people in eastern culture, it's polite to 
 refuse others' gifts at first. In eastern culture, it's also more costly for people to 
 say "thanks" than "no thanks", because saying "no thanks" gives the listener a 
-chance to continue the conversation with the speaker and build up a more close 
+chance to continue the conversation with the speaker and build up a closer 
 relationship. 
 
-Therefore, in the model for eastern culture, the cost of two utterances are not 
+Therefore, in the model for eastern culture, the costs of the two utterances are not 
 equal to each other. It will be more costly to choose "thanks" than "no thanks". In 
 the utility function, the state "refuse" will be scored instead of "accept" in the 
 previous model. 
 
-The model of eastern culture shows below
+The model of eastern culture is shown below
 
 ~~~~
 ////////////////////////////eastern condiiton////////////////////////////
@@ -2073,20 +2073,20 @@ viz(pragmaticListener("no thanks"))
 ~~~~
 
 In the result of hearing "thanks", the probability shifted back to acceptance again. 
-However, when people hear "no thanks" in eastern condition, the probability of 
+However, when people hear "no thanks" in the eastern condition, the probability of 
 acceptance and refusal are close to each other. It means that for eastern culture, 
 the meaning of saying "no thanks" is more vague than saying "thanks". 
 Compared with the result of the model for western culture, the estimation of 
-refusal goes some to the acceptance when the listener hear "no thanks". 
+refusal goes some to the acceptance when the listener hears "no thanks". 
 
 Changing the cost of utterances is one way to adjust the speaker's choice on 
-utterances. If the utterance is less costly than other, the speaker will be more 
+utterances. If the utterance is less costly than the other, the speaker will be more 
 likely to choose this utterance. Therefore, the probability of "accept" increases for 
 hearing "no thanks" in the model for eastern culture. Another way to adjust the 
 speaker's choice is to change the alpha. Alpha means how optimal the speaker 
 will be. If the speaker is ideal, he or she will choose an utterance that can 
-accurately express their thoughts. Therefore, in the result of changing to greater 
-alpha, the probability of "accept" and "refuse" will have bigger difference for 
+accurately express their thoughts. Therefore, in the result of changing to a greater 
+alpha, the probability of "accept" and "refuse" will have a bigger difference for 
 both utterances.
 
 
@@ -2095,20 +2095,20 @@ both utterances.
 ###Understanding Negated Antonyms
 ####Ⅰ The empirical phenomenon of interest
 <br>
-If John says that 'I'm not unhappy about my project', does that mean that he is happy about his project? Such utterances, known as 'negated antonyms', convey a subtle meaning that is not as simple as their logical forms look like. In this example, we might perceive that the 'not unhappy' John is in a state which is below the positive adjective 'happy' but above the antonym 'unhappy'. This empirical phenomenon demonstrate that the two negations of this case might not be simply '¬¬happy' in the logical form, otherwise they would cancel each other and produce the same result as 'happy'. (Tessler, 2018)
+If John says that 'I'm not unhappy about my project', does that mean that he is happy about his project? Such utterances, known as 'negated antonyms', convey a subtle meaning that is not as simple as their logical forms look. In this example, we might perceive that the 'not unhappy' John is in a state which is below the positive adjective 'happy' but above the antonym 'unhappy'. This empirical phenomenon demonstrates that the two negations of this case might not be simply '¬¬happy' in the logical form, otherwise they would cancel each other and produce the same result as 'happy'. (Tessler, 2018)
 <br> 
-In my opinion, the best way to capture the mechanism under 'negated antonyms' is to show the quantitative difference between utterances. Thus, I adopt a scenario that is similar to the one we studied in class (discussed further in section 3), and I will try to determine the difference between 'expensive' and 'not-inexpensive' utterance which describe the price of items based on the prediction of my model, as a way to dig into the mechanism of 'negated antonyms'
+In my opinion, the best way to capture the mechanism under 'negated antonyms' is to show the quantitative difference between utterances. Thus, I adopt a scenario that is similar to the one we studied in class (discussed further in section 3), and I will try to determine the difference between 'expensive' and 'not-inexpensive' utterances which describe the price of items based on the prediction of my model, as a way to dig into the mechanism of 'negated antonyms'.
 
 ####Ⅱ Introduction to the RSA framework
 
-Rational Speech Act Framework is dedicated to formally explain these nuanced aspects of meaning and better understand the compositional mechanism that delivers them. (Scontras et al.) RSA utilizes a recursive-reasoning computational model that relies on simulation-based probabilistic programs. In this model, a pragmatic listener L1  (fully rational) will try to resolve the intended meaning (or QUD) of an utterance with their observation on a speaker model. The speaker S will have certain degree of rationality, and produce an utterance based on their knowledge of a naive literal listener L0. The literal listener will only consult the literal meaning and the world states to understand an utterance.  Together, they make up the basic RSA framework, which is widely used in the fields of language understandings, and generates reliable predictions that could be tested by behavioral data. 
+Rational Speech Act Framework is dedicated to formally explaining these nuanced aspects of meaning and better understand the compositional mechanism that delivers them. (Scontras et al.) RSA utilizes a recursive-reasoning computational model that relies on simulation-based probabilistic programs. In this model, a pragmatic listener L1 (fully rational) will try to resolve the intended meaning (or QUD) of an utterance with their observation on a speaker model. The speaker S will have a certain degree of rationality, and produce an utterance based on their knowledge of a naive literal listener L0. The literal listener will only consult the literal meaning and the world states to understand an utterance.  Together, they make up the basic RSA framework, which is widely used in the fields of language understanding, and generates reliable predictions that could be tested by behavioral data. 
 
 ####Ⅲ Similarities 
 <br>
-My model is based on the model of gradable adjectives 'expensive' that we studies in class. The listener will hear an utterance from a speaker such as ' The watch I bought is expensive', then the listener will predict the actual price of the speaker paid for the item and the threshold for this gradable adjective utterance.  Additionally, my model also draws on data of prior knowledge of the price of an item in the real world and will be able to generate predictions for various items.
+My model is based on the model of gradable adjectives 'expensive' that we studied in class. The listener will hear an utterance from a speaker such as 'The watch I bought is expensive', then the listener will predict the actual price the speaker paid for the item and the threshold for this gradable adjective utterance.  Additionally, my model also draws on data of prior knowledge of the price of an item in the real world and will be able to generate predictions for various items.
 ####Ⅳ Differences
 <br>
-My model also takes ideas from the Tessler's model (2018) on negated antonyms. Tessler's model highlights the idea that negated antonyms add extra uncertainty to listener's comprehension and might introduce new threshold. Such contrary opposition, 'not inexpensive' could mean either ¬¬A or ¬Ā in the logical form. This is represented by the pragmatic listener's behavior in the model. 
+My model also takes ideas from Tessler's model (2018) on negated antonyms. Tessler's model highlights the idea that negated antonyms add extra uncertainty to the listener's comprehension and might introduce a new threshold. Such contrary opposition, 'not inexpensive' could mean either ¬¬A or ¬Ā in the logical form. This is represented by the pragmatic listener's behavior in the model. 
  
 
 ####V Model Description
@@ -2165,7 +2165,7 @@ var meaning = function(utterance, price, theta) {
 };
 ~~~~
 
-The pragmatic listener exhibits a certain amount of uncertainty (e.g. flip(0.2) ) when hearing negated antonyms. In some cases, there will be an individual threshold for the antonyms (known as inexpensive_threshold), and in other cases, the threshold will be the same as the expensive one. The 'theta' variable in my model will be a lookup table to handle both situations which will be interpreted properly by the meaning function.
+The pragmatic listener exhibits a certain amount of uncertainty (e.g. flip(0.2)) when hearing negated antonyms. In some cases, there will be an individual threshold for the antonyms (known as inexpensive_threshold), and in other cases, the threshold will be the same as the expensive one. The 'theta' variable in my model will be a lookup table to handle both situations which will be interpreted properly by the meaning function.
 
 ~~~~
 var literalListener = cache(function(utterance, theta, item) {
@@ -2326,8 +2326,8 @@ display(expectation(marginalize(notinexpensiveSweater, "Posneg")))
 ~~~~
 
 ####Ⅵ Discussions
-The result of my model matches my intuition about the utterances.  From the density graph, it is obvious that negated antonyms are different from the original utterance, because uncertainty is involved when using such utterances. The expectation of prices and threshold (the number below the graph) demonstrates that the expectation price that listener predicts is slightly lower for 'not-inexpensive' than its for 'expensive', while the threshold is higher for 'not-inexpensive' than for its 'expensive'. Accordingly, my intuition is that when the speaker pays extra costs to use negated antonyms, she will try to be more informative, thus making the threshold should be higher. As for the price, people will usually expect the price of the item to be in a certain state where it is below the 'expensive' one but above the 'inexpensive' one, which is anticipated by Jespersen(1924) and following Tessler(2018).  It is quite noticeable that when there are only two utterances possible (expensive and not-inexpensive), the difference is weaker; when there are four utterances possible in the final model, the difference is more significant.
+The result of my model matches my intuition about the utterances.  From the density graph, it is obvious that negated antonyms are different from the original utterance, because uncertainty is involved when using such utterances. The expectation of prices and threshold (the number below the graph) demonstrates that the expectation price that the listener predicts is slightly lower for 'not-inexpensive' than it is for 'expensive', while the threshold is higher for 'not-inexpensive' than for 'expensive'. Accordingly, my intuition is that when the speaker pays extra costs to use negated antonyms, she will try to be more informative, thus the threshold should be higher. As for the price, people will usually expect the price of the item to be in a certain state where it is below the 'expensive' one but above the 'inexpensive' one, which is anticipated by Jespersen (1924) and following Tessler (2018).  It is quite noticeable that when there are only two utterances possible (expensive and not-inexpensive), the difference is weaker; when there are four utterances possible in the final model, the difference is more significant.
 <br>
-There are some remaining problems, However. First, we need further data from behavior experiments will be needed to better justify the model. Second, what exactly is the degree of uncertainty when uttering negated utterance? In my model, I use a fixed probability of 0.2 which was taken from the Tessler's model, but does it actually reflect the reality? When trying to adjust the uncertainty to higher numbers, the difference between original utterances and negated antonym utterances become slightly weaker.  What the exact mechanism of the uncertainty degrees is remains unclear. Such questions would be interesting for future research.
+There are some remaining problems, however. First, further data from behavior experiments will be needed to better justify the model. Second, what exactly is the degree of uncertainty when uttering a negated utterance? In my model, I use a fixed probability of 0.2 which was taken from Tessler's model, but does it actually reflect the reality? When trying to adjust the uncertainty to higher numbers, the difference between original utterances and negated antonym utterances becomes slightly weaker.  What the exact mechanism of the uncertainty degrees is remains unclear. Such questions would be interesting for future research.
 
 

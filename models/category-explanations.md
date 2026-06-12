@@ -6,7 +6,7 @@ model-category: Counterfactuals and Explanations
 model-status: code
 ---
 
-*All models on this page use [the exogenous randomness style](http://forestdb.org/models/exogenous-counterfactuals.html) of counterfactual modeling based on [the original countefactual Church model](http://forestdb.org/models/because.html) and the counterfactuals of Pearl (2000).
+*All models on this page use [the exogenous randomness style](http://forestdb.org/models/exogenous-counterfactuals.html) of counterfactual modeling based on [the original counterfactual Church model](http://forestdb.org/models/because.html) and the counterfactuals of Pearl (2000).*
 
 ## Fish
 
@@ -168,13 +168,13 @@ Below is a model representing a simple taxonomy of fish. Fish come in the northe
  "wugs have stripes")
 ~~~~
 
-Upon hearing "stripes because stripes," the model ranks the probability that dels (the other northern species) have stripes as lower than for either of the southern species. It is equally likely for both southern fish to have stripes as it is for just  dels to have stripes. This follows my initial intuition that the categorical counterfactual is interpreted in terms of the super-category: if a wug weren't a wug, it would most likely be a del. Thus, anything you say about the counter-factual wug that isn't a wug most strongly affects the representation of dels. This effect comes to play with the speaker as well. The speaker perfers to say "because north" when weights are high for both northern species, but "because wug" when weights are high for wugs only.
+Upon hearing "stripes because wug," the model ranks the probability that dels (the other northern species) have stripes as lower than for either of the southern species. It is equally likely for both southern fish to have stripes as it is for just  dels to have stripes. This follows my initial intuition that the categorical counterfactual is interpreted in terms of the super-category: if a wug weren't a wug, it would most likely be a del. Thus, anything you say about the counter-factual wug that isn't a wug most strongly affects the representation of dels. This effect comes into play with the speaker as well. The speaker prefers to say "because north" when weights are high for both northern species, but "because wug" when weights are high for wugs only.
 
 ### Graded predictions
 
 We see the predictions roughly match our intuitions for these edge cases. Now let's look at how the model performs when we vary the probabilities more continuously. Below is a copy of the above model but with four possible weights. Unfortunately, creating these possibilities makes the model very slow. Generating 500 samples for each of the four conditions took several hours. The model below is only for reference. I have not run a full statistical analysis yet, so I am hesitant to provide a graph, but I will provide my results in the following table.
 
-% dels with stripes-- | -- % "because north"
+% dels with stripes | % "because north"
 :-----------: | :-----------:
 0.2 | 0.32
 0.4 | 0.45

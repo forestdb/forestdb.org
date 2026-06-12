@@ -9,7 +9,7 @@ model-language-version: v0.9.6
 
 ### Listener 2 model
 
-+ `L2` has uncertainty about `cc` but knows the degree is coming from the `"sub` prior
++ `L2` has uncertainty about `cc` but knows the degree is coming from the `"sub"` prior
 + `S2` is trying to communicate belief distribution (the `"sub"` distribution), but is assuming some comparison class
 + `L1` and below is straight-up adjectives
 
@@ -322,7 +322,7 @@ display("short (basketball player) --> for a person =  " + exp(pragmaticListener
 
 ### Listener 1 model (older)
 
-+ Same as above but with the other adjective (e.g., short) with its own lifted threhsold as an alternative
++ Same as above but with the other adjective (e.g., short) with its own lifted threshold as an alternative
 + Takes much longer to run!
 
 

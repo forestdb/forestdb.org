@@ -36,7 +36,7 @@ meaningFn(0.6, 0.5)
 
 Generic language (e.g., *Swans are white.*) is a simple and ubiquitous way to communicate generalizations about categories.  Linguists, philosophers, and psychologists have scratched their collective heads for decades, trying to figure out what makes a generic sentence true or false. At first glance, generics feel like universally-quantified statements, as in *All swans are white*.  Unlike universals, however, generics are resilient to counter-examples (e.g., *Swans are white* even though there are black swans).  Our intuitions then fall back to something more vague like *Swans, in general, are white* because indeed most swans are white. But mosquitos, in general, do not carry malaria, yet everyone agrees *Mosquitos carry malaria*.
 
-Indeed, it appears that any truth conditions stated in terms of how common the property is within the kind violates intuitions. Consider the birds: for a bird, being female practically implies you will lay eggs (the properties are present in the same proportion), yet we say things like *Birds lay eggs* and we do not say things like *Birds are female*.
+Indeed, it appears that any truth conditions stated in terms of how common the property is within the kind violate intuitions. Consider the birds: for a bird, being female practically implies you will lay eggs (the properties are present in the same proportion), yet we say things like *Birds lay eggs* and we do not say things like *Birds are female*.
 
 ~~~~
 var theta = 0.49
@@ -88,7 +88,7 @@ Got one in mind?
 What percentage of that kind of animal *is female*?
 Probably roughly 50%, regardless of the kind of animal you thought of.
 What percentage of that kind of animal *lays eggs*?
-Well, it probably depends on the kind of animal you thought. If you thought of a falcon, then roughly 50% (recall, only the females lay eggs).
+Well, it probably depends on the kind of animal you thought of. If you thought of a falcon, then roughly 50% (recall, only the females lay eggs).
 But if you thought of a bear, then 0% of them lay eggs.
 
 We can conceive of the prior distribution over the prevalence of a feature with a kind $$P(F\mid K)$$ as a distribution over kinds $$P(K)$$ and then the prevalence of the feature within the kind.
@@ -138,7 +138,7 @@ The categories that do not have a stable causal mechanism produce the feature wi
 We would expect $$x_{transient}$$ to be small (even zero), as certain features are completely absent in many categories (e.g., the number of lions that lay eggs).
 $$x_{stable}$$, on the other hand, could be large, giving rise to features that are often common in a kind (e.g., *has four legs*), but might also be substantially less than 1 for features that are non-universal in a category (e.g., *has brown fur*).
 
-We formalize this idea by drawing $$x_{stable}$$ and $$x_{transient}$$ from Beta distributions (which has support between 0 - 1; thus samples from a Beta are numbers between 0 - 1 i.e., probabilities) with different parameters.
+We formalize this idea by drawing $$x_{stable}$$ and $$x_{transient}$$ from Beta distributions (which have support between 0 - 1; thus samples from a Beta are numbers between 0 - 1, i.e., probabilities) with different parameters.
 We fix the distribution for the transient cause: $$ x_{transient} \sim Beta(0.01, 100)$$.
 (Here we use the mean--concentration parameterization of the Beta distribution rather than the canonical pseudocount parameterization. The first parameter is the mean of the distribution while the second is the concentration --- or inverse-variance --- of the distribution.)
 
@@ -151,7 +151,7 @@ $$
 x \sim \phi \cdot \text{Beta}(\gamma, \delta) + (1 - \phi) \cdot \text{Beta}(0.01, 100)
 $$
 
-where $$\gamma$$ is the mean of the stable cause distribution and $$\delta$$ is the "concentration" (or, inverse-variance) of this distribution. $$\delta$$ is high for properties that present in almost every kind in exactly the same proportion (e.g. "is female"). It is lower when there is more uncertainty about exactly how many within a kind are expected to have the property.
+where $$\gamma$$ is the mean of the stable cause distribution and $$\delta$$ is the "concentration" (or, inverse-variance) of this distribution. $$\delta$$ is high for properties that are present in almost every kind in exactly the same proportion (e.g. "is female"). It is lower when there is more uncertainty about exactly how many within a kind are expected to have the property.
 
 
 <!-- $$\phi$$ is a parameter that governs mixture between these two components.

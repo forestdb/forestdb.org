@@ -48,7 +48,7 @@ model-language: church
     
     samples
 
-References 
+References:
 
 - Cite:shred2014
 - Source: [shred](https://web.archive.org/web/2015/https://github.com/LFY/shred/blob/master/benchmarks/mixture.ss)

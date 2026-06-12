@@ -1,10 +1,12 @@
 ---
 layout: model
-title: Irony - Annie, Jon, Stella
+title: Irony with Shared Background Knowledge
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
 ---
+
+*By Annie, Jon, Stella*
 
 **Introduction to the RSA model**
 
@@ -44,7 +46,7 @@ viz.hist(Infer({model:function(){
 As you can see, the states “amazing” and “ok” have a much higher probability compared to the state “terrible”. This is because the states are drawn from a categorical distribution. As this example is set in California, the priors are skewed more towards generally positive weather as California weather is more commonly described as “amazing” and/or “ok” compared to “terrible”.
 
 valence and valencePriors
-As we move through understanding the code, the next step is tackling valence. Valence is used in this model to describe how the speaker (or who can perceive the actual weather) thinks about the weather. A valence of -1 is associated with negative feelings towards the weather, while 1 valence is associated with positive feelings towards the weather. Let’s take a look at the valence code in our model:
+As we move through understanding the code, the next step is tackling valence. Valence is used in this model to describe how the speaker (or whoever can perceive the actual weather) thinks about the weather. A valence of -1 is associated with negative feelings towards the weather, while a valence of 1 is associated with positive feelings towards the weather. Let’s take a look at the valence code in our model:
 
 ~~~~
 var valencePrior = function(state) {
@@ -105,7 +107,7 @@ We can see that arousal is high when communicating the states “terrible” and
 goals and goalPriors & utterances and utterancePriors
 Now let’s take a look at the goals and utterances of our code. The goal is what the speaker is trying to convey to the listener, and for our model, there are three possible goals. “goalState” communicates the state of the weather, “goalValence” communicates whether they like or dislike the weather, and “goalArousal” communicates how strongly they feel about the weather. To view the goalPrior, we're using an infer histogram model, similar to the ones we’ve used previously in this code breakdown. This shows they have equal probability as their priors are all equal.
 
-Utterances in our model are essentially the same as states, however utterances are the actual phrases being spoken by the speaker and heard by the listener. To view this prior, we also use an infer histogram model, which shows that these utterances have equal probabilities.
+Utterances in our model are essentially the same as states; however, utterances are the actual phrases being spoken by the speaker and heard by the listener. To view this prior, we also use an infer histogram model, which shows that these utterances have equal probabilities.
 
 ~~~~
 var states = ['terrible', 'ok', 'amazing']
@@ -367,7 +369,7 @@ viz.table(pragmaticListener("terrible"))
 viz.marginals(terribleDist)
 ~~~~
 
-The pragmaticListener thinks critically of the utterance they hear, the priors they have, and what they believe the speaker’s goal to be. The output of this code is a distribution table over states, valences, and arousals to display the pragmatic listener beliefs of each outcome. Now that we have a full model, we can see the element of irony in the output of the model. When we run the model given the utterance “terrible”, we can see that the most probable state is a speaker who is enthusiastically enjoying amazing weather. Thus the utterance ‘terrible’ is ironic. This occurs because the likelihood of a terrible weather state is so low, the speaker is more likely to be communicating a valence or arousal level associated with the utterance ‘terrible’. The last line outputs a marginal distribution for ‘terrible’ (swap it with okDist or amazingDist to see distributions of the other utterances). Now we can see the probability of particular features (arousal, state, and valence) for our inputted utterance. 
+The pragmaticListener thinks critically of the utterance they hear, the priors they have, and what they believe the speaker’s goal to be. The output of this code is a distribution table over states, valences, and arousals to display the pragmatic listener’s beliefs of each outcome. Now that we have a full model, we can see the element of irony in the output of the model. When we run the model given the utterance “terrible”, we can see that the most probable state is a speaker who is enthusiastically enjoying amazing weather. Thus the utterance ‘terrible’ is ironic. This occurs because the likelihood of a terrible weather state is so low that the speaker is more likely to be communicating a valence or arousal level associated with the utterance ‘terrible’. The last line outputs a marginal distribution for ‘terrible’ (swap it with okDist or amazingDist to see distributions of the other utterances). Now we can see the probability of particular features (arousal, state, and valence) for our inputted utterance. 
 
 **Critiques of the Model**
 
@@ -516,7 +518,7 @@ In the hyperbole model, the listener draws on prior knowledge of real-world pric
 
 Similarly, the irony model uses contextual priors over states like weather, where positive or neutral conditions (e.g., “OK” or “amazing”) are more probable than “terrible.” When the speaker says something that contradicts this likely context (e.g., calling sunny weather “terrible”), the listener interprets it as ironic—inferring a positive state with negative phrasing.
 
-Although both models assume shared categorical priors between speaker and listener and require listeners to adjust from literal utterances to contextually plausible meanings, they differs in that the hyperbole model adjusts in a unidirectional, scalar manner (e.g., exaggerating quantity), while the irony model infers a bidirectional, oppositional shift—interpreting statements as meaning the opposite of their literal form.
+Although both models assume shared categorical priors between speaker and listener and require listeners to adjust from literal utterances to contextually plausible meanings, they differ in that the hyperbole model adjusts in a unidirectional, scalar manner (e.g., exaggerating quantity), while the irony model infers a bidirectional, oppositional shift—interpreting statements as meaning the opposite of their literal form.
 
 In real-world communication, this flexibility in interpreting nonliteral language highlights how irony and hyperbole depend on a listener’s ability to use context, probability, and shared experience to uncover the speaker’s true intent (Question under discussion: QUD).
 Specifically, in the hyperbole model, the utterance interpretation depends on three key variables:
@@ -543,11 +545,11 @@ var statePrior = function() {
 
 **Irony Model**
 
-*Changing the State Prior to Model Regional DIfferences*
+*Changing the State Prior to Model Regional Differences*
 
 The original irony model used an arbitrary prior favoring “ok” and “amazing” weather, assuming speaker and listener are from California. Here, the utterance “The weather is terrible!” strongly triggers irony—listener infers positive weather state despite the negative utterance.
 
-If we instead assume speaker and listener are from London or Canada, where terrible weather is frequent, we reverse the prior
+If we instead assume speaker and listener are from London or Canada, where terrible weather is frequent, we reverse the prior:
 
 
 

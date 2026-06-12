@@ -1,20 +1,22 @@
 ---
 layout: model
-title: Gore, Libucha - Codenames
+title: Codenames with Word Vectors
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
 ---
 
-Codenames is a team party game where cards with a single word on them are laid out on a table. Teams are comprised of two members. One who is trying to get their teammate to guess a word, and another who guesses depending on their teammates speech. The speaker is allowed to say one word and a number corresponding to how many words that word corresponds to. For the sake of our model, we restrict the number to 2 in order to simplify the model. 
+*By Gore, Libucha*
+
+Codenames is a team party game where cards with a single word on them are laid out on a table. Teams are comprised of two members: one who is trying to get their teammate to guess a word, and another who guesses depending on their teammate's speech. The speaker is allowed to say one word and a number corresponding to how many words that word corresponds to. For the sake of our model, we restrict the number to 2 in order to simplify the model. 
 
 This game is apt for RSA modeling, as there is leveled reasoning between the speaker and the listener. 
 
-To establish priors for our listener, we used Stanford's GLoVe project which maps words to a 25 dimensional vector space. 
+To establish priors for our listener, we used Stanford's GloVe project which maps words to a 25 dimensional vector space. 
 
 Vectors have native support in WebPPL which allows our model to do mathematical operations on these objects. 
 
-Originally, we imported these from an external file, however, we only need a few vectors for this demonstration, so we will manually add these. We also define prior functions that sample randomly from our vectors object. 
+Originally, we imported these from an external file; however, we only need a few vectors for this demonstration, so we will manually add these. We also define prior functions that sample randomly from our vectors object. 
 
 ~~~~
 var vectors = {eagle : Vector([-0.8186906894583743,  -0.8443627918594182,
@@ -364,7 +366,7 @@ var literalListener = function(clue)
 viz.table(literalListener("farm"))
 ~~~~
 
-The speaker reasons about the best clue given a state in order to maximize the chance the literalListener guesses right, while reducing cost. We don't include a cost in this model, as its expected to be constant. We then filter based on this score, and we scale by an optimality parameter. 
+The speaker reasons about the best clue given a state in order to maximize the chance the literalListener guesses right, while reducing cost. We don't include a cost in this model, as it's expected to be constant. We then filter based on this score, and we scale by an optimality parameter. 
 
 ~~~~
 var speaker = function(subset)
@@ -395,7 +397,7 @@ var pragmaticListener = function(clue)
 };
 ~~~~
 
-This is the model in full. The results are not exactly ideal, however, the example gives a good starting point for this model. We would expect "chicken" and "pig" to return the highest value for "farm", however, this is not the case. We expect that this issue comes from the fact that these vectors are simply grouped very closely in the "animal" area, and that the differences in probabilities we are saying are likely marginal when compared to the entire set of vectors. 
+This is the model in full. The results are not exactly ideal; however, the example gives a good starting point for this model. We would expect "chicken" and "pig" to return the highest value for "farm"; however, this is not the case. We expect that this issue comes from the fact that these vectors are simply grouped very closely in the "animal" area, and that the differences in probabilities we are seeing are likely marginal when compared to the entire set of vectors. 
 
 The model is very similar to all the other models we covered in class. It almost exactly follows the basic RSA model from a high level. The big difference is the way we got the priors (the vectors), as well as the meaning function which involves vector math. The listeners/speaker, however, are almost direct ports of the first RSA model we covered. 
 

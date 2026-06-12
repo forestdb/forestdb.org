@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Daniel, Hondel & Ramirez Adjectives QUD
+title: Vagueness Resolution with a QUD
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
@@ -13,7 +13,7 @@ Authors: Aaliyah Daniel, Sylvia Ramirez, and Nic Hondel
 Vagueness~
 Lassiter & Goodman (2013)
 
-Sometimes words without context can be vague, take the word "expensive" into different context it can mean many different things. When we use the word "expensive" for buying an ice cream it is much different than what someone would mean when they say "expensive" for a purchasing a bike or a car. Then how do we conclude what the meaning of "expensive" really is?
+Sometimes words without context can be vague. Take the word "expensive": in different contexts it can mean many different things. When we use the word "expensive" for buying an ice cream it is much different than what someone would mean when they say "expensive" for purchasing a bike or a car. Then how do we conclude what the meaning of "expensive" really is?
 
 "Semanticists settle on the least common denominator: a threshold semantics by which the adjective asserts that holders of the relevant property surpass some point on the relevant scale (i.e., expensive means more expensive than d for some contextually-determined degree of price d). Whereas semanticists punt on the mechanism by which context fixes these aspects of meaning, the RSA framework is well-suited to meet the challenge". 
 
@@ -28,12 +28,12 @@ a. A $38 ice cream is expensive
 
 b. A $1 ice cream is not expensive
 
-c. A $6 ice cream is neither expensive nor not expensive- rather its roughly average. 
+c. A $6 ice cream is neither expensive nor not expensive - rather it's roughly average. 
 
-Dependent on what question you ask .. can have an affect on what the listener believes to be expensive. 
+Dependent on what question you ask ... can have an effect on what the listener believes to be expensive. 
 
 
-Savinelli et. al 2017
+Savinelli et al. 2017
 
 What someone interprets as the QUD may impact their interpretation.
 
@@ -55,7 +55,7 @@ This model depends on our prior knowledge of the world state.
 
 Next, we create a prior for the degree threshold θ. Since we’re talking about expensive ice cream, θ will be the price cutoff to count as expensive. But we want to be able to use expensive to describe anything with a price, so we’ll set the thetaPrior to be uniform over the possible prices in our world.
 
-We then introduce three new utterances, "expensive", "cheap", or "null". The semantics of the expensive utterance checks the relevant item’s price against the price cutoff. The "cheap utterance" is true only when it checks the relevant item's price against expensive and if it is not true that it is expensive, than it must be cheap. The “null utterance” is true everywhere and it is assumed to be less likely than uttering expensive.  
+We then introduce three new utterances, "expensive", "cheap", or "null". The semantics of the expensive utterance checks the relevant item’s price against the price cutoff. The "cheap utterance" is true only when it checks the relevant item's price against expensive and if it is not true that it is expensive, then it must be cheap. The “null utterance” is true everywhere and it is assumed to be less likely than uttering expensive.  
 
 ~~~~
 var icecream = {
@@ -91,10 +91,10 @@ var meaning = function(utterance, price, theta) {
 };
 ~~~~
 
-The Question-under-Discussion (QUD) determines what topic of information is being conveyed, was well as what a speaker will seek to address. Together these form communicative goals that result in a model that can predict how likely is an utterance to be spoken in order to address the QUD. In our model, we feature both a baseline model (that only returns the price) and a QUD manipulation to show the changes when a speaker utters that an item is “expensive” or cheap (“less than 10”). Our probabilities reflect the prior elicitation of the interlocutor, or what a listener can infer about the speaker’s knowledge of the world. Thus the uniform draw shows when there is no extra information about the world and thus no one choice seems preferable over any other. Adding a QUD manipulation allows us to add probabilities about certain states of the world, and then to use this information to predict which utterance would be most likely for a given value (in this case, price). 
+The Question-under-Discussion (QUD) determines what topic of information is being conveyed, as well as what a speaker will seek to address. Together these form communicative goals that result in a model that can predict how likely an utterance is to be spoken in order to address the QUD. In our model, we feature both a baseline model (that only returns the price) and a QUD manipulation to show the changes when a speaker utters that an item is “expensive” or cheap (“less than 10”). Our probabilities reflect the prior elicitation of the interlocutor, or what a listener can infer about the speaker’s knowledge of the world. Thus the uniform draw shows when there is no extra information about the world and thus no one choice seems preferable over any other. Adding a QUD manipulation allows us to add probabilities about certain states of the world, and then to use this information to predict which utterance would be most likely for a given value (in this case, price). 
 
 
-We predict that based upon which QUD is given a higher probability will result in a higher probability that someone will believe a certain price is expensive. For example prices $10,14, 18 have the highest probability that the listener will believe its expensive. For the adj model we know that using the utterance exp or cheap is more costly therefore the speaker would only use it if they thought the item was literally expensive or cheap. 
+We predict that based upon which QUD is given a higher probability will result in a higher probability that someone will believe a certain price is expensive. For example, prices $10, 14, 18 have the highest probability that the listener will believe it's expensive. For the adj model we know that using the utterance exp or cheap is more costly; therefore the speaker would only use it if they thought the item was literally expensive or cheap. 
 
 
 ~~~~
@@ -114,7 +114,7 @@ var QUDFun = function(QUD,state) {
 
 By adding an S1 and L1 layer we create a full RSA model. The L1 hears the ambiguous utterance “expensive” or  “cheap”  and proceeds to determine what the speaker meant and the price cutoff to count as “expensive” and “cheap” while inferring the state of the world. 
 
-The speaker observes a state and has a specific threshold in mind that it gets from the pragmatic listener and it samples an utterance and a QUD from the utterance prior and QUD prior and returns the utterance in proportion of the probability that the listener would arrive at the intended state. The pragmatic listener then hears that the ice cream  was either “expensive” or “cheap” samples a price and a threshold and checks to see the probability that the speaker would have chosen that specific utterance to communicate that price with that threshold and returns the price and threshold in proportion to that probability. Predictions were then generated from the pragmatic listener having heard that the ice cream was either “expensive” or “cheap” and we looked at the marginal distributions for price and theta. 
+The speaker observes a state and has a specific threshold in mind that it gets from the pragmatic listener and it samples an utterance and a QUD from the utterance prior and QUD prior and returns the utterance in proportion to the probability that the listener would arrive at the intended state. The pragmatic listener then hears that the ice cream  was either “expensive” or “cheap”, samples a price and a threshold and checks to see the probability that the speaker would have chosen that specific utterance to communicate that price with that threshold and returns the price and threshold in proportion to that probability. Predictions were then generated from the pragmatic listener having heard that the ice cream was either “expensive” or “cheap” and we looked at the marginal distributions for price and theta. 
 
 ~~~~
 var literalListener = cache(function(utterance, theta, QUD) {
@@ -148,7 +148,7 @@ var pragmaticListener = function(utterance) {
 
 Before trying out our model, there are several possible permutations and predictions possible. Based upon the working parts our model features, we predict that, depending on which QUD is being discussed, we can have a fairly good idea of what utterances will be stated. Let’s take a look at each one to clarify.
 First, let’s say that my friends and I are strolling downtown at the beach. We happen upon an ice cream shop and, in the heat of the midday, such a treat sounds like a great idea to all of us. I want to buy my own ice cream, but I only have $15 in my wallet. By weighing the QUD “less than $15?” higher than the others, we see that if someone utters that the ice cream is “cheap”, then I as the pragmatic listener assume that the ice cream is somewhere beneath the threshold of $15. If, however, I hear my friend say that the ice cream is “expensive”, the model accurately predicts that I will assume that the ice cream is close to the threshold, but not over (since the QUD is concerned with if the treat fits in my budget).
-Now, let’s say that the QUD is actually “is it expensive?” With our previously established threshold of $15, we see a similar distribution of prices, although the probably “expensive” price is slightly lower. The point, of course, is that for me and my tight budget, “expensive” is tantamount to over $15, and thus this QUD is similar to the former one asking if the ice cream is “less than $15”. So, let’s say I just got paid and now I have $150 in my wallet! Sweet. By altering the QUD to reflect that “expensive” is over $150, we see that the prices still maintain a likely distribution (based on their probabilities), but then the likelihood that someone says that $20 or $30 is expensive is low, since it is way within my budget. Similarly, “cheap” also tends to gather most of the likely prices toward the lower end, as we have assumed most ice cream prices are not going to be in the double-digits.
+Now, let’s say that the QUD is actually “is it expensive?” With our previously established threshold of $15, we see a similar distribution of prices, although the probable “expensive” price is slightly lower. The point, of course, is that for me and my tight budget, “expensive” is tantamount to over $15, and thus this QUD is similar to the former one asking if the ice cream is “less than $15”. So, let’s say I just got paid and now I have $150 in my wallet! Sweet. By altering the QUD to reflect that “expensive” is over $150, we see that the prices still maintain a likely distribution (based on their probabilities), but then the likelihood that someone says that $20 or $30 is expensive is low, since it is way within my budget. Similarly, “cheap” also tends to gather most of the likely prices toward the lower end, as we have assumed most ice cream prices are not going to be in the double-digits.
 
 
 Here is the full model. 
@@ -243,9 +243,9 @@ viz.hist(marginalize(expensiveIcecream, "theta"));
 viz.hist(marginalize(expensiveIcecream, "qud"));
 ~~~~
 
-As you can see, our model is similar to the adjectives model we learned about in class because we look at the utterances describing the cost of an object to determine if the speaker is being informative about the price. We also use the QUD model that we learned about in class, the QUD adds uncertainty about what the price is for an item and how expensive or cheap an item is. L1 decides which QUD is most likely given the speaker's utterance.
+As you can see, our model is similar to the adjectives model we learned about in class because we look at the utterances describing the cost of an object to determine if the speaker is being informative about the price. We also use the QUD model that we learned about in class; the QUD adds uncertainty about what the price is for an item and how expensive or cheap an item is. L1 decides which QUD is most likely given the speaker's utterance.
 
-It is different in that we incorporated the QUD function into the adjectives model in order to help us understand the actual feelings of the speaker toward the price of an object. Another difference in our code would be that we do not include the scope aspect of QUD model (chapter four). Our meaning function is also different compared to meaning function in the QUD model, in that we specify it more specifically toward our utterances of "expensive" or "cheap" whereas the original model you can see relies on the scope to return either the "surface" or "inverse". 
+It is different in that we incorporated the QUD function into the adjectives model in order to help us understand the actual feelings of the speaker toward the price of an object. Another difference in our code would be that we do not include the scope aspect of the QUD model (chapter four). Our meaning function is also different compared to the meaning function in the QUD model, in that we specify it more specifically toward our utterances of "expensive" or "cheap" whereas the original model you can see relies on the scope to return either the "surface" or "inverse". 
 
 Relevant code from Ch 4:
 
@@ -275,7 +275,7 @@ var meaning = function(utterance, state, scope) {
 meaning("every-not", 1, "surface")
 ~~~~
 
-We also did not include the string enumerate in our adjectives model, since we are incorporating the QUD model with infererence based on probabilities, rather than a discrete sum. We used the simple adjective model instead of the better model presented to us in class where the better model, rather than assuming prior knowledge we can measure, then feed the measurements into the model as facts about the world allowing the model to make actual predictions about the behavior we expect from the listener. Our model does not allow this and also we are only able to infer about one variable at a time whereas the better model can infer about multiple variables. 
+We also did not include the string enumerate in our adjectives model, since we are incorporating the QUD model with inference based on probabilities, rather than a discrete sum. We used the simple adjective model instead of the better model presented to us in class where the better model, rather than assuming prior knowledge we can measure, then feed the measurements into the model as facts about the world allowing the model to make actual predictions about the behavior we expect from the listener. Our model does not allow this and also we are only able to infer about one variable at a time whereas the better model can infer about multiple variables. 
 
 Example of the better model from Ch 5: 
 

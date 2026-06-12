@@ -7,7 +7,7 @@ model-tags: random-variate
 model-language: church
 ---
 
-This model implements the rejection form of the Box-Muller for generating Gaussian random numbers given a source of uniformly distributed random numbers.
+This model implements the rejection form of the Box-Muller method for generating Gaussian random numbers given a source of uniformly distributed random numbers.
 
     (define (marsaglia-normal mean variance) 
        (define x (uniform -1.0 1.0)) 

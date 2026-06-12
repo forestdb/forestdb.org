@@ -42,7 +42,7 @@ To address Exercise 1 in L&M, try some different data sets -- e.g., what if ther
 
 ## Lee & Wagenmaker 4.2: Seven scientists
 
-Next, we consider a situation where seven scientsts take a measurement of the same quantity. We expect some scientists to have better experimental skills than others, so we model their reported measurements as a set of seven Gaussians centered at the same mean value, but with different standard deviations. For the mean, we again use a wide Gaussian prior, but for the seven standard deviations, we we use a gamma distribution with shape and rate parameters close to zero. This is an approximation to the (improper) scale invariant distribution.
+Next, we consider a situation where seven scientists take a measurement of the same quantity. We expect some scientists to have better experimental skills than others, so we model their reported measurements as a set of seven Gaussians centered at the same mean value, but with different standard deviations. For the mean, we again use a wide Gaussian prior, but for the seven standard deviations, we use a gamma distribution with shape and rate parameters close to zero. This is an approximation to the (improper) scale invariant distribution.
 
     var data = [-27.020, 3.570, 8.191, 9.898, 9.603, 9.945, 10.056]
 

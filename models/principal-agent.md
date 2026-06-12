@@ -84,7 +84,7 @@ print(getReportedDistForParams({
 }))
 ~~~~
 
-We move to partial (stochastic) supervision, and in the unsupervised case, it is the agent's prediction determines what happens. Now utilities skew predictions:
+We move to partial (stochastic) supervision, and in the unsupervised case, it is the agent's prediction that determines what happens. Now utilities skew predictions:
 
 ~~~~
 ///fold:

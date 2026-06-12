@@ -1,10 +1,12 @@
 ---
 layout: model
-title: Gonzalez & Zhang Irony S2
+title: Irony with a Second-Order Speaker (S2)
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
 ---
+
+*By Gonzalez & Zhang*
 
 The Original Irony Model
 
@@ -114,7 +116,7 @@ viz.marginals(pragmaticListener("amazing"))
 ~~~~
 
 Introduction of the Irony model:
-The irony model introduced by Kao and Goodman demonstrates the parallels in people's interpretation of irony given the states of the weather. There were nine images of the weather and a sentence that reads, "Ann says, 'The weather is ___!'" where an adjective "terrible, bad, okay, good, and amazing". The participant then had to rate how ironic the statement was, how Ann would feel rate the weather from terrible, bad, neutral, good and amazing and they also rated how likely it was for Ann to feel the seven emotions about the weather: excited, happy, content, neutral, good, or amazing. 
+The irony model introduced by Kao and Goodman demonstrates the parallels in people's interpretation of irony given the states of the weather. There were nine images of the weather and a sentence that reads, "Ann says, 'The weather is ___!'" where an adjective could be "terrible, bad, okay, good, and amazing". The participant then had to rate how ironic the statement was, how Ann would rate the weather from terrible, bad, neutral, good and amazing, and they also rated how likely it was for Ann to feel the seven emotions about the weather: excited, happy, content, neutral, good, or amazing. 
 
 Results for this part of the experiment showed that participants did well when matching the intuitions of irony--utterances that have an intended meaning opposite of what the speaker intends to say. (Kao and Goodman, 2015)
 
@@ -124,7 +126,7 @@ This influenced us to build an RSA model that captures sarcasm. We wanted to dem
 
 Below is the conversation between two people talking about Mary's dress:
 
-A: Did  you see the dress that Mary was wearing?
+A: Did you see the dress that Mary was wearing?
 B: Yeah, I did!
 A: It had lots of tulle and was covered in pom poms.
 B: It's so pretty!
@@ -315,7 +317,7 @@ var goalPrior = function() {
 }
 ~~~~
 
-Next, we made utterances for each of the states. We used the states we define previously and just added "The dress is ____"
+Next, we made utterances for each of the states. We used the states we defined previously and just added "The dress is ____".
 
 ~~~~
 ///fold:
@@ -413,7 +415,7 @@ var utterancePrior = function() {
 }
 ~~~~
 
-Arousal Prior defined and we have it check the arousal for each of the states. 
+Arousal Prior is defined and we have it check the arousal for each of the states. 
 
 ~~~~
 ///fold:
@@ -805,7 +807,7 @@ var speaker1 = function(state, valence, arousal, goal) {
 }
 ~~~~
 
-This pragmatic listener takes in the results produced by S1 and does a “cross reference” together with state, valence and arousal as defined previosuly. Then, by observing the S1, the pragmatic listener spits out a proper combination of state, valence, and arousal. 
+This pragmatic listener takes in the results produced by S1 and does a “cross reference” together with state, valence and arousal as defined previously. Then, by observing the S1, the pragmatic listener spits out a proper combination of state, valence, and arousal. 
 
 ~~~~
 ///fold:
@@ -1438,7 +1440,7 @@ var speaker2va = function(state,valence,arousal) {
 viz(speaker2va("okay", 1, "low"))
 ~~~~
 
-When the pragmatic listener hears "the dress is so pretty" by our expectations  of the sarcasm model it should generate the opposite meaning of "so pretty".  This is why the states for "okay" and "so ugly"  are higher. Valence is -1 and arousal is high correctly mapping to the negative feeling associated with the state "so ugly". 
+When the pragmatic listener hears "the dress is so pretty" by our expectations of the sarcasm model it should generate the opposite meaning of "so pretty".  This is why the states for "okay" and "so ugly" are higher. Valence is -1 and arousal is high, correctly mapping to the negative feeling associated with the state "so ugly". 
 
 ~~~~
 ///fold: 
@@ -1568,7 +1570,7 @@ var speaker2va = function(state,valence,arousal) {
 viz.marginals(pragmaticListener("the dress is so pretty"))
 ~~~~
 
-When the pragmatic Listener hears the utterance "the dress is so ugly" the graphs return the state "so ugly" having the highest probability with negative valence and high arousal. In our state Prior the probability for "so pretty" is low compared to "okay" and "so ugly" and these have a probability of ( .50). This is why when the pragmatic Listener hears "the dress is so ugly" it is easier for them to interpret it literally as the dress is so ugly because it is costlier for the state "so pretty" and the speaker is lazy and "so ugly" is the winner here.
+When the pragmatic Listener hears the utterance "the dress is so ugly" the graphs return the state "so ugly" having the highest probability with negative valence and high arousal. In our state Prior the probability for "so pretty" is low compared to "okay" and "so ugly" and these have a probability of (.50). This is why when the pragmatic Listener hears "the dress is so ugly" it is easier for them to interpret it literally as the dress is so ugly because it is costlier for the state "so pretty" and the speaker is lazy and "so ugly" is the winner here.
 
 ~~~~
 ///fold:
@@ -1829,12 +1831,12 @@ viz.marginals(pragmaticListener("the dress is okay"))
 ~~~~
 
 Similarities:
-The similarities in this model compared to the irony model are pretty identical. We borrowed everything from state up until the pragmatic listener. Of course, we adjusted the model to fit our sarcasm model and changed the states/ utterances accordingly. 
+The similarities in this model compared to the irony model are pretty identical. We borrowed everything from state up until the pragmatic listener. Of course, we adjusted the model to fit our sarcasm model and changed the states/utterances accordingly. 
 
 Differences:
-Although this model is similar to the Irony model to a large extent, we were working on adding a second speaker layer; so that the result combines the 3 dependent variable (state, valence, and arousal) from the pragmatic listener, and thus creating a result that better fits to our expectation. 
+Although this model is similar to the Irony model to a large extent, we were working on adding a second speaker layer; so that the result combines the 3 dependent variables (state, valence, and arousal) from the pragmatic listener, and thus creating a result that better fits to our expectation. 
 
 
-The sarcasm model works better for "the dress is so pretty" because the state it captures are "okay" and "ugly"---ugly being the opposite of pretty---as predicted in the previous studies by Kao and Goodman. However, for the other utterances, our results showed that the pragmatic listener can interpret the utterances as literal for "the dress is okay", but still have some probability for the state so ugly. This small probability is what captures the sarcasm in our model. Similarly, "the dress is so ugly" is interpreted literally with a small probability of "okay". The probability for "okay" can be thought of as the pragmatic listener interpreting the meaning of the speaker's utterance as so. 
+The sarcasm model works better for "the dress is so pretty" because the states it captures are "okay" and "ugly"---ugly being the opposite of pretty---as predicted in the previous studies by Kao and Goodman. However, for the other utterances, our results showed that the pragmatic listener can interpret the utterances as literal for "the dress is okay", but still have some probability for the state so ugly. This small probability is what captures the sarcasm in our model. Similarly, "the dress is so ugly" is interpreted literally with a small probability of "okay". The probability for "okay" can be thought of as the pragmatic listener interpreting the meaning of the speaker's utterance as so. 
 
-The original Irony model yielded similar results. It captured Irony perfectly when the pragmatic listener heard "terrible" (the state of the weather), but when it came to the other states, "amazing" and "ok" the pragmatic listener interpreted them as literal. There is some irony where probabilities for other states are small, but it seems there is still work to be done to capture the complete opposite meaning when given "amazing".
+The original Irony model yielded similar results. It captured Irony perfectly when the pragmatic listener heard "terrible" (the state of the weather), but when it came to the other states, "amazing" and "ok", the pragmatic listener interpreted them as literal. There is some irony where probabilities for other states are small, but it seems there is still work to be done to capture the complete opposite meaning when given "amazing".

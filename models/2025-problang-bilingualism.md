@@ -1,6 +1,6 @@
 ---
 layout: model
-title: Bilingual Word Choice - Moldir, Seojin
+title: Ambiguity Resolution in Non-Native Language Understanding
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
@@ -16,7 +16,7 @@ model-status: code
 
 ## The Empirical Phenomenon of Interest
 
-In everyday communication, native and non-native speakers often encounter ambiguity in language. One striking example is the utterance "Do you like Shirley Temple?," where the expression "Shirley Temple" can refer to either a person (the actress) or a drink (a non alcoholic mixed drink). For native speakers, context and world knowledge help disambiguate; for non-native speakers, especially those with *limited* exposure or familiarity, interpretation is much more uncertain.
+In everyday communication, native and non-native speakers often encounter ambiguity in language. One striking example is the utterance "Do you like Shirley Temple?", where the expression "Shirley Temple" can refer to either a person (the actress) or a drink (a non-alcoholic mixed drink). For native speakers, context and world knowledge help disambiguate; for non-native speakers, especially those with *limited* exposure or familiarity, interpretation is much more uncertain.
 
 This project explores **how non-native speakers resolve ambiguity** in cases where they lack full access to intended meanings (or interpretations). We ask: **"How do speakers and listeners manage ambiguity when linguistic experience and interpretative priors differ?"**
 
@@ -195,7 +195,7 @@ We model the non-native speaker’s uncertainty by adding **noise** to the meani
 
 - **L₁**, with low noise for both interpretations, correctly interprets ambiguous utterances.
 
-We kept everything the same with the model without noise in utterances, costs, states and interpretations. Noises are passed into `meaning function`, L₀, S₁, and L₁.
+We kept everything the same as the model without noise in utterances, costs, states and interpretations. Noises are passed into `meaning function`, L₀, S₁, and L₁.
 
 ~~~~
 // Extended Model with Noise
@@ -486,7 +486,7 @@ This also runs counter to our intuition. For instance, we would expect that, in 
 
 ### 2. What if L1 has asymmetric noise? How does that change the predictions of L1?
 
-To answer this question, we introduced asymmetry in L₁’s noise. In this scenario, we aimed to configure L₁ to be more biased toward interpreting “Shirley Temple” as a drink rather than a person. Accordingly, we set L₁’s `personNoise` = 0.7 and `drink noise` = 0.1.
+To answer this question, we introduced asymmetry in L₁’s noise. In this scenario, we aimed to configure L₁ to be more biased toward interpreting “Shirley Temple” as a drink rather than a person. Accordingly, we set L₁’s `personNoise` = 0.7 and `drinkNoise` = 0.1.
 
 ~~~~
 // FEEDBACK: what if L1 has asymmetric noise? how does that change the predictions of L1?
@@ -690,9 +690,9 @@ With this L₁ in mind, **S₂** is more likely to choose the ambiguous “Shirl
 
 These results, especially with respect to L₁, seem to better align with our intuition than the previous ones, where we put asymmetric noises in L₁. It suggests that instead of modeling difficulty in interpreting ambiguous utterances through noise, it may be more effective to reflect such difficulty by **adjusting the prior**.
 
-### 4. What if S2 noise goes up in parallel? will unambiguous increase?
+### 4. What if S2 noise goes up in parallel? Will unambiguous increase?
 
-To answer this question, we looked at how S1 and S2 behave in the model with noise and S2 layer.
+To answer this question, we looked at how S1 and S2 behave in the model with noise and the S2 layer.
 
 ~~~~
 // FEEDBACK: What if S2 noise goes up in parallel? will unambiguous increase?
@@ -787,7 +787,7 @@ viz(pragmaticSpeaker("drink", 0.1, 0.2))
 viz(pragmaticSpeaker("drink", 0.1, 0.8))
 ~~~~
 
-Interestingly, **S₁** and **S₂** respond differently to changes in noise levels. When noise increases in parallel for both person and drink interpretations, **S₁** shows a stronger preference for unambiguous utterances. This is because S₁ relies on L₀, who is likely to misinterpret ambiguous utterance with high noise.
+Interestingly, **S₁** and **S₂** respond differently to changes in noise levels. When noise increases in parallel for both person and drink interpretations, **S₁** shows a stronger preference for unambiguous utterances. This is because S₁ relies on L₀, who is likely to misinterpret ambiguous utterances with high noise.
 
 In contrast, **S₂**’s utterance choice remains the same under parallel noise increases. S₂ relies on L₁, who jointly infers both state and interpretation. As relative uncertainty stays balanced, there is no strong reason to shift utterance preferences. However, when noise increases asymmetrically (e.g., only drink noise rises), S₂ favors unambiguous utterances to reduce the risk of misunderstanding.
 

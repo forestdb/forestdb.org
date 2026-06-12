@@ -7,7 +7,7 @@ model-tags: neural net, continuous
 model-language: church
 ---
 
-This models is a neural network that learns the XOR function. The model is based on the [Anglican implementation of a neural net](https://probprog.github.io/anglican/examples/).
+This model is a neural network that learns the XOR function. The model is based on the [Anglican implementation of a neural net](https://probprog.github.io/anglican/examples/).
 
     ;; Define expected inputs and outputs as lists
     (define inputs  (list (list -1 -1) (list -1  1) (list  1 -1) (list  1  1)))

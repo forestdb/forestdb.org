@@ -28,14 +28,14 @@ the prior to be structured as a mixture distribution
 ## Prior model
 
 The following model `structuredPriorModel` instantiates this idea.
-`theta` is measure of how many people actually do the action.
-This can also be thought of the popularity of the action at the level of individuals 
+`theta` is a measure of how many people actually do the action.
+This can also be thought of as the popularity of the action at the level of individuals 
 (what % of people have done this before?).
 For example, "goes to the movies" is very popular, while
 "climbs mountains" is not.
 `mu` is the *mean frequency for people who do the action*.
 Knowing that the person has done the action before, how often do you think the person does the action?
-For example, "wears socks" tends to happen everyday, whereas "watches space launches" tends to happen very infrequently. 
+For example, "wears socks" tends to happen every day, whereas "watches space launches" tends to happen very infrequently. 
 Finally, `sigma` is the variance around that mean.
 It is high for actions that almost everyone does the same (e.g. "wears socks").
 It is lower for actions that people have more uncertainty about (e.g. "wears a suit").

@@ -72,7 +72,7 @@ model-language: church
         #t))
     samples
 
-References 
+References:
 
 - Adapted from the BUGS manual.
 - Cite:shred2014

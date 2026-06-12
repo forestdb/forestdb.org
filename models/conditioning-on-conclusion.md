@@ -7,7 +7,7 @@ model-category: Reasoning about Reasoning
 ---
 
 This is a discussion relating to Rational Speech-act models. It sprang out of the [syllogism model](http://forestdb.org/models/syllogisms-cogsci14.html). 
-The observation was that for the argument-strength / pragamtic-reasoner queries, sampling a conclusion and then conditioning on the truth of the conclusion via ((meaning conclusion) A C), may be a strange thing to do. In particular, it may distort the distribution over situations (represented in the syllogism model as the properties A, B, C). This is evident in the following, simplified model.
+The observation was that for the argument-strength / pragmatic-reasoner queries, sampling a conclusion and then conditioning on the truth of the conclusion via ((meaning conclusion) A C) may be a strange thing to do. In particular, it may distort the distribution over situations (represented in the syllogism model as the properties A, B, C). This is evident in the following, simplified model.
 
       (define (meaning word)
         (case word
@@ -63,10 +63,10 @@ There is another, more intuitive way of writing this model. Instead of sampling 
       
       (reasoner)
         
-Of course, in this model, the prior over states is equal to the posterior over states, since we aren't conditioning on any evidence. See what happens when you query for the conclusion, instead of the state. What you should see is that it's not immediately obvious from the posterior over conclusions, which is the right model. 
+Of course, in this model, the prior over states is equal to the posterior over states, since we aren't conditioning on any evidence. See what happens when you query for the conclusion, instead of the state. What you should see is that it's not immediately obvious from the posterior over conclusions which is the right model. 
 
 
-But what about the syllogism model? The syllogism model has a different set of possible conclusions. In fact, the conclusion set has a very particular structure ("The Square of Opposition"). The conclusion set is composed of 2 pairs of contradictory relations: All & Not all; Some & None. What will happen to these two model if we use this "symmetric" conclusion-set?
+But what about the syllogism model? The syllogism model has a different set of possible conclusions. In fact, the conclusion set has a very particular structure ("The Square of Opposition"). The conclusion set is composed of 2 pairs of contradictory relations: All & Not all; Some & None. What will happen to these two models if we use this "symmetric" conclusion-set?
 
 First, the "conditioning on the conclusion" model:
 

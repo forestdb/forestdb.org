@@ -10,17 +10,18 @@ model-status: code
 
 Data to eventually model (?): people's politeness judgments on sentences like  "You are actually good at math".
 
-Collected also: other demographic info (like political party  affiliation) to predict what types of people are more likely to derive the "microagression" interpretation i.e., finding the use of "actually" to be offensive".
+Collected also: other demographic info (like political party  affiliation) to predict what types of people are more likely to derive the "microaggression" interpretation, i.e., finding the use of "actually" to be offensive.
 
 
 From Ciyang:
 
 > I think one can start with a very simplified assumption: "you are actually good at math" is truth-conditionally equivalent to "you are good at math" except that it has a higher cost. This should be enough for the listener in a wonky world model to infer that the speaker's prior expectation that the listener is good at math must be low to justify the higher cost. Roughly speaking, we would hope to capture the following mapping between prior expectation and the utterance.
 
-Prior expectation  |   Utterance
-High               |          Say nothing
-Mid                |           you are good at math
-Low                |          you are actually good at math
+| Prior expectation | Utterance                     |
+|-------------------|-------------------------------|
+| High              | Say nothing                   |
+| Mid               | you are good at math          |
+| Low               | you are actually good at math |
 
 
 ~~~~

@@ -27,7 +27,7 @@ Here, inner nodes represent hierarchical category labels (e.g., living thing, ma
 The height of a node is a proxy for the size of its extension (e.g., because [o] is high,
 it might denote a large class, like "objects that can be thought about").
 
-Leaves represent objects that are nameable. The inference problem is this: suppose that a single label (e.g., dog) has been used to label multiple objects (e.g., 1, 2, and 4). which ontological category does this label map onto?
+Leaves represent objects that are nameable. The inference problem is this: suppose that a single label (e.g., dog) has been used to label multiple objects (e.g., 1, 2, and 4). Which ontological category does this label map onto?
 
     
     (define nodes '(a b c d e f g))

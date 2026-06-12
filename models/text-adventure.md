@@ -1,14 +1,16 @@
 ---
 layout: model
-title: TextAdventure
+title: Text Adventure
 model-language: church
 model-category: Miscellaneous
 model-status: code
 ---
 
-<h3>Alice is in the park.<br/>
-Bob is in the office.</h3>
-<h4>Where is Alice? A:park</h4>
+<div class="story-block">
+<p class="story-text">Alice is in the park.<br/>
+Bob is in the office.</p>
+<p class="story-question">Where is Alice? <span class="story-answer">→ A: park</span></p>
+</div>
 
 ~~~~
 ;; helper functions
@@ -176,12 +178,14 @@ Bob is in the office.</h3>
           (condition (((is-in 'office) 'Bob) 1))))
 ~~~~
 
-<h3>Alice is in the park.<br/>
+<div class="story-block">
+<p class="story-text">Alice is in the park.<br/>
 Bob is in the office.<br/>
 Alice picked up the football.<br/>
-Bob went to the classroom.</h3>
-<h4>Where is the football? A:park<br/>
-Where was Bob before the classroom? A:office</h4>
+Bob went to the classroom.</p>
+<p class="story-question">Where is the football? <span class="story-answer">→ A: park</span><br/>
+Where was Bob before the classroom? <span class="story-answer">→ A: office</span></p>
+</div>
 
 ~~~~
 ;; helper functions
@@ -358,11 +362,13 @@ Where was Bob before the classroom? A:office</h4>
 (hist (map second two-questions) "Where was Bob before the classroom?")
 ~~~~
 
-<h3>Alice picked up the apple.<br/>
+<div class="story-block">
+<p class="story-text">Alice picked up the apple.<br/>
 Alice went to the office.<br/>
 Alice went to the park.<br/>
-Alice dropped the apple.</h3>
-<h4>Where was the apple before the park? A:office</h4>
+Alice dropped the apple.</p>
+<p class="story-question">Where was the apple before the park? <span class="story-answer">→ A: office</span></p>
+</div>
 
 Note: This one is wrong. My function for picking up and dropping is not quite right. Also the probabilities of moving, dropping, and picking up are really high, so things keep moving around a lot in between utterances.
 
@@ -541,10 +547,12 @@ Note: This one is wrong. My function for picking up and dropping is not quite ri
    (condition (((drop 'apple) 'Alice) 3))))
 ~~~~
 
-<h3>The office is north of the park.<br/>
-The park is north of the classroom.</h3>
-<h4>What is north of the park? A: office<!-- <br/>
-What is the bedroom north of? A: bathroom --></h4>
+<div class="story-block">
+<p class="story-text">The office is north of the park.<br/>
+The park is north of the classroom.</p>
+<p class="story-question">What is north of the park? <span class="story-answer">→ A: office</span><!-- <br/>
+What is the bedroom north of? A: bathroom --></p>
+</div>
 
 ~~~~
 ;; helper functions
@@ -719,10 +727,12 @@ What is the bedroom north of? A: bathroom --></h4>
    (condition (((is-north-of 'classroom) 'park) 0))))
 ~~~~
 
-<h3>Alice is in the park.<br/>
-Bob picks up the cake.</h3>
-<h4>Is Alice in the office? A:no<br/>
-Does Bob have the cake? A:yes</h4>
+<div class="story-block">
+<p class="story-text">Alice is in the park.<br/>
+Bob picks up the cake.</p>
+<p class="story-question">Is Alice in the office? <span class="story-answer">→ A: no</span><br/>
+Does Bob have the cake? <span class="story-answer">→ A: yes</span></p>
+</div>
 
 ~~~~
 ;; helper functions
@@ -910,11 +920,13 @@ Does Bob have the cake? A:yes</h4>
 (barplot (projection second two-questions) "Does Bob have the cake?")
 ~~~~
 
-<h3>Alice picked up the football.<br/>
+<div class="story-block">
+<p class="story-text">Alice picked up the football.<br/>
 Alice dropped the football.<br/>
 Alice got the cake.<br/>
-Alice took the apple.</h3>
-<h4>How many objects is Alice holding? A: two</h4>
+Alice took the apple.</p>
+<p class="story-question">How many objects is Alice holding? <span class="story-answer">→ A: two</span></p>
+</div>
 
 ~~~~
 ;; helper functions
@@ -1093,10 +1105,12 @@ Alice took the apple.</h3>
    (condition (((pick-up 'apple) 'Alice) 3))))
 ~~~~
 
-<h3>Alice picks up the football.<br/>
+<div class="story-block">
+<p class="story-text">Alice picks up the football.<br/>
 Alice drops the apple.<br/>
-Alice picks up the cake.</h3>
-<h4>What is Alice holding? cake, football</h4>
+Alice picks up the cake.</p>
+<p class="story-question">What is Alice holding? <span class="story-answer">→ A: cake, football</span></p>
+</div>
 
 ~~~~
 ;; helper functions
@@ -1274,10 +1288,12 @@ Alice picks up the cake.</h3>
    (condition (((pick-up 'cake) 'Alice) 2))))
 ~~~~
 
-<h3>Alice travelled to the office.<br/>
-Bob is no longer in the office.</h3>
-<h4>Is Bob in the office? A:no<br/>
-Is Alice in the office? A:yes</h4>
+<div class="story-block">
+<p class="story-text">Alice travelled to the office.<br/>
+Bob is no longer in the office.</p>
+<p class="story-question">Is Bob in the office? <span class="story-answer">→ A: no</span><br/>
+Is Alice in the office? <span class="story-answer">→ A: yes</span></p>
+</div>
 
 ~~~~
 ;; helper functions
@@ -1465,10 +1481,12 @@ Is Alice in the office? A:yes</h4>
 (barplot (projection second two-questions) "Is Alice in the office?")
 ~~~~
 
-<h3>Alice is either in the classroom or the park.<br/>
-Bob is in the office.</h3>
-<h4>Is Alice in the classroom? A:maybe<br/>
-Is Alice in the office? A:no</h4>
+<div class="story-block">
+<p class="story-text">Alice is either in the classroom or the park.<br/>
+Bob is in the office.</p>
+<p class="story-question">Is Alice in the classroom? <span class="story-answer">→ A: maybe</span><br/>
+Is Alice in the office? <span class="story-answer">→ A: no</span></p>
+</div>
 
 ~~~~
 ;; helper functions

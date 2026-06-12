@@ -6,7 +6,7 @@ model-category: Counterfactuals and Explanations
 model-status: code
 ---
 
-###Explanations in a causal world with non-deterministic links
+### Explanations in a causal world with non-deterministic links
 
 ~~~~
 ;;;fold:

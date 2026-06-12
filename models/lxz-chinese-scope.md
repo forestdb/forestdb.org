@@ -1,11 +1,12 @@
 ---
 layout: model
-title: Li, Xu, Zhi - Chinese scope
+title: Quantifier Scope Ambiguity in Mandarin
 model-language: webppl
 model-category: Probabilistic Language Understanding
 model-status: code
 ---
 
+*By Li, Xu, Zhi*
 
 ## Introduction
 Quantifier scope ambiguity has long been the subject of study in psycholinguistics. A sentence with a quantifier and a logic operator (e.g. negation) would render two different readings depending on the underlying syntactic structures. For instance, sentence *(1)* is ambiguous between the surface scope interpretation *(1a)* and the inverse scope interpretation *(1b)*. 
@@ -18,11 +19,11 @@ Quantifier scope ambiguity has long been the subject of study in psycholinguisti
 
 Under the surface scope interpretation, negation is taking scope over the quantifier phrase and the interpretation is equivalent to 'it is not the case that I fed two rabbits'. Under the inverse scope, the interpretation could be paraphrased as 'there are two rabbits that I did not feed'. 
 
-How do speakers and listeners understand scope ambiguous sentences? One important experimental methodology to assess meaning is through truth-value judgment tasks. In the experiment, participants are given a scenario which describes the truth state of the world. In story (2), the scenario describes a situation where the surface scope interpretation is true (i.e. it is not the case that I fed two rabbits), and the inverse scope interpretation is false (i.e. there are two rabbits that I did not feed).  After hearing the story, a puppet will make an utterance with a sentence ambiguous between surface scope and inverse scope (e.g. I did not feed two rabbits), the listener could make a judgment about whether the puppet's statement is true or false. 
+How do speakers and listeners understand scope ambiguous sentences? One important experimental methodology to assess meaning is through truth-value judgment tasks. In the experiment, participants are given a scenario which describes the truth state of the world. In story (2), the scenario describes a situation where the surface scope interpretation is true (i.e. it is not the case that I fed two rabbits), and the inverse scope interpretation is false (i.e. there are two rabbits that I did not feed).  After hearing the story, a puppet will make an utterance with a sentence ambiguous between surface scope and inverse scope (e.g. I did not feed two rabbits), and the listener could make a judgment about whether the puppet's statement is true or false. 
 
 *(2)* There was a white rabbit and a brown rabbit. I wanted to feed both of them, but I didn’t have enough carrots. In the end, I just fed the brown rabbit.
 
-A tactic linking hypothesis is that the proportion of 'yes' responses given a certain scenario represents how likely the speaker will endorse the ambiguous utterance. When the story describes a situation where surface scope interpretation is true, the proportion of 'yes' responses in truth-value judgment tasks reflects speakers' endorsement of surface scope interpretation of the sentence. The experiments based on truth-value judgments allow us to precisely investigate the interpretations of the scope ambiguous sentences with negation and quantifiers phrases of 'two'.
+A tacit linking hypothesis is that the proportion of 'yes' responses given a certain scenario represents how likely the speaker will endorse the ambiguous utterance. When the story describes a situation where surface scope interpretation is true, the proportion of 'yes' responses in truth-value judgment tasks reflects speakers' endorsement of surface scope interpretation of the sentence. The experiments based on truth-value judgments allow us to precisely investigate the interpretations of the scope ambiguous sentences with negation and quantifier phrases of 'two'.
 
 ## The empirical puzzle
 
@@ -33,20 +34,20 @@ In order to understand how children might interpret scope ambiguous sentences di
 
 In the first experiment, the participants were presented with a similar story as in *(2)*, where there were two rabbits, and only one rabbit was fed. They were then asked to evaluate the utterance 'I did not feed two rabbits' given the story. If they decided the ambiguous sentence was correct under such a circumstance, that would indicate that a surface scope interpretation was endorsed. We label this experiment as the *surface scope* experiment.
 
-In the second experiment, participants were asked to do a similar task, and the story they heard would favor the inverse scope interpretation. In the story, they were presented with four rabbits, and only two rabbits were fed. The endorsement of the utternace in the second experiment would reflect an endorsement of the inverse scope interpretation. We label the second experiment as the *inverse scope* experiment.
+In the second experiment, participants were asked to do a similar task, and the story they heard would favor the inverse scope interpretation. In the story, they were presented with four rabbits, and only two rabbits were fed. The endorsement of the utterance in the second experiment would reflect an endorsement of the inverse scope interpretation. We label the second experiment as the *inverse scope* experiment.
 
-Lidz and Musolino (2002) found that while surface-scope and inverse-scope interpretations are equally readily available to English speaking adults (surface: 97%; inverse: 93%), English-speaking children show a preference over surface scope (81%) over inverse scope (33%). They conclude that English-speaking children's reluctancy to endorse inverse scope interpretation could mainly be attributed to the fact that children are more likely to use hierarchical structure such as c-command or linear precedence to interpret sentences, instead of constructing semantic logical forms. While this explanation is very intuitive, their result has not been quantitatively tested. It is possible that other general cognitive factors (such as children's ability to count) might have an impact on the scope interpretation. 
+Lidz and Musolino (2002) found that while surface-scope and inverse-scope interpretations are equally readily available to English-speaking adults (surface: 97%; inverse: 93%), English-speaking children show a preference for surface scope (81%) over inverse scope (33%). They conclude that English-speaking children's reluctance to endorse inverse scope interpretation could mainly be attributed to the fact that children are more likely to use hierarchical structure such as c-command or linear precedence to interpret sentences, instead of constructing semantic logical forms. While this explanation is very intuitive, their result has not been quantitatively tested. It is possible that other general cognitive factors (such as children's ability to count) might have an impact on the scope interpretation. 
 
 ### Cross-linguistic effect
 Besides the developmental pattern in English, the picture of scope ambiguity interpretation gets more complicated with the empirical observations from Mandarin. 
 
-Previous literature has suggested that inverse scope interpretation is not available in Mandarin (Scontras et al., 2014), however, Su (2008)'s results are seemingly contraditory with that conclusion. Su (2008) conducted experiments similarly as Lidz and Musolino (2002) with native Mandarin-speaking children and adults.
+Previous literature has suggested that inverse scope interpretation is not available in Mandarin (Scontras et al., 2014); however, Su (2008)'s results are seemingly contradictory with that conclusion. Su (2008) conducted experiments similarly to Lidz and Musolino (2002) with native Mandarin-speaking children and adults.
 
-Su (2008) found that the scope interpretation in Mandarin Chinese is different from the observations surrounding English. Firstly, Chinese-speaking adults demonstrate a preference for surface scope (72%) than inverse scope (31%). It should be acknowledged that Chinese-speaking adults show a moderate endorsement rate for inverse scope, which is consistent with previous literature that suggest that Mandarin does not allow inverse scope interpretations (Scontras et al., 2014). Furthermore, Mandarin-speaking children show an interesting pattern where the inverse scope interpretation (63%) is not only available, but also preferred than surface scope interpretation (35%). 
+Su (2008) found that the scope interpretation in Mandarin Chinese is different from the observations surrounding English. Firstly, Chinese-speaking adults demonstrate a preference for surface scope (72%) over inverse scope (31%). It should be acknowledged that Chinese-speaking adults show a moderate endorsement rate for inverse scope, which is consistent with previous literature that suggests that Mandarin does not allow inverse scope interpretations (Scontras et al., 2014). Furthermore, Mandarin-speaking children show an interesting pattern where the inverse scope interpretation (63%) is not only available, but also preferred over surface scope interpretation (35%). 
 
-The results present challenges to the previous literature in two ways. Firstly, the theory need to reconcile adults preference in Su (2008) with the previous observation where inverse scope is unavailable in Mandarin Chinese. Secondly, the theory need to explain Mandarin children's preference for inverse scope given English-speaking children's preference, and to reconcile with the cognitive explanations that children generally have difficulty processing inverse scope structures.
+The results present challenges to the previous literature in two ways. Firstly, the theory needs to reconcile adults' preference in Su (2008) with the previous observation where inverse scope is unavailable in Mandarin Chinese. Secondly, the theory needs to explain Mandarin children's preference for inverse scope given English-speaking children's preference, and to reconcile with the cognitive explanations that children generally have difficulty processing inverse scope structures.
 
-The Mandarin results are generally explained from the perspective of formal semantics. The first explanation is concerned with the nature of the numeral phrases. Semantic analysis (Lee, 1996) suggest that there are two readings of *numeral-classifier-noun* construction: (a) quantity interpretation and (b) non-quantity indefinite individual-denoting interpretation. The quantity-denoting interpretation is available when preceded by a modal or belief-contexts (as shown in *(3)*). 
+The Mandarin results are generally explained from the perspective of formal semantics. The first explanation is concerned with the nature of the numeral phrases. Semantic analysis (Lee, 1996) suggests that there are two readings of *numeral-classifier-noun* construction: (a) quantity interpretation and (b) non-quantity indefinite individual-denoting interpretation. The quantity-denoting interpretation is available when preceded by a modal or belief-contexts (as shown in *(3)*). 
 
 *(3)* Liangzhi          maomi    chi-bu-wan     shitiao           yu. 
 
@@ -54,9 +55,9 @@ The Mandarin results are generally explained from the perspective of formal sema
 
       Two cats cannot finish ten fish.
 
-Unlike adults, children’s quantify denoting reading is not restricted to presence of modal or belief-contexts. Chinese-speaking children prefer quantity denoting interpretation. 
+Unlike adults, children’s quantity denoting reading is not restricted to presence of modal or belief-contexts. Chinese-speaking children prefer quantity denoting interpretation. 
 
-Secondly, Huang (1988) suggests that a meta-linguistic reading is prohibited when negative morphome forms an immediate constituent with verb head. Comparing *(4)* and *(5)*, the meta-linguistic reading is prohibited in *(4)* but not in *(5)*. As a result, *(4)* only has one reading where there are precisely two rabbits that were not fed. *(5)* allows a pragmatic reading where the number of rabbits I did not feed was less than two. It is felicitous to continue *(5)* with 'I just fed one of them', but not for *(4)*. It is possible that children process the stimuli in Su (2008) as if the auxilary was deleted, so the *(5)* would receive similar readings as *(4)*.
+Secondly, Huang (1988) suggests that a meta-linguistic reading is prohibited when the negative morpheme forms an immediate constituent with verb head. Comparing *(4)* and *(5)*, the meta-linguistic reading is prohibited in *(4)* but not in *(5)*. As a result, *(4)* only has one reading where there are precisely two rabbits that were not fed. *(5)* allows a pragmatic reading where the number of rabbits I did not feed was less than two. It is felicitous to continue *(5)* with 'I just fed one of them', but not for *(4)*. It is possible that children process the stimuli in Su (2008) as if the auxiliary was deleted, so the *(5)* would receive similar readings as *(4)*.
 
 *(4)* Wo mei wei     liangzhi        tuzi.
      
@@ -76,9 +77,9 @@ Although the formal semantic explanations are appealing, there is no experimenta
 ## RSA model
 ### Related work 
 
-While scope ambiguity resolution is often explained under the umbrella of compositional semantics, the Rational Speech Act (RSA) framework suggests that the inference over contexts, situation, conversational partner all play an role beyond linguistic factors when we derive meaning from utterances. The RSA framework assumes that listener can infer the intended meaning of speakers, and the speakers can choose their utterances based on their inferences about how listeners are going to utilize the information. More critically, the joint inference between speaker and listener is achieved by the mutual understanding of the balance between informativeness and utterance cost. The speaker is trying to be as informative as possible in delivering the message and to be understood by the listener, but the speaker is not going to be more informative than needed. Ever since the seminal work of Frank and Goodman (2012), the RSA framework has been used to address pragmatic inference such as scalar implicature (Goodman and Stuhlmuller, 2013), non-literal interpretation of language (Kao et al., 2014), scope ambiguity resolution (Scontras and Pearl, 2021), vagueness (Lassiter and Goodman, 2013), politeness (Yoon, Tessler, et al., 2016) and lexical uncertainty (Leon Bergen et al., 2016).
+While scope ambiguity resolution is often explained under the umbrella of compositional semantics, the Rational Speech Act (RSA) framework suggests that the inference over contexts, situation, conversational partner all play a role beyond linguistic factors when we derive meaning from utterances. The RSA framework assumes that the listener can infer the intended meaning of speakers, and the speakers can choose their utterances based on their inferences about how listeners are going to utilize the information. More critically, the joint inference between speaker and listener is achieved by the mutual understanding of the balance between informativeness and utterance cost. The speaker is trying to be as informative as possible in delivering the message and to be understood by the listener, but the speaker is not going to be more informative than needed. Ever since the seminal work of Frank and Goodman (2012), the RSA framework has been used to address pragmatic inference such as scalar implicature (Goodman and Stuhlmuller, 2013), non-literal interpretation of language (Kao et al., 2014), scope ambiguity resolution (Scontras and Pearl, 2021), vagueness (Lassiter and Goodman, 2013), politeness (Yoon, Tessler, et al., 2016) and lexical uncertainty (Leon Bergen et al., 2016).
 
-In this project, we will resort to a rational speech act framework to explain these puzzles. Crucially, we will explore the role of cognitive factors in scope ambiguous sentences in both Mandarin and English and the explanary power of formal semantic analysis, by explicitly tuning the relevant parameters in our computational model. We hope our model could provide a quantitative prediction for the empirical puzzle, and shed light on the cognitive mechanisms underlying developmental and cross-linguistic patterns.
+In this project, we will resort to a rational speech act framework to explain these puzzles. Crucially, we will explore the role of cognitive factors in scope ambiguous sentences in both Mandarin and English and the explanatory power of formal semantic analysis, by explicitly tuning the relevant parameters in our computational model. We hope our model could provide a quantitative prediction for the empirical puzzle, and shed light on the cognitive mechanisms underlying developmental and cross-linguistic patterns.
 
 ### Implementation
 
@@ -110,7 +111,7 @@ var meaning = function(utterance, state, scope) {
 meaning("every-not", 1, "surface")
 ~~~~
 
-We also set up three different types of QUDs, which corresponds to 'how many rabbits have been fed?', "Have all rabbits been fed?" and "Have none rabbits been fed?". Given the QUD and a prior state, the QUD function returns a truth-value. 
+We also set up three different types of QUDs, which correspond to 'how many rabbits have been fed?', "Have all rabbits been fed?" and "Have no rabbits been fed?". Given the QUD and a prior state, the QUD function returns a truth-value. 
 ~~~~
 // QUDs
 var QUDs = ["how many?","all?","none?"];
@@ -138,7 +139,7 @@ var literalListener = cache(function(utterance,scope,QUD) {
 });
 ~~~~
 
-The speaker observes the state of the world, but also knows which scope of interpretation that is going to intend and knows the QUD that is trying to be addressed. The speaker will return the probability distribution of utterances and communicate the answer to the QUD to the Literal Listener. The speaker tries to maximize the probability that the literal listener will give the correct answer. Given that utterance with that scope and that QUD and minimizing cost. 
+The speaker observes the state of the world, but also knows which scope of interpretation it is going to intend and knows the QUD that is trying to be addressed. The speaker will return the probability distribution of utterances and communicate the answer to the QUD to the Literal Listener. The speaker tries to maximize the probability that the literal listener will give the correct answer given that utterance with that scope and that QUD, while minimizing cost. 
 
 ~~~~
 var alpha = 1
@@ -170,7 +171,7 @@ var pragmaticListener = cache(function(utterance) {
 });
 ~~~~
 
-Finally, our critical prediction is concerned with how a pragmatic speaker would endorse an ambiguous utternance given the state of the world. The pragmatic speaker make an utterance based on the true state of the world they want to convey, and their understanding of how a pragmatic listener is going to interpret their utternance.
+Finally, our critical prediction is concerned with how a pragmatic speaker would endorse an ambiguous utterance given the state of the world. The pragmatic speaker makes an utterance based on the true state of the world they want to convey, and their understanding of how a pragmatic listener is going to interpret their utterance.
 
 ~~~~
 // Pragmatic speaker (S2)
@@ -183,9 +184,9 @@ var pragmaticSpeaker = cache(function(state) {
 })
 ~~~~
 
-Our crucial manipulation we perform is that we set up the state, scope, utterance, and meaning function differently in accord with the true experimental set-up. 
+The crucial manipulation we perform is that we set up the state, scope, utterance, and meaning function differently in accord with the true experimental set-up. 
 
-The two experiments in both Su (2008) and Lidz and Musolino (2002) are different in terms of the number of objects appearing in the story. For Experiment 1 where the scenario favoring the surface scope interpretation, two objects are presented, and the corresponding state is as follows:
+The two experiments in both Su (2008) and Lidz and Musolino (2002) are different in terms of the number of objects appearing in the story. For Experiment 1 where the scenario favors the surface scope interpretation, two objects are presented, and the corresponding state is as follows:
 
 ~~~~
 // possible world states
@@ -199,7 +200,7 @@ For Experiment 2 (inverse scope experiment), four objects are presented, and the
 var states = [0,1,2,3,4]
 ~~~~
 
-We also distinguish the English model with the Mandarin model by adjusting the scope prior. Given that the inverse scope is not available in Mandarin, the scope prior is changed into a categorical distribution where the inverse scope is extremely unlikely.
+We also distinguish the English model from the Mandarin model by adjusting the scope prior. Given that the inverse scope is not available in Mandarin, the scope prior is changed into a categorical distribution where the inverse scope is extremely unlikely.
 
 ~~~~
 var scopePrior = function(){ 
@@ -207,7 +208,7 @@ var scopePrior = function(){
 }
 ~~~~
 
-In addition, to address the Huang (1988)'s formal analysis on Mandarin, we consider an alternative utterance 'none', which is equivalent to the reading in *(4)* where none of the two rabbits had been fed. We also tested the role of the 'none' utternance in English model.
+In addition, to address Huang (1988)'s formal analysis on Mandarin, we consider an alternative utterance 'none', which is equivalent to the reading in *(4)* where none of the two rabbits had been fed. We also tested the role of the 'none' utterance in the English model.
 
 ~~~~
 var utterancePrior = function() {
@@ -653,7 +654,7 @@ var alpha = 10
 
 #### Cost
 
-We manipulated the cost of 'not-two' and 'null' in three different ways: (i) the two utterances are equally costly; (2) the 'not-two' utterance is slightly more costly than the 'null' utterance; and (iii) the 'not-two' utterance is much more costly than the 'null' utterance; 
+We manipulated the cost of 'not-two' and 'null' in three different ways: (i) the two utterances are equally costly; (ii) the 'not-two' utterance is slightly more costly than the 'null' utterance; and (iii) the 'not-two' utterance is much more costly than the 'null' utterance. 
 
 ~~~~
 var cost = function(utterance){
@@ -695,11 +696,11 @@ var QUDPrior = function() {
 }
 ~~~~
 
-When the QUDs are about whether or not the event has happend ('all feed' or 'none feed'), the endorsement rate of ambiguous sentence in surface scope condition increased to a greater extent than in inverse scope condition, which is similar to children's preference. 
+When the QUDs are about whether or not the event has happened ('all feed' or 'none feed'), the endorsement rate of ambiguous sentence in surface scope condition increased to a greater extent than in inverse scope condition, which is similar to children's preference. 
 
 #### State Priors
 
-We manipulated the state priors for English models and to see their impacts on the endorsement rate of the ambiguous "not-two" utterance in model predictions.  The state priors were set up as below for each behavioral experiment, with all the other parameters set up as the default values:
+We manipulated the state priors for English models to see their impacts on the endorsement rate of the ambiguous "not-two" utterance in model predictions.  The state priors were set up as below for each behavioral experiment, with all the other parameters set up as the default values:
 
 ~~~~
 // For Expt 1 in Lidz & Musolino (2002)
@@ -741,7 +742,7 @@ If it is state 1 that is preferred in the prior, the model-predicted endorsement
 
 If the state prior is biased towards state 0, there is a lower model-predicted endorsement rate when the true state is 1 in the experiment scenario (surface 30.1% vs. inverse 37.7%). This is counterintuitive as state 1 is consistent with both the surface and the inverse scope, whereas state 2 is only consistent with the inverse scope. Further detailed investigation is needed to explain why there is such a pattern in model predictions when the preferred state is 0 in the prior.
 
-Generally speaking, when it is the state 1 or 2 is preferred in the prior, the model-predicted endorsement rate of the ambiguous "not-two" utterance matches the empirical data observed in Lidz and Musolino (2002), whereby there is a higher endorsement rate on "not-two" when the true state favors the surface-scope reading.
+Generally speaking, when it is state 1 or 2 that is preferred in the prior, the model-predicted endorsement rate of the ambiguous "not-two" utterance matches the empirical data observed in Lidz and Musolino (2002), whereby there is a higher endorsement rate on "not-two" when the true state favors the surface-scope reading.
 
 #### Scope Prior
 
@@ -761,14 +762,14 @@ The simulation shows that, when the prior is biased towards the surface scope, t
 
 #### Model with "none" utterance
 
-We also add to the English model a "none" utterance, which corresponds to the sentence such as "I didn't feed any of the rabbits," to see how this alternative utterance would competes with the "not-two" utterance modify its endorsement rate in model predictions. The codes used to simulate the endorsement rate of "not-two" for both Experiment 1 and 2 in Lidz and Musolino (2002) are shown below. We ran the simulation with all the default parameters. Compared to the model without "none" utterance, the endorsement rate of "not-two" decreases when there is an alternative "none" available in the model. On the other hand, the model prediction shows the opposite qualitative pattern: For the model without "none," the endorsement rate of "not-two" is higher when the scenario favors the inverse scope (surface 50.8% vs. inverse 51.5%); for the new model, the predicted endorsement rate is higher when the scenario favors the surface scope (surface 42.2% vs. inverse 41.1%).  
+We also add to the English model a "none" utterance, which corresponds to the sentence such as "I didn't feed any of the rabbits," to see how this alternative utterance would compete with the "not-two" utterance and modify its endorsement rate in model predictions. The codes used to simulate the endorsement rate of "not-two" for both Experiment 1 and 2 in Lidz and Musolino (2002) are shown below. We ran the simulation with all the default parameters. Compared to the model without "none" utterance, the endorsement rate of "not-two" decreases when there is an alternative "none" available in the model. On the other hand, the model prediction shows the opposite qualitative pattern: For the model without "none," the endorsement rate of "not-two" is higher when the scenario favors the inverse scope (surface 50.8% vs. inverse 51.5%); for the new model, the predicted endorsement rate is higher when the scenario favors the surface scope (surface 42.2% vs. inverse 41.1%).  
 
 
 ### Mandarin Chinese
 
 #### Utility
 
-We manipulated the utility paramters in a similar way as in the English model. When utility drops from 10 to 1, the endorsement rate in the surface scope condition decreases from 64% to 51%, and the endorsement rate of the inverse scope condition increases from 31% to 32%. It seems like that children are less optimal speakers because the children's pattern fit better to the prediction of low utility model. 
+We manipulated the utility parameters in a similar way as in the English model. When utility drops from 10 to 1, the endorsement rate in the surface scope condition decreases from 64% to 51%, and the endorsement rate of the inverse scope condition increases from 31% to 32%. It seems that children are less optimal speakers because the children's pattern fits better to the prediction of the low utility model. 
 
 #### Cost
 
@@ -800,11 +801,11 @@ var cost = function(utterance) {
 }
 ~~~~
 
-As the cost for utterances increases, the endorsement rate of ambiguous sentences decreases in surface scope condition decreases while it remains steady in the inverse scope condition. Given that children also have a lower endorsement rate in the surface scope condition, it seems that generating a non-null utternance is more effortful for children.
+As the cost for utterances increases, the endorsement rate of ambiguous sentences decreases in the surface scope condition while it remains steady in the inverse scope condition. Given that children also have a lower endorsement rate in the surface scope condition, it seems that generating a non-null utterance is more effortful for children.
 
 #### QUDs
 
-The QUDs in Chinese model is tuned in the same way as in the English model. Similar to the English model, the endorsement rates in experiment 1 and experiment 2 are most similar to the empirical results from children when QUDs are concerned with 'all' or 'none'. The results suggest that children's endorsement might be related to their under-developing ability of number and counting.
+The QUDs in the Chinese model are tuned in the same way as in the English model. Similar to the English model, the endorsement rates in experiment 1 and experiment 2 are most similar to the empirical results from children when QUDs are concerned with 'all' or 'none'. The results suggest that children's endorsement might be related to their under-developing ability of number and counting.
 
 #### State Prior
 
@@ -968,7 +969,7 @@ The simulation with the revised meaning function shows that, for the scenario th
 
 ### Quantitative simulation of formal semantic account for Mandarin-speaking children
 
-Given that none of the paramters above could explain the Mandarin Chinese children's pattern, we tested how well the Lee (1996) and Huang (1988)'s formal semantic account. Accroding to both analysis, children's surface scope interpretaion of ambiguous sentence is going to be referential: there are two rabbits that the person did not feed. We modified the meaning function for surface scope condition so that the true state of the world is 0 under the surface scope interpretation. 
+Given that none of the parameters above could explain the Mandarin Chinese children's pattern, we tested how well the Lee (1996) and Huang (1988)'s formal semantic account performs. According to both analyses, children's surface scope interpretation of ambiguous sentence is going to be referential: there are two rabbits that the person did not feed. We modified the meaning function for surface scope condition so that the true state of the world is 0 under the surface scope interpretation. 
 
 ~~~
 // meaning function
@@ -993,15 +994,15 @@ var meaning = function(utterance, state, scope) {
 };
 ~~~
 
-Given the modified meaning function, the endorsement rate of the critical utterance under the surface scope condition (exp1) is 27%, and for the inverse scope condition (exp2) the endorsement rate boosts to 62%. The results are very close to the empirical observation in Mandarin-speaking children. It seems that formal semantics account are powerful explanations for the developmental effects in Mandarin Chinese.
+Given the modified meaning function, the endorsement rate of the critical utterance under the surface scope condition (exp1) is 27%, and for the inverse scope condition (exp2) the endorsement rate boosts to 62%. The results are very close to the empirical observation in Mandarin-speaking children. It seems that formal semantics accounts are powerful explanations for the developmental effects in Mandarin Chinese.
 
 ## Conclusions
 
 By comparing the simulation results of RSA models and the empirical observation in both Lidz and Musolino (2002) and Su (2008), we found that the scope ambiguity resolution is beyond formal semantics, but involves complex pragmatic reasoning and developmental trajectory of other general cognitive abilities. 
 
-Our model predict the developmental effects in English, and adults ambiguity resolution in Chinese without having to revise the fundemental conclusion from the previous literal -- that inverse scope is not unavailable in Chinese. Our model confirms that English children's ambiguity resolution pattern is related to their low prior probability over the inverse scope. More importantly, our model emphasizes the role of rational inference and cognitive development in the difference of linguistic preference between adults and children. Adults are more capable of rational inferences about the listener, whereas children are less optimal and considerate during conversation. In addition, utternances are generally more costly for children than for adults, which leads to the developmental effect in both Mandarin and English. Finally, the empirical results could be related to the fact that children have lower prior probability over QUDs concerned with number counting, which might be attributed to children's general cognitive ability. 
+Our model predicts the developmental effects in English, and adults' ambiguity resolution in Chinese without having to revise the fundamental conclusion from the previous literature -- that inverse scope is not unavailable in Chinese. Our model confirms that English children's ambiguity resolution pattern is related to their low prior probability over the inverse scope. More importantly, our model emphasizes the role of rational inference and cognitive development in the difference of linguistic preference between adults and children. Adults are more capable of rational inferences about the listener, whereas children are less optimal and considerate during conversation. In addition, utterances are generally more costly for children than for adults, which leads to the developmental effect in both Mandarin and English. Finally, the empirical results could be related to the fact that children have lower prior probability over QUDs concerned with number counting, which might be attributed to children's general cognitive ability. 
 
-The most important highlight of our finding is that none of the parameters alone in our RSA models can capture the empirical pattern among Mandarin-speaking children. We modified the meaning function in a non-traditional way, and the model with a different meaning function successfully simulated the empirical observations from Mandarin-speaking children. Our prediction provides quantitative supports for the formal semantic analysis by Huang (1988) and Lee (1996). We suggest that children might have a different literal understanding of the sentence from adults. Further experimental investigation is thus needed to understand the underlying reason of a non-traditional representation of scope ambiguous sentence in Mandarin-speaking children.
+The most important highlight of our finding is that none of the parameters alone in our RSA models can capture the empirical pattern among Mandarin-speaking children. We modified the meaning function in a non-traditional way, and the model with a different meaning function successfully simulated the empirical observations from Mandarin-speaking children. Our prediction provides quantitative support for the formal semantic analysis by Huang (1988) and Lee (1996). We suggest that children might have a different literal understanding of the sentence from adults. Further experimental investigation is thus needed to understand the underlying reason of a non-traditional representation of scope ambiguous sentence in Mandarin-speaking children.
 
 ## References
 

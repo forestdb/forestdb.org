@@ -1,0 +1,7 @@
+{
+  "name": "print",
+  "main": "index.js",
+  "webppl": {
+    "js": ["index.js"]
+  }
+}

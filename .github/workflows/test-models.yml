@@ -1,0 +1,50 @@
+name: Test models
+
+on:
+  schedule:
+    - cron: '42 7 1 * *'  # monthly, 1st at 07:42 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  test-models:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install webppl versions
+        working-directory: scripts/test-models
+        run: npm install --install-strategy=nested --no-audit --no-fund
+
+      - name: Run model smoke tests
+        working-directory: scripts/test-models
+        run: node runner.js --timeout 120 --concurrency 4
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-test-report
+          path: |
+            scripts/test-models/report.md
+            scripts/test-models/report.json
+
+      - name: Publish report in an issue (create or update)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Model smoke-test report"
+          num=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "in:title \"$title\"" --json number,title \
+            --jq ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ -n "$num" ]; then
+            gh issue edit "$num" --repo "$GITHUB_REPOSITORY" --body-file scripts/test-models/report.md
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file scripts/test-models/report.md
+          fi

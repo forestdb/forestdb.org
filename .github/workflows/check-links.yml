@@ -1,0 +1,46 @@
+name: Check links
+
+on:
+  schedule:
+    - cron: '17 6 1 * *'  # monthly, 1st at 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check links in model pages
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --max-concurrency 8
+            --timeout 20
+            --max-retries 2
+            --accept '100..=103,200..=299,403,429'
+            --exclude-path assets
+            --exclude-path scripts
+            './**/*.md'
+          fail: false
+
+      - name: Report broken links in an issue (create or update)
+        if: steps.lychee.outputs.exit_code != 0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Link checker report"
+          num=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "in:title \"$title\"" --json number,title \
+            --jq ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ -n "$num" ]; then
+            gh issue edit "$num" --repo "$GITHUB_REPOSITORY" --body-file ./lychee/out.md
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file ./lychee/out.md
+          fi

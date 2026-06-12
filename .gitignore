@@ -1,4 +1,8 @@
-.DS_Store
 _site/*
 archived/*
 assets/webchurch/index.html
+scripts/test-models/node_modules/
+scripts/test-models/report.md
+scripts/test-models/report.json
+scripts/test-models/*.log
+.DS_Store

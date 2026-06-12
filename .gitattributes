@@ -1,2 +1,6 @@
 assets/webchurch/webchurch.js binary
 assets/webchurch/jquery.js binary
+assets/webppl/* linguist-vendored
+assets/vendor/** linguist-vendored
+assets/dippl-pre-v0.7/** linguist-vendored
+assets/webchurch/** linguist-vendored

@@ -2,7 +2,11 @@
 
 $(function () {
     var code_pres = $("pre").filter(function () {
-        return ($(this).find('code').length === 1) && (!$(this.parentNode).is("blockquote"));
+        var code = $(this).find('code');
+        if ($(this).hasClass('norun') || code.hasClass('norun') || code.hasClass('language-norun')) {
+            return false;
+        };
+        return (code.length === 1) && (!$(this.parentNode).is("blockquote"));
     });
     $.each(code_pres,
         function (index, pre) {

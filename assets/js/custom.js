@@ -50,6 +50,16 @@ function substringMatcher(strs) {
     };
 };
 
+function navigate_to_model(name) {
+    for (var i = 0; i < model_names.length; i++) {
+        if (model_names[i] == name) {
+            document.location.href = model_urls[i];
+            return true;
+        };
+    };
+    return false;
+}
+
 $(function () {
     $('#cse-text').typeahead({
         hint: true,
@@ -61,14 +71,19 @@ $(function () {
         source: substringMatcher(model_names)
     });
     $('#cse-text').bind('typeahead:selected', function (obj, datum, name) {
-        console.log(datum.value);
-        for (var i = 0; i < model_names.length; i++) {
-            if (model_names[i] == datum.value) {
-                document.location.href = model_urls[i];
-                return true;
-            };
-        };
+        navigate_to_model(datum.value);
         return true;
+    });
+    // On Enter, go to the first match for the current query.
+    $('#model-search-box').submit(function (e) {
+        e.preventDefault();
+        var query = $('#cse-text').val();
+        if (!query) { return; };
+        substringMatcher(model_names)(query, function (matches) {
+            if (matches.length > 0) {
+                navigate_to_model(matches[0].value);
+            };
+        });
     });
 })
 
@@ -174,25 +189,6 @@ $.get("/bibliography.bib", function (bibtext) {
         );
     });
 });
-
-
-// Analytics
-
-(function (i, s, o, g, r, a, m) {
-    i['GoogleAnalyticsObject'] = r;
-    i[r] = i[r] || function () {
-        (i[r].q = i[r].q || []).push(arguments);
-    }, i[r].l = 1 * new Date();
-    a = s.createElement(o),
-    m = s.getElementsByTagName(o)[0];
-    a.async = 1;
-    a.src = g;
-    m.parentNode.insertBefore(a, m);
-})(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
-
-ga('create', 'UA-54996-10', 'forestdb.org');
-ga('require', 'linkid', 'linkid.js');
-ga('send', 'pageview');
 
 
 // Contributors

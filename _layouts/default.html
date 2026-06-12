@@ -9,19 +9,19 @@
 
     <title>{{ page.title }}{% if page.isindex %}{% else %} - Forest{% endif %}</title>
 
-    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
-    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css">
-    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css">
+    <link rel="stylesheet" href="/assets/vendor/bootstrap-3.1.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/assets/vendor/bootstrap-3.1.1/css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="/assets/vendor/font-awesome-4.0.3/css/font-awesome.min.css">
     <link rel="stylesheet" href="/assets/css/custom.css">
     <link rel="stylesheet" href="/assets/css/typeahead-bs3.css">
 
-    <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
-    <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
-    <script src="//cdn.jsdelivr.net/typeahead.js/0.10.1/typeahead.bundle.js"></script>
+    <script src="/assets/vendor/jquery/jquery-1.11.0.min.js"></script>
+    <script src="/assets/vendor/bootstrap-3.1.1/js/bootstrap.min.js"></script>
+    <script src="/assets/vendor/typeahead/typeahead.bundle.min.js"></script>
     <script src="/assets/js/custom.js"></script>
 
     {% if page.model-language == 'webppl' %}
-      {% if page.model-language-version == 'pre-v0.7' %}    
+      {% if page.model-language-version == 'pre-v0.7' %}
         <link rel="stylesheet" href="/assets/dippl-pre-v0.7/node_modules/codemirror/lib/codemirror.css">
         <link rel="stylesheet" href="/assets/dippl-pre-v0.7/node_modules/codemirror/theme/neat.css">
         <link rel="stylesheet" href="/assets/dippl-pre-v0.7/assets/css/code.css">
@@ -37,18 +37,23 @@
         <script src="/assets/dippl-pre-v0.7/assets/js/cm-comments.js"></script>
       {% else %}
         {% if page.model-language-version %}
-          <script src="http://cdn.webppl.org/webppl-{{ page.model-language-version }}.js"></script>
+          <script src="/assets/webppl/webppl-{{ page.model-language-version }}.js"></script>
         {% else %}
-          <script>console.log('No webppl version specified, defaulting to v0.9.15')</script>
-          <script src="http://cdn.webppl.org/webppl-v0.9.15.js"></script>          
+          <script src="/assets/webppl/webppl-v0.9.15.js"></script>
         {% endif %}
-        <script src="http://cdn.webppl.org/webppl-viz-0.7.11.js"></script>
-        <link rel="stylesheet" href="http://cdn.webppl.org/webppl-viz-0.7.11.css">
-        <script src="http://cdn.webppl.org/webppl-editor-1.0.9.js"></script>
-        <link rel="stylesheet" href="http://cdn.webppl.org/webppl-editor-1.0.9.css">
+        <script src="/assets/webppl/webppl-viz-0.7.11.js"></script>
+        <link rel="stylesheet" href="/assets/webppl/webppl-viz-0.7.11.css">
+        <script src="/assets/webppl/webppl-editor-1.0.9.js"></script>
+        <link rel="stylesheet" href="/assets/webppl/webppl-editor-1.0.9.css">
         <script>
           function setupEditorBoxes() {
-            var preEls = $('.container pre').map(function(i, el) { wpEditor.setup(el, {language: 'webppl'}); });
+            $('.container pre').each(function(i, el) {
+              var code = $(el).find('code');
+              if ($(el).hasClass('norun') || code.hasClass('norun') || code.hasClass('language-norun')) {
+                return;
+              }
+              wpEditor.setup(el, {language: 'webppl'});
+            });
           };
           $(setupEditorBoxes);
         </script>
@@ -70,17 +75,12 @@
 
     <script src="/assets/js/parse-bibtex.js"></script>
 
-    <!--[if lt IE 9]>
-      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
-      <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
-    <![endif]-->
-
     <script type="text/javascript">
     var model_names = [
-      {% for p in site.pages %}{% if p.layout == 'model' %}{% if p.model-category %}{% if p.model-status != 'stub' %}'{{ p.title }}',{% endif %}{% endif %}{% endif %}{% endfor %}
+      {% for p in site.pages %}{% if p.layout == 'model' %}{% if p.model-status != 'stub' and p.model-status != 'hidden' %}{{ p.title | jsonify }},{% endif %}{% endif %}{% endfor %}
     ];
     var model_urls = [
-      {% for p in site.pages %}{% if p.layout == 'model' %}{% if p.model-category %}{% if p.model-status != 'stub' %}'{{ p.url }}',{% endif %}{% endif %}{% endif %}{% endfor %}
+      {% for p in site.pages %}{% if p.layout == 'model' %}{% if p.model-status != 'stub' and p.model-status != 'hidden' %}{{ p.url | jsonify }},{% endif %}{% endif %}{% endfor %}
     ];
     </script>
   </head>
@@ -103,13 +103,10 @@
 
         <div class="navbar-collapse collapse" id="navbar-search-right">
 
-          <form id="cse-search-box" action="http://google.com/cse" class="navbar-form navbar-right" role="search">
-            <input type="hidden" name="cx" value="008887621561404558934:lqvspjvj53s" />
-            <input type="hidden" name="ie" value="UTF-8" />
+          <form id="model-search-box" class="navbar-form navbar-right" role="search">
             <div class="form-group">
-              <input type="text" name="q" id="cse-text" class="form-control" placeholder="Search" autocomplete="off" />
+              <input type="text" id="cse-text" class="form-control" placeholder="Search models" autocomplete="off" />
             </div>
-            <button type="submit" class="btn btn-default" name="sa" value="Search">Go</button>
           </form>
 
         </div><!-- /.navbar-collapse -->

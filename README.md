@@ -41,9 +41,9 @@ Frontmatter fields:
 - `model-language-version` (optional, webppl only): pins a webppl version.
   Available: `pre-v0.7`, `v0.9.6`, `v0.9.7`, `v0.9.9`, `v0.9.13`, `v0.9.15`
   (default).
-- `model-status` (optional): `code` (code runs), `code-fail` (known broken;
-  add a `model-status-verbose` explanation), `link` (page links to external
-  code), `stub`, or `hidden` (not listed on the front page).
+- `model-status` (optional): `code` (code runs), `static` (code shown as a
+  non-runnable listing; add a `model-status-verbose` explanation), `link`
+  (page links to external code), or `hidden` (not listed on the front page).
 - `model-category` (optional but encouraged): one of
   `Concept Learning`, `Reasoning about Reasoning`,
   `Probabilistic Language Understanding`, `Counterfactuals and Explanations`,

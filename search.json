@@ -1,0 +1,19 @@
+---
+layout: null
+---
+{% assign models = site.pages | where: "layout", "model" %}
+{% assign searchable = models | where_exp: "p", "p.model-status != 'hidden'" %}
+{
+  "description": "Client-side full-text search index for forestdb.org (consumed by /assets/js/custom.js via lunr.js). The content field is the rendered page text with markup stripped; code-box text is included. Hidden models are excluded. For a metadata-only index, see /models.json.",
+  "count": {{ searchable | size }},
+  "models": [
+    {% for p in searchable %}{
+      "title": {{ p.title | jsonify }},
+      "url": {{ p.url | jsonify }},
+      "category": {{ p.model-category | jsonify }},
+      "tags": {{ p.model-tags | jsonify }},
+      "content": {{ p.content | markdownify | strip_html | normalize_whitespace | jsonify }}
+    }{% unless forloop.last %},{% endunless %}
+    {% endfor %}
+  ]
+}

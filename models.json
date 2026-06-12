@@ -3,7 +3,7 @@ layout: null
 ---
 {% assign models = site.pages | where: "layout", "model" %}
 {
-  "description": "Machine-readable index of all models on forestdb.org. Each model's full markdown source (prose + code) is at source_url. model-tags is a comma-separated string. Statuses: code (runs in browser), code-fail (known broken), link (points to external code), stub, hidden, or null (unverified).",
+  "description": "Machine-readable index of all models on forestdb.org. Each model's full markdown source (prose + code) is at source_url. model-tags is a comma-separated string. Statuses: code (runs in browser), static (code shown as a non-runnable listing), link (points to external code), hidden, or null (unverified).",
   "count": {{ models | size }},
   "models": [
     {% for p in models %}{

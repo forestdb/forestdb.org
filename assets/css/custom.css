@@ -50,6 +50,21 @@ body div.container {
   width: 300px;
 }
 
+/* Search suggestions (typeahead dropdown) */
+
+.tt-dropdown-menu .tt-suggestion p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tt-dropdown-menu .tt-category {
+  font-size: 12px;
+}
+
+.tt-dropdown-menu .tt-empty {
+  padding: 3px 20px;
+}
+
 
 /* Button toolbars */
 
@@ -191,7 +206,44 @@ div.results svg.chart {
 }
 
 
+/* Index hero */
+
+.index-hero {
+   background-color: #f6f8f6;
+   border: 1px solid #e3e8e3;
+   border-radius: 6px;
+   padding: 14px 20px 8px;
+   margin-top: 25px;
+   margin-bottom: 10px;
+}
+
+.index-hero p {
+   font-size: 15px;
+   margin-bottom: 8px;
+}
+
+.index-hero-actions .btn {
+   margin-right: .5em;
+   margin-bottom: .4em;
+}
+
+
 /* List of models on index page */
+
+.model-legend {
+   margin-bottom: 18px;
+   font-size: 13px;
+}
+
+.model-legend .legend-item {
+   display: inline-block;
+   margin-right: 1.1em;
+   white-space: nowrap;
+}
+
+.list-group-item .badge.category-count {
+   background-color: #b8bcb8;
+}
 
 .glyph-label span {
    margin-left: -.2em;
@@ -210,4 +262,36 @@ img.avatar {
    vertical-align: middle;
    border-radius: 2px;
    background-color: #fff;
+}
+
+
+/* Story/question blocks (used by models/text-adventure.md):
+   narrative text plus the question the model answers, shown above
+   each code box. */
+
+.story-block {
+   background-color: #f6f8f6;
+   border-left: 3px solid #d4ddd4;
+   border-radius: 0 4px 4px 0;
+   padding: 10px 16px;
+   margin: 30px 0 12px;
+}
+
+.story-block .story-text {
+   font-size: 16px;
+   font-style: italic;
+   color: #333;
+   margin-bottom: 8px;
+}
+
+.story-block .story-question {
+   font-size: 14px;
+   color: #555;
+   margin-bottom: 0;
+}
+
+.story-block .story-answer {
+   font-style: normal;
+   font-weight: bold;
+   color: #44704a;
 }

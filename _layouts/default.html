@@ -18,6 +18,7 @@
     <script src="/assets/vendor/jquery/jquery-1.11.0.min.js"></script>
     <script src="/assets/vendor/bootstrap-3.1.1/js/bootstrap.min.js"></script>
     <script src="/assets/vendor/typeahead/typeahead.bundle.min.js"></script>
+    <script src="/assets/vendor/lunr/lunr.min.js"></script>
     <script src="/assets/js/custom.js"></script>
 
     {% if page.model-language == 'webppl' %}
@@ -77,10 +78,10 @@
 
     <script type="text/javascript">
     var model_names = [
-      {% for p in site.pages %}{% if p.layout == 'model' %}{% if p.model-status != 'stub' and p.model-status != 'hidden' %}{{ p.title | jsonify }},{% endif %}{% endif %}{% endfor %}
+      {% for p in site.pages %}{% if p.layout == 'model' %}{% if p.model-status != 'hidden' %}{{ p.title | jsonify }},{% endif %}{% endif %}{% endfor %}
     ];
     var model_urls = [
-      {% for p in site.pages %}{% if p.layout == 'model' %}{% if p.model-status != 'stub' and p.model-status != 'hidden' %}{{ p.url | jsonify }},{% endif %}{% endif %}{% endfor %}
+      {% for p in site.pages %}{% if p.layout == 'model' %}{% if p.model-status != 'hidden' %}{{ p.url | jsonify }},{% endif %}{% endif %}{% endfor %}
     ];
     </script>
   </head>
@@ -123,6 +124,8 @@
       <div class="container">
         <p class="text-muted">
            This page has been edited by <span id="contributors"></span>.
+        </p>
+        <p class="text-muted">
            View <a id="github-page-link" href="https://github.com/forestdb/forestdb.org/blob/gh-pages/{{ page.path }}">on GitHub</a>.
            Maintained by <a href="https://stuhlmueller.org/">Andreas Stuhlmüller</a>.
         </p>

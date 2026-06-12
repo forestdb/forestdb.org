@@ -10,9 +10,9 @@ layout: default
   <h1>{{ page.title }}</h1>
 </div>
 
-{% if page.model-status == "code-fail" %}
+{% if page.model-status == "static" %}
   {% if page.model-status-verbose %}
-    <div class="alert alert-warning"><strong>Note:</strong> The code on this page may fail. ({{ page.model-status-verbose }})</div>
+    <div class="alert alert-info"><strong>Note:</strong> The code on this page is shown as a static listing, not a runnable model. ({{ page.model-status-verbose }})</div>
   {% endif %}
 {% endif %}
 

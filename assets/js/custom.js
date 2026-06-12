@@ -27,61 +27,169 @@ function github_page_url(page_url) {
 }
 
 
-// Fuzzy autocomplete search + fast navigation
+// Search: fuzzy typeahead over titles, backed by a lunr.js full-text
+// index over model prose (built client-side from /search.json, which is
+// generated at build time). Title matches always rank above prose matches.
+// If JS or the index fails, the server-rendered model list still works.
 
-function substringMatcher(strs) {
-    return function findMatches(q, cb) {
-        var matches, substringRegex;
-        matches = [];
-        q = q.split("").reduce(function (a, b) {
-            return a + '[^' + b + ']*' + b;
-        });
-        var substrRegex = new RegExp(q, 'i');
-        $.each(strs, function (i, str) {
-            if (substrRegex.test(str)) {
-                if (matches.length < 10) {
-                    matches.push({
-                        value: str
-                    });
-                };
+var search_docs = null;     // [{title, url, category, tags, content}, ...]
+var search_index = null;    // lunr index over search_docs
+var search_loading = false;
+
+function load_search_index() {
+    if (search_docs || search_loading) { return; };
+    if (typeof lunr === 'undefined') { return; };
+    search_loading = true;
+    $.getJSON('/search.json', function (data) {
+        var docs = data.models || [];
+        search_index = lunr(function () {
+            this.ref('i');
+            this.field('title', { boost: 10 });
+            this.field('tags', { boost: 5 });
+            this.field('content');
+            for (var i = 0; i < docs.length; i++) {
+                this.add({
+                    i: i,
+                    title: docs[i].title || '',
+                    tags: docs[i].tags || '',
+                    content: docs[i].content || ''
+                });
             };
         });
-        cb(matches);
-    };
-};
+        search_docs = docs;
+    }).fail(function () {
+        search_loading = false;
+    });
+}
 
-function navigate_to_model(name) {
+// Docs to fuzzy-match titles against: search.json once loaded, otherwise
+// the titles/urls inlined into every page (no categories, but available
+// immediately and without the full-text index).
+function title_docs() {
+    if (search_docs) { return search_docs; };
+    var docs = [];
     for (var i = 0; i < model_names.length; i++) {
-        if (model_names[i] == name) {
-            document.location.href = model_urls[i];
-            return true;
+        docs.push({ title: model_names[i], url: model_urls[i], category: null });
+    };
+    return docs;
+}
+
+function fuzzy_regex(q) {
+    q = q.split("").map(function (c) {
+        return c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }).reduce(function (a, b) {
+        return a + '[^' + b + ']*' + b;
+    });
+    try {
+        return new RegExp(q, 'i');
+    } catch (e) {
+        return null;
+    };
+}
+
+function lunr_search(query) {
+    if (!search_index) { return []; };
+    try {
+        return search_index.query(function (q) {
+            lunr.tokenizer(query).forEach(function (token) {
+                var term = token.toString();
+                q.term(term, {});
+                q.term(term, { wildcard: lunr.Query.wildcard.TRAILING });
+            });
+        });
+    } catch (e) {
+        return [];
+    };
+}
+
+function model_searcher(query, cb) {
+    var max_results = 10;
+    var results = [];
+    var seen = {};
+    function push(doc, kind) {
+        if (seen[doc.url]) { return; };
+        seen[doc.url] = true;
+        results.push({
+            value: doc.title,
+            url: doc.url,
+            category: doc.category,
+            kind: kind
+        });
+    }
+    // 1. Title matches first (original typeahead behavior): exact
+    //    substring matches rank above scattered fuzzy matches.
+    var docs = title_docs();
+    var regex = fuzzy_regex(query);
+    var lower = query.toLowerCase();
+    var substring_matches = [];
+    var fuzzy_matches = [];
+    for (var i = 0; i < docs.length; i++) {
+        var title = docs[i].title || '';
+        if (title.toLowerCase().indexOf(lower) !== -1) {
+            substring_matches.push(docs[i]);
+        } else if (regex && regex.test(title)) {
+            fuzzy_matches.push(docs[i]);
         };
     };
-    return false;
+    var title_matches = substring_matches.concat(fuzzy_matches);
+    for (var t = 0; t < title_matches.length && results.length < max_results; t++) {
+        push(title_matches[t], 'title');
+    };
+    // 2. Then full-text matches over model prose (and code), best first.
+    if (search_docs) {
+        var hits = lunr_search(query);
+        for (var j = 0; j < hits.length && results.length < max_results; j++) {
+            push(search_docs[parseInt(hits[j].ref, 10)], 'prose');
+        };
+    };
+    cb(results);
+}
+
+function escape_html(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function suggestion_html(datum) {
+    var html = '<p>' + escape_html(datum.value);
+    if (datum.category) {
+        html += ' <span class="tt-category text-muted">&mdash; ' +
+            escape_html(datum.category) + '</span>';
+    };
+    html += '</p>';
+    return html;
 }
 
 $(function () {
-    $('#cse-text').typeahead({
+    var input = $('#cse-text');
+    if (input.length === 0) { return; };
+    // Fetch the full-text index lazily, on first interaction with the box.
+    input.one('focus keydown', load_search_index);
+    input.typeahead({
         hint: true,
         highlight: true,
         minLength: 1
     }, {
-        name: 'model_names',
+        name: 'models',
         displayKey: 'value',
-        source: substringMatcher(model_names)
+        source: model_searcher,
+        templates: {
+            suggestion: suggestion_html,
+            empty: '<div class="tt-empty text-muted">No matching models</div>'
+        }
     });
-    $('#cse-text').bind('typeahead:selected', function (obj, datum, name) {
-        navigate_to_model(datum.value);
+    input.bind('typeahead:selected', function (obj, datum, name) {
+        document.location.href = datum.url;
         return true;
     });
     // On Enter, go to the first match for the current query.
     $('#model-search-box').submit(function (e) {
         e.preventDefault();
-        var query = $('#cse-text').val();
+        var query = input.val();
         if (!query) { return; };
-        substringMatcher(model_names)(query, function (matches) {
+        model_searcher(query, function (matches) {
             if (matches.length > 0) {
-                navigate_to_model(matches[0].value);
+                document.location.href = matches[0].url;
             };
         });
     });

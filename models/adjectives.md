@@ -144,7 +144,7 @@ map(print_graph, items);
 
 ## Priors on prices
 
-In our [prior elicitation experiment](http://web.stanford.edu/~erindb/sorites-analysis/experiments/exp1-prior/morebins.html), we asked participants to create a binned histogram of prices for 5 different kinds of objects (*coffee maker*, *headphones*, *laptop*, *sweater*, *watch*). Average responses are shown below and used as background data for our adjectives model.
+In our [prior elicitation experiment](https://web.archive.org/web/2016/http://web.stanford.edu/~erindb/sorites-analysis/experiments/exp1-prior/morebins.html), we asked participants to create a binned histogram of prices for 5 different kinds of objects (*coffee maker*, *headphones*, *laptop*, *sweater*, *watch*). Average responses are shown below and used as background data for our adjectives model.
 
 ~~~
 // experiment data is in fold

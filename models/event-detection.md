@@ -80,5 +80,5 @@ Conditioning using single-site MCMC doesn't work very well in this model. Here i
 
 References:
 
-- [Switchpoint detection in PyMC](http://nbviewer.ipython.org/github/CamDavidsonPilon/Probabilistic-Programming-and-Bayesian-Methods-for-Hackers/blob/master/Chapter1_Introduction/Chapter1_Introduction.ipynb)
-- Model by [Tomer Ullman](http://www.mit.edu/~tomeru/)
+- [Switchpoint detection in PyMC](https://github.com/CamDavidsonPilon/Probabilistic-Programming-and-Bayesian-Methods-for-Hackers)
+- Model by [Tomer Ullman](https://www.tomerullman.org/)

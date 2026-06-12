@@ -49,4 +49,4 @@ References:
 
 - Cite:Shafto2006tz
 - Cite:ProbMods
-- [CrossCat at MIT](http://probcomp.csail.mit.edu/crosscat/)
+- [CrossCat at MIT](https://github.com/probcomp/crosscat)

@@ -1,0 +1,21 @@
+---
+layout: null
+---
+{% assign models = site.pages | where: "layout", "model" %}
+{
+  "description": "Machine-readable index of all models on forestdb.org. Each model's full markdown source (prose + code) is at source_url. model-tags is a comma-separated string. Statuses: code (runs in browser), code-fail (known broken), link (points to external code), stub, hidden, or null (unverified).",
+  "count": {{ models | size }},
+  "models": [
+    {% for p in models %}{
+      "title": {{ p.title | jsonify }},
+      "url": {{ p.url | prepend: "https://forestdb.org" | jsonify }},
+      "source_url": {{ p.path | prepend: "https://raw.githubusercontent.com/forestdb/forestdb.org/gh-pages/" | jsonify }},
+      "language": {{ p.model-language | jsonify }},
+      "language_version": {{ p.model-language-version | jsonify }},
+      "status": {{ p.model-status | jsonify }},
+      "category": {{ p.model-category | jsonify }},
+      "tags": {{ p.model-tags | jsonify }}
+    }{% unless forloop.last %},{% endunless %}
+    {% endfor %}
+  ]
+}

@@ -1,1 +1,5 @@
 markdown: kramdown
+exclude:
+  - scripts
+  - README.md
+  - LICENSE.md

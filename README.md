@@ -1,66 +1,105 @@
 Forest
 ======
 
-Forest is a collaborative repository for generative models.
+Forest ([forestdb.org](https://forestdb.org)) is a community repository for
+generative models written in probabilistic programming languages, mainly
+[Church](https://github.com/probmods/webchurch) and
+[WebPPL](https://github.com/probmods/webppl). Most code boxes are editable and
+run directly in the browser. Forest is maintained as a teaching resource and
+archive; it has long served as the home for class projects from courses such
+as [Probabilistic Languages Understanding](https://problang.org).
 
 Adding models
 -------------
 
-To add a new model to Forest, simply create a markdown file in the [models directory](https://github.com/forestdb/forestdb.org/tree/gh-pages/models). You can do this directly on github by following this link: [add model](https://github.com/forestdb/forestdb.org/new/gh-pages/models).
+To add a new model, create a markdown file in the
+[models directory](https://github.com/forestdb/forestdb.org/tree/gh-pages/models).
+You can do this directly on GitHub: [add model](https://github.com/forestdb/forestdb.org/new/gh-pages/models).
 
-For examples of the model file format, see:
-- [example.md](https://raw.githubusercontent.com/forestdb/forestdb.org/gh-pages/models/example.md) is a model that *is not* shown on the front page.
-- [arithmetic.md](https://raw.githubusercontent.com/forestdb/forestdb.org/gh-pages/models/arithmetic.md) is a model that *is* shown on the front page.
+For an example of the file format, see
+[example.md](https://raw.githubusercontent.com/forestdb/forestdb.org/gh-pages/models/example.md).
+A minimal model file looks like this:
 
-For models that are shown on the front page, use additional header entries:
-
+    ---
+    layout: model
+    title: My Model
+    model-language: webppl
     model-status: code
-    model-category: Concept Learning
+    model-category: Probabilistic Language Understanding
     model-tags: concepts, program induction
+    ---
 
-Currently, the following status codes are available:
+    Prose describing the model.
 
-    code
-    link
-    code-fail
-    stub
+    ~~~~
+    flip(0.5)
+    ~~~~
 
-The following categories are available:
+Frontmatter fields:
 
-    Concept Learning
-    Reasoning about Reasoning
-    Machine Learning
-    Nonparametric Models
-    Bayesian Data Analysis    
-    Undirected Constraints
-    Inverse Dynamics
-    PPAML Challenge Problems
-    Miscellaneous
+- `model-language` (required to make code boxes runnable): `webppl` or `church`.
+- `model-language-version` (optional, webppl only): pins a webppl version.
+  Available: `pre-v0.7`, `v0.9.6`, `v0.9.7`, `v0.9.9`, `v0.9.13`, `v0.9.15`
+  (default).
+- `model-status` (optional): `code` (code runs), `code-fail` (known broken;
+  add a `model-status-verbose` explanation), `link` (page links to external
+  code), `stub`, or `hidden` (not listed on the front page).
+- `model-category` (optional but encouraged): one of
+  `Concept Learning`, `Reasoning about Reasoning`,
+  `Probabilistic Language Understanding`, `Counterfactuals and Explanations`,
+  `Machine Learning`, `Nonparametric Models`, `Bayesian Data Analysis`,
+  `Undirected Constraints`, `Inverse Dynamics`, `PPAML Challenge Problems`,
+  `Miscellaneous`. Models without a category are listed under "Uncategorized"
+  on the front page.
+- `model-tags` (optional): arbitrary comma-separated words or phrases.
 
-Tags can be arbitrary words or phrases separated by commas.
+To display a code box without making it runnable (e.g. to show a model
+fragment), mark the fence with `norun`:
 
-Updating webchurch
-------------------
+    ~~~~ norun
+    // this box renders as static code
+    ~~~~
 
-Forest uses [webchurch](https://github.com/probmods/webchurch) and [webppl](https://github.com/probmods/webppl) to run probabilistic programs. To update webchurch, follow these steps:
+Machine-readable index
+----------------------
 
-1. Clone and build the most recent version of the webchurch repository, following the instructions [here](https://github.com/probmods/webchurch):
+[forestdb.org/models.json](https://forestdb.org/models.json) lists every model
+with title, URL, markdown source URL, language, version, status, category, and
+tags.
 
-        git clone https://github.com/probmods/webchurch.git
-        cd webchurch
-        git init (only if you are on Windows)
-        git submodule update --init --recursive
-        npm install
-        ./compile.sh
+Local development
+-----------------
 
-2. Clone the most recent version of the Forest repository:
+The site is plain [Jekyll](https://jekyllrb.com/), built by GitHub Pages from
+the `gh-pages` branch. To preview locally:
 
-        git clone https://github.com/forestdb/forestdb.org.git
+    docker run --rm -v "$PWD":/site -p 4000:4000 -w /site jekyll/jekyll \
+      jekyll serve --host 0.0.0.0
 
-3. **Copy the files in `webchurch/online/` to `forestdb.org/assets/webchurch/`**.
+then open [localhost:4000](http://localhost:4000).
 
-4. Run a local webserver in the Forest directory and go to [0.0.0.0:4000](http://0.0.0.0:4000) to check that the changes did not break functionality:
+All JavaScript and CSS (jQuery, Bootstrap, the webppl runtimes, webchurch) is
+vendored under `assets/`, so the site has no runtime dependencies on external
+CDNs. To support a new webppl version, build or download the browser bundle,
+add it as `assets/webppl/webppl-<version>.js`, and add the version to the list
+in this README and to `scripts/test-models/package.json`.
 
-        jekyll serve --watch
+Continuous checks
+-----------------
 
-5. If code boxes run as expected, great! Commit and push. If not, you may need to adjust `assets/js/custom.js` in the Forest directory.
+Two scheduled GitHub Actions keep the site healthy (see `.github/workflows/`):
+
+- **Test models** runs every webppl model headless against its declared
+  webppl version (`scripts/test-models/runner.js`) and files a report issue.
+  Run locally with `cd scripts/test-models &&
+  npm install --install-strategy=nested && node runner.js`
+  (nested install needed for webppl 0.6.1's hardcoded module paths).
+- **Check links** runs lychee over all model pages and files a report issue
+  when links break.
+
+License
+-------
+
+Site code is MIT-licensed; models belong to their authors, with new
+contributions accepted under CC-BY 4.0 (prose) and MIT (code). See
+[LICENSE.md](LICENSE.md).

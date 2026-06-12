@@ -27,6 +27,8 @@ jobs:
             --accept '100..=103,200..=299,403,429'
             --exclude-path assets
             --exclude-path scripts
+            --exclude-path index.md
+            --remap '^/(.*) https://forestdb.org/$1'
             './**/*.md'
           fail: false
 

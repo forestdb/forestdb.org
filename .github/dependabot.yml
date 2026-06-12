@@ -1,0 +1,10 @@
+# scripts/test-models intentionally installs old webppl releases (0.6.1+) to
+# test models against the runtimes they were written for. Their dependency
+# trees are ancient by design; version-update PRs would only break them.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /scripts/test-models
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0

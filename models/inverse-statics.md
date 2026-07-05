@@ -3,7 +3,7 @@ layout: model
 title: Inverse Statics
 model-status: static
 model-status-verbose: Code is Terra, not Church; shown as a static listing.
-model-category: Inverse Dynamics
+model-category: Scientific and Physical Models
 model-tags: statics
 model-language: terra
 ---

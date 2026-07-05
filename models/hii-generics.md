@@ -2,7 +2,7 @@
 layout: model
 title: "Generics: Turning the Knob of the Threshold Prior"
 model-language: webppl
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 

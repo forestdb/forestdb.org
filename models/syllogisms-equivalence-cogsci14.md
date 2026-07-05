@@ -2,7 +2,7 @@
 layout: model
 title: Syllogisms [equivalence] (CogSci14)
 model-language: church
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-status: code
 ---
 

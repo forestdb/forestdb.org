@@ -2,7 +2,7 @@
 layout: model
 title: Exogenous counterfactuals
 model-language: church
-model-category: Counterfactuals and Explanations
+model-category: Graphical Models and Causality
 model-status: code
 ---
 

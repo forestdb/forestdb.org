@@ -2,13 +2,12 @@
 layout: model
 title: 1D Gaussian with Gaussian/Gamma Hyperparameters
 model-status: code
-model-category: Miscellaneous
+model-category: Probability and Bayesian Data Analysis
 model-tags: continuous models, gaussian distribution
 model-language: church
 ---
 
-One-dimensional Gaussian distribution with mean and variance
-sampled from Gaussian/gamma priors.
+Gaussian and gamma priors here set the mean and variance of a one-dimensional Gaussian distribution, which is then conditioned on eight observed data points. Metropolis-Hastings inference produces the posterior over the mean.
 
 ~~~~
 (define xdata '(1 1.2 1.5 0.8 0.9 1 1.3 0.9))

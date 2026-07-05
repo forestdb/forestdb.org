@@ -2,7 +2,7 @@
 layout: model
 title: Brightness Constancy
 model-status: code
-model-category: Miscellaneous
+model-category: Scientific and Physical Models
 model-tags: cognitive science, vision
 model-language: church
 ---

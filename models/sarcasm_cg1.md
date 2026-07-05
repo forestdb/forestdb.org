@@ -3,7 +3,7 @@ layout: model
 title: Sarcasm with uncertainty about speaker's beliefs
 model-status: code
 model-language: church
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 ---
 
       ; Five possible movie states
@@ -99,7 +99,7 @@ model-category: Probabilistic Language Understanding
             (list state valence arousal)
             (literal-interpretation utterance state)))))
       
-      ;; Literal interpretation "meaning" function, just check if uttered number reflects price state
+      ;; Literal interpretation "meaning" function, just check if uttered word reflects movie state
       (define (literal-interpretation utterance state)
         (equal? utterance state))
       

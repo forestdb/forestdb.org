@@ -4,7 +4,7 @@ title: Overinformativeness Explorer
 model-status: code
 model-language: webppl
 model-language-version: v0.9.6
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 ---
 
 ~~~~

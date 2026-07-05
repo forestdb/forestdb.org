@@ -2,7 +2,7 @@
 layout: model
 title: Scalar Implicature with Varying QUD
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: linguistics, pragmatics, theory of mind
 model-language: webppl
 ---

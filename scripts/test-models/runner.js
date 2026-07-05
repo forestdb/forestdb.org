@@ -32,6 +32,16 @@ const VERSION_PACKAGES = {
 };
 const DEFAULT_VERSION = 'v0.9.15';
 
+const BROWSER_ONLY_BOXES = {
+  'elephants.md': new Set([8, 9, 10, 11]),
+  'elephants_continuized.md': new Set([7]),
+  'liquid_physics.md': new Set([1]),
+};
+
+function isBrowserOnlyBox(filename, box) {
+  return Boolean(BROWSER_ONLY_BOXES[filename] && BROWSER_ONLY_BOXES[filename].has(box));
+}
+
 const args = process.argv.slice(2);
 function argValue(name, fallback) {
   const i = args.indexOf(name);
@@ -114,10 +124,12 @@ async function testModel(filename, tmpDir) {
     const needsWebGL = /\b(Testbed|b2World)\b/.test(boxes[i]);
     const code = chained ? boxes.slice(0, i + 1).join('\n') : boxes[i];
     const r = await runBox(bin, code, tmpDir, `${filename}-${i}`);
-    // Editor-chained boxes depend on the browser's shared wpEditor heap;
-    // when concatenation can't reconstruct that headless, treat it as a
-    // browser-only box rather than a failure (these run on the live site).
-    if (!r.ok && (chained || needsWebGL)) r.browserOnly = true;
+    // Only documented boxes may be classified as browser-only. The source
+    // feature check prevents the allowlist from hiding a failure after the
+    // browser dependency has been removed.
+    if (!r.ok && isBrowserOnlyBox(filename, i + 1) && (chained || needsWebGL)) {
+      r.browserOnly = true;
+    }
     results.push(r);
   }
   return {
@@ -126,6 +138,10 @@ async function testModel(filename, tmpDir) {
     status: fm['model-status'] || null,
     boxes: results.length,
     browserOnly: results.filter((r) => r.browserOnly).length,
+    browserOnlyBoxes: results
+      .map((r, i) => ({ ...r, box: i + 1 }))
+      .filter((r) => r.browserOnly)
+      .map((r) => r.box),
     failures: results
       .map((r, i) => ({ ...r, box: i + 1 }))
       .filter((r) => !r.ok && !r.browserOnly)
@@ -195,4 +211,6 @@ async function main() {
   fs.writeFileSync(path.join(__dirname, 'report.md'), report);
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { isBrowserOnlyBox };

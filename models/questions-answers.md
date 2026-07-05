@@ -3,9 +3,11 @@ layout: model
 title: Questions and Answers
 model-language: webppl
 model-language-version: v0.9.9
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
+
+These questioner-and-answerer models choose utterances according to how much they improve decisions under uncertainty. The examples vary available goods, conversational context, goal relevance, and speaker beliefs to show when cooperative agents ask or answer indirectly.
 
 ### Pies & cakes
 
@@ -886,7 +888,6 @@ var KL = function(erpTrue, erpApprox){
       return probP == 0.0 ? 0.0 : probP * (scoreP - scoreQ);
     }, values));
 };
-///
 
 //   ---------------
 // | World knowledge |
@@ -1119,7 +1120,6 @@ var roundToNearest = function(time) {
   return hour + ":" + roundedMinutes
 }
 
-///
 
 //   ---------------
 // | World knowledge |

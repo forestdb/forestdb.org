@@ -30,9 +30,9 @@ from the Jekyll build.
 
 ## Current model-status snapshot
 
-Every model now carries a status. Counts (204 pages):
+Every model carries a status. Counts (214 pages):
 
-- `code`: 187 — webppl models pass the headless smoke test; church models
+- `code`: 197. WebPPL models pass the headless smoke test; Church models
   verified in-browser or via the headless webchurch harness
 - `static`: 3 — intentional static listings (see below). This status
   replaced `code-fail` once no genuinely broken pages remained; the index
@@ -43,6 +43,12 @@ Every model now carries a status. Counts (204 pages):
   also `little-trees.md` (see below)
 - no status: 0. The `stub` status was removed entirely (index template,
   legend, search.json, README) once the last stubs were resolved.
+
+Primary category counts: Language and Pragmatics 98; Graphical Models and
+Causality 25; Probability and Bayesian Data Analysis 20; Bayesian
+Nonparametrics 19; Agents, Games, and Social Reasoning 16; Regression and
+Statistical Learning 11; Time Series and Stochastic Processes 10; Scientific
+and Physical Models 9; Program Induction and Concept Learning 6.
 
 ## `static` pages (all by design)
 
@@ -132,40 +138,36 @@ frontmatter. Also done:
   as raw prose because a fence never reopened; now a proper runnable box
   (passes the runner).
 
-### Follow-up queue: in-code issues flagged during the prose pass
+### Author-owned semantic questions
 
-The prose agents were barred from touching code; these flags are recorded
-for a future code pass (verify before fixing — some may be intentional):
+These pages run, but changing their interpretation requires an author-level
+decision. Do not guess at the intended semantics:
 
-- `blm.md` — Model 2 `utterancePrior` is missing a `return` before
-  `uniformDraw(...)` (likely real bug).
-- `logistic-regression.md` — `(flip (sigmoid x) label)` passes an extra
-  arg; probably meant `(flip (sigmoid x))`.
-- `exhaustivity.md` — Scheme `case` clauses like `((utterance) 0.99)` match
-  the literal symbol, not the variable's value.
-- `cushman-generics.md` — first standalone `pragmaticListener` box returns
-  `sig`, which is undefined in that snippet.
-- `2025-problang-irony.md` — `statePrior` weights are reversed between the
-  intro box and the later boxes (contradicting the prose); `amazingeDist`
-  typo breaks the swap the prose suggests.
-- `intervention-counterfactuals.md` — prose discusses `(and smokes cold)`
-  but `smokes` is commented out of the utterance prior and never defined.
-- Stray `///` fold-close markers with no `///fold:` opener in
-  `gl-polite-irony.md`, `questions-answers.md`, `adj-order-appendix.md`,
-  `generic-id.md`, `torabian-politeness-QUDs.md`.
-- `infinite-hmm.md` — second version's `transition` returns the transition
-  model instead of sampling from it.
-- `ncrp-hdp.md` — third `hist` labeled "Root Category" but samples
-  `sample-observation`.
-- Copy-paste comment rot: several sarcasm/hyperbole-family pages
-  (`sarcasm_tone1/2.md`, `sarcasm_cg1.md`, `spokenIrony.md`,
-  `hyperbole-distance-L1/L2.md`) carry "price state" comments from the
-  watch-price model they were cloned from.
-- Semantic prose/code mismatches needing an author-level decision:
-  `because.md` (eps polarity), `habituals-cogsci2016.md` (sigma description
-  likely swapped), `2025-problang-teasing.md` (phi polarity contradicts its
-  own setup), `elephants.md` vs `elephants_continuized.md` (S2 scope label),
-  `lxz-chinese-scope.md` conclusions ("not unavailable").
+- `intervention-counterfactuals.md` discusses `(and smokes cold)`, while
+  `smokes` is not defined in the model.
+- `because.md` leaves the intended `eps` polarity unclear.
+- `habituals-cogsci2016.md` may swap the prose descriptions of its scale
+  parameters.
+- `2025-problang-teasing.md` describes `phi` with the opposite polarity from
+  its setup.
+- `elephants.md` and `elephants_continuized.md` disagree about the `S2` scope
+  label.
+- `lxz-chinese-scope.md` has ambiguous conclusions phrased as "not
+  unavailable."
+
+### Editorial policy and validation
+
+- `scripts/editorial-policy.json` records protected third-party and
+  paper-companion pages. Its body hashes permit site-owned frontmatter changes
+  while rejecting unreviewed body edits.
+- `scripts/validate-models.js` enforces the nine-category taxonomy, statuses,
+  unique titles, protected hashes, and concise introductions on maintained
+  pages.
+- `scripts/test-models/assert-report.js` turns the WebPPL smoke-test report into
+  a gate, allowing only the documented `adj-order-appendix.md` box 8 timeout.
+- `scripts/check-built-site.js` verifies that every visible model appears once
+  on the rendered index, every hidden model appears zero times, and model pages
+  have no broken internal links.
 
 ## UI/UX (done)
 
@@ -194,9 +196,10 @@ for a future code pass (verify before fixing — some may be intentional):
   classifies them "browser-only".
 - `liquid_physics.md` needs real browser WebGL globals; the runner now
   classifies it "browser-only" (it is browser-verified working).
-- `adj-order-appendix.md` box 8 is a heavy inference that times out
-  headless at 120s but runs in the browser (verified) — marked `code`.
-  This is the only failing entry in the headless report.
+- `adj-order-appendix.md` box 8 is a heavy stochastic inference that can
+  exceed the 120-second headless limit, although it also completes within the
+  limit on many runs and works in the browser. The report assertion permits
+  only this specific timeout.
 
 ## Strategic note
 
@@ -204,5 +207,5 @@ The deeper question (raised in the original review): is Forest a living
 teaching resource, a historical archive, or worth reinvesting in? The cheap,
 high-value direction is to keep it healthy as teaching infrastructure (CI is
 now in place) and lean into the machine-readable `models.json` corpus as a
-citable dataset of ~200 human-annotated generative models — useful for
+citable dataset of 214 human-annotated generative models, useful for
 LLM-era probabilistic-program-synthesis evals.

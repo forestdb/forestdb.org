@@ -2,10 +2,12 @@
 layout: model
 title: Hierarchical Flu/Cough Model
 model-status: code
-model-category: Miscellaneous
+model-category: Probability and Bayesian Data Analysis
 model-tags: hierarchical, medicine, mem
 model-language: church
 ---
+
+This Church model asks how likely Jim is to have the flu, given that Bob is coughing and both Mary and Jane have the flu. It repeatedly samples a shared flu-probability, a mem'd flu status per person, and a symptom cough that is more likely under flu, then uses rejection-query to build a posterior histogram over Jim's flu status.
 
     (define flu-dist
       (repeat 

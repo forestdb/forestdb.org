@@ -2,10 +2,12 @@
 layout: model
 title: Spatial Implicature
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: implicature, pragmatic reasoning
 model-language: church
 ---
+
+A model of spatial implicature, where a speaker describes the location of a flower using terms like "in" or "near" a city district or plaza, and a listener infers the flower's coordinates by reasoning recursively about which tolerance for "near" the speaker likely intended. The listener's posterior over locations depends on the chosen recursion depth.
 
     ;;;; Helper functions ;;;
     

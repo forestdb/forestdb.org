@@ -2,7 +2,7 @@
 layout: model
 title: Bayes Net Structure Learning
 model-status: code
-model-category: Concept Learning
+model-category: Graphical Models and Causality
 model-tags: concepts, bayesnet, structure learning
 model-language: webppl
 model-language-version: v0.9.15

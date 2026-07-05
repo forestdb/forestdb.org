@@ -1,9 +1,9 @@
 ---
 layout: model
-title: SAILORS Teaching Example
+title: Number Game
 model-language: webppl
 model-language-version: pre-v0.7
-model-category: Concept Learning
+model-category: Program Induction and Concept Learning
 model-status: code
 ---
 

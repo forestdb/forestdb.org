@@ -2,12 +2,12 @@
 layout: model
 title: Scalar Implicature
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: linguistics, pragmatics, theory of mind
 model-language: church
 ---
 
-A model of pragmatic language interpretation: 
+A model of pragmatic language interpretation, where a listener uses recursive reasoning about a speaker's utterance choice to infer the true state of the world, producing scalar implicatures like inferring "not all" from "some."
 
 The speaker chooses a sentence conditioned on the listener inferring the intended state of the world when hearing this sentence; the listener chooses an interpretation conditioned on the speaker selecting the given utterance when intending this meaning.
 

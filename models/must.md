@@ -3,7 +3,7 @@ layout: model
 title: Must
 model-status: code
 model-language: church
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 ---
         
         ; Rationality parameter. Higher rationality resut in larger differences

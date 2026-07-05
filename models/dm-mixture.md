@@ -2,7 +2,7 @@
 layout: model
 title: Finite Dirichlet-Multinomial Mixture
 model-status: code
-model-category: Miscellaneous
+model-category: Regression and Statistical Learning
 model-tags: mixture, multinomial, dirichlet
 model-language: church
 ---

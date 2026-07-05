@@ -2,7 +2,7 @@
 layout: model
 title: Pronoun Resolution with Subject and Parallel Strategies
 model-language: webppl
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 

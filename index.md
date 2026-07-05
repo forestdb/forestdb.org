@@ -3,7 +3,16 @@ layout: default
 title: Forest - A Repository for Generative Models
 isindex: true
 all-model-statuses: [code, link, static]
-all-model-categories: [Concept Learning, Reasoning about Reasoning, Probabilistic Language Understanding, Counterfactuals and Explanations, Machine Learning, Nonparametric Models, Bayesian Data Analysis, Undirected Constraints, Inverse Dynamics, PPAML Challenge Problems, Miscellaneous]
+all-model-categories:
+  - "Probability and Bayesian Data Analysis"
+  - "Graphical Models and Causality"
+  - "Regression and Statistical Learning"
+  - "Time Series and Stochastic Processes"
+  - "Bayesian Nonparametrics"
+  - "Program Induction and Concept Learning"
+  - "Language and Pragmatics"
+  - "Agents, Games, and Social Reasoning"
+  - "Scientific and Physical Models"
 ---
 
 {% assign all_models = site.pages | where: "layout", "model" %}

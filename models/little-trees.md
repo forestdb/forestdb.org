@@ -2,7 +2,7 @@
 layout: model
 title: Little Trees
 model-status: hidden
-model-category: Concept Learning
+model-category: Program Induction and Concept Learning
 model-tags: concepts, generative model
 model-language: church
 ---

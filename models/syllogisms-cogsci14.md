@@ -2,7 +2,7 @@
 layout: model
 title: Syllogisms
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: reasoning, pragmatics, QUD
 model-language: church
 ---

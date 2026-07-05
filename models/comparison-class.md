@@ -2,10 +2,12 @@
 layout: model
 title: Comparison classes
 model-status: hidden
-model-category: Miscellaneous
+model-category: Language and Pragmatics
 model-language: webppl
 model-language-version: v0.9.6
 ---
+
+This model extends pragmatic adjective interpretation with uncertainty about the relevant comparison class. A second-order listener infers that class while assuming the speaker is describing an individual drawn from a subordinate-category prior.
 
 ### Listener 2 model
 

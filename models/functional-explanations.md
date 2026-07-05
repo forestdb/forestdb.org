@@ -2,7 +2,7 @@
 title: Teleological Explanations
 layout: model
 model-language: church
-model-category: Counterfactuals and Explanations
+model-category: Graphical Models and Causality
 model-status: code
 ---
 

@@ -3,7 +3,7 @@ layout: model
 title: Spoken irony and common ground inference
 model-status: code
 model-language: church
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 ---
 
 ~~~
@@ -141,7 +141,7 @@ model-category: Probabilistic Language Understanding
       (list state valence arousal)
       (literal-interpretation utterance state)))))
 
-;; Literal interpretation "meaning" function, just check if uttered number reflects price state
+;; Literal interpretation "meaning" function, just check if uttered word reflects movie state
 (define (literal-interpretation utterance state)
   (equal? utterance state))
 

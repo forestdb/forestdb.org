@@ -2,7 +2,7 @@
 layout: model
 title: Discrete-Time Hidden Markov Model
 model-status: code
-model-category: PPAML Challenge Problems
+model-category: Time Series and Stochastic Processes
 model-tags: temporal models
 model-language: church
 ---

@@ -2,12 +2,12 @@
 layout: model
 title: Dirichlet Process
 model-status: code
-model-category: Nonparametric Models
+model-category: Bayesian Nonparametrics
 model-tags: mem, nonparametrics
 model-language: church
 ---
 
-Using memoization (`mem`), we can implement the Dirichlet process:
+Using memoization (`mem`), this model implements the stick-breaking construction of the Dirichlet process, repeatedly drawing break points whose visitation frequencies follow the process's characteristic distribution over cluster sizes:
 
     (define (pick-a-stick sticks J)
       (if (flip (sticks J))

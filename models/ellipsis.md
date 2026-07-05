@@ -2,7 +2,7 @@
 layout: model
 title: Ellipsis
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: linguistics, pragmatics
 model-language: church
 ---

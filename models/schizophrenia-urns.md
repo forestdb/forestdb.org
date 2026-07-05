@@ -3,9 +3,11 @@ layout: model
 title: Urn model 
 model-language: webppl
 model-language-version: v0.9.9
-model-category: Miscellaneous
+model-category: Agents, Games, and Social Reasoning
 model-status: code
 ---
+
+A model of social inference about a hidden quantity, where an observer combines their own draws from an urn with other agents' reported predictions and confidence levels, assuming those agents are themselves doing Bayesian inference from their own data. The result is a posterior belief about the true proportion of red marbles in the urn.
 
 ~~~~
 // total number of marbles drawn from urn every time

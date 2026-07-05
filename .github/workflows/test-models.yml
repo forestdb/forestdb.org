@@ -1,6 +1,17 @@
 name: Test models
 
 on:
+  push:
+    branches: [gh-pages]
+    paths:
+      - 'models/**'
+      - 'scripts/test-models/**'
+      - '.github/workflows/test-models.yml'
+  pull_request:
+    paths:
+      - 'models/**'
+      - 'scripts/test-models/**'
+      - '.github/workflows/test-models.yml'
   schedule:
     - cron: '42 7 1 * *'  # monthly, 1st at 07:42 UTC
   workflow_dispatch:
@@ -27,6 +38,10 @@ jobs:
         working-directory: scripts/test-models
         run: node runner.js --timeout 120 --concurrency 4
 
+      - name: Reject unexpected model failures
+        working-directory: scripts/test-models
+        run: node assert-report.js
+
       - name: Upload report
         uses: actions/upload-artifact@v4
         with:
@@ -36,6 +51,7 @@ jobs:
             scripts/test-models/report.json
 
       - name: Publish report in an issue (create or update)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

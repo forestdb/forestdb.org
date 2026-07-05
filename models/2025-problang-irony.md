@@ -2,7 +2,7 @@
 layout: model
 title: Irony with Shared Background Knowledge
 model-language: webppl
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 
@@ -137,7 +137,7 @@ Let’s skip ahead a bit to discuss the literal listener, which literally interp
 var states = ['terrible', 'ok', 'amazing']
 
 var statePrior = function() {
-  categorical([50, 50, 1], states)
+  categorical([1, 50, 50], states)
 }
 
 var valencePrior = function(state) {
@@ -205,7 +205,7 @@ Now let’s see how the speaker behaves.
 var states = ['terrible', 'ok', 'amazing']
 
 var statePrior = function() {
-  categorical([50, 50, 1], states)
+  categorical([1, 50, 50], states)
 }
 
 var valencePrior = function(state) {
@@ -284,7 +284,7 @@ Lastly, let’s cover the last part of the code, the pragmaticListener.
 var states = ['terrible', 'ok', 'amazing']
 
 var statePrior = function() {
-  categorical([50, 50, 1], states)
+  categorical([1, 50, 50], states)
 }
 
 var valencePrior = function(state) {
@@ -359,7 +359,7 @@ var pragmaticListener = function(utterance) {
   }})
 }
 var terribleDist = pragmaticListener("terrible")
-var amazingeDist = pragmaticListener("amazing")
+var amazingDist = pragmaticListener("amazing")
 var okDist = pragmaticListener("ok")
 
 
@@ -558,10 +558,8 @@ If we instead assume speaker and listener are from London or Canada, where terri
 // terrible, ok, or amazing
 var states = ['terrible', 'ok', 'amazing']
 
-// Since we are in California, the prior over these states
-// are the following. Once could also imagine this being 
-// the prior in a certain context, e.g. when it's clearly
-// sunny and nice out.
+// In a context where terrible weather is common, the prior
+// gives that state much more weight than amazing weather.
 var statePrior = function() {
   categorical([50, 50, 1], states)
 }

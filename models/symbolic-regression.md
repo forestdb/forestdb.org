@@ -2,11 +2,12 @@
 layout: model
 title: Symbolic Regression
 model-status: code
-model-category: Miscellaneous
+model-category: Regression and Statistical Learning
 model-tags: shred, benchmark
 model-language: church
 ---
 
+An unknown-order polynomial is searched for here, one that plausibly generated a small set of x-y data pairs. A random order between one and four gets drawn along with matching coefficients, and Metropolis-Hastings conditions on the data to infer the polynomial most likely to have produced it.
 
     (define (zip xs1 xs2)
       (if (or (null? xs1) (null? xs2)) '()

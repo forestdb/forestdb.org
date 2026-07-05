@@ -2,7 +2,7 @@
 layout: model
 title: Tic-Tac-Toe
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Agents, Games, and Social Reasoning
 model-tags: game theory, planning
 model-language: church
 ---

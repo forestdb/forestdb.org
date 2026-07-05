@@ -2,7 +2,7 @@
 layout: model
 title: Vague Adjectives with QUD and Valence
 model-language: webppl
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 

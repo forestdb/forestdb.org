@@ -2,7 +2,7 @@
 layout: model
 title: Kalman Filter
 model-status: code
-model-category: Miscellaneous
+model-category: Time Series and Stochastic Processes
 model-tags: gaussian
 model-language: church
 ---

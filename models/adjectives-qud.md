@@ -2,7 +2,7 @@
 layout: model
 title: Vagueness Resolution with a QUD
 model-language: webppl
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 

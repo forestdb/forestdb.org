@@ -2,7 +2,7 @@
 layout: model
 title: Adjective ordering parameter exploration
 model-language: webppl
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 
@@ -396,7 +396,6 @@ var subjCheck = cache(function() {
     return {smallEps, brownEps, objsSet}
   }})
 })
-///
 
 print('parameter settings for which the reverse order yields a higher probability:')
 viz.scatter(subjCheck().support(),{groupBy:"objsSet"})
@@ -512,7 +511,6 @@ var subjCheck = cache(function() {
     return {objsSet, smallEps, brownEps}
   }})
 })
-///
 
 print('parameter settings for which the reverse order yields a higher probability:')
 viz.table(subjCheck())

@@ -2,7 +2,7 @@
 layout: model
 title: Tug of War
 model-status: code
-model-category: Miscellaneous
+model-category: Probability and Bayesian Data Analysis
 model-tags: hierarchical models
 model-language: church
 ---

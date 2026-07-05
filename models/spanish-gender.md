@@ -2,7 +2,7 @@
 layout: model
 title: Gender Inference from Spanish Masculine Generics
 model-language: webppl
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 

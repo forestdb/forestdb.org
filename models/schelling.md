@@ -2,7 +2,7 @@
 layout: model
 title: Schelling Coordination Game
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Agents, Games, and Social Reasoning
 model-tags: theory of mind, game theory
 model-language: church
 ---

@@ -2,10 +2,12 @@
 layout: model
 title: Medical Diagnosis
 model-status: code
-model-category: PPAML Challenge Problems
+model-category: Graphical Models and Causality
 model-tags: bayesnet, medicine
 model-language: church
 ---
+
+This Church Bayes net samples five hidden diseases, lung cancer, TB, cold, stomach flu, and other, and four symptoms they can cause: cough, fever, chest pain, and shortness of breath, each with independent flip probabilities. Given that all four symptoms are observed, mh-query infers the joint posterior over lung cancer and TB.
 
     (define samples
       (mh-query 

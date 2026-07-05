@@ -4,7 +4,7 @@ title: Generics with causal background knowledge
 model-status: code
 model-language: webppl
 model-language-version: pre-v0.7
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 ---
 
 Contrasting "Butterflies have dust on their wings" vs. "This butterfly has dust on its wings"

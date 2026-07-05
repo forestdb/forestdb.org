@@ -2,7 +2,7 @@
 layout: model
 title: Pedagogy
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Agents, Games, and Social Reasoning
 model-tags: communication, pedagogy
 model-language: church
 ---

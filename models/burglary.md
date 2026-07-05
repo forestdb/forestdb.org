@@ -2,7 +2,7 @@
 layout: model
 title: Burglary Bayesnet
 model-status: code
-model-category: Miscellaneous
+model-category: Graphical Models and Causality
 model-tags: bayesnet, simple
 model-language: church
 ---

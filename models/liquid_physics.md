@@ -3,9 +3,11 @@ layout: model
 title: LiquidFun Example
 model-language: webppl
 model-language-version: pre-v0.7
-model-category: Inverse Dynamics
+model-category: Scientific and Physical Models
 model-status: code
 ---
+
+This page runs a browser-based, deterministic LiquidFun/Box2D physics simulation rather than a probabilistic program: a randomly positioned blob of fluid particles is dropped into a walled container past an obstacle and settles under gravity. It requires WebGL and is verified in-browser rather than by the headless model runner.
 
 <script src="/assets/vendor/liquidfun/liquidfun.js"></script>
 

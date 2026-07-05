@@ -4,10 +4,10 @@ title: Generics (extensional)
 model-status: code
 model-language: webppl
 model-language-version: pre-v0.7
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 ---
 
-
+This model formalizes generic statements like "feps have wings" as pragmatic inference over the prevalence of a property within a kind. Given a world of creatures with binary features, a speaker decides whether to assert the generic based on how a listener would interpret it, revealing an implicit prevalence threshold.
 
 ~~~~
 var subset = function(df, key, value){

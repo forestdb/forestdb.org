@@ -3,7 +3,7 @@ layout: model
 title: Projective Content
 model-status: code
 model-language: church
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 ---
 
 ~~~~

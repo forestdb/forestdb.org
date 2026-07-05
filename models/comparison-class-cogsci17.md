@@ -2,7 +2,7 @@
 layout: model
 title: Comparison classes (CogSci 2017)
 model-status: hidden
-model-category: Miscellaneous
+model-category: Language and Pragmatics
 model-language: webppl
 model-language-version: v0.9.6
 ---

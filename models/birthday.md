@@ -2,7 +2,7 @@
 layout: model
 title: Birthday Problem
 model-status: code
-model-category: Miscellaneous
+model-category: Probability and Bayesian Data Analysis
 model-tags: toy
 model-language: church
 ---

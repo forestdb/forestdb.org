@@ -2,10 +2,12 @@
 layout: model
 title: Simple Bayesian Networks
 model-status: code
-model-category: Miscellaneous
+model-category: Graphical Models and Causality
 model-tags: bayesnet, simple
 model-language: church
 ---
+
+This page collects five minimal Bayes net topologies in WebChurch: a chain and an alternate continuous chain, a two-fork tree, an inverse tree with two joins, and a diamond, each just a few flip or uniform calls deep. Each snippet returns the final downstream node so its induced marginal distribution can be inspected directly.
 
 A **chain** of three discrete nodes:
 

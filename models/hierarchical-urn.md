@@ -2,7 +2,7 @@
 layout: model
 title: Hierarchical Urn Model
 model-status: code
-model-category: Miscellaneous
+model-category: Probability and Bayesian Data Analysis
 model-tags: hierarchical models
 model-language: church
 ---

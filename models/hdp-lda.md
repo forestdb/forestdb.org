@@ -3,7 +3,7 @@ layout: model
 title: Latent Dirichlet Allocation with Hierarchical Dirichlet Prior
 model-status: static
 model-status-verbose: Code is only a sketch, shown as a static listing.
-model-category: PPAML Challenge Problems
+model-category: Bayesian Nonparametrics
 model-tags: benchmark, shred, machine learning
 model-language: church
 ---

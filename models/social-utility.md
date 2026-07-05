@@ -4,8 +4,10 @@ title: Reasoning about social groups
 model-status: code
 model-language: webppl
 model-language-version: v0.9.7
-model-category: Reasoning about Reasoning
+model-category: Agents, Games, and Social Reasoning
 ---
+
+A collection of models exploring how an agent like Alice infers her own utility for different restaurants and, later, her group membership among a population of agents, combining direct reward signals from her own choices with what she observes about others' choices and shared traits.
 
 Inferring properties of one group
 ---------------------------------

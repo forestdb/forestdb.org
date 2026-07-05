@@ -2,7 +2,7 @@
 layout: model
 title: Polite Irony
 model-language: webppl
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 
@@ -317,7 +317,6 @@ var speaker1 = cache(function(state, qud, phi) {
     return utterance
   }})
 })
-///
 var pragmaticListener = function(utterance) {
   Infer({model: function(){
     var state = uniformDraw(fullStates)
@@ -437,7 +436,6 @@ var speaker1 = cache(function(state, qud, phi) {
     return utterance
   }})
 })
-///
 var pragmaticListener = function(utterance) {
   Infer({model: function(){
     var state = categorical([80, 15, 3, 1, 1], fullStates)

@@ -2,7 +2,7 @@
 layout: model
 title: HMM-Ising
 model-status: code
-model-category: Undirected Constraints
+model-category: Time Series and Stochastic Processes
 model-tags: language, nested conditioning
 model-language: church
 ---

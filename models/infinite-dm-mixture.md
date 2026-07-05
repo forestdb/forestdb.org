@@ -2,7 +2,7 @@
 layout: model
 title: Infinite Dirichlet-Multinomial Mixture
 model-status: code
-model-category: Nonparametric Models
+model-category: Bayesian Nonparametrics
 model-tags: mem, nonparametrics, mixture
 model-language: church
 ---

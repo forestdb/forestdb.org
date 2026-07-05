@@ -2,10 +2,12 @@
 layout: model
 title: 1D Ising
 model-status: code
-model-category: Undirected Constraints
+model-category: Graphical Models and Causality
 model-tags: 
 model-language: church
 ---
+
+This Church model draws samples from a 1D Ising-like chain of ten to twenty binary spins, using mh-query with a noisy or factor-based equality constraint between neighboring bits. Version 1 rejects mismatched neighbors probabilistically while version 2 scores mismatches with an explicit log-probability factor, and both favor long runs of matching bits.
 
 Version 1:
     

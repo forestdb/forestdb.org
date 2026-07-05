@@ -2,7 +2,7 @@
 layout: model
 title: Nested Number Guessing
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Agents, Games, and Social Reasoning
 model-tags: theory of mind
 model-language: church
 ---

@@ -2,7 +2,7 @@
 layout: model
 title: Biases from Noise
 model-status: code
-model-category: Miscellaneous
+model-category: Probability and Bayesian Data Analysis
 model-tags: psychology, biases
 model-language: church
 ---

@@ -2,7 +2,7 @@
 layout: model
 title: Inferring Pedagogical Skill
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Agents, Games, and Social Reasoning
 model-tags: pedagogical reasoning
 model-language: church
 ---

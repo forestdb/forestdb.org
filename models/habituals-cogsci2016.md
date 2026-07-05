@@ -3,7 +3,7 @@ layout: model
 title: Habituals (CogSci 2016)
 model-language: webppl
 model-language-version: pre-v0.7
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 

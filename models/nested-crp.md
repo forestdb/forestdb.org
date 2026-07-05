@@ -2,7 +2,7 @@
 layout: model
 title: Nested Chinese Restaurant Process
 model-status: code
-model-category: Nonparametric Models
+model-category: Bayesian Nonparametrics
 model-tags: mem, nonparametrics, crp
 model-language: church
 ---

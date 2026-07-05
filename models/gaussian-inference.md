@@ -2,7 +2,7 @@
 layout: model
 title: Inferences with Gaussians
 model-status: code
-model-category: Bayesian Data Analysis
+model-category: Probability and Bayesian Data Analysis
 model-language: webppl
 model-language-version: pre-v0.7
 ---

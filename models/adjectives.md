@@ -2,7 +2,7 @@
 layout: model
 title: Adjectives
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: linguistics, pragmatics
 model-language: webppl
 model-language-version: pre-v0.7

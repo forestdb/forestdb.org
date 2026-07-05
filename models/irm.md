@@ -2,7 +2,7 @@
 layout: model
 title: Infinite Relational Model
 model-status: code
-model-category: Nonparametric Models
+model-category: Bayesian Nonparametrics
 model-tags: clustering, cognitive science, nonparametric statistics
 model-language: church
 ---

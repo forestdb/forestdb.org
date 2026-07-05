@@ -2,11 +2,13 @@
 layout: model
 title: Simple Causal Explanations
 model-language: church
-model-category: Counterfactuals and Explanations
+model-category: Graphical Models and Causality
 model-status: code
 ---
 
 ### Explanations in a causal world with non-deterministic links
+
+This Church model builds a Rational Speech Act listener and speaker over causal "because" explanations, where a, b, and c are boolean causes and at, bt are noisy causal links between them. Literal and pragmatic listeners use nested enumeration-query to interpret utterances like "c because a", while speakers choose utterances that best communicate the true values.
 
 ~~~~
 ;;;fold:

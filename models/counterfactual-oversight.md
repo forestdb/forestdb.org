@@ -4,8 +4,10 @@ title: Counterfactual Oversight
 model-status: code
 model-language: webppl
 model-language-version: pre-v0.7
-model-category: Miscellaneous
+model-category: Agents, Games, and Social Reasoning
 ---
+
+These webppl models explore whether an agent reports its true belief distribution over outcomes A, B, and C when supervision is triggered by disagreement with another agent's report. Across the three examples, supervision that is deterministic, disagreement-scaled, or shared among biased peer agents changes how much reward it takes before the agent starts misreporting.
 
 Follow-up to:
 

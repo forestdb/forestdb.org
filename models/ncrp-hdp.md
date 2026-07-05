@@ -2,7 +2,7 @@
 layout: model
 title: Nested CRP + HDP
 model-status: code
-model-category: Nonparametric Models
+model-category: Bayesian Nonparametrics
 model-tags: mem, nonparametrics, dp
 model-language: church
 ---
@@ -36,7 +36,7 @@ We can use the [Nested Chinese-Restaurant Process](/models/nested-crp.html) to s
                                ", Subordinate Level: " (symbol->string (first category))))
          (hist (repeat 1000 (lambda () (sample-from-top-level-category (rest category))))
                (string-append  "Top Level: " (symbol->string (rest category))))
-         (hist (repeat 1000 (lambda () (sample-observation category)))
+         (hist (repeat 1000 (lambda () (root-category)))
                "Root Category"))))
     'done
 

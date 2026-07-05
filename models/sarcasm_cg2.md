@@ -3,7 +3,7 @@ layout: model
 title: Sarcasm with uncertainty about speaker's beliefs about listener's beliefs
 model-status: code
 model-language: church
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 ---
       
       ; Five possible movie states

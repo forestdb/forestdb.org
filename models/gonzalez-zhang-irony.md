@@ -2,7 +2,7 @@
 layout: model
 title: Irony with a Second-Order Speaker (S2)
 model-language: webppl
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 

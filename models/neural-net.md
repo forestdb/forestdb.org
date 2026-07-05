@@ -2,7 +2,7 @@
 layout: model
 title: Bayesian Neural Network
 model-status: code
-model-category: Machine Learning
+model-category: Regression and Statistical Learning
 model-tags: neural net, continuous
 model-language: church
 ---

@@ -2,7 +2,7 @@
 layout: model
 title: Category explanations
 model-language: church
-model-category: Counterfactuals and Explanations
+model-category: Graphical Models and Causality
 model-status: code
 ---
 

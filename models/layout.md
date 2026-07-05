@@ -2,10 +2,12 @@
 layout: model
 title: Layout of Tables and Plates
 model-status: code
-model-category: Miscellaneous
+model-category: Scientific and Physical Models
 model-tags: layout, constraints
 model-language: church
 ---
+
+This model places a random number of plates on a table by sampling each plate's position and size, then uses Metropolis-Hastings with soft equality constraints to favor arrangements where plates cover about seventy percent of the table's area, stay within its bounds, and do not overlap. The Church version above implements this search; a Terra version below extends it to multiple tables.
 
 Church version:
 

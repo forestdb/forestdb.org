@@ -2,10 +2,12 @@
 layout: model
 title: Generic ID
 model-status: hidden
-model-category: Miscellaneous
+model-category: Language and Pragmatics
 model-language: webppl
 model-language-version: v0.9.7
 ---
+
+This model studies how generic and indefinite statements support inferences about a category's prevalence and latent potential. A pragmatic listener jointly reasons about the utterance, prevalence threshold, and structured prior.
 
 ### Generic ID model
 
@@ -42,7 +44,6 @@ var structuredPriorModel = function(params){
     return prevalence
   })
 }
-///
 
 var alpha_1 = 5;
 var alpha_2 = 1;

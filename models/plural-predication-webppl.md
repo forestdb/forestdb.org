@@ -3,7 +3,7 @@ layout: model
 title: WebPPL version of Plural Predication model
 model-status: code
 model-language: webppl
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 ---
 
 This is the WebPPL version of the original Church Plural Predication model. As written, it does not run (the box below is shown statically; see the diagnosis after it).

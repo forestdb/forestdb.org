@@ -2,7 +2,7 @@
 layout: model
 title: Marsaglia
 model-status: code
-model-category: Miscellaneous
+model-category: Probability and Bayesian Data Analysis
 model-tags: random-variate 
 model-language: church
 ---

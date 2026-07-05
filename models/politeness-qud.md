@@ -2,7 +2,7 @@
 layout: model
 title: Politeness with Questions Under Discussion
 model-language: webppl
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 

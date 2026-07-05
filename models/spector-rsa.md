@@ -2,7 +2,7 @@
 layout: model
 title: Homogeneity in Plural Definites
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: natural language, rsa
 model-language: webppl
 model-language-version: v0.9.13

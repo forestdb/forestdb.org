@@ -2,7 +2,7 @@
 layout: model
 title: Generics with Variable Threshold Priors
 model-language: webppl
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 
@@ -99,7 +99,7 @@ var pragmaticListener = cache(function(utterance, statePrior) {
     var threshold = uniformDraw(bins)
     var S1 = speaker1(prevalence, threshold, statePrior)
     observe(S1, utterance)
-    return {prevalence: prevalence, threshold: threshold, sig: sig}
+    return {prevalence: prevalence, threshold: threshold}
   }})
 })
 ~~~~

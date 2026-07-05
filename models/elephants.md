@@ -3,7 +3,7 @@ layout: model
 title: "Generics: Elephants"
 model-language: webppl
 model-language-version: v0.9.13
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 

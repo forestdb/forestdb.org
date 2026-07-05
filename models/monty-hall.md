@@ -2,12 +2,14 @@
 layout: model
 title: Monty Hall Problem
 model-status: code
-model-category: Miscellaneous
+model-category: Probability and Bayesian Data Analysis
 model-tags: toy
 model-language: church
 ---
 
-In a game show, a contestant is presented three doors. One door has a car behind it; the other two doors only have goats. The contestant chooses a door, which remains closed. The game host reveals one of the remaining two, and the contestant has the option to switch. On average, should the contestant switch?
+In a game show, a contestant is presented three doors. One door has a car behind it; the other two doors only have goats. The contestant chooses a door, which remains closed.
+
+The game host reveals one of the remaining two, and the contestant has the option to switch. On average, should the contestant switch?
 
     ; choose a random index of a list
     (define (random-list-index l)

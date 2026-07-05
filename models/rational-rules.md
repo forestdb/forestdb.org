@@ -2,7 +2,7 @@
 layout: model
 title: Rational Rules
 model-status: code
-model-category: Concept Learning
+model-category: Program Induction and Concept Learning
 model-tags: concepts, logic
 model-language: church
 ---

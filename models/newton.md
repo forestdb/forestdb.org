@@ -2,7 +2,7 @@
 layout: model
 title: Newtonian Dynamics
 model-status: code
-model-category: Inverse Dynamics
+model-category: Scientific and Physical Models
 model-tags: dynamics, physics
 model-language: webppl
 ---

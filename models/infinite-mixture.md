@@ -2,10 +2,12 @@
 layout: model
 title: Infinite Mixture Model
 model-status: code
-model-category: Machine Learning
+model-category: Bayesian Nonparametrics
 model-tags: shred, benchmark, machine learning
 model-language: church
 ---
+
+Four objects get assigned here to an open-ended number of categories drawn from a Dirichlet process, rather than a fixed finite set. Each category carries its own emission weight, and Metropolis-Hastings conditions on noisy observed features to infer how the objects cluster.
 
     (define (zip xs1 xs2) 
       (if (or (is_null xs1) (is_null xs2)) '() 

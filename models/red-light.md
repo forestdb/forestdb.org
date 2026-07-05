@@ -2,10 +2,12 @@
 layout: model
 title: Red-light Game
 model-status: code
-model-category: Miscellaneous
+model-category: Agents, Games, and Social Reasoning
 model-tags: planning
 model-language: church
 ---
+
+A model of a red-light, green-light game, where a risk-taking agent chooses to go or stop at each step depending on the current light and gets reset to the start if it moves during a red light and gets caught. The simulation samples action sequences that succeed in reaching the goal position under this cheating risk.
 
     (define (last l)
       (cond ((null? (rest l)) (first l))

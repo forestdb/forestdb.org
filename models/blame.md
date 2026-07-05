@@ -2,10 +2,12 @@
 layout: model
 title: Blame Attribution
 model-status: code
-model-category: Miscellaneous
+model-category: Graphical Models and Causality
 model-tags: counterfactuals, cognitive science
 model-language: church
 ---
+
+This Church model formalizes Gerstenberg's counterfactual measures of responsibility: it samples binary agents A and B and effect E from a simple causal model, perturbs them into nearby counterfactual worlds under given interventions, and computes several normalized and unnormalized responsibility scores for how much A's action caused E.
 
     ;; --------------------------------------------------------------------
     ;; Helper functions

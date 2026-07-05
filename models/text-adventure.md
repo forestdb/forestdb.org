@@ -2,7 +2,7 @@
 layout: model
 title: Text Adventure
 model-language: church
-model-category: Miscellaneous
+model-category: Time Series and Stochastic Processes
 model-status: code
 ---
 

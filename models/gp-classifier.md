@@ -2,10 +2,12 @@
 layout: model
 title: Gaussian Process Classifier
 model-status: code
-model-category: Nonparametric Models
+model-category: Bayesian Nonparametrics
 model-tags: gp, nonparametrics, classifier
 model-language: church
 ---
+
+Matrix and Cholesky decomposition utilities built from scratch here support a Gaussian process classifier. A squared-exponential covariance generates a latent function over twenty ordered inputs, which gets squashed through a sigmoid and conditioned on binary observations, and Metropolis-Hastings then recovers a posterior over that latent curve.
 
     ;;;fold: zip
     (define (zip xs1 xs2) 

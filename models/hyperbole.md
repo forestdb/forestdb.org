@@ -2,12 +2,12 @@
 layout: model
 title: Hyperbole
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: linguistics, pragmatics
 model-language: church
 ---
 
-A model of hyperbole understanding as pragmatic reasoning:
+A model of hyperbole understanding as pragmatic reasoning, where an exaggerated utterance lets a listener infer both the speaker's belief about the world and their attitude toward it.
 
 The speaker chooses an utterance conditioned on the listener inferring information that is correct and relevant to the speaker's communicative goal (or QUD). The goal can either be to communicate the state of the  world, the speaker's attitude towards the state of the world (affect), or both. The listener chooses an interpretation conditioned on the speaker selecting the given utterance when intending to communicate this meaning. In this example the state of the world is how much an electric kettle cost.
 

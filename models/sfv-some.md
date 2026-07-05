@@ -2,7 +2,7 @@
 layout: model
 title: SFV for "some"
 model-language: church
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 

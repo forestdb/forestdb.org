@@ -2,10 +2,12 @@
 layout: model
 title: Probabilistic Context-Free Grammar
 model-status: code
-model-category: PPAML Challenge Problems
+model-category: Program Induction and Concept Learning
 model-tags: language
 model-language: church
 ---
+
+Random sentences get sampled here from a fixed probabilistic context-free grammar covering determiners, nouns, verbs, and adjectives. The direct-style implementation below recursively samples each constituent inline, while a second, unfold-based version builds the same grammar as an explicit parse tree.
 
 Direct style:
 

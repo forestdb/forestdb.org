@@ -4,7 +4,7 @@ title: Tug of War Explanations
 model-status: code
 model-language: webppl
 model-language-version: pre-v0.7
-model-category: Counterfactuals and Explanations
+model-category: Graphical Models and Causality
 ---
 
 

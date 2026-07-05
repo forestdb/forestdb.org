@@ -1,0 +1,457 @@
+{
+  "version": 1,
+  "hashAlgorithm": "sha256",
+  "notes": "Protected pages are polished third-party, paper-companion, or course-project pages identified by explicit author attribution, named-paper framing, or course-project listing. Borderline pages default to protected. bodySha256 is the SHA-256 of the markdown body only, everything after the closing frontmatter delimiter, exactly as extracted by scripts/validate-models.js parseFrontmatter. introExempt is true for every entry: protected page bodies are never edited to add an introduction. Editors may still recategorize a protected page via its frontmatter (for example model-category) without tripping the hash check, since the hash only covers the body. Regenerate an entry hash only after an explicitly authorized, reviewed change to that page body.",
+  "protectedPages": [
+    {
+      "file": "2025-problang-adjectives-qud.md",
+      "rationale": "2025 Probabilistic Language Understanding course project. Explicit student byline in the body. Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "cdbcfad4c7dfa450c52d36e229730606fb9bd9f1b21529ba82325be8578f2427"
+    },
+    {
+      "file": "2025-problang-bilingualism.md",
+      "rationale": "2025 Probabilistic Language Understanding course project. Explicit student byline in the body. Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "a99d66f36aab13476c2122f2273667aba51eef8ae8289ac50e8a6f0499587a2f"
+    },
+    {
+      "file": "2025-problang-comparison-class.md",
+      "rationale": "2025 Probabilistic Language Understanding course project. Explicit student byline in the body. Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "f43e3f6e3ddc093f115cb76de5a5853490ec0399a0113ecf560005352f148a0a"
+    },
+    {
+      "file": "2025-problang-irony.md",
+      "rationale": "2025 Probabilistic Language Understanding course project. Explicit student byline in the body. Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "768b61d44e77757acd392d07fa997aee8635b9dfa0ed9bd97e8e12982a36600a"
+    },
+    {
+      "file": "2025-problang-metaphor.md",
+      "rationale": "2025 Probabilistic Language Understanding course project. Explicit student byline in the body. Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "1571301a8feabff371e8b0e677e8ee393c351e1843f148f7622a185cc9f73f1f"
+    },
+    {
+      "file": "2025-problang-politeness.md",
+      "rationale": "2025 Probabilistic Language Understanding course project. Explicit student byline in the body. Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "833a5f8d6cc4aff575ce60469e650d6361df17088b7ffa775905e325a83adc25"
+    },
+    {
+      "file": "2025-problang-teasing.md",
+      "rationale": "2025 Probabilistic Language Understanding course project. Explicit student byline in the body. Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "584263e05b00b1c54c950c16158634c1b1481397e29e6a47a55f337223d50fd3"
+    },
+    {
+      "file": "adj-order-appendix.md",
+      "rationale": "Parameter-exploration appendix to a named paper (Scontras, Degen, and Goodman 2018 on adjective ordering). Polished paper-companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "beebdc94bdb3ffa0b852782e2567e208a34c18db554b9f57c8f7ef9b18f1903d"
+    },
+    {
+      "file": "adjectives-qud.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "9628f5b7ef8882f7ed52c6fdf42e4ce6476ac972e6ca0f76b49a100f148ee632"
+    },
+    {
+      "file": "adjectives.md",
+      "rationale": "Presents the adjective interpretation model of a named paper (Ref:Lassiter2013adj), with the paper as its references section. Paper-companion material by the model's authors, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "bdf86b5a57151da6af8cbf07c4e3d38c87c5f803a036733a4d793ead7ecd65df"
+    },
+    {
+      "file": "astt-metaphor.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "62e130c887acbc8e28097a54b2a94d47010164e885a4a880de83d5ea4de1a62d"
+    },
+    {
+      "file": "bayesian-data-analysis.md",
+      "rationale": "Explicit byline in the body (By: Michael Henry Tessler and Noah D. Goodman). Polished chapter-companion material drawn from the authors' book treatment of Bayesian data analysis.",
+      "introExempt": true,
+      "bodySha256": "8df053e2122a30d542b3d4a90b9feaf3a009c1d03f828f95bbca248319d27e8d"
+    },
+    {
+      "file": "bkmt-scalar-implicature.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "26af33319d0bddf0ac636060bd827b6fd68dcb4baca735b3af0ace1857ebbf82"
+    },
+    {
+      "file": "blm.md",
+      "rationale": "Polished third-party research page on the interpretation of \"Black lives matter\" with substantive authored prose framing open research questions. Sensitive topic; body prose must stay the original authors' words.",
+      "introExempt": true,
+      "bodySha256": "66b66e3863423a9b596fe7192b39f03742d2e4b7af6d1f5ac98dae7906cf9491"
+    },
+    {
+      "file": "causal-support.md",
+      "rationale": "Church implementation of the model of a named paper (Ref:Griffiths2005 causal support). Named-paper framing, parallel to the protected lucas-kemp-2015-replication entry.",
+      "introExempt": true,
+      "bodySha256": "340291397d2f318800b7c5360657acb7736a13eb190b50606c182c9dc707a729"
+    },
+    {
+      "file": "CCG-scope.md",
+      "rationale": "Explicit byline in the body (by Carina Kaltenbach and Nicola Estrefallaces). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "5ea5ae10aff01c52b105f2fb8183eabacc263a84a18ca91adf0657514af35963"
+    },
+    {
+      "file": "ccgn-metaphor.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "16542935e25f14dab155d017c673660158617096cbba2ece2735ef6208554c9c"
+    },
+    {
+      "file": "cnqr-comparison-class.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "c54889a58462b325fa068b9615f7fae95b86b0093869baac0487da01c4111c9b"
+    },
+    {
+      "file": "codenames.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "554b833f61e7da46381811527f918b63c20f2610ba3133289b21886f2f071653"
+    },
+    {
+      "file": "comparison-class-cogsci17.md",
+      "rationale": "Companion page for a named paper: \"the models used in Ref:tesslerComparisonClassCogSci\" (CogSci 2017 in the title). Polished paper-companion material by the paper's authors.",
+      "introExempt": true,
+      "bodySha256": "82b0542ea1fa9f295cb617da2e11c4ed88a3cfed2d2e7a000e16a168da86ae51"
+    },
+    {
+      "file": "conditioning-on-conclusion.md",
+      "rationale": "Authored discussion page that sprang out of the syllogism-as-communication research line (Tessler's protected CogSci 2014 pages). Third-party research prose, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "a66175a403fe8a3de8d6bdfe7c88fde9b7cc380b0bd62ad0ea7bad30060a9efe"
+    },
+    {
+      "file": "conventions.md",
+      "rationale": "Polished third-party research page on conventionalization written in the researchers' own voice (\"Our model\", \"In our data\"; Robert Hawkins in page history). Paper-project companion material.",
+      "introExempt": true,
+      "bodySha256": "3a74ed31c071be1ce7dc06fa3d21485e58b0443f75658352ae43e1dc1aef47b2"
+    },
+    {
+      "file": "costello-watts-2014.md",
+      "rationale": "Named replication of a specific external paper (Ref:costello2014surprisingly, Costello and Watts 2014). Polished paper-companion material, parallel to the protected lucas-kemp-2015-replication entry.",
+      "introExempt": true,
+      "bodySha256": "ada2bf40df005a4d73057f05be92cb003762ebe00d198830efb1522682229ae4"
+    },
+    {
+      "file": "cushman-generics.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "df54d2894451cde1b05aeb9bfcea9f0bd5ed848cca7b7615e17e6a63313a179c"
+    },
+    {
+      "file": "dickson-speaker-cost.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "0f4325c4f0945aa0a397ac709c96178103f6dbc97750bb2338ba617be6f47c7e"
+    },
+    {
+      "file": "elephants_continuized.md",
+      "rationale": "Third-party research page, continuized variant of the elephants generics model (karengu in page history; flagged in MAINTENANCE.md as needing author-level decisions). Authored research material.",
+      "introExempt": true,
+      "bodySha256": "28ca7b2b246709c859cce8119173081248009bf1c8b3f325ea2c2942a9e80ab1"
+    },
+    {
+      "file": "elephants.md",
+      "rationale": "Third-party research page on generics with conjunction (karengu in page history; flagged in MAINTENANCE.md as needing author-level decisions). Authored research material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "cffa30f28e76f5d6e403f79eba11db50d25c636e490fcf567590933aa3220c78"
+    },
+    {
+      "file": "false-cognates.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "3a14b9bdb1320b8dd4eb1d4e80a7ebfa27bb11608317d95c8c8584080ea4e362"
+    },
+    {
+      "file": "generics.md",
+      "rationale": "Companion page for a named paper and web-book chapter: \"describes the model of Ref:tesslerGenerics and is taken from the chapter on generic language from problang.org\". Polished paper/chapter-companion material by the model's author.",
+      "introExempt": true,
+      "bodySha256": "991f20b011ba4c7e7f9d60c8a937249f4adef3436faf05a107ab28032a9c57d9"
+    },
+    {
+      "file": "gl-polite-irony.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "db9bf3f60ad28fe48873ac89e35b00cafab4e3be88b671ec6f2bd74a27356d12"
+    },
+    {
+      "file": "gonzalez-zhang-irony.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "10392f256965446a31709035bbd53e0021783bded1dc5d00fcd6ffee141f97d4"
+    },
+    {
+      "file": "habituals-cogsci2016.md",
+      "rationale": "Companion page for a named paper: \"the model of habitual language used in Ref:tesslerHabitualsCogSci\" (CogSci 2016 in the title). Polished paper-companion material by the paper's authors.",
+      "introExempt": true,
+      "bodySha256": "9b7c5281c78e1679d15bcae323e7b323de74c92306c91c406e4e8fd5110d764d"
+    },
+    {
+      "file": "hii-generics.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "17484291c6b6f9c11c14d764d42bd3b9f60c3a33ce12513df273d3bcbd8e31d5"
+    },
+    {
+      "file": "hlms-comparison-class.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "57da1e3c89f7829091240a0e9dcae6a64bf5fd52381acba2621ac94bfb79adbc"
+    },
+    {
+      "file": "incremental.md",
+      "rationale": "WebPPL replication of a named paper's calculations (Cohn-Gordon et al. 2019, Figure 1), explicitly deferring prose explication to the paper. Polished paper-companion material.",
+      "introExempt": true,
+      "bodySha256": "8745d3c4443273911922df3ce8d469aaf134aaaba6a22f0786352dc002f0e292"
+    },
+    {
+      "file": "inferring-teachers-skill.md",
+      "rationale": "Webchurch implementation of the model described in a named paper (Ref:Bass2015NotBN) with substantial prose taken from the paper's framing. Polished paper-companion material.",
+      "introExempt": true,
+      "bodySha256": "00d1ddac85b925dcfad3e89a49b6f03f61d1ae030e5bc1940d18ce2046763c70"
+    },
+    {
+      "file": "intensifiers.md",
+      "rationale": "Presents the intensifying degree adverbs model of a named paper (\"as presented in Ref:Bennett2015int\", building on Ref:Lassiter2013adj). Paper-companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "e517607d5a7182b9c6facd12f7cb6006e97549a73acb6fc317fa54718acebf22"
+    },
+    {
+      "file": "jmr-irony-extension.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "c94243c8b20c2b77d7090406056bb45569e6bc74805ae98b33a1039a06858bbd"
+    },
+    {
+      "file": "jmss-irony.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "69cd68c6b56f68ffd8fae113ea2c803e8abedddfd76934b905d6bfff59283e49"
+    },
+    {
+      "file": "kachakeche-comparison-class.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "919e1ed7c27eaaf4ab3563c38ceee227ad0e14ca22e7d4b934b9723040153baa"
+    },
+    {
+      "file": "keysar.md",
+      "rationale": "Polished third-party research page on context uncertainty in RSA (Keysar director task) with an authored experimental narrative (\"We incorporate this into the model...\"). Not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "6463d06d08fbb79ab3fa60bef059e93c2908c698ab53e6a5a1410ace706fe8c9"
+    },
+    {
+      "file": "kids-scope.md",
+      "rationale": "Scope-ambiguity endorsement models in the same course/research project family as the protected scope pages (lxz-chinese-scope, CCG-scope). Polished third-party material; ambiguous authorship defaults to protected.",
+      "introExempt": true,
+      "bodySha256": "9451594c9db1e75efae5aa9b1a7874d5a6aaebef4c58a261ebe54d2ba4603d5a"
+    },
+    {
+      "file": "lai-irony.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "2df52a2ee98298002e295c3fc098df2f6455bca2402fb64117c1b127d385e42f"
+    },
+    {
+      "file": "learning-physics.md",
+      "rationale": "Companion link page for a named paper (Ref:ullman2014learning), quoting the paper and giving instructions to reproduce its computational experiments. Paper-companion material.",
+      "introExempt": true,
+      "bodySha256": "74f328fe17a0866f82d2f3654e69ba6706ab759b3c6efcc982e40a83d34a3724"
+    },
+    {
+      "file": "lucas-kemp-2015-replication.md",
+      "rationale": "Named replication of a specific external paper (Lucas and Kemp, 2015). Polished paper-companion material, not a generic repository example.",
+      "introExempt": true,
+      "bodySha256": "477251607cff064e283f7614913c23ff61fcc5862fee0c3e3f95688910633281"
+    },
+    {
+      "file": "luong-extensional-generics.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "5e993ca0789729ed1ff5b74356724a506060013813a9602da6dbdd93ed33b312"
+    },
+    {
+      "file": "lxz-chinese-scope.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "4854a98ac19e258ea8f4ba37f5c5922277b5b5d2f527e6f49cbe0a7fb7740b0d"
+    },
+    {
+      "file": "mindsets.md",
+      "rationale": "Polished paper companion. Explicit multi-author byline in the frontmatter author field (Kao, McDonald, Hawthorne, Ben-Dorr, Bennett), tied to a specific published Mindsets model rather than a generic repository example.",
+      "introExempt": true,
+      "bodySha256": "53d13bc73d6dbbe5096497d73ab9e90aaf8fce59f111e52649a380c61394ebf9"
+    },
+    {
+      "file": "numbergame.md",
+      "rationale": "Long-form polished tutorial essay on the number game with a distinct authorial voice not matching repository-maintained pages. Ambiguous third-party authorship defaults to protected.",
+      "introExempt": true,
+      "bodySha256": "1159b52f8424cc074c93c2005dfb6ad22f4a844fcd0cd4ec7d280e617d72c87a"
+    },
+    {
+      "file": "overinf.md",
+      "rationale": "Companion page for a named paper: production of referring expressions \"described further in Degen et al\" (arXiv 1903.08237), with the paper's experimental contexts and figures. Polished paper-companion material by the paper's authors.",
+      "introExempt": true,
+      "bodySha256": "9c92fd1b7d2c376d80ccc4c41a8c0e74da9266ac5b068b85cea26184cc2e1ba5"
+    },
+    {
+      "file": "overinformativeness_boolean.md",
+      "rationale": "Part of the overinformativeness research project family (Degen et al). Third-party research exploration code; ambiguous authorship defaults to protected.",
+      "introExempt": true,
+      "bodySha256": "7d4987063141ccc13ba9d7cfd1e70e076d0a2be3c193e96ae401c34c98711630"
+    },
+    {
+      "file": "overinformativeness_explorer.md",
+      "rationale": "Part of the overinformativeness research project family (Degen et al). Third-party research artifact consisting entirely of model code; adding prose would put words in the original authors' mouths.",
+      "introExempt": true,
+      "bodySha256": "9e42eab6b9024727f78c5cda25caee670208616d3982adaa1c2d8c2da30297c1"
+    },
+    {
+      "file": "PLU-2019-projects.md",
+      "rationale": "Compilation of multiple 2019 Probabilistic Language Understanding course projects with per-section student attribution (Xirong Cao; Grant Chodos and Adeh Hakobian; Zeinab Kachakeche; and others). Polished course-project companion material.",
+      "introExempt": true,
+      "bodySha256": "c093475f41cc50d3e60fc058577e97fc06ea0a67a9f715a67af34648e2620a55"
+    },
+    {
+      "file": "plural-predication.md",
+      "rationale": "Companion page for a named paper: \"the model of ambiguity resolution in plural predication from Scontras and Goodman 2016\". Polished paper-companion material by the paper's authors.",
+      "introExempt": true,
+      "bodySha256": "ec74973dada2466f25b7d352de4267179032577328519bdb8df7834b2fc826be"
+    },
+    {
+      "file": "politeness-cogsci2016.md",
+      "rationale": "Companion page for a named paper: \"the model of polite language used in Ref:yoonTesslerPolitenessCogSci\" (CogSci 2016 in the title). Polished paper-companion material by the paper's authors.",
+      "introExempt": true,
+      "bodySha256": "dcd7eba2e3e1027986d942fc3a5127256073a5d77e275320703d56e4499db7e7"
+    },
+    {
+      "file": "politeness-qud.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "763ac8798feedecce3d637563362780f5f98b44e1f301a5a9b604abf42044ad0"
+    },
+    {
+      "file": "politeness.md",
+      "rationale": "Companion page for named papers: \"the model used in Ref:yoon_tessler_fg_2018\" plus a \"Polite RSA (CogSci 2017)\" section. Polished paper-companion material by the papers' authors.",
+      "introExempt": true,
+      "bodySha256": "4d9b029b01796f07a2dc5f5b991337db5fc4a33a0d164aff318211a6d356824b"
+    },
+    {
+      "file": "progressive-shift.md",
+      "rationale": "Explicit byline in the body (by Becky Jarvis and Gunnar Lund). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "21f3aa96670852dc21281eeb789659335a30453b41bda2ba18b351ca917a3621"
+    },
+    {
+      "file": "projective-content.md",
+      "rationale": "Church code explicitly \"accompanying the paper 'A rational speech-act model of projective content' by Ciyang Qing, Noah D. Goodman, and Daniel Lassiter, submitted to CogSci 2016\". Paper-companion material by the paper's authors.",
+      "introExempt": true,
+      "bodySha256": "a60429ee57f3932ad74086f47b6d45c0f9c3acb09f271e67775cdd2262e5c0d7"
+    },
+    {
+      "file": "pronouns.md",
+      "rationale": "Explicit byline in the body (by Alandi Bates and Cheryl Choi). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "2eb6d75e431fed7fe0a8f23f54fb453800f16f8ae4919d79389f953ae6e89f1c"
+    },
+    {
+      "file": "prosody.md",
+      "rationale": "Implementation of the prosody model of a named paper (Cite:Bergen2014prosody as the references section). Paper-companion material, likely by the paper's authors; ambiguity defaults to protected.",
+      "introExempt": true,
+      "bodySha256": "d79d2135b50dd33d9b226360156f087b5de09335b8d7fd98eda1ff450800e03a"
+    },
+    {
+      "file": "singh-uyeda-pronouns.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "cbc2c205184e008b3231d112245bd3f5ed3d1dfca88879c1af753e9999b70411"
+    },
+    {
+      "file": "social-and-direct-learning.md",
+      "rationale": "Reference implementation for a published study of learning from social and direct evidence (doi:10.1037/dec0000088). Preserve the authored research page.",
+      "introExempt": true,
+      "bodySha256": "3fb86ac3850142d6dde221da862eb74e5ba065732c97bacef93d9e7857736c49"
+    },
+    {
+      "file": "social-meaning.md",
+      "rationale": "WebPPL replication of a named paper's calculations (Burnett 2019 social meaning games), explicitly deferring prose explication to the paper. Polished paper-companion material.",
+      "introExempt": true,
+      "bodySha256": "cb73cd8d63b557cae92576e5cbb6bcc2277da2ac46483462e11b096a5dfb70f4"
+    },
+    {
+      "file": "spanish-gender.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "41ab732b5de13e9e2990237acf6ef6c7ba28faf8bb6e04fa797039dff54ee439"
+    },
+    {
+      "file": "spector-rsa.md",
+      "rationale": "Explicit attribution in the body: Benjamin Spector's RSA model of homogeneity, \"Implementation by Lucas Champollion\". Polished third-party paper-companion material.",
+      "introExempt": true,
+      "bodySha256": "947130ae74d9f9693f0513aa629f17e37b26114de2c59db00195c010be6b4418"
+    },
+    {
+      "file": "syllogisms-cogsci14.md",
+      "rationale": "Presentation page for the syllogistic reasoning as communication model of Tessler's CogSci 2014 paper (filename and sibling pages reference Ref:tessler2014syllogisms). Polished paper-companion material by the paper's author.",
+      "introExempt": true,
+      "bodySha256": "3563a95b1dabbad0672bbd3d52c3489912a6297d0145a3b0dbe5809661345d7b"
+    },
+    {
+      "file": "syllogisms-equivalence-cogsci14.md",
+      "rationale": "Equivalence-class variant of the CogSci 2014 syllogism model using best-fit parameters from Ref:tessler2014syllogisms. Polished paper-companion material by the paper's author.",
+      "introExempt": true,
+      "bodySha256": "b5143a3c70b6b7cc2b4f872a839e01915b6c2656f9cfbc41f06042f7988bde85"
+    },
+    {
+      "file": "syllogisms-esslli2015.md",
+      "rationale": "ESSLLI 2015 extension of the syllogistic reasoning model of Ref:tessler2014syllogisms with empirically measured priors. Polished paper/teaching-companion material by the paper's author.",
+      "introExempt": true,
+      "bodySha256": "e3bb9ec6ff16ea80618e367cd945398f412b8607baf0f6c3bd679e0155953e23"
+    },
+    {
+      "file": "the-49ers-are-going-to-win.md",
+      "rationale": "Distinctive authored exploration of motivated belief with an individual voice and playful framing not matching repository-maintained pages. Ambiguous third-party authorship defaults to protected.",
+      "introExempt": true,
+      "bodySha256": "17b6099656f23d5746be18f977c96753762447ac7d28396f9f99cef5fa6fb1df"
+    },
+    {
+      "file": "torabian-politeness-QUDs.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "e491f079f11cf67f3e37ea2f5965b6c2c67d9bdfa416e70b02ceb97d51900ef7"
+    },
+    {
+      "file": "upadhye-aspect.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "6bc3c8f7783c17fc72464bf31eae77fe294991dc68e2e920bfc18509044153c5"
+    },
+    {
+      "file": "wonkyworlds.md",
+      "rationale": "Model page for the named paper \"Wonky worlds\" (Degen, Tessler, and Goodman 2015), building its RSA variants section by section. Paper-companion material by the paper's authors.",
+      "introExempt": true,
+      "bodySha256": "c5e2ff0b42128456cde1b9186e9c2537105f27c3a4184b32cfc9169760e36495"
+    },
+    {
+      "file": "word-learning.md",
+      "rationale": "Webchurch implementation of the model of a named paper (Ref:Xu2007dt word learning). Named-paper framing, parallel to the protected lucas-kemp-2015-replication entry.",
+      "introExempt": true,
+      "bodySha256": "349f723af7d30c6090e75fd024086d8ca13feb390cb7992f173ab0bbf5d296be"
+    },
+    {
+      "file": "zhu-antonyms.md",
+      "rationale": "Probabilistic Language Understanding course project. Explicit student byline or attribution line in the body (see MAINTENANCE.md title-normalization note on the 2026-06-12 prose pass). Polished course-project companion material, not a repository-maintained generic example.",
+      "introExempt": true,
+      "bodySha256": "f0ac3526e2150265755e6b3ca70578f4fe9494c930c5bd758647c14f3e05124b"
+    }
+  ]
+}

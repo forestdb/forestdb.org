@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "hashAlgorithm": "sha256",
+  "notes": "Fixture policy for scripts/validate-models.test.js. Not the real corpus policy.",
+  "protectedPages": [
+    {
+      "file": "valid-protected.md",
+      "rationale": "Fixture: protected page whose stored hash matches its current body.",
+      "introExempt": true,
+      "bodySha256": "da1ed90d7daa9503656976d00e82fb0d1377852974964f78b789304a9c8f2bf7"
+    },
+    {
+      "file": "protected-tampered.md",
+      "rationale": "Fixture: protected page whose stored hash is deliberately wrong to test tamper detection.",
+      "introExempt": true,
+      "bodySha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "file": "missing-from-disk.md",
+      "rationale": "Fixture: protected entry with no corresponding file on disk.",
+      "introExempt": true,
+      "bodySha256": "1111111111111111111111111111111111111111111111111111111111111111"
+    }
+  ]
+}

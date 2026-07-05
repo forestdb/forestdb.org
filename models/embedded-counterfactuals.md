@@ -2,11 +2,11 @@
 layout: model
 title: Embedded Counterfactuals
 model-language: church
-model-category: Counterfactuals and Explanations
+model-category: Graphical Models and Causality
 model-status: code
 ---
 
-Should counterfactual reasoning involve an embedded query?
+Should counterfactual reasoning involve an embedded query? This Church model compares two ways of answering that for binary variables A, B, C, and D, all true in the actual world: one nests a fresh enumeration-query over a shadow copy of the causal model, the other conditions the actual and counterfactual constraints together in a single query.
 
 For the following background knowledge and counterfactual inference, these can give different counterfactual predictions.
 

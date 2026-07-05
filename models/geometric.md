@@ -2,12 +2,12 @@
 layout: model
 title: Geometric Distribution
 model-status: code
-model-category: Miscellaneous
+model-category: Probability and Bayesian Data Analysis
 model-tags: recursion
 model-language: church
 ---
 
-A simple recursively defined distribution on the integers.
+Repeated coin flips build a geometric distribution over the non-negative integers here, stopping and returning the current count on the first success in a purely recursive definition.
 
     (define (geometric p)
       (if (flip p)

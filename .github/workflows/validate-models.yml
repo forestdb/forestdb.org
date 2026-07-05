@@ -1,0 +1,32 @@
+name: Validate models
+
+on:
+  push:
+    branches: [gh-pages]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run validator tests
+        run: node --test scripts/validate-models.test.js scripts/check-built-site.test.js scripts/test-models/assert-report.test.js scripts/test-models/runner.test.js
+
+      - name: Validate model metadata and editorial policy
+        run: node scripts/validate-models.js
+
+      - name: Build Jekyll site
+        run: docker run --rm -v "$PWD":/site -w /site jekyll/jekyll:4.4.1 jekyll build
+
+      - name: Check rendered model index
+        run: node scripts/check-built-site.js

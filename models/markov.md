@@ -2,7 +2,7 @@
 layout: model
 title: Markov Model
 model-status: code
-model-category: Machine Learning
+model-category: Time Series and Stochastic Processes
 model-tags: temporal models
 model-language: church
 ---

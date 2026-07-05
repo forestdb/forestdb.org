@@ -2,7 +2,7 @@
 title: "Motivated Belief: The 49ers Are Going To Win"
 layout: model
 model-language: church
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-status: code
 ---
 

@@ -2,10 +2,12 @@
 layout: model
 title: Generics across generations
 model-status: hidden
-model-category: Miscellaneous
+model-category: Language and Pragmatics
 model-language: webppl
 model-language-version: v0.9.6
 ---
+
+This model traces generic statements across generations of speakers and listeners. It asks whether linguistic transmission can preserve a generic belief about a rare property while agents still represent that property as uncommon.
 
 # Question
 

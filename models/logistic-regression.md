@@ -2,7 +2,7 @@
 layout: model
 title: Bayesian Logistic Regression
 model-status: code
-model-category: Machine Learning
+model-category: Regression and Statistical Learning
 model-tags: machine learning
 model-language: church
 ---

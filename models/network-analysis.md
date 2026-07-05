@@ -2,7 +2,7 @@
 layout: model
 title: Network Analysis
 model-status: link
-model-category: PPAML Challenge Problems
+model-category: Time Series and Stochastic Processes
 model-tags: graphs
 ---
 

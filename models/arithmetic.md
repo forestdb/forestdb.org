@@ -2,12 +2,12 @@
 layout: model
 title: Inducing Arithmetic Functions
 model-status: code
-model-category: Concept Learning
+model-category: Program Induction and Concept Learning
 model-tags: concepts, program induction
 model-language: church
 ---
 
-This program induces a deterministic arithmetic function from input-output examples.
+This program searches a recursively defined space of arithmetic functions built from addition, subtraction, and constants, then conditions on a handful of input-output examples to infer which function produced them. Rejection sampling recovers the function directly; a later variant conditions on likelihood instead of exact matches so noisier, stochastic functions can be inferred too.
 
     (define (random-arithmetic-fn)
       (if (flip 0.3)

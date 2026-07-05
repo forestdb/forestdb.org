@@ -2,7 +2,7 @@
 layout: model
 title: Blue-eyed Islanders
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Agents, Games, and Social Reasoning
 model-tags: theory of mind, game theory
 model-language: church
 ---
@@ -11,7 +11,9 @@ The blue-eyed islanders puzzle (also known as the *muddy children*
 and *cheating husbands* problem) is a well-known problem in
 epistemic logic (Ref:Gamow1958wh; Ref:Tao2009uu). The setup is as
 follows: There is a tribe on a remote island. Out of the *n* people
-in this tribe, *m* have blue eyes. Their religion forbids them to
+in this tribe, *m* have blue eyes.
+
+Their religion forbids them to
 know their own eye color, or even to discuss the topic. Therefore,
 everyone sees the eye color of every other islander, but does not
 know their own eye color. If an islander discovers their eye color,

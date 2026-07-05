@@ -2,7 +2,7 @@
 layout: model
 title: Latent Dirichlet Allocation
 model-status: code
-model-category: Machine Learning
+model-category: Regression and Statistical Learning
 model-tags: language, hierarchical models, shred, benchmark, machine learning
 model-language: church
 ---

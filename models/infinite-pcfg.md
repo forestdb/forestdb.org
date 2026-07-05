@@ -2,10 +2,12 @@
 layout: model
 title: Infinite Probabilistic Context-Free Grammar
 model-status: code
-model-category: Nonparametric Models
+model-category: Bayesian Nonparametrics
 model-tags: language, pcfg
 model-language: church
 ---
+
+The set of nonterminal symbols in this probabilistic context-free grammar is unbounded, generated on the fly by a Dirichlet process memoizer rather than fixed in advance. Starting from the symbol S, each nonterminal recursively expands into either a terminal or a fresh pair of nonterminals, producing a random parse tree.
 
     (define terms '(a b c d))
     

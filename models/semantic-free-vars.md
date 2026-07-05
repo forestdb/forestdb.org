@@ -2,7 +2,7 @@
 layout: model
 title: Pragmatics with Semantic Free Variables
 model-status: link
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: lingustics, pragmatics, theory of mind
 model-language: webppl
 ---

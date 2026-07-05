@@ -2,11 +2,13 @@
 layout: model
 title: Scoring Rules
 model-status: code
-model-category: Miscellaneous
+model-category: Agents, Games, and Social Reasoning
 model-tags: mechanism design, game theory
 model-language: webppl
 model-language-version: pre-v0.7
 ---
+
+A model comparing scoring rules used to elicit an agent's belief distribution over three events, where the agent chooses what to report in order to maximize its expected score under a linear, logarithmic, or quadratic rule. Only the logarithmic and quadratic rules turn out to be incentive-compatible, inducing the agent to report its true belief.
 
 ~~~~
 ///fold:

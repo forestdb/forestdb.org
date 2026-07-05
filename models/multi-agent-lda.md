@@ -3,9 +3,11 @@ layout: model
 title: Multi-Agent LDA
 model-language: webppl
 model-language-version: pre-v0.7
-model-category: Machine Learning
+model-category: Regression and Statistical Learning
 model-status: code
 ---
+
+Latent Dirichlet allocation applies here to sequences of agent actions, treating each agent as a mixture over hidden groups and each group as its own distribution over actions. Given five agents' observed action histories, inference recovers agent1's posterior distribution over which groups its behavior draws from.
 
 ~~~~
 // Parameters

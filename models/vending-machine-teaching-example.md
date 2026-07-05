@@ -1,10 +1,13 @@
 ---
 layout: model
-title: SAILORS teaching example
+title: Vending Machine Teaching Example
 model-language: church
-model-category: Miscellaneous
+model-category: Agents, Games, and Social Reasoning
 model-status: code
 ---
+
+A teaching example introducing Bayesian inference through a vending machine that returns a cookie or bagel each time a button is pressed. The exercises walk through generative models of button presses and outcomes, then use Bayes' rule to infer, from an observed cookie or bagel, which button a child named Amy most likely pressed.
+
 ### Outline
 - Probability and why it's useful in a world where there is often uncertainty
 - Generative models and why they're useful for describing situations that often involve uncertainty

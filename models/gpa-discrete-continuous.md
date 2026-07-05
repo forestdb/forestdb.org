@@ -2,12 +2,12 @@
 layout: model
 title: Grade Inflation
 model-status: code
-model-category: Miscellaneous
+model-category: Probability and Bayesian Data Analysis
 model-tags: discrete, continuous
 model-language: church
 ---
 
-This is an example of a mixed discrete-continuous model.
+A university location, either the United States or India, gets picked first, and then a GPA is drawn from a location-specific mixture of a point mass and a beta distribution. Conditioning on an observed GPA of 4.0, inference recovers the posterior probability that the student attends each system.
 
     (define (american_gpa) 
       (if (flip .9) 

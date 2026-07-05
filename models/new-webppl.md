@@ -2,12 +2,12 @@
 layout: model
 title: A Program in WebPPL v0.9.6
 model-status: hidden
-model-category: Miscellaneous
+model-category: Regression and Statistical Learning
 model-language: webppl
 model-language-version: v0.9.6
 ---
 
-Here is the program:
+This compact Bayesian linear regression example demonstrates the WebPPL v0.9.6 page format. It infers a slope, intercept, and observation noise before predicting the response at a new input.
 
 ~~~~
 var xs = [0, 1, 2, 3];

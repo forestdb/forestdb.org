@@ -2,7 +2,7 @@
 layout: model
 title: Politeness
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: language, pragmatics
 model-language: webppl
 model-language-version: v0.9.7

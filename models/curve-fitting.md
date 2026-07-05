@@ -2,7 +2,7 @@
 layout: model
 title: Curve Fitting
 model-status: code
-model-category: Miscellaneous
+model-category: Regression and Statistical Learning
 model-tags: function learning, occam's razor
 model-language: church
 ---

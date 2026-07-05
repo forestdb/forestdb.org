@@ -2,7 +2,7 @@
 layout: model
 title: Noisy Logic
 model-status: code
-model-category: Miscellaneous
+model-category: Graphical Models and Causality
 model-tags: logic, library
 model-language: church
 ---

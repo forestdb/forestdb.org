@@ -2,7 +2,7 @@
 layout: model
 title: Politeness with an Arousal QUD
 model-language: webppl
-model-category: Probabilistic Language Understanding
+model-category: Language and Pragmatics
 model-status: code
 ---
 
@@ -259,7 +259,6 @@ var speaker1 = cache(function(state, arousal, goal, phi) {
     return utterance
   }})
 })
-///
 var pragmaticListener = function(utterance) {
   Infer({model: function(){
     var state = statePrior()

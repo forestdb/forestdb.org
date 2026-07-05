@@ -2,7 +2,7 @@
 layout: model
 title: Causal Support
 model-status: code
-model-category: Concept Learning
+model-category: Graphical Models and Causality
 model-tags: concepts 
 model-language: church
 ---

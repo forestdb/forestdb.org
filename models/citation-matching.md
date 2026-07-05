@@ -2,10 +2,12 @@
 layout: model
 title: Citation Matching
 model-status: code
-model-category: Machine Learning
+model-category: Bayesian Nonparametrics
 model-tags: shred, benchmark
 model-language: church
 ---
+
+Given a handful of noisy, inconsistently formatted citations, this model infers which underlying papers they actually refer to. A Dirichlet process prior generates a pool of candidate papers, a soft matching score links each citation to a paper, and a repulsion term discourages collapsing distinct papers together; Metropolis-Hastings then recovers the likely paper behind each citation.
 
     (define (zip xs1 xs2) 
       (if (or (is_null xs1) (is_null xs2)) '() 

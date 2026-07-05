@@ -3,7 +3,7 @@ layout: model
 title: Indian Buffet Process
 model-status: static
 model-status-verbose: This procedure deliberately does not halt; it is shown as an illustration, not a runnable model.
-model-category: Nonparametric Models
+model-category: Bayesian Nonparametrics
 model-tags: dp, nonparametrics
 model-language: church
 ---

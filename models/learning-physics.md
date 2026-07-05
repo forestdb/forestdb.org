@@ -2,7 +2,7 @@
 layout: model
 title: Learning Physics from Dynamical Scenes
 model-status: link
-model-category: Inverse Dynamics
+model-category: Scientific and Physical Models
 model-tags: dynamics
 ---
 

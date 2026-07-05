@@ -2,7 +2,7 @@
 layout: model
 title: Learning from Social and Direct Evidence
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Agents, Games, and Social Reasoning
 model-tags: social reasoning, ToM
 model-language: church
 ---

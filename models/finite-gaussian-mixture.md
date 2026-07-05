@@ -2,7 +2,7 @@
 layout: model
 title: Finite Gaussian Mixture
 model-status: code
-model-category: Miscellaneous
+model-category: Regression and Statistical Learning
 model-tags: mixture, gaussian, simple
 model-language: church
 ---

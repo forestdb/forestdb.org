@@ -2,12 +2,12 @@
 layout: model
 title: Markov Logic Network
 model-status: code
-model-category: Miscellaneous
+model-category: Graphical Models and Causality
 model-tags: mln
 model-language: church
 ---
 
-Example Markov Logic Network from Richardson, M., & Domingos, P. (2006). Markov logic networks. Machine learning, 62(1-2), 107-136.
+This model implements the smokers-and-friends Markov Logic Network from Richardson and Domingos (2006), with mem'd smokes, cancer, and friends predicates for two people. Soft implications penalize smoking without cancer and friends who disagree on smoking, and mh-query, using either probability weighting or explicit factor calls, infers the posterior probability that Bob has cancer given that Anna smokes and is friends with him.
 
     (define (implies x y) (or (not x) y))
     

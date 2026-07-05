@@ -2,7 +2,7 @@
 layout: model
 title: Infinite Hidden Markov Model
 model-status: code
-model-category: Nonparametric Models
+model-category: Bayesian Nonparametrics
 model-tags: mem, nonparametrics, mixture, hmm
 model-language: church
 ---
@@ -52,7 +52,7 @@ Compare to a version using `unfold`:
     (define (transition state)
       (if (flip .2)
           'stop
-          (state->transition-model state)))
+          (sample (state->transition-model state))))
     
     (define state->observation-model 
       (mem 

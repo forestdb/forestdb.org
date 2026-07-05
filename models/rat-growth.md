@@ -2,10 +2,12 @@
 layout: model
 title: Rat Growth
 model-status: code
-model-category: Undirected Constraints
+model-category: Probability and Bayesian Data Analysis
 model-tags: machine learning, shred, benchmark
 model-language: church
 ---
+
+A hierarchical linear regression fits the growth trajectories of thirty rats measured at five ages, drawing each rat's own slope and intercept from shared population-level Gaussian priors. Metropolis-Hastings conditions on the observed weights to infer those population-level growth parameters.
 
     (define (zip xs1 xs2) 
       (if (or (is_null xs1) (is_null xs2)) '() 

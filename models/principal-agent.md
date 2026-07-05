@@ -4,10 +4,10 @@ title: The Principal-Agent Problem for Delegation-as-Prediction
 model-status: code
 model-language: webppl
 model-language-version: pre-v0.7
-model-category: Miscellaneous
+model-category: Agents, Games, and Social Reasoning
 ---
 
-Follow-up to:
+This model is a follow-up to Scoring Rules, extending the analysis of truthful prediction to settings where an agent's report can influence, rather than merely predict, which event actually occurs.
 
 - [Scoring Rules](/models/scoring-rules.html)
 

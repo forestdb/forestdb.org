@@ -2,7 +2,7 @@
 layout: model
 title: Overinformativeness
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: language, pragmatics, overinformativeness
 model-language: webppl
 model-language-version: v0.9.7

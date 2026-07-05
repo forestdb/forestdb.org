@@ -2,7 +2,7 @@
 layout: model
 title: Plural Predication
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: language, ambiguity, plurality, interpretation noise
 model-language: webppl
 model-language-version: v0.9.6

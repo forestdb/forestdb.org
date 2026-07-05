@@ -2,10 +2,12 @@
 layout: model
 title: Irony
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: linguistics, pragmatics
 model-language: church
 ---
+
+A model of irony as pragmatic reasoning about weather, where a speaker's utterance about the state of the world can also communicate their valence and arousal toward it, and a listener jointly infers all three from what was said.
 
     ;; There are three possible states the weather could be in: terrible, ok, or amazing
     (define states (list 'terrible 'ok 'amazing))

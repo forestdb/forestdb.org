@@ -2,7 +2,7 @@
 layout: model
 title: Social meaning
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: language, pragmatics, sociolinguistics, social meaning
 model-language: webppl
 ---

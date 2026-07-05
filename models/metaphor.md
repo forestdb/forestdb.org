@@ -2,12 +2,12 @@
 layout: model
 title: Metaphor
 model-status: code
-model-category: Reasoning about Reasoning
+model-category: Language and Pragmatics
 model-tags: linguistics, pragmatics
 model-language: church
 ---
 
-A model of metaphor interpretation as pragmatic reasoning:
+A model of metaphor interpretation as pragmatic reasoning, where hearing "John is a whale" leads a listener to infer both which category John belongs to and which of his features the speaker intends to highlight.
 
 The speaker chooses an utterance conditioned on the listener inferring a state of the world that is correct and relevant to the speaker's communicative goal. The listener chooses an interpretation conditioned on the speaker selecting the given utterance when intending to communicate this meaning. Different animal categories are associated with different features with empirically measured priors. The speaker's goal may be to communicate different features; the listener is uncertain about the speaker's goal and performs joint inference on the goal and the intended meaning. In this example, we model the reasoning behind interpreting an utterance "John is a whale."
     

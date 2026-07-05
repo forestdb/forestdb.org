@@ -11,7 +11,7 @@ This model infers what forces govern a simple physical scene from the scene's ob
 
 In the observed scene, one particle moves at high speed towards another particle at rest. Inference is over the dynamics that produced the observed trajectory: did collision forces act between the particles, and if so, with what elasticity? The initial velocities are also uncertain. Each hypothesis is evaluated by simulating the scene forward with RK4 and softly conditioning the simulated trajectory to match the observed one at a subsampled set of points, so every MH step integrates the equations of motion anew.
 
-The program runs this inference for two scenes: one where the particles truly do not interact, so the moving particle passes straight through the other (the run in the original program), and one where collision forces truly act, so the particles collide almost inelastically. In the first case the posterior concludes that no collision forces were at play, and the elasticity posterior stays at its prior; in the second it concludes that collision forces were present and recovers the true elasticity of 0.1. Expect MCMC to take on the order of ten seconds per scene.
+The program runs this inference for two scenes: one where the particles do not interact, so the moving particle passes through the other, and one where collision forces produce an almost inelastic collision. The first posterior favors no collision force; the second favors collision and recovers elasticity near its true value of 0.1. The short paths and modest MCMC settings keep both examples practical in the browser and in headless checks.
 
 ~~~~
 // ----- 2-D vector helpers -----
@@ -194,8 +194,8 @@ var v0 = [[0, 0], [1000, 0]];
 var sceneProperties = [{ mass: 2, size: 12, elastic: 0.1 },
                        { mass: 1, size: 12, elastic: 0.1 }];
 var dt = 0.001;
-var pathLength = 300;
-var numInferencePoints = 100;
+var pathLength = 250;
+var numInferencePoints = 50;
 
 // ----- Observation model -----
 
@@ -234,7 +234,7 @@ var addNoiseVL = function(A, noiseVar) {
 // scene, the particles' elasticity, and the initial velocities.
 var inferDynamics = function(observedPath) {
   var reducedObserved = pathSplitter(observedPath, numInferencePoints);
-  return Infer({ method: 'MCMC', samples: 200, lag: 1, burn: 500 }, function() {
+  return Infer({ method: 'MCMC', samples: 100, lag: 1, burn: 200 }, function() {
     var collision = flip(0.5);
     var inferredForces = collision ? [collisionF] : [nullF];
     var mass1 = Math.exp(0.2);  // deterministic, as in the original code
@@ -292,10 +292,10 @@ This page was originally written for desktop Church (Bher/Ikarus) and could not 
 
 - Particle properties are records rather than association lists, and angles are computed with `Math.atan2`, which is equivalent to the original's case analysis.
 - The original parameterized Gaussians by variance (see its `gaussian-lnpdf`); the port keeps the variance parameterization through a helper.
-- The original's `noisy=` soft-equality conditions are folded into a single equivalent `factor`. As in the original's reduced comparison, the condition uses 100 subsampled path points; the original also listed a comparison over the full path.
+- The original's `noisy=` soft-equality conditions are folded into a single equivalent `factor`. The browser model conditions on 50 subsampled path points rather than the full path.
 - The original's `mh-query` returned `(list mass1 mass2)`, but both masses were the deterministic constant `(exp 0.2)`; the port returns the inferred force law and elasticity instead.
 - The original only ran the pass-through scene (its `true-Fl` was the null force); the port also runs the collision scene, which the original's output filenames suggest was the intended experiment.
-- MH settings: 500 burn-in iterations plus 200 samples per scene (the original requested 10 samples).
+- MH settings: 200 burn-in iterations plus 100 samples per scene (the original requested 10 samples).
 
 The original Church program:
 

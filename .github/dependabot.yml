@@ -13,3 +13,14 @@ updates:
     open-pull-requests-limit: 0
     ignore:
       - dependency-name: "*"
+  # The workflows themselves can move: one grouped PR a month at most, validated
+  # by the workflows it touches.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 1
+    groups:
+      actions:
+        patterns:
+          - "*"

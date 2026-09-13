@@ -1,6 +1,9 @@
 # scripts/test-models intentionally installs old webppl releases (0.6.1+) to
 # test models against the runtimes they were written for. Their dependency
-# trees are ancient by design; version-update PRs would only break them.
+# trees are ancient by design; version-update PRs would only break them, and
+# security updates cannot resolve either (webppl 0.6.1 pins immutable ^3, so
+# the 2026-09-04 security job failed with security_update_not_possible).
+# The ignore rule below covers security updates too.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -8,3 +11,5 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "*"

@@ -114,7 +114,13 @@ Automated checks keep the site healthy (see `.github/workflows/`):
 
 - **Validate models** checks frontmatter, category membership, unique titles,
   concise introductions on repository-maintained pages, and body hashes for
-  protected third-party pages. Run `node scripts/validate-models.js` locally.
+  protected third-party pages. It first runs the unit tests (`node --test
+  scripts/validate-models.test.js scripts/check-built-site.test.js
+  scripts/test-models/assert-report.test.js scripts/test-models/runner.test.js`),
+  then `node scripts/validate-models.js`, builds the site with Jekyll 4.4.1
+  in Docker, and checks the rendered model index with
+  `node scripts/check-built-site.js`. Run the tests and the validator locally
+  with the same commands.
 - **Test models** runs every WebPPL model headless against its declared
   version and rejects failures outside the documented baseline. Run locally
   with `cd scripts/test-models && npm install --install-strategy=nested &&
